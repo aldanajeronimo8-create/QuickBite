@@ -6,8 +6,10 @@ import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   { ignores: ['dist', 'coverage', 'node_modules', 'playwright-report'] },
+
   js.configs.recommended,
   ...tseslint.configs.recommended,
+
   {
     files: ['**/*.{ts,tsx}'],
     plugins: {
@@ -22,5 +24,17 @@ export default tseslint.config(
       'react-hooks/set-state-in-effect': 'warn',
     },
   },
+
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        crypto: 'readonly',
+      },
+    },
+  },
+
   prettier,
 );
