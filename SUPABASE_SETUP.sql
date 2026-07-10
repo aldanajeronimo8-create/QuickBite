@@ -1,0 +1,7 @@
+-- QuickBite Supabase setup
+-- Canonical source: supabase/migrations/20260609000000_initial.sql
+-- Apply with:
+--   supabase link --project-ref <your-project-ref>
+--   supabase db push
+--
+-- This file intentionally contains no project IDs, URLs, API keys or service-role keys.
