@@ -19,7 +19,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "prebuild": "npm run patch:esbuild",
-    "build": "node --require ./scripts/vite-windows-netuse-fix.cjs ./node_modules/vite/bin/vite.js build --configLoader native",
+    "build": "vite build"
     "prepreview": "npm run patch:esbuild",
     "preview": "node --require ./scripts/vite-windows-netuse-fix.cjs ./node_modules/vite/bin/vite.js preview --host 0.0.0.0",
     "supabase:connect": "node scripts/connect-supabase.mjs",
