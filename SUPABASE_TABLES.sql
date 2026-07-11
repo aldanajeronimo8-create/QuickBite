@@ -1,0 +1,8 @@
+-- QuickBite database reference
+-- Use supabase/migrations/20260609000000_initial.sql as the authoritative schema.
+-- Tables:
+--   profiles, categories, products, orders, order_items, audit_logs
+-- Security:
+--   Row Level Security is enabled on all public tables.
+--   Admin-only writes use public.is_admin().
+--   Students can only read/create their own orders and order items.

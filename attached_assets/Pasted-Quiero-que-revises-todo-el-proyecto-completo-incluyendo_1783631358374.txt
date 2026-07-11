@@ -1,0 +1,57 @@
+Quiero que revises **todo el proyecto completo**, incluyendo todas las carpetas, subcarpetas y archivos, para identificar cualquier parte del código que necesite conectarse a Supabase pero que actualmente no tenga acceso o esté utilizando una configuración incorrecta.
+
+### Objetivo
+
+Garantizar que **todo el proyecto tenga una conexión permanente, centralizada y funcional con Supabase**, evitando errores de autenticación, inicialización o pérdida de conexión.
+
+### Tareas que debes realizar
+
+1. Analiza todas las carpetas del proyecto sin omitir ninguna.
+2. Identifica todos los archivos que:
+
+   * Importan Supabase.
+   * Realizan consultas a la base de datos.
+   * Usan autenticación.
+   * Acceden al Storage.
+   * Utilizan Realtime.
+   * Llaman a Edge Functions.
+3. Detecta cualquier archivo que:
+
+   * No tenga acceso al cliente de Supabase.
+   * Cree un cliente diferente innecesariamente.
+   * Utilice variables de entorno incorrectas.
+   * Tenga configuraciones incompletas.
+   * Genere errores por falta de conexión.
+4. Centraliza la conexión utilizando un único cliente de Supabase (singleton) para todo el proyecto.
+5. Modifica todos los imports para que utilicen ese cliente único.
+6. Elimina cualquier configuración duplicada o antigua relacionada con Supabase.
+7. Verifica que todas las variables de entorno necesarias existan y sean utilizadas correctamente.
+8. Corrige todas las rutas de importación rotas.
+9. Comprueba que todos los módulos compartan exactamente la misma instancia del cliente de Supabase.
+10. Asegúrate de que tanto el frontend como el backend utilicen la misma configuración.
+
+### Validaciones
+
+Después de realizar los cambios:
+
+* Recorre nuevamente todo el proyecto.
+* Confirma que no exista ningún archivo sin acceso a Supabase.
+* Confirma que no haya clientes duplicados.
+* Confirma que todas las consultas funcionen correctamente.
+* Confirma que autenticación, base de datos, Storage, Realtime y Edge Functions utilicen la misma configuración.
+
+### Importante
+
+* No elimines funcionalidades existentes.
+* No cambies la lógica del negocio.
+* No rompas rutas, componentes ni dependencias.
+* Solo modifica lo necesario para que toda la aplicación utilice correctamente Supabase.
+
+Al finalizar, genera un informe indicando:
+
+* Archivos modificados.
+* Archivos corregidos.
+* Archivos que ya estaban correctamente configurados.
+* Problemas encontrados.
+* Soluciones aplicadas.
+* Confirmación de que **todo el proyecto tiene acceso permanente y consistente a Supabase mediante una única configuración compartida**.
