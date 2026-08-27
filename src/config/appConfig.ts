@@ -6,7 +6,7 @@ export const appConfig = {
   appEnv: (import.meta.env.VITE_APP_ENV ?? 'development') as AppEnvironment,
   publicAppUrl: import.meta.env.VITE_PUBLIC_APP_URL ?? '',
   runtimeMode: (import.meta.env.VITE_RUNTIME_MODE ?? 'supabase') as RuntimeMode,
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? '',
+  apiBaseUrl: (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, ''),
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL ?? '',
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
   supabaseStorageBucket: import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? '',

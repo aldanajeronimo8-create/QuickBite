@@ -18,9 +18,10 @@ import { toast } from 'sonner';
 export function AdminPayments() {
   const { orders, updateOrder } = useDataStore();
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const activeOrders = useMemo(() => orders.filter((order) => !order.exported_at), [orders]);
 
   const filteredOrders = useMemo(() => {
-    let filtered = [...orders].sort(
+    let filtered = [...activeOrders].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
 
@@ -29,22 +30,22 @@ export function AdminPayments() {
     }
 
     return filtered;
-  }, [orders, filterStatus]);
+  }, [activeOrders, filterStatus]);
 
   const stats = useMemo(() => {
-    const pending = orders.filter((o) => o.payment_status === 'pending').length;
-    const confirmed = orders.filter((o) => o.payment_status === 'confirmed').length;
-    const rejected = orders.filter((o) => o.payment_status === 'rejected').length;
-    const totalConfirmed = orders
+    const pending = activeOrders.filter((o) => o.payment_status === 'pending').length;
+    const confirmed = activeOrders.filter((o) => o.payment_status === 'confirmed').length;
+    const rejected = activeOrders.filter((o) => o.payment_status === 'rejected').length;
+    const totalConfirmed = activeOrders
       .filter((o) => o.payment_status === 'confirmed')
       .reduce((sum, o) => sum + o.total, 0);
 
-    const pendingCash = orders.filter(
+    const pendingCash = activeOrders.filter(
       (o) => o.payment_method === 'cash' && o.payment_status === 'pending',
     );
 
     return { pending, confirmed, rejected, totalConfirmed, pendingCash };
-  }, [orders]);
+  }, [activeOrders]);
 
   const handleConfirmPayment = async (orderId: string) => {
     try {

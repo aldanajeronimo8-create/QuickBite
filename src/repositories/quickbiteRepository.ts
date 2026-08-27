@@ -245,12 +245,6 @@ export async function deleteOrder(id: string) {
   if (error) throw error;
 }
 
-export async function resetAllOrders() {
-  const { data, error } = await requireSupabaseClient().rpc('reset_all_orders');
-  if (error) throw error;
-  return Number(data ?? 0);
-}
-
 export async function listProfiles() {
   const { data, error } = await requireSupabaseClient()
     .from('profiles')
