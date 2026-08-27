@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   CreditCard,
@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
+import { exportOrdersToExcel } from '../../services/orderExportService';
 import { Button } from '../components/ui/button';
 import { Toaster } from '../components/ui/sonner';
+import { toast } from 'sonner';
 
 const P = '#1E3A8A';
 const S = '#14532D';
@@ -70,6 +72,7 @@ export function AdminLayout() {
   const location = useLocation();
   const { user, signOut } = useAuthStore();
   const { loadData, orders } = useDataStore();
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -78,6 +81,19 @@ export function AdminLayout() {
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const result = await exportOrdersToExcel();
+      await loadData({ silent: true });
+      toast.success(`Respaldo generado y ${result.resetCount} pedido(s) reiniciado(s).`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo exportar el respaldo.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (!user) return null;
@@ -188,13 +204,16 @@ export function AdminLayout() {
             <p className="text-white text-xs font-semibold">Exportar datos</p>
           </div>
           <p className="text-xs mb-2.5" style={{ color: '#86EFAC' }}>
-            Reporte del período disponible
+            Compras, compradores y stock
           </p>
           <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
             className="w-full text-xs font-bold py-1.5 rounded-lg transition-opacity hover:opacity-90"
             style={{ background: OK, color: '#052e16' }}
           >
-            ↓ Descargar CSV
+            {exporting ? 'Generando respaldo...' : '↓ Descargar Excel y reiniciar'}
           </button>
         </div>
 

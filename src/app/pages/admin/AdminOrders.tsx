@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Eye, EyeOff, FileSpreadsheet, RotateCcw, ShoppingBag, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
-import { exportWeeklyOrdersToExcel } from '../../../services/orderExportService';
+import { exportOrdersToExcel } from '../../../services/orderExportService';
 import type { Order } from '../../../lib/supabase';
 import { useDataStore } from '../../../store/dataStore';
 import { Badge } from '../../components/ui/badge';
@@ -108,11 +108,11 @@ export function AdminOrders() {
   const handleWeeklyExport = async () => {
     setExporting(true);
     try {
-      const result = await exportWeeklyOrdersToExcel();
+      const result = await exportOrdersToExcel();
       await loadData({ silent: true });
       setSelectedOrder(null);
       toast.success(
-        `Excel generado (${result.count} pedido(s)) y pedidos reiniciados en la app.`,
+        `Respaldo generado (${result.count} pedido(s)) y pedidos reiniciados en la app.`,
       );
     } catch (error) {
       toast.error(getOrderErrorMessage(error));
@@ -156,7 +156,7 @@ export function AdminOrders() {
             className="bg-green-700 text-white hover:bg-green-800"
           >
             <FileSpreadsheet className="h-4 w-4" />
-            {exporting ? 'Generando y reiniciando...' : 'Descargar Excel y reiniciar'}
+            {exporting ? 'Generando y reiniciando...' : 'Descargar respaldo Excel y reiniciar'}
           </Button>
           <Button
             onClick={handleResetOrders}
@@ -171,8 +171,8 @@ export function AdminOrders() {
       </div>
 
       <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        Al descargar el Excel, el archivo será el respaldo y todos los pedidos se eliminarán
-        permanentemente de la app.
+        El respaldo Excel contiene compras, detalle de productos, compradores e inventario. Al
+        descargarlo, todos los pedidos se eliminarán permanentemente de la app.
       </p>
 
       <Card className="mb-6 border-0 bg-white p-6 shadow-lg">
