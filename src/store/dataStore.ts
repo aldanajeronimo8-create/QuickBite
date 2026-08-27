@@ -36,7 +36,6 @@ interface DataState {
   addOrder: (orderData: repo.NewOrder) => Promise<string>;
   updateOrder: (id: string, updates: Partial<Order>) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
-  resetOrders: () => Promise<number>;
   addUser: (user: repo.NewManagedUser) => Promise<void>;
   updateUser: (user: repo.ManagedUserUpdate) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -155,17 +154,6 @@ export const useDataStore = create<DataState>((set, get) => ({
       metadata: { deleted: true },
     });
     set({ orders: get().orders.filter((order) => order.id !== id) });
-  },
-
-  resetOrders: async () => {
-    const deletedCount = await repo.resetAllOrders();
-    await remoteAudit({
-      action: 'order.reset',
-      entity: 'order',
-      metadata: { deleted_count: deletedCount },
-    });
-    set({ orders: [] });
-    return deletedCount;
   },
 
   addUser: async (user) => {

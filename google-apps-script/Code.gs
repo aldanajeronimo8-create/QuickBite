@@ -11,9 +11,9 @@ const SHEETS = {
 
 function doPost(event) {
   try {
-    const secret = PropertiesService.getScriptProperties().getProperty('EXPORT_SHARED_SECRET');
-    if (!secret || event.parameter.secret !== secret) return json({ error: 'unauthorized' }, 401);
     const payload = JSON.parse(event.postData.contents);
+    const secret = PropertiesService.getScriptProperties().getProperty('EXPORT_SHARED_SECRET');
+    if (!secret || payload.secret !== secret) return json({ error: 'unauthorized' }, 401);
     if (!payload.exportId || !Array.isArray(payload.sales)) return json({ error: 'invalid_payload' }, 400);
 
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();

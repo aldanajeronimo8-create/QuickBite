@@ -181,9 +181,9 @@ app.post(`${apiPrefix}/export-google-sheets`, async (c) => {
       ['Total por producto', JSON.stringify(Object.fromEntries(byProduct))], ['Total por método', JSON.stringify(Object.fromEntries(byMethod))],
     ].map(([metric, value]) => [exportId, now.toISOString().slice(0, 10), now.toTimeString().slice(0, 8), metric, value]);
 
-    const sheetsResponse = await fetch(`${sheetsUrl}${sheetsUrl.includes('?') ? '&' : '?'}secret=${encodeURIComponent(sheetsSecret)}`, {
+    const sheetsResponse = await fetch(sheetsUrl, {
       method: 'POST', headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ exportId, exportDate: now.toISOString().slice(0, 10), exportTime: now.toTimeString().slice(0, 8), exportedAt: now.toISOString(), adminName: administrator.full_name, periodId: exportId, totalExported: total, sales, inventory, summary }),
+      body: JSON.stringify({ secret: sheetsSecret, exportId, exportDate: now.toISOString().slice(0, 10), exportTime: now.toTimeString().slice(0, 8), exportedAt: now.toISOString(), adminName: administrator.full_name, periodId: exportId, totalExported: total, sales, inventory, summary }),
     });
     const receipt = await sheetsResponse.json().catch(() => ({}));
     if (!sheetsResponse.ok || receipt.exportId !== exportId || Number(receipt.receivedSalesCount) !== sales.length) {

@@ -93,6 +93,7 @@ export function AdminLayout() {
     setExporting(true);
     setExportStatus('Preparando información...');
     try {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       setExportStatus('Enviando ventas a Google Sheets...');
       const result = await exportActiveSalesToGoogleSheets();
       setExportStatus('Verificando exportación...');
@@ -226,7 +227,7 @@ export function AdminLayout() {
           <button
             type="button"
             onClick={() => setConfirmingExport(true)}
-            disabled={exporting}
+            disabled={exporting || activeOrders.length === 0}
             className="w-full text-xs font-bold py-1.5 rounded-lg transition-opacity hover:opacity-90"
             style={{ background: OK, color: '#052e16' }}
           >
@@ -300,7 +301,7 @@ export function AdminLayout() {
             <Button variant="outline" disabled={exporting} onClick={() => setConfirmingExport(false)}>
               Cancelar
             </Button>
-            <Button disabled={exporting} className="bg-green-700 text-white hover:bg-green-800" onClick={handleExport}>
+            <Button disabled={exporting || activeOrders.length === 0} className="bg-green-700 text-white hover:bg-green-800" onClick={handleExport}>
               {exporting ? 'Procesando...' : 'Exportar y reiniciar'}
             </Button>
           </div>

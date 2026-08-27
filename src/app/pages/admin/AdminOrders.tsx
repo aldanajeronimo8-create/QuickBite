@@ -33,10 +33,7 @@ const paymentLabels: Record<Order['payment_status'], { label: string; className:
 function getOrderErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (/not_authorized|permission denied|row-level security/i.test(message)) {
-    return 'Solo administradores pueden reiniciar los pedidos.';
-  }
-  if (/reset_all_orders/i.test(message)) {
-    return 'Falta aplicar la migración de reinicio de pedidos en Supabase.';
+    return 'Solo administradores pueden actualizar los pedidos.';
   }
   if (message.includes('admin_hidden') || message.includes('column')) {
     return 'Falta aplicar la migracion admin_hidden en Supabase. Ejecuta la nueva migracion y vuelve a intentar.';
@@ -64,10 +61,14 @@ export function AdminOrders() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showHidden, setShowHidden] = useState(false);
 
-  const hiddenCount = useMemo(() => orders.filter((order) => order.admin_hidden).length, [orders]);
+  const activeOrders = useMemo(() => orders.filter((order) => !order.exported_at), [orders]);
+  const hiddenCount = useMemo(
+    () => activeOrders.filter((order) => order.admin_hidden).length,
+    [activeOrders],
+  );
 
   const filteredOrders = useMemo(() => {
-    let filtered = orders
+    let filtered = activeOrders
       .filter((order) => (showHidden ? order.admin_hidden : !order.admin_hidden))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -76,7 +77,7 @@ export function AdminOrders() {
     }
 
     return filtered;
-  }, [orders, filterStatus, showHidden]);
+  }, [activeOrders, filterStatus, showHidden]);
 
   const handleStatusChange = async (orderId: string, newStatus: Order['status']) => {
     try {
@@ -108,7 +109,7 @@ export function AdminOrders() {
         <div>
           <h1 className="mb-2 text-4xl font-bold text-blue-900">Gestion de pedidos</h1>
           <p className="text-lg text-gray-600">
-            Administra, oculta y exporta pedidos desde Supabase.
+            Administra los pedidos activos del período actual.
           </p>
         </div>
       </div>

@@ -54,3 +54,7 @@ ALTER TABLE public.sales_export_batches ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.sales_export_batches FROM anon, authenticated;
 CREATE UNIQUE INDEX IF NOT EXISTS one_pending_sales_export_batch
   ON public.sales_export_batches ((status)) WHERE status = 'pending';
+
+-- The legacy destructive reset is intentionally no longer callable. Orders
+-- are closed by marking their export batch instead of deleting them.
+REVOKE EXECUTE ON FUNCTION public.reset_all_orders() FROM authenticated;
