@@ -1,13 +1,26 @@
 export type RuntimeMode = 'supabase';
 export type AppEnvironment = 'development' | 'staging' | 'production';
 
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/$/, '');
+const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
+/**
+ * URL base de la API de QuickBite.
+ *
+ * Si VITE_API_BASE_URL está definida, se respeta para instalaciones con un
+ * backend separado. Si está vacía, la API se resuelve automáticamente contra
+ * la Edge Function `server` del mismo proyecto de Supabase.
+ */
+const apiBaseUrl =
+  configuredApiBaseUrl || (supabaseUrl ? `${supabaseUrl}/functions/v1/server` : '');
+
 export const appConfig = {
   appName: import.meta.env.VITE_APP_NAME ?? 'QuickBite',
   appEnv: (import.meta.env.VITE_APP_ENV ?? 'development') as AppEnvironment,
   publicAppUrl: import.meta.env.VITE_PUBLIC_APP_URL ?? '',
   runtimeMode: (import.meta.env.VITE_RUNTIME_MODE ?? 'supabase') as RuntimeMode,
-  apiBaseUrl: (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, ''),
-  supabaseUrl: import.meta.env.VITE_SUPABASE_URL ?? '',
+  apiBaseUrl,
+  supabaseUrl,
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
   supabaseStorageBucket: import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? '',
   supabaseRealtimeEnabled: import.meta.env.VITE_SUPABASE_REALTIME_ENABLED === 'true',
