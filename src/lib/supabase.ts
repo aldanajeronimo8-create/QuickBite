@@ -64,6 +64,8 @@ export interface Order {
   order_number: string;
   created_at: string;
   admin_hidden?: boolean;
+  exported_at?: string | null;
+  export_batch_id?: string | null;
   pickup_code?: string;
   estimated_minutes?: number;
   payment_reference?: string;
@@ -77,6 +79,8 @@ export interface OrderItem {
   product_id: string;
   quantity: number;
   price: number;
+  stock_before?: number | null;
+  stock_after?: number | null;
   product?: Product;
 }
 

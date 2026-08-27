@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Eye, EyeOff, FileSpreadsheet, RotateCcw, ShoppingBag, UserRound } from 'lucide-react';
+import { Eye, EyeOff, ShoppingBag, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
-import { exportOrdersToExcel } from '../../../services/orderExportService';
 import type { Order } from '../../../lib/supabase';
 import { useDataStore } from '../../../store/dataStore';
 import { Badge } from '../../components/ui/badge';
@@ -60,12 +59,10 @@ function getItemsCount(order: Order) {
 }
 
 export function AdminOrders() {
-  const { orders, updateOrder, resetOrders, loadData } = useDataStore();
+  const { orders, updateOrder } = useDataStore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showHidden, setShowHidden] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [resetting, setResetting] = useState(false);
 
   const hiddenCount = useMemo(() => orders.filter((order) => order.admin_hidden).length, [orders]);
 
@@ -105,41 +102,6 @@ export function AdminOrders() {
     }
   };
 
-  const handleWeeklyExport = async () => {
-    setExporting(true);
-    try {
-      const result = await exportOrdersToExcel();
-      await loadData({ silent: true });
-      setSelectedOrder(null);
-      toast.success(
-        `Respaldo generado (${result.count} pedido(s)) y pedidos reiniciados en la app.`,
-      );
-    } catch (error) {
-      toast.error(getOrderErrorMessage(error));
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleResetOrders = async () => {
-    const confirmed = window.confirm(
-      'Esta acción eliminará permanentemente todos los pedidos y sus artículos de Supabase. Esta acción no se puede deshacer. ¿Deseas continuar?',
-    );
-    if (!confirmed) return;
-
-    setResetting(true);
-    try {
-      await resetOrders();
-      await loadData({ silent: true });
-      setSelectedOrder(null);
-      toast.success('Todos los pedidos fueron reiniciados');
-    } catch (error) {
-      toast.error(getOrderErrorMessage(error));
-    } finally {
-      setResetting(false);
-    }
-  };
-
   return (
     <div>
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
@@ -149,31 +111,7 @@ export function AdminOrders() {
             Administra, oculta y exporta pedidos desde Supabase.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={handleWeeklyExport}
-            disabled={exporting || resetting}
-            className="bg-green-700 text-white hover:bg-green-800"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            {exporting ? 'Generando y reiniciando...' : 'Descargar respaldo Excel y reiniciar'}
-          </Button>
-          <Button
-            onClick={handleResetOrders}
-            disabled={exporting || resetting}
-            variant="outline"
-            className="border-red-300 text-red-700 hover:bg-red-50"
-          >
-            <RotateCcw className="h-4 w-4" />
-            {resetting ? 'Reiniciando...' : 'Reiniciar pedidos'}
-          </Button>
-        </div>
       </div>
-
-      <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        El respaldo Excel contiene compras, detalle de productos, compradores e inventario. Al
-        descargarlo, todos los pedidos se eliminarán permanentemente de la app.
-      </p>
 
       <Card className="mb-6 border-0 bg-white p-6 shadow-lg">
         <div className="flex flex-wrap items-center gap-4">
