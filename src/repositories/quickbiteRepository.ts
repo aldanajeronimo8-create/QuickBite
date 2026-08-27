@@ -179,6 +179,37 @@ export async function listOrdersForExport(sinceIso: string, limit = 10000) {
   return orders;
 }
 
+/**
+ * Loads the complete order history in pages so an export is never truncated
+ * before the administrator clears the operational orders.
+ */
+export async function listAllOrdersForExport() {
+  const supabase = requireSupabaseClient();
+  const batchSize = 1000;
+  const maximumRows = 100000;
+  const orders: Order[] = [];
+
+  while (orders.length < maximumRows) {
+    const from = orders.length;
+    const to = Math.min(from + batchSize - 1, maximumRows - 1);
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*, order_items(*, product:products(*)), user:profiles(*)')
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+
+    const batch = (data ?? []) as Order[];
+    orders.push(...batch);
+    if (batch.length < batchSize) return orders;
+  }
+
+  throw new Error(
+    'El historial supera 100.000 pedidos. Exporta una copia con soporte antes de reiniciar los pedidos.',
+  );
+}
+
 export async function createOrder(order: NewOrder) {
   const { order_items = [], ...orderFields } = order;
   const { data, error } = await requireSupabaseClient().rpc('create_order_tx', {
