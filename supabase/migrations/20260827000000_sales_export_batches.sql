@@ -57,4 +57,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS one_pending_sales_export_batch
 
 -- The legacy destructive reset is intentionally no longer callable. Orders
 -- are closed by marking their export batch instead of deleting them.
-REVOKE EXECUTE ON FUNCTION public.reset_all_orders() FROM authenticated;
+DO $$
+BEGIN
+  IF to_regprocedure('public.reset_all_orders()') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION public.reset_all_orders() FROM authenticated';
+  END IF;
+END;
+$$;
