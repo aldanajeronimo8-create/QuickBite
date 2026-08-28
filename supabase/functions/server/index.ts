@@ -18,7 +18,9 @@ async function requireAdmin(c: { req: { header: (name: string) => string | undef
   const token = c.req.header('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]; if (!token) return null;
   const supabase = serviceClient(); const { data, error } = await supabase.auth.getUser(token); if (error || !data.user) return null;
   const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
-  return !profileError && profile?.role === 'admin' ? { supabase, userId: data.user.id } : null;
+  return !profileError && (profile?.role === 'admin' || profile?.role === 'both')
+    ? { supabase, userId: data.user.id }
+    : null;
 }
 async function getActiveOrders(supabase: ReturnType<typeof serviceClient>) {
   const { data, error } = await supabase.from('orders').select('id,order_number,created_at,total,status,payment_status,payment_method,pickup_code,estimated_minutes,payment_reference,user:profiles(full_name,email,ti),order_items(id,product_id,quantity,price,product:products(name,stock,category:categories(name)))').eq('admin_hidden', false).order('created_at', { ascending: true }).limit(10000);

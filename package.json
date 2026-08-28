@@ -18,6 +18,8 @@
     "preview": "node --require ./scripts/esbuild-windows-spawn-fix.cjs ./node_modules/vite/bin/vite.js preview --configLoader native --host 127.0.0.1 --port 4173",
     "supabase:connect": "node scripts/connect-supabase.mjs",
     "supabase:migrate": "node scripts/apply-migrations.mjs",
+    "backup:verify": "node scripts/verify-backup.mjs",
+    "backup:restore": "node scripts/restore-backup.mjs",
     "prepare": "husky"
   },
   "dependencies": {

@@ -1,9 +1,10 @@
-name: QuickBite Database Backup
+name: Supabase backup
 
 on:
-  workflow_dispatch:
   schedule:
+    # 07:00 UTC = 02:00 in Colombia (UTC-5), every day.
     - cron: '0 7 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,27 +14,62 @@ env:
 
 jobs:
   backup:
-    name: PostgreSQL backup
+    name: Create and verify PostgreSQL backup
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Create compressed backup
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      - name: Create compressed database backup
+        id: backup
+        shell: bash
         run: |
-          test -n "$SUPABASE_DB_URL" || { echo 'Missing SUPABASE_DB_URL repository secret'; exit 1; }
-          mkdir -p backups
-          stamp=$(date -u +'%Y-%m-%dT%H-%M-%SZ')
-          pg_dump "$SUPABASE_DB_URL" --format=custom --no-owner --no-privileges --file="backups/quickbite-$stamp.dump"
-          sha256sum "backups/quickbite-$stamp.dump" > "backups/quickbite-$stamp.sha256"
+          set -euo pipefail
+          if [[ -z "${SUPABASE_DB_URL}" ]]; then
+            echo "::error::Missing required GitHub Actions secret SUPABASE_DB_URL."
+            exit 1
+          fi
 
-      - name: Upload backup artifact
+          backup_dir="backups"
+          timestamp="$(date -u +'%Y-%m-%dT%H-%M-%SZ')"
+          backup_file="${backup_dir}/quickbite-${timestamp}.dump"
+          mkdir -p "${backup_dir}"
+
+          # The connection URL is supplied only by the encrypted Actions
+          # secret; it is never printed or stored in the artifact.
+          pg_dump --dbname="${SUPABASE_DB_URL}" --format=custom --no-owner --no-privileges --file="${backup_file}"
+          test -s "${backup_file}"
+          sha256sum "${backup_file}" > "${backup_file}.sha256"
+
+          # Validates both the checksum and that pg_restore can read the
+          # custom-format archive without restoring any data.
+          sha256sum --check "${backup_file}.sha256"
+          pg_restore --list "${backup_file}" > /dev/null
+
+          echo "backup_dir=${backup_dir}" >> "${GITHUB_OUTPUT}"
+          echo "backup_file=${backup_file}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload verified backup artifact
         uses: actions/upload-artifact@v4
         with:
-          name: quickbite-database-backup-${{ github.run_id }}
-          path: backups/
-          retention-days: 30
+          name: quickbite-postgres-${{ github.run_id }}
+          path: ${{ steps.backup.outputs.backup_dir }}
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Notify optional alert webhook on failure
+        if: failure()
+        env:
+          QUICKBITE_ALERT_WEBHOOK_URL: ${{ secrets.QUICKBITE_ALERT_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          if [[ -z "${QUICKBITE_ALERT_WEBHOOK_URL}" ]]; then exit 0; fi
+          curl --fail --silent --show-error --max-time 15 --retry 2 \
+            -H 'Content-Type: application/json' \
+            --data '{"text":"QuickBite: el backup de Supabase falló. Revisa el workflow de GitHub Actions."}' \
+            "${QUICKBITE_ALERT_WEBHOOK_URL}" || true

@@ -53,7 +53,7 @@ interface DataState {
 }
 
 async function remoteAudit(entry: Parameters<typeof writeAuditLog>[0]) {
-  writeAuditLog(entry);
+  const localAudit = writeAuditLog(entry);
   try {
     await repo.writeAudit({
       action: entry.action,
@@ -61,10 +61,10 @@ async function remoteAudit(entry: Parameters<typeof writeAuditLog>[0]) {
       actor_email: entry.actorEmail,
       entity: entry.entity,
       entity_id: entry.entityId,
-      metadata: entry.metadata,
+      metadata: localAudit.metadata,
     });
-  } catch (error) {
-    writeAuditLog({ action: 'app.error', metadata: { source: 'remote_audit', message: String(error) } });
+  } catch {
+    writeAuditLog({ action: 'app.error', metadata: { source: 'remote_audit' } });
   }
 }
 

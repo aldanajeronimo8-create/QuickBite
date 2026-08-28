@@ -37,3 +37,11 @@ export interface LoyaltyReward {
 export type LoyaltyRedemptionStatus = 'pending' | 'reserved' | 'approved' | 'fulfilled' | 'delivered' | 'cancelled';
 export interface LoyaltyRedemption { id: string; user_id: string; reward_id: string; product_id: string; points_spent: number; redemption_code: string; status: LoyaltyRedemptionStatus; created_at: string; fulfilled_at?: string | null; reward?: Pick<LoyaltyReward, 'id' | 'title'> & { product?: Pick<Product, 'name'> }; }
 export interface AdminLoyaltyRedemption extends LoyaltyRedemption { user?: Pick<Profile, 'id' | 'full_name' | 'email'>; }
+
+export interface SystemHealthCheck {
+  service: string;
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  latency_ms: number | null;
+  checked_at: string;
+  details: Record<string, unknown>;
+}

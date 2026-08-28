@@ -1,15 +1,38 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '../../../store/dataStore';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
-import { ShoppingBag, CreditCard, Package, TrendingUp, AlertTriangle, CheckCircle, Star } from 'lucide-react';
+import { ShoppingBag, CreditCard, Package, TrendingUp, AlertTriangle, CheckCircle, Star, Activity } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { SystemHealthCheck } from '../../../lib/supabase';
+import { getSystemHealthSummary } from '../../../repositories/quickbiteRepository';
 
 export function AdminDashboard() {
   const { orders, products } = useDataStore();
+  const [health, setHealth] = useState<SystemHealthCheck[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const loadHealth = async () => {
+      try {
+        const currentHealth = await getSystemHealthSummary();
+        if (active) setHealth(currentHealth);
+      } catch {
+        // Health information is supplementary: a failed dashboard read must
+        // never interfere with sales, orders or inventory.
+        if (active) setHealth([]);
+      }
+    };
+    void loadHealth();
+    const interval = window.setInterval(() => void loadHealth(), 60_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const stats = useMemo(() => {
     const today = new Date();
@@ -52,6 +75,15 @@ export function AdminDashboard() {
       .slice(0, 5);
   }, [orders]);
 
+  const databaseHealth = health.find((check) => check.service === 'supabase_database');
+  const healthStyle = databaseHealth?.status === 'healthy'
+    ? { badge: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-500', label: 'Operativo' }
+    : databaseHealth?.status === 'degraded'
+      ? { badge: 'bg-amber-100 text-amber-900', dot: 'bg-amber-500', label: 'Degradado' }
+      : databaseHealth?.status === 'unhealthy'
+        ? { badge: 'bg-red-100 text-red-800', dot: 'bg-red-500', label: 'Con problema' }
+        : { badge: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400', label: 'Sin comprobación' };
+
   const getStatusBadge = (status: string) => {
     const config = {
       pending: { label: 'Pendiente', className: 'bg-blue-600 text-white' },
@@ -71,6 +103,35 @@ export function AdminDashboard() {
           Vista general del sistema QuickBite
         </p>
       </div>
+
+      <Card className="mb-8 border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-slate-100 p-2.5 text-slate-700">
+              <Activity className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-900">Estado del sistema</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Base de datos, comprobación de salud y última latencia registrada.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <span className={`h-2.5 w-2.5 rounded-full ${healthStyle.dot}`} aria-hidden="true" />
+            <div>
+              <p className={`w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${healthStyle.badge}`}>
+                Base de datos: {healthStyle.label}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {databaseHealth
+                  ? `${databaseHealth.latency_ms ?? '—'} ms · ${format(new Date(databaseHealth.checked_at), "d MMM, HH:mm", { locale: es })}`
+                  : 'El monitor registrará el próximo resultado.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <Card className="mb-8 border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

@@ -1,70 +1,56 @@
-# Backup And Recovery Runbook
+# Copias de seguridad y recuperación de QuickBite
 
-## Recommended Baseline
+QuickBite crea una copia diaria de PostgreSQL mediante `.github/workflows/backup.yml` a las **07:00 UTC** (02:00 en Colombia, UTC-5). Cada ejecución genera un archivo PostgreSQL en formato personalizado (`.dump`) y su SHA-256 (`.dump.sha256`), que se conservan como artifact privado de GitHub Actions durante 30 días.
 
-Use Supabase managed Postgres backups plus a scheduled logical export for independent recovery.
+## Configuración única
 
-## Environments
+En GitHub abre **Settings → Secrets and variables → Actions** y crea el secreto `SUPABASE_DB_URL`. Su valor es la cadena de conexión PostgreSQL de Supabase con permisos de lectura para `pg_dump`. No la pegues en archivos del repositorio, variables `VITE_*`, logs ni documentación pública.
 
-- Development: disposable Supabase project or local Supabase.
-- Staging: separate Supabase project with production-like RLS and seed data.
-- Production: dedicated Supabase project with backups/PITR enabled.
+Para la monitorización crea además estos secretos:
 
-## Backup Strategy
+- `QUICKBITE_HEALTH_URL`: URL de la función `quickbite-health`, por ejemplo `https://<project-ref>.supabase.co/functions/v1/quickbite-health`.
+- `QUICKBITE_HEALTH_TOKEN`: el mismo valor secreto configurado como `HEALTH_CHECK_TOKEN` en Supabase. Es opcional solo si se deja la función pública; se recomienda configurarlo.
+- `QUICKBITE_ALERT_WEBHOOK_URL`: opcional. Un webhook compatible con JSON para avisos de backup o health check fallidos.
 
-1. Enable Supabase automatic backups for the production project.
-2. Enable PITR if the selected Supabase plan supports it.
-3. Schedule a daily logical export:
+La función `quickbite-health` usa `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` del entorno seguro de Edge Functions. No necesita ni acepta claves del frontend.
 
-```bash
-pg_dump "$SUPABASE_DB_URL" \
-  --format=custom \
-  --no-owner \
-  --no-privileges \
-  --file="quickbite-$(date +%F).dump"
+## Verificar un backup
+
+1. Ejecuta **Actions → Supabase backup → Run workflow**.
+2. Confirma que el job termina en `success`.
+3. Descarga el artifact `quickbite-postgres-<run-id>` y verifica ambos archivos:
+
+```powershell
+pnpm backup:verify -- --file .\quickbite-AAAA-MM-DDTHH-MM-SSZ.dump
 ```
 
-4. Store encrypted exports in a storage provider outside the production Supabase project.
-5. Keep at least:
-   - 7 daily backups
-   - 4 weekly backups
-   - 12 monthly backups
+La verificación compara el SHA-256 y ejecuta `pg_restore --list`; no modifica ninguna base de datos.
 
-## Restore Drill
+## Recuperación controlada
 
-Run once per month:
+No existe restauración automática. Ante un incidente:
 
-1. Create a temporary Supabase project.
-2. Restore the latest dump:
+1. Pausa los cambios operativos y conserva una copia del estado actual para investigación.
+2. Elige el artifact más reciente cuyo SHA-256 sea válido.
+3. Crea primero una base/proyecto de recuperación separado.
+4. Restaura y prueba allí el backup con el script, incluyendo pedidos, inventario y autenticación relevante.
+5. Comprueba las tablas principales, RLS, el health check y las funciones RPC antes de decidir una restauración productiva.
+6. Solo un operador autorizado puede restaurar producción usando las dos confirmaciones explícitas del script.
 
-```bash
-pg_restore \
-  --dbname "$RESTORE_DB_URL" \
-  --clean \
-  --if-exists \
-  --no-owner \
-  --no-privileges \
-  quickbite-latest.dump
+Ejemplo de recuperación de prueba:
+
+```powershell
+$env:QUICKBITE_RESTORE_CONFIRM = 'RESTORE quickbite-AAAA-MM-DDTHH-MM-SSZ.dump'
+pnpm backup:restore -- --file .\quickbite-AAAA-MM-DDTHH-MM-SSZ.dump --database 'postgresql://usuario:clave@host:5432/postgres' --confirm-restore
 ```
 
-3. Apply pending migrations with `supabase db push`.
-4. Run smoke tests:
-   - Admin login
-   - Student login
-   - Product read
-   - Order creation
-   - Stock decrement
-   - Admin order status update
+El script bloquea destinos `*.supabase.co` salvo que se agregue `--allow-production`, y siempre valida el SHA-256 antes de invocar `pg_restore`. No uses ese modificador hasta completar la prueba de recuperación y obtener autorización para la base de producción.
 
-## Disaster Recovery Targets
+## Checklist posterior
 
-- RPO target: 24 hours with daily exports, lower if PITR is enabled.
-- RTO target: 2 hours for managed Supabase restore, 4 hours for logical restore.
-
-## Incident Checklist
-
-- Freeze writes if data corruption is ongoing.
-- Capture current migration version and incident timestamp.
-- Restore to staging first.
-- Validate RLS and order totals.
-- Promote restored database only after smoke tests pass.
+- Ejecutar el health check y confirmar HTTP 200.
+- Iniciar sesión con una cuenta administrativa y una estudiantil.
+- Confirmar que categorías, productos, stock y pedidos son coherentes.
+- Confirmar que el panel administrativo muestra los últimos checks de salud.
+- Revisar `system_audit_logs` y `system_health_checks` como administrador.
+- Registrar la causa del incidente y conservar el artifact usado.

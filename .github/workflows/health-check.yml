@@ -1,0 +1,49 @@
+name: QuickBite health monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health-check:
+    name: Verify Supabase and database health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      QUICKBITE_HEALTH_URL: ${{ secrets.QUICKBITE_HEALTH_URL }}
+      QUICKBITE_HEALTH_TOKEN: ${{ secrets.QUICKBITE_HEALTH_TOKEN }}
+    steps:
+      - name: Call the health endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${QUICKBITE_HEALTH_URL}" ]]; then
+            echo "::warning::Health monitoring is not configured. Add QUICKBITE_HEALTH_URL as a GitHub Actions secret."
+            exit 0
+          fi
+
+          status_code="$(curl --silent --show-error --output health-response.json --write-out '%{http_code}' \
+            --connect-timeout 10 --max-time 25 --retry 2 --retry-connrefused \
+            -H "x-quickbite-health-token: ${QUICKBITE_HEALTH_TOKEN}" \
+            "${QUICKBITE_HEALTH_URL}")"
+          cat health-response.json
+          if [[ "${status_code}" != '200' ]]; then
+            echo "::error::QuickBite health endpoint returned HTTP ${status_code}."
+            exit 1
+          fi
+
+      - name: Notify optional alert webhook on failure
+        if: failure()
+        env:
+          QUICKBITE_ALERT_WEBHOOK_URL: ${{ secrets.QUICKBITE_ALERT_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          if [[ -z "${QUICKBITE_ALERT_WEBHOOK_URL}" ]]; then exit 0; fi
+          curl --fail --silent --show-error --max-time 15 --retry 2 \
+            -H 'Content-Type: application/json' \
+            --data '{"text":"QuickBite: el health check falló. Revisa el monitor de GitHub Actions."}' \
+            "${QUICKBITE_ALERT_WEBHOOK_URL}" || true
