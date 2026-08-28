@@ -4,54 +4,19 @@ import type { UserRole } from './access';
 
 export const supabase = hasSupabaseConfig()
   ? createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 10,
-      },
-    },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    realtime: { params: { eventsPerSecond: 10 } },
   })
   : null;
 
 export function requireSupabaseClient() {
-  if (!supabase) {
-    throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
-  }
+  if (!supabase) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
   return supabase;
 }
 
-export interface Profile {
-  id: string;
-  email: string;
-  full_name: string;
-  role: UserRole;
-  ti?: string | null;
-  created_at: string;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  description?: string;
-  created_at: string;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  description?: string;
-  price: number;
-  image_url?: string;
-  category_id: string;
-  stock: number;
-  available: boolean;
-  created_at: string;
-  category?: Category;
-}
+export interface Profile { id: string; email: string; full_name: string; role: UserRole; ti?: string | null; created_at: string; }
+export interface Category { id: string; name: string; description?: string; created_at: string; }
+export interface Product { id: string; name: string; description?: string; price: number; image_url?: string; category_id: string; stock: number; available: boolean; created_at: string; category?: Category; }
 
 export interface Order {
   id: string;
@@ -71,30 +36,15 @@ export interface Order {
   order_items?: OrderItem[];
 }
 
-export interface OrderItem {
-  id: string;
-  order_id: string;
-  product_id: string;
-  quantity: number;
-  price: number;
-  product?: Product;
-}
-
-export interface UserNotification {
-  id: string;
-  user_id: string;
-  order_id?: string | null;
-  type: 'order_status' | 'reward_redemption';
-  title: string;
-  body: string;
-  read_at?: string | null;
-  created_at: string;
-}
+export interface OrderItem { id: string; order_id: string; product_id: string; quantity: number; price: number; product?: Product; }
+export interface UserNotification { id: string; user_id: string; order_id?: string | null; type: 'order_status' | 'reward_redemption'; title: string; body: string; read_at?: string | null; created_at: string; }
 
 export interface LoyaltySettings {
   id: boolean;
   enabled: boolean;
   points_per_currency_unit: number;
+  points_per_amount?: number;
+  currency_amount?: number;
   updated_at: string;
 }
 
@@ -117,12 +67,10 @@ export interface LoyaltyRedemption {
   product_id: string;
   points_spent: number;
   redemption_code: string;
-  status: 'reserved' | 'fulfilled' | 'cancelled';
+  status: 'reserved' | 'pending' | 'approved' | 'fulfilled' | 'delivered' | 'cancelled';
   created_at: string;
   fulfilled_at?: string | null;
   reward?: Pick<LoyaltyReward, 'id' | 'title'> & { product?: Pick<Product, 'name'> };
 }
 
-export interface AdminLoyaltyRedemption extends LoyaltyRedemption {
-  user?: Pick<Profile, 'id' | 'full_name' | 'email'>;
-}
+export interface AdminLoyaltyRedemption extends LoyaltyRedemption { user?: Pick<Profile, 'id' | 'full_name' | 'email'>; }
