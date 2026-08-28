@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { CreditCard, Download, Gift, LayoutDashboard, LogOut, Package, ScanLine, ShoppingBag, Users, UtensilsCrossed } from 'lucide-react';
+import { CreditCard, Gift, LayoutDashboard, LogOut, Package, ScanLine, ShoppingBag, Users, UtensilsCrossed } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
@@ -8,7 +8,6 @@ import { Button } from '../components/ui/button';
 import { Toaster } from '../components/ui/sonner';
 
 const primaryColor = '#1E3A8A';
-const secondaryColor = '#14532D';
 const successColor = '#22C55E';
 
 type NavItemProps = {
@@ -85,15 +84,6 @@ export function AdminLayout() {
           <NavItem path="/admin/users" label="Usuarios" icon={Users} active={isCurrentPath('/admin/users')} />
           <NavItem path="/admin/loyalty" label="Puntos y premios" icon={Gift} active={isCurrentPath('/admin/loyalty')} />
         </nav>
-
-        <div className="mx-3 mb-3 rounded-xl p-3" style={{ background: secondaryColor }}>
-          <div className="mb-1 flex items-center gap-2">
-            <Download className="h-3.5 w-3.5" style={{ color: successColor }} />
-            <p className="text-xs font-semibold text-white">Exportar datos</p>
-          </div>
-          <p className="mb-2.5 text-xs" style={{ color: '#86EFAC' }}>Reporte del periodo disponible</p>
-          <button type="button" className="w-full rounded-lg py-1.5 text-xs font-bold transition-opacity hover:opacity-90" style={{ background: successColor, color: '#052e16' }}>Descargar CSV</button>
-        </div>
 
         <div className="px-4 pb-5 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="mb-3 flex items-center gap-2.5">

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Download, Eye, EyeOff, FileSpreadsheet, ShoppingBag } from 'lucide-react';
+import { Download, Eye, EyeOff, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
-import { downloadActiveSalesCsv, exportActiveSalesToGoogleSheets } from '../../../services/orderExportService';
+import { downloadActiveSalesExcel } from '../../../services/orderExportService';
 import { getErrorMessage } from '../../../lib/errorMessage';
 import type { Order } from '../../../lib/supabase';
 import { useDataStore } from '../../../store/dataStore';
@@ -56,7 +56,6 @@ export function AdminOrders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showHidden, setShowHidden] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const hiddenCount = useMemo(() => orders.filter((order) => order.admin_hidden).length, [orders]);
@@ -101,22 +100,10 @@ export function AdminOrders() {
     }
   };
 
-  const handleWeeklyExport = async () => {
-    setExporting(true);
+  const handleExcelDownload = () => {
     try {
-      const result = await exportActiveSalesToGoogleSheets();
-      toast.success(`Ventas enviadas correctamente a Google Sheets. Se cerraron ${result.count} ventas.`);
-    } catch (error) {
-      toast.error(getOrderErrorMessage(error));
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleCsvDownload = () => {
-    try {
-      const result = downloadActiveSalesCsv(orders);
-      toast.success(`Se descargaron ${result.count} ventas en formato CSV para Google Sheets.`);
+      const result = downloadActiveSalesExcel(orders);
+      toast.success(`Se descargó el reporte profesional con ${result.count} ventas.`);
     } catch (error) {
       toast.error(getOrderErrorMessage(error));
     }
@@ -127,24 +114,16 @@ export function AdminOrders() {
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="mb-2 text-4xl font-bold text-blue-900">Gestion de pedidos</h1>
-          <p className="text-lg text-gray-600">Administra pedidos y cierra las ventas activas en Google Sheets.</p>
+          <p className="text-lg text-gray-600">Administra pedidos y descarga reportes profesionales de ventas.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button
             type="button"
-            onClick={handleCsvDownload}
+            onClick={handleExcelDownload}
             className="bg-blue-700 text-white hover:bg-blue-800"
           >
             <Download className="h-4 w-4" />
-            Descargar CSV para Google Sheets
-          </Button>
-          <Button
-            onClick={handleWeeklyExport}
-            disabled={exporting}
-            className="bg-green-700 text-white hover:bg-green-800"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            {exporting ? 'Enviando ventas...' : 'Cerrar ventas y enviar a Sheets'}
+            Descargar reporte Excel
           </Button>
         </div>
       </div>

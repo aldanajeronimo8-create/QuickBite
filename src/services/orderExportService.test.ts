@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Order } from '../lib/supabase';
-import { buildActiveSalesCsv } from './orderExportService';
+import { buildActiveSalesWorkbook } from './orderExportService';
 
 const order = {
   id: 'order-1',
@@ -33,17 +33,19 @@ const order = {
   ],
 } satisfies Order;
 
-describe('buildActiveSalesCsv', () => {
-  it('exports active sales with one row per product and escaped CSV values', () => {
-    const csv = buildActiveSalesCsv([order]);
+describe('buildActiveSalesWorkbook', () => {
+  it('creates a structured workbook with sales, product detail, and purchase time', () => {
+    const workbook = buildActiveSalesWorkbook([order]);
 
-    expect(csv).toContain('"Número de pedido"');
-    expect(csv).toContain('"Ana ""Pérez"""');
-    expect(csv).toContain('"Empanada, queso"');
-    expect(csv).toContain('"12500"');
+    expect(workbook.SheetNames).toEqual(['Resumen', 'Ventas', 'Detalle de productos']);
+    expect(workbook.Sheets.Ventas.C6.v).toBe('07:00');
+    expect(workbook.Sheets.Ventas.D6.v).toBe('Ana "Pérez"');
+    expect(workbook.Sheets['Detalle de productos'].D6.v).toBe('Empanada, queso');
+    expect(workbook.Sheets.Ventas['!autofilter']).toEqual({ ref: 'A5:O6' });
+    expect(workbook.Sheets.Resumen.A6.f).toBe("SUM('Ventas'!L6:L6)");
   });
 
   it('does not include hidden sales', () => {
-    expect(() => buildActiveSalesCsv([{ ...order, admin_hidden: true }])).toThrow('No hay ventas activas');
+    expect(() => buildActiveSalesWorkbook([{ ...order, admin_hidden: true }])).toThrow('No hay ventas activas');
   });
 });
