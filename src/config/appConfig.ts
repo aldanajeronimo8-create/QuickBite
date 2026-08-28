@@ -10,7 +10,10 @@ export const appConfig = {
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL ?? '',
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
   supabaseStorageBucket: import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? '',
-  supabaseRealtimeEnabled: import.meta.env.VITE_SUPABASE_REALTIME_ENABLED === 'true',
+  // Realtime is part of the multi-device experience. It stays enabled unless
+  // an environment explicitly turns it off, so a missing Vercel variable does
+  // not silently prevent devices from refreshing one another.
+  supabaseRealtimeEnabled: import.meta.env.VITE_SUPABASE_REALTIME_ENABLED !== 'false',
   dataRefreshIntervalMs: Number(import.meta.env.VITE_DATA_REFRESH_INTERVAL_MS ?? 5000),
   passwordResetMode: import.meta.env.VITE_PASSWORD_RESET_MODE ?? 'code',
   monitoringDsn: import.meta.env.VITE_MONITORING_DSN ?? '',

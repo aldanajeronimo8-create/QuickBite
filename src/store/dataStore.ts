@@ -4,7 +4,17 @@ import { writeAuditLog } from '../lib/auditLog';
 import { appConfig } from '../config/appConfig';
 import * as repo from '../repositories/quickbiteRepository';
 
-const REALTIME_TABLES = ['profiles', 'categories', 'products', 'orders', 'order_items'] as const;
+const REALTIME_TABLES = [
+  'profiles',
+  'categories',
+  'products',
+  'orders',
+  'order_items',
+  'notifications',
+  'loyalty_settings',
+  'loyalty_rewards',
+  'loyalty_redemptions',
+] as const;
 
 export interface HistoryEntry {
   id: string;

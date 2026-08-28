@@ -415,12 +415,20 @@ export async function deleteOrder(id: string) {
 }
 
 export async function listProfiles() {
-  const { data, error } = await requireSupabaseClient()
+  const supabase = requireSupabaseClient();
+  const { data, error } = await supabase.rpc('admin_list_users');
+  if (!error) return (data ?? []) as Profile[];
+
+  // This fallback preserves compatibility for a database that has not yet
+  // received the migration. The live function reads Auth, which is the source
+  // of truth and includes accounts whose profile setup was interrupted.
+  if (!isMissingRpc(error)) throw error;
+  const { data: profiles, error: profilesError } = await supabase
     .from('profiles')
     .select('id,email,full_name,role,ti,created_at')
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Profile[];
+  if (profilesError) throw profilesError;
+  return (profiles ?? []) as Profile[];
 }
 
 export async function getProfile(userId: string) {
