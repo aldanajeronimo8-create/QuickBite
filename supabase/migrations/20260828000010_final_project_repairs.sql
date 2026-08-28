@@ -4,7 +4,6 @@
 ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS comment TEXT;
 
--- Keep both names used by the current/legacy loyalty code in sync.
 ALTER TABLE public.loyalty_rewards
   ADD COLUMN IF NOT EXISTS points_required INTEGER;
 
@@ -16,21 +15,13 @@ UPDATE public.loyalty_rewards
 SET points_cost = COALESCE(points_cost, points_required)
 WHERE points_cost IS NULL;
 
--- Existing rows must remain valid. New rows are validated by the trigger below.
 DO $$
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'loyalty_rewards'
-      AND column_name = 'points_required'
-  ) THEN
-    ALTER TABLE public.loyalty_rewards
-      DROP CONSTRAINT IF EXISTS loyalty_rewards_points_required_check;
-    ALTER TABLE public.loyalty_rewards
-      ADD CONSTRAINT loyalty_rewards_points_required_check
-      CHECK (points_required IS NULL OR points_required > 0);
-  END IF;
+  ALTER TABLE public.loyalty_rewards
+    DROP CONSTRAINT IF EXISTS loyalty_rewards_points_required_check;
+  ALTER TABLE public.loyalty_rewards
+    ADD CONSTRAINT loyalty_rewards_points_required_check
+    CHECK (points_required IS NULL OR points_required > 0);
 END $$;
 
 CREATE OR REPLACE FUNCTION public.sync_loyalty_reward_points()
@@ -46,14 +37,12 @@ BEGIN
     NEW.points_cost := NEW.points_required;
   ELSIF NEW.points_required IS NULL THEN
     NEW.points_required := NEW.points_cost;
+  ELSIF TG_OP = 'INSERT' THEN
+    NEW.points_cost := NEW.points_required;
+  ELSIF NEW.points_required IS DISTINCT FROM OLD.points_required THEN
+    NEW.points_cost := NEW.points_required;
   ELSE
-    -- The application uses points_required while the database RPC uses points_cost.
-    -- Treat the explicitly supplied value as canonical and keep the other field equal.
-    IF NEW.points_required IS DISTINCT FROM OLD.points_required THEN
-      NEW.points_cost := NEW.points_required;
-    ELSE
-      NEW.points_required := NEW.points_cost;
-    END IF;
+    NEW.points_required := NEW.points_cost;
   END IF;
 
   IF NEW.points_cost <= 0 OR NEW.points_required <= 0 THEN
@@ -71,7 +60,6 @@ ON public.loyalty_rewards
 FOR EACH ROW
 EXECUTE FUNCTION public.sync_loyalty_reward_points();
 
--- Make the redemption RPC use the same effective cost as the admin UI.
 CREATE OR REPLACE FUNCTION public.redeem_loyalty_reward(p_reward_id UUID)
 RETURNS public.loyalty_redemptions
 LANGUAGE plpgsql
@@ -85,6 +73,8 @@ DECLARE
   v_points INTEGER;
   v_redemption public.loyalty_redemptions%ROWTYPE;
   v_reward_cost INTEGER;
+  v_currency_amount INTEGER;
+  v_points_per_amount INTEGER;
 BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'not_authorized';
@@ -97,6 +87,9 @@ BEGIN
   IF NOT FOUND OR NOT v_settings.enabled THEN
     RAISE EXCEPTION 'loyalty_disabled';
   END IF;
+
+  v_currency_amount := COALESCE(v_settings.currency_amount, v_settings.points_per_currency_unit, 1000);
+  v_points_per_amount := COALESCE(v_settings.points_per_amount, 1);
 
   SELECT * INTO v_reward
   FROM public.loyalty_rewards
@@ -119,10 +112,8 @@ BEGIN
   SELECT GREATEST(
     0,
     COALESCE(
-      SUM(
-        FLOOR(o.total / COALESCE(v_settings.currency_amount, v_settings.points_per_currency_unit))
-        * COALESCE(v_settings.points_per_amount, 1)
-      ) FILTER (WHERE o.payment_status = 'confirmed'),
+      SUM(FLOOR(o.total / v_currency_amount) * v_points_per_amount)
+        FILTER (WHERE o.payment_status = 'confirmed'),
       0
     )::INTEGER
     - COALESCE(
@@ -143,16 +134,8 @@ BEGIN
     RAISE EXCEPTION 'insufficient_loyalty_points';
   END IF;
 
-  INSERT INTO public.loyalty_redemptions (
-    user_id,
-    reward_id,
-    points_spent
-  )
-  VALUES (
-    v_user_id,
-    v_reward.id,
-    v_reward_cost
-  )
+  INSERT INTO public.loyalty_redemptions (user_id, reward_id, points_spent)
+  VALUES (v_user_id, v_reward.id, v_reward_cost)
   RETURNING * INTO v_redemption;
 
   IF v_reward.stock IS NOT NULL THEN
@@ -168,7 +151,6 @@ $$;
 REVOKE ALL ON FUNCTION public.redeem_loyalty_reward(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.redeem_loyalty_reward(UUID) TO authenticated;
 
--- Students may update their own order comment; admins may update any order.
 DROP POLICY IF EXISTS orders_update_own_comment ON public.orders;
 CREATE POLICY orders_update_own_comment
   ON public.orders FOR UPDATE TO authenticated
