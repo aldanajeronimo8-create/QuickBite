@@ -2,20 +2,22 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, CheckCircle2, Loader2, Mail } from 'lucide-react';
-import { appConfig } from '../../config/appConfig';
 import { requireSupabaseClient } from '../../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
-type Step = 'email' | 'sent' | 'code' | 'reset';
+type Step = 'email' | 'code' | 'reset';
 
 function getPasswordRecoveryMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (/email_not_found/i.test(message)) return 'No existe una cuenta con ese correo.';
   if (/invalid_reset_code/i.test(message)) return 'Codigo incorrecto.';
   if (/password_too_short/i.test(message)) return 'La contraseña debe tener al menos 6 caracteres.';
+  if (/administrator_password_requires_admin_panel/i.test(message)) {
+    return 'Las contraseñas de administrador solo pueden cambiarse desde Usuarios por otro administrador.';
+  }
   if (/function.*does not exist|could not find the function|schema cache/i.test(message)) {
     return 'Falta aplicar la migración de recuperación de contraseña en Supabase.';
   }
@@ -32,9 +34,8 @@ export function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const emailMode = appConfig.passwordResetMode === 'email';
-  const totalSteps = emailMode ? 2 : 3;
-  const stepNum = emailMode ? (step === 'email' ? 1 : 2) : (step === 'email' ? 1 : step === 'code' ? 2 : 3);
+  const totalSteps = 3;
+  const stepNum = step === 'email' ? 1 : step === 'code' ? 2 : 3;
 
   const handleFindAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,14 +56,7 @@ export function ForgotPasswordPage() {
         return;
       }
 
-      if (emailMode) {
-        const resetUrl = `${window.location.origin}/reset-password`;
-        const { error: resetError } = await client.auth.resetPasswordForEmail(normalizedEmail, { redirectTo: resetUrl });
-        if (resetError) throw resetError;
-        setStep('sent');
-      } else {
-        setStep('code');
-      }
+      setStep('code');
     } catch (err) {
       toast.error(getPasswordRecoveryMessage(err));
     } finally {
@@ -127,7 +121,7 @@ export function ForgotPasswordPage() {
         <div className="mb-8 text-center">
           <QuickBiteLogo className="mb-4 h-16 w-16 rounded-2xl" />
           <h1 className="mb-2 text-4xl font-bold text-white">QuickBite</h1>
-          <p className="text-blue-200">Recuperar contraseña</p>
+          <p className="text-blue-200">Recuperar contraseña de estudiante</p>
         </div>
 
         <div className="rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
@@ -146,7 +140,7 @@ export function ForgotPasswordPage() {
             <form onSubmit={handleFindAccount} className="space-y-5">
               <div>
                 <h2 className="mb-1 text-2xl font-bold text-white">Ingresa tu correo</h2>
-                <p className="mb-6 text-sm text-blue-200">{emailMode ? 'Te enviaremos un enlace seguro.' : 'Validaremos tu cuenta y luego podrás ingresar el código de recuperación.'}</p>
+                <p className="mb-6 text-sm text-blue-200">Valida tu cuenta de estudiante y luego ingresa el código de recuperación.</p>
                 <Label htmlFor="fp-email" className="mb-2 block text-white/90">Correo electronico</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-blue-300" />
@@ -156,14 +150,6 @@ export function ForgotPasswordPage() {
               </div>
               <Button type="submit" disabled={loading} className="w-full bg-blue-600 py-6 text-white hover:bg-blue-700">{loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}Continuar</Button>
             </form>
-          )}
-
-          {step === 'sent' && (
-            <div className="space-y-5 text-center">
-              <CheckCircle2 className="mx-auto h-14 w-14 text-green-400" />
-              <h2 className="text-2xl font-bold text-white">Correo enviado</h2>
-              <p className="text-sm text-blue-200">Revisa tu bandeja y sigue el enlace seguro para cambiar la contraseña.</p>
-            </div>
           )}
 
           {step === 'code' && (

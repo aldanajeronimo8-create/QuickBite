@@ -170,10 +170,7 @@ export function LoginPage() {
                 </div>
               </div>
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="admin-password" className="text-white/80 text-sm">Contraseña</Label>
-                  <Link to="/forgot-password" className="text-xs text-blue-400 underline underline-offset-2">Recuperar</Link>
-                </div>
+                <Label htmlFor="admin-password" className="mb-1 block text-sm text-white/80">Contraseña</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
                   <Input id="admin-password" type={showAdminPwd ? 'text' : 'password'} value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="pl-9 pr-10 bg-white/5 border-white/20 text-white" />
@@ -182,6 +179,7 @@ export function LoginPage() {
                   </button>
                 </div>
                 {errors.adminPassword && <p className="text-red-300 text-xs mt-1">{errors.adminPassword}</p>}
+                <p className="mt-2 text-xs text-blue-200">Otro administrador puede cambiar tu contraseña desde Usuarios.</p>
               </div>
               <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold py-6 rounded-xl">
                 {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Entrando...</> : 'Iniciar sesión'}

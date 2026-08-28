@@ -12,6 +12,7 @@ export function ResetPasswordPage() {
   const navigate = useNavigate();
   const [ready, setReady]                   = useState(false);
   const [expired, setExpired]               = useState(false);
+  const [administratorRecoveryBlocked, setAdministratorRecoveryBlocked] = useState(false);
   const [password, setPassword]             = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPwd, setShowPwd]               = useState(false);
@@ -22,12 +23,29 @@ export function ResetPasswordPage() {
 
   useEffect(() => {
     if (!supabase) { setExpired(true); return; }
+    const client = supabase;
 
     // Supabase fires PASSWORD_RECOVERY when the user arrives via the reset email link.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const verifyRecoveryAccount = async (userId: string) => {
+      const { data: profile } = await client
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!profile || profile.role !== 'student') {
+        await client.auth.signOut();
+        setAdministratorRecoveryBlocked(true);
+        return;
+      }
+
+      setReady(true);
+    };
+
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' && session) {
         readyRef.current = true;
-        setReady(true);
+        void verifyRecoveryAccount(session.user.id);
       }
     });
 
@@ -84,15 +102,28 @@ export function ResetPasswordPage() {
 
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8">
           {/* Waiting for recovery token */}
-          {!ready && !expired && (
+          {!ready && !expired && !administratorRecoveryBlocked && (
             <div className="text-center py-8">
               <Loader2 className="w-10 h-10 text-blue-400 animate-spin mx-auto mb-4" />
               <p className="text-white/70 text-sm">Verificando enlace de recuperación…</p>
             </div>
           )}
 
+          {administratorRecoveryBlocked && (
+            <div className="text-center py-6">
+              <AlertTriangle className="w-10 h-10 text-yellow-400 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-white mb-2">Cambio administrado</h2>
+              <p className="text-blue-200 text-sm mb-6">
+                Las contraseñas de administrador solo se cambian desde Usuarios por otro administrador.
+              </p>
+              <Button onClick={() => navigate('/')} className="w-full rounded-xl bg-blue-600 py-6 font-medium text-white hover:bg-blue-700">
+                Volver al inicio
+              </Button>
+            </div>
+          )}
+
           {/* Link expired or invalid */}
-          {expired && (
+          {expired && !administratorRecoveryBlocked && (
             <div className="text-center py-6">
               <AlertTriangle className="w-10 h-10 text-yellow-400 mx-auto mb-4" />
               <h2 className="text-xl font-bold text-white mb-2">Enlace inválido o expirado</h2>
@@ -109,7 +140,7 @@ export function ResetPasswordPage() {
           )}
 
           {/* Ready — show password form */}
-          {ready && (
+          {ready && !administratorRecoveryBlocked && (
             <form onSubmit={handleReset} className="space-y-5">
               <div>
                 <h2 className="text-2xl font-bold text-white mb-1">Nueva contraseña</h2>
