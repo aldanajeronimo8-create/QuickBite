@@ -58,8 +58,11 @@ export function AdminOrders() {
   const [showHidden, setShowHidden] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [closingPeriod, setClosingPeriod] = useState(false);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
 
   const hiddenCount = useMemo(() => orders.filter((order) => order.admin_hidden).length, [orders]);
+  const exportableOrders = useMemo(() => orders.filter((order) => !order.admin_hidden), [orders]);
+  const exportTotal = useMemo(() => exportableOrders.reduce((sum, order) => sum + Number(order.total), 0), [exportableOrders]);
 
   const filteredOrders = useMemo(() => {
     let filtered = orders
@@ -118,6 +121,7 @@ export function AdminOrders() {
       const resetCount = await resetOrdersForNewPeriod();
       setSelectedOrder(null);
       setShowHidden(false);
+      setShowExportConfirm(false);
       toast.success(
         `Se descargó el reporte con ${result.count} ventas y se reiniciaron ${resetCount} pedidos, incluidos los archivados. El inventario no cambió.`,
       );
@@ -140,8 +144,8 @@ export function AdminOrders() {
         <div className="flex flex-wrap gap-3">
           <Button
             type="button"
-            onClick={handleExcelDownload}
-            disabled={closingPeriod}
+            onClick={() => setShowExportConfirm(true)}
+            disabled={closingPeriod || exportableOrders.length === 0}
             className="bg-blue-700 text-white hover:bg-blue-800"
           >
             <Download className="h-4 w-4" />
@@ -244,45 +248,16 @@ export function AdminOrders() {
                   <span className="text-sm font-medium text-gray-700">Cambiar estado:</span>
                   <div className="flex flex-wrap gap-2">
                     {order.status !== 'pending' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleStatusChange(order.id, 'pending')}
-                        disabled={updatingOrderId === order.id}
-                        className="border-blue-500 text-blue-700 hover:bg-blue-50"
-                      >
-                        Pendiente
-                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(order.id, 'pending')} disabled={updatingOrderId === order.id} className="border-blue-500 text-blue-700 hover:bg-blue-50">Pendiente</Button>
                     )}
                     {order.status !== 'preparing' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleStatusChange(order.id, 'preparing')}
-                        disabled={updatingOrderId === order.id}
-                        className="bg-amber-500 text-white hover:bg-amber-600"
-                      >
-                        En preparación
-                      </Button>
+                      <Button size="sm" onClick={() => handleStatusChange(order.id, 'preparing')} disabled={updatingOrderId === order.id} className="bg-amber-500 text-white hover:bg-amber-600">En preparación</Button>
                     )}
                     {order.status !== 'ready' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleStatusChange(order.id, 'ready')}
-                        disabled={updatingOrderId === order.id}
-                        className="bg-green-600 text-white hover:bg-green-700"
-                      >
-                        Listo
-                      </Button>
+                      <Button size="sm" onClick={() => handleStatusChange(order.id, 'ready')} disabled={updatingOrderId === order.id} className="bg-green-600 text-white hover:bg-green-700">Listo</Button>
                     )}
                     {order.status !== 'delivered' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleStatusChange(order.id, 'delivered')}
-                        disabled={updatingOrderId === order.id}
-                        className="bg-green-800 text-white hover:bg-green-900"
-                      >
-                        Entregado
-                      </Button>
+                      <Button size="sm" onClick={() => handleStatusChange(order.id, 'delivered')} disabled={updatingOrderId === order.id} className="bg-green-800 text-white hover:bg-green-900">Entregado</Button>
                     )}
                   </div>
                 </div>
@@ -291,6 +266,29 @@ export function AdminOrders() {
           ))}
         </div>
       )}
+
+      <Dialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar ventas y reiniciar</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-base font-semibold text-slate-900">¿Deseas exportar las ventas actuales a excel y reiniciar la gestión de pagos?</p>
+            <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+              <p><strong>{exportableOrders.length}</strong> venta(s) serán exportadas.</p>
+              <p className="mt-1"><strong>${exportTotal.toLocaleString('es-CO')}</strong> es el total del período.</p>
+            </div>
+            <p className="text-sm text-slate-600">Después del reinicio, estas ventas dejarán de aparecer en Gestión de Pagos.</p>
+            <p className="text-sm font-medium text-amber-700">No se modificará nada si cancelas o si la exportación no puede generarse correctamente.</p>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowExportConfirm(false)} disabled={closingPeriod}>Cancelar</Button>
+              <Button type="button" onClick={handleExcelDownload} disabled={closingPeriod} className="bg-blue-700 text-white hover:bg-blue-800">
+                {closingPeriod ? 'Exportando...' : 'Confirmar exportación'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -307,9 +305,7 @@ export function AdminOrders() {
                 </div>
                 <div>
                   <p className="mb-1 text-sm text-gray-600">Total</p>
-                  <p className="text-xl font-bold text-blue-900">
-                    ${Number(selectedOrder.total).toLocaleString()}
-                  </p>
+                  <p className="text-xl font-bold text-blue-900">${Number(selectedOrder.total).toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="mb-1 text-sm text-gray-600">Estado</p>
@@ -317,9 +313,7 @@ export function AdminOrders() {
                 </div>
                 <div>
                   <p className="mb-1 text-sm text-gray-600">Método de pago</p>
-                  <p className="font-medium capitalize">
-                    {selectedOrder.payment_method === 'cash' ? 'Efectivo' : selectedOrder.payment_method}
-                  </p>
+                  <p className="font-medium capitalize">{selectedOrder.payment_method === 'cash' ? 'Efectivo' : selectedOrder.payment_method}</p>
                 </div>
               </div>
 
@@ -329,17 +323,13 @@ export function AdminOrders() {
                   {selectedOrder.order_items?.map((item) => (
                     <div key={item.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 font-bold text-green-700">
-                          {item.quantity}
-                        </span>
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 font-bold text-green-700">{item.quantity}</span>
                         <div>
                           <p className="font-medium">{item.product?.name}</p>
                           <p className="text-sm text-gray-600">${Number(item.price).toLocaleString()} c/u</p>
                         </div>
                       </div>
-                      <span className="font-bold text-blue-900">
-                        ${Number(item.price * item.quantity).toLocaleString()}
-                      </span>
+                      <span className="font-bold text-blue-900">${Number(item.price * item.quantity).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
