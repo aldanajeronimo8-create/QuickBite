@@ -15,8 +15,7 @@ function calculatePoints(userId: string, orders: Order[], settings: LoyaltySetti
   const earned = orders
     .filter((order) => order.user_id === userId && order.payment_status === 'confirmed')
     .reduce(
-      (total, order) =>
-        total + Math.floor(Number(order.total) / settings.currency_amount) * settings.points_per_amount,
+      (total, order) => total + Math.floor(Number(order.total) / settings.points_per_currency_unit),
       0,
     );
   const redeemed = redemptions
@@ -64,7 +63,10 @@ export function useLoyalty(userId: string | undefined, orders: Order[]) {
   useEffect(() => {
     if (!userId) return;
 
-    const interval = window.setInterval(() => void refresh(), appConfig.loyaltyRefreshIntervalMs);
+    const interval = window.setInterval(
+      () => void refresh(),
+      Math.max(appConfig.dataRefreshIntervalMs, 15_000),
+    );
     if (!appConfig.supabaseRealtimeEnabled) return () => window.clearInterval(interval);
 
     const client = requireSupabaseClient();
