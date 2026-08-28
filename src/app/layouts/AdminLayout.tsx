@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { CreditCard, Gift, LayoutDashboard, LogOut, Package, ScanLine, ShoppingBag, Users, UtensilsCrossed } from 'lucide-react';
+import { CreditCard, Gift, GraduationCap, LayoutDashboard, LogOut, Package, ScanLine, ShoppingBag, Users, UtensilsCrossed } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { Button } from '../components/ui/button';
 import { Toaster } from '../components/ui/sonner';
+import { canAccessStudent } from '../../lib/access';
 
 const primaryColor = '#1E3A8A';
 const navigationAccent = '#DBEAFE';
@@ -90,9 +91,15 @@ export function AdminLayout() {
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: 'rgba(255,255,255,0.12)' }}>{user.full_name?.[0]?.toUpperCase() ?? 'A'}</div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-white">{user.full_name}</p>
-              <p className="truncate text-xs" style={{ color: '#93C5FD' }}>Administrador</p>
+              <p className="truncate text-xs" style={{ color: '#93C5FD' }}>{user.role === 'both' ? 'Administrador y estudiante' : 'Administrador'}</p>
             </div>
           </div>
+          {canAccessStudent(user.role) && (
+            <Link to="/menu" className="mb-2 flex w-full items-center justify-center rounded-md border px-3 py-2 text-xs font-semibold transition hover:bg-white/10" style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#DBEAFE' }}>
+              <GraduationCap className="mr-2 h-3.5 w-3.5" />
+              Ver como estudiante
+            </Link>
+          )}
           <Button onClick={handleSignOut} variant="outline" size="sm" className="w-full text-xs" style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.2)', color: '#BFDBFE' }}>
             <LogOut className="mr-2 h-3.5 w-3.5" />
             Cerrar sesión
