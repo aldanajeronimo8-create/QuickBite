@@ -6,6 +6,15 @@ export interface ActiveSalesExportResult { count: number; batchId: string; }
 export interface WeeklyOrderExportResult extends ActiveSalesExportResult { fileName: string; weekStartIso: string; }
 export interface CsvSalesExportResult { count: number; fileName: string; }
 export interface ExcelSalesExportResult { count: number; fileName: string; }
+export interface SalesRedemptionExport {
+  id: string;
+  redemption_code: string;
+  points_spent: number;
+  status: string;
+  created_at: string;
+  reward?: { title?: string | null; product?: { name?: string | null } | null } | null;
+  user?: { full_name?: string | null; email?: string | null } | null;
+}
 
 const csvHeaders = [
   'Número de pedido', 'Fecha de creación', 'Cliente', 'Correo', 'Documento', 'Estado del pedido', 'Estado del pago', 'Método de pago',
@@ -18,6 +27,7 @@ const salesHeaders = [
 const detailHeaders = [
   'N.º pedido', 'Fecha de compra', 'Hora de compra', 'Producto', 'Categoría', 'Precio unitario', 'Cantidad', 'Subtotal', 'Stock actual', 'Cliente',
 ];
+const redemptionHeaders = ['Código de canje', 'Fecha de canje', 'Estudiante', 'Correo', 'Recompensa', 'Producto', 'Puntos utilizados', 'Estado'];
 
 function csvCell(value: unknown) {
   if (value === null || value === undefined) return '';
@@ -32,7 +42,8 @@ const purchaseDateFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'Amer
 const purchaseTimeFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const orderStatusLabel: Record<Order['status'], string> = { pending: 'Pendiente', preparing: 'En preparación', ready: 'Listo para recoger', delivered: 'Entregado' };
 const paymentStatusLabel: Record<Order['payment_status'], string> = { pending: 'Pendiente', confirmed: 'Confirmado', rejected: 'Rechazado' };
-const paymentMethodLabel: Record<Order['payment_method'], string> = { nequi: 'Nequi', bancolombia: 'Bancolombia', daviplata: 'Daviplata', 'bre-b': 'Bre-B', bank_keys: 'Llaves bancarias', cash: 'Efectivo' };
+const paymentMethodLabel: Record<Order['payment_method'], string> = { nequi: 'Nequi', 'bre-b': 'Bre-B', cash: 'Efectivo' };
+const redemptionStatusLabel: Record<string, string> = { pending: 'Pendiente', approved: 'Aprobado', delivered: 'Entregado', cancelled: 'Cancelado' };
 function purchaseDateAndTime(createdAt: string) { const value = new Date(createdAt); return { date: purchaseDateFormatter.format(value), time: purchaseTimeFormatter.format(value) }; }
 function sheetCell(row: number, column: number) { return XLSX.utils.encode_cell({ r: row, c: column }); }
 
@@ -44,7 +55,7 @@ const alternateBodyStyle = { ...bodyStyle, fill: { fgColor: { rgb: 'F5F9FF' } } 
 const kpiLabelStyle = { fill: { fgColor: { rgb: 'DBEAFE' } }, font: { bold: true, color: { rgb: '1E3A8A' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder } };
 const kpiValueStyle = { fill: { fgColor: { rgb: 'EFF6FF' } }, font: { bold: true, sz: 13, color: { rgb: '0F172A' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder } };
 
-function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string[], rows: unknown[][], columnWidths: number[], currencyColumns: number[] = []) {
+function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string[], rows: unknown[][], columnWidths: number[], currencyColumns: number[] = [], integerColumns: number[] = []) {
   sheet['A1'] = { v: title, t: 's', s: reportTitleStyle };
   sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
   sheet['!rows'] = [{ hpt: 28 }, { hpt: 19 }, { hpt: 19 }, { hpt: 8 }, { hpt: 34 }];
@@ -53,15 +64,20 @@ function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string
   sheet['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
   for (let column = 0; column < headers.length; column += 1) sheet[sheetCell(4, column)] = { v: headers[column], t: 's', s: tableHeaderStyle };
   for (let row = 0; row < rows.length; row += 1) for (let column = 0; column < headers.length; column += 1) {
-    const cell = sheetCell(row + 5, column); if (!sheet[cell]) sheet[cell] = { v: '', t: 's' }; sheet[cell].s = row % 2 === 0 ? bodyStyle : alternateBodyStyle; if (currencyColumns.includes(column)) sheet[cell].z = '"$"#,##0';
+    const cell = sheetCell(row + 5, column);
+    if (!sheet[cell]) sheet[cell] = { v: '', t: 's' };
+    sheet[cell].s = row % 2 === 0 ? bodyStyle : alternateBodyStyle;
+    if (currencyColumns.includes(column)) sheet[cell].z = '"$"#,##0';
+    else if (integerColumns.includes(column)) sheet[cell].z = '0';
   }
 }
 
-export function buildActiveSalesWorkbook(orders: Order[]) {
+export function buildActiveSalesWorkbook(orders: Order[], redemptions: SalesRedemptionExport[] = []) {
   const sales = activeOrders(orders);
   if (!sales.length) throw new Error('No hay ventas activas para descargar.');
-  const salesRows = sales.map((order) => { const purchase = purchaseDateAndTime(order.created_at); const totalUnits = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0; return [order.order_number, purchase.date, purchase.time, order.user?.full_name ?? 'Sin cliente', order.user?.email ?? '', order.user?.ti ?? '', orderStatusLabel[order.status], paymentStatusLabel[order.payment_status], paymentMethodLabel[order.payment_method], order.pickup_code ?? '', order.payment_reference ?? '', Number(order.total), order.order_items?.length ?? 0, totalUnits, order.estimated_minutes ?? '']; });
-  const detailRows = sales.flatMap((order) => { const purchase = purchaseDateAndTime(order.created_at); return (order.order_items ?? []).map((item) => [order.order_number, purchase.date, purchase.time, item.product?.name ?? 'Producto no disponible', item.product?.category?.name ?? 'Sin categoría', Number(item.price), item.quantity, Number(item.price) * item.quantity, item.product?.stock ?? '', order.user?.full_name ?? 'Sin cliente']); });
+  const salesRows = sales.map((order) => { const purchase = purchaseDateAndTime(order.created_at); const totalUnits = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0; return [order.order_number, purchase.date, purchase.time, order.user?.full_name ?? 'Sin cliente', order.user?.email ?? '', order.user?.ti ?? '', orderStatusLabel[order.status], paymentStatusLabel[order.payment_status], paymentMethodLabel[order.payment_method], order.pickup_code ?? '', order.payment_reference ?? '', Number(order.total), Number(order.order_items?.length ?? 0), Number(totalUnits), Number(order.estimated_minutes ?? 0)]; });
+  const detailRows = sales.flatMap((order) => { const purchase = purchaseDateAndTime(order.created_at); return (order.order_items ?? []).map((item) => [order.order_number, purchase.date, purchase.time, item.product?.name ?? 'Producto no disponible', item.product?.category?.name ?? 'Sin categoría', Number(item.price), Number(item.quantity), Number(item.price) * Number(item.quantity), Number(item.product?.stock ?? 0), order.user?.full_name ?? 'Sin cliente']); });
+  const redemptionRows = redemptions.map((redemption) => [redemption.redemption_code, purchaseDateAndTime(redemption.created_at).date, redemption.user?.full_name ?? 'Estudiante', redemption.user?.email ?? '', redemption.reward?.title ?? 'Recompensa', redemption.reward?.product?.name ?? '', Number(redemption.points_spent), redemptionStatusLabel[redemption.status] ?? redemption.status]);
   const earliestOrder = sales.reduce((earliest, order) => new Date(order.created_at) < new Date(earliest.created_at) ? order : earliest, sales[0]);
   const latestOrder = sales.reduce((latest, order) => new Date(order.created_at) > new Date(latest.created_at) ? order : latest, sales[0]);
   const workbook = XLSX.utils.book_new();
@@ -70,23 +86,25 @@ export function buildActiveSalesWorkbook(orders: Order[]) {
     ['Periodo incluido', `${purchaseDateAndTime(earliestOrder.created_at).date} a ${purchaseDateAndTime(latestOrder.created_at).date}`],
     ['Generado el', new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', hour12: false })], [],
     ['Total facturado', 'Pedidos exportados', 'Ticket promedio', 'Unidades vendidas'], [null, null, null, null], [],
-    ['Guía de uso'], ['El archivo contiene una hoja de ventas por pedido y una hoja de detalle por producto. Usa los filtros de las tablas para analizar fechas, horas, pagos o productos.'],
+    ['Guía de uso'], ['El archivo contiene ventas, detalle de productos y canjes. Los importes monetarios llevan formato de moneda; cantidades, pedidos, unidades, stock y puntos son números sin símbolo $.'],
   ]);
   const salesSheet = XLSX.utils.aoa_to_sheet([[], [], [], [], salesHeaders, ...salesRows]);
   const detailsSheet = XLSX.utils.aoa_to_sheet([[], [], [], [], detailHeaders, ...detailRows]);
+  const redemptionsSheet = XLSX.utils.aoa_to_sheet([[], [], [], [], redemptionHeaders, ...redemptionRows]);
   summary['A1'] = { v: 'QuickBite | Reporte profesional de ventas', t: 's', s: reportTitleStyle };
   summary['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, { s: { r: 7, c: 0 }, e: { r: 7, c: 3 } }, { s: { r: 8, c: 0 }, e: { r: 8, c: 3 } }];
   summary['!cols'] = [{ wch: 25 }, { wch: 23 }, { wch: 23 }, { wch: 23 }];
   summary['!rows'] = [{ hpt: 30 }, { hpt: 20 }, { hpt: 20 }, { hpt: 10 }, { hpt: 28 }, { hpt: 32 }, { hpt: 10 }, { hpt: 22 }, { hpt: 36 }];
   for (let column = 0; column < 4; column += 1) { summary[sheetCell(4, column)] = { v: ['Total facturado', 'Pedidos exportados', 'Ticket promedio', 'Unidades vendidas'][column], t: 's', s: kpiLabelStyle }; summary[sheetCell(5, column)] = { t: 'n', s: kpiValueStyle }; }
-  summary.A6.f = `SUM('Ventas'!L6:L${salesRows.length + 5})`; summary.A6.z = '"$"#,##0'; summary.B6.f = `COUNTA('Ventas'!A6:A${salesRows.length + 5})`; summary.C6.f = 'IFERROR(A6/B6,0)'; summary.C6.z = '"$"#,##0'; summary.D6.f = `SUM('Ventas'!N6:N${salesRows.length + 5})`;
-  summary.A8 = { v: 'Guía de uso', t: 's', s: { ...tableHeaderStyle, alignment: { horizontal: 'left', vertical: 'center' } } }; summary.A9 = { v: 'El archivo contiene una hoja de ventas por pedido y una hoja de detalle por producto. Usa los filtros de las tablas para analizar fechas, horas, pagos o productos.', t: 's', s: { ...bodyStyle, alignment: { wrapText: true, vertical: 'center' } } }; summary.A2.s = bodyStyle; summary.B2.s = bodyStyle; summary.A3.s = bodyStyle; summary.B3.s = bodyStyle;
-  applyReportLayout(salesSheet, 'QuickBite | Ventas por pedido', salesHeaders, salesRows, [14, 15, 14, 25, 29, 16, 19, 17, 18, 18, 22, 16, 12, 12, 20], [11]);
-  applyReportLayout(detailsSheet, 'QuickBite | Detalle de productos vendidos', detailHeaders, detailRows, [14, 15, 14, 30, 20, 16, 12, 16, 14, 25], [5, 7]);
-  XLSX.utils.book_append_sheet(workbook, summary, 'Resumen'); XLSX.utils.book_append_sheet(workbook, salesSheet, 'Ventas'); XLSX.utils.book_append_sheet(workbook, detailsSheet, 'Detalle de productos'); return workbook;
+  summary.A6.f = `SUM('Ventas'!L6:L${salesRows.length + 5})`; summary.A6.z = '"$"#,##0'; summary.B6.f = `COUNTA('Ventas'!A6:A${salesRows.length + 5})`; summary.B6.z = '0'; summary.C6.f = 'IFERROR(A6/B6,0)'; summary.C6.z = '"$"#,##0'; summary.D6.f = `SUM('Ventas'!N6:N${salesRows.length + 5})`; summary.D6.z = '0';
+  summary.A8 = { v: 'Guía de uso', t: 's', s: { ...tableHeaderStyle, alignment: { horizontal: 'left', vertical: 'center' } } }; summary.A9 = { v: 'El archivo contiene ventas, detalle de productos y canjes. Los importes monetarios llevan formato de moneda; cantidades, pedidos, unidades, stock y puntos son números sin símbolo $.', t: 's', s: { ...bodyStyle, alignment: { wrapText: true, vertical: 'center' } } }; summary.A2.s = bodyStyle; summary.B2.s = bodyStyle; summary.A3.s = bodyStyle; summary.B3.s = bodyStyle;
+  applyReportLayout(salesSheet, 'QuickBite | Ventas por pedido', salesHeaders, salesRows, [14, 15, 14, 25, 29, 16, 19, 17, 18, 18, 22, 16, 12, 12, 20], [11], [12, 13, 14]);
+  applyReportLayout(detailsSheet, 'QuickBite | Detalle de productos vendidos', detailHeaders, detailRows, [14, 15, 14, 30, 20, 16, 12, 16, 14, 25], [5, 7], [6, 8]);
+  applyReportLayout(redemptionsSheet, 'QuickBite | Canjes', redemptionHeaders, redemptionRows, [22, 15, 26, 30, 28, 28, 18, 16], [], [6]);
+  XLSX.utils.book_append_sheet(workbook, summary, 'Resumen'); XLSX.utils.book_append_sheet(workbook, salesSheet, 'Ventas'); XLSX.utils.book_append_sheet(workbook, detailsSheet, 'Detalle de productos'); XLSX.utils.book_append_sheet(workbook, redemptionsSheet, 'Canjes'); return workbook;
 }
 
-export function downloadActiveSalesExcel(orders: Order[]): ExcelSalesExportResult { const sales = activeOrders(orders); const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`; XLSX.writeFile(buildActiveSalesWorkbook(orders), fileName, { compression: true }); return { count: sales.length, fileName }; }
+export function downloadActiveSalesExcel(orders: Order[], redemptions: SalesRedemptionExport[] = []): ExcelSalesExportResult { const sales = activeOrders(orders); const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`; XLSX.writeFile(buildActiveSalesWorkbook(orders, redemptions), fileName, { compression: true }); return { count: sales.length, fileName }; }
 
 export function buildActiveSalesCsv(orders: Order[]) {
   const sales = activeOrders(orders); if (!sales.length) throw new Error('No hay ventas activas para descargar.');
