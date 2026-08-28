@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Eye, EyeOff, FileSpreadsheet, ShoppingBag } from 'lucide-react';
+import { Download, Eye, EyeOff, FileSpreadsheet, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
-import { exportActiveSalesToGoogleSheets } from '../../../services/orderExportService';
+import { downloadActiveSalesCsv, exportActiveSalesToGoogleSheets } from '../../../services/orderExportService';
 import { getErrorMessage } from '../../../lib/errorMessage';
 import type { Order } from '../../../lib/supabase';
 import { useDataStore } from '../../../store/dataStore';
@@ -113,6 +113,15 @@ export function AdminOrders() {
     }
   };
 
+  const handleCsvDownload = () => {
+    try {
+      const result = downloadActiveSalesCsv(orders);
+      toast.success(`Se descargaron ${result.count} ventas en formato CSV para Google Sheets.`);
+    } catch (error) {
+      toast.error(getOrderErrorMessage(error));
+    }
+  };
+
   return (
     <div>
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
@@ -120,14 +129,24 @@ export function AdminOrders() {
           <h1 className="mb-2 text-4xl font-bold text-blue-900">Gestion de pedidos</h1>
           <p className="text-lg text-gray-600">Administra pedidos y cierra las ventas activas en Google Sheets.</p>
         </div>
-        <Button
-          onClick={handleWeeklyExport}
-          disabled={exporting}
-          className="bg-green-700 text-white hover:bg-green-800"
-        >
-          <FileSpreadsheet className="h-4 w-4" />
-          {exporting ? 'Enviando ventas...' : 'Cerrar ventas y enviar a Sheets'}
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            onClick={handleCsvDownload}
+            className="bg-blue-700 text-white hover:bg-blue-800"
+          >
+            <Download className="h-4 w-4" />
+            Descargar CSV para Google Sheets
+          </Button>
+          <Button
+            onClick={handleWeeklyExport}
+            disabled={exporting}
+            className="bg-green-700 text-white hover:bg-green-800"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {exporting ? 'Enviando ventas...' : 'Cerrar ventas y enviar a Sheets'}
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-6 border-0 bg-white p-6 shadow-lg">

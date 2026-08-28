@@ -1,8 +1,90 @@
 import { appConfig } from '../config/appConfig';
 import { requireSupabaseClient } from '../lib/supabase';
+import type { Order } from '../lib/supabase';
 
 export interface ActiveSalesExportResult { count: number; batchId: string; }
 export interface WeeklyOrderExportResult extends ActiveSalesExportResult { fileName: string; weekStartIso: string; }
+export interface CsvSalesExportResult { count: number; fileName: string; }
+
+const csvHeaders = [
+  'Número de pedido',
+  'Fecha de creación',
+  'Cliente',
+  'Correo',
+  'Documento',
+  'Estado del pedido',
+  'Estado del pago',
+  'Método de pago',
+  'Total del pedido',
+  'Código de recogida',
+  'Minutos estimados',
+  'Referencia de pago',
+  'Producto',
+  'Categoría',
+  'Precio unitario',
+  'Cantidad',
+  'Subtotal',
+  'Stock actual',
+];
+
+function csvCell(value: unknown) {
+  if (value === null || value === undefined) return '';
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+function activeOrders(orders: Order[]) {
+  return orders.filter((order) => !order.admin_hidden);
+}
+
+/** Builds a UTF-8 CSV that Google Sheets can import without any external integration. */
+export function buildActiveSalesCsv(orders: Order[]) {
+  const sales = activeOrders(orders);
+  if (!sales.length) throw new Error('No hay ventas activas para descargar.');
+
+  const rows = sales.flatMap((order) => {
+    const items = order.order_items?.length ? order.order_items : [undefined];
+    return items.map((item) => [
+      order.order_number,
+      order.created_at,
+      order.user?.full_name,
+      order.user?.email,
+      order.user?.ti,
+      order.status,
+      order.payment_status,
+      order.payment_method,
+      order.total,
+      order.pickup_code,
+      order.estimated_minutes,
+      order.payment_reference,
+      item?.product?.name,
+      item?.product?.category?.name,
+      item?.price,
+      item?.quantity,
+      item ? item.price * item.quantity : undefined,
+      item?.product?.stock,
+    ]);
+  });
+
+  return [csvHeaders, ...rows]
+    .map((row) => row.map(csvCell).join(','))
+    .join('\r\n');
+}
+
+export function downloadActiveSalesCsv(orders: Order[]): CsvSalesExportResult {
+  const sales = activeOrders(orders);
+  const csv = `\uFEFF${buildActiveSalesCsv(orders)}`;
+  const fileName = `quickbite-ventas-${new Date().toISOString().slice(0, 10)}.csv`;
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  return { count: sales.length, fileName };
+}
 
 function exportEndpoint() {
   const baseUrl = appConfig.apiBaseUrl.trim().replace(/\/+$/, '');
