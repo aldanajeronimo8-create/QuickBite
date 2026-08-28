@@ -106,7 +106,7 @@ export function StudentMenuPage() {
         }
         await loadData();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'No se pudo cargar tu sesion');
+        toast.error(error instanceof Error ? error.message : 'No se pudo cargar tu sesión');
         navigate('/setup');
       }
     }
@@ -125,8 +125,8 @@ export function StudentMenuPage() {
   const cartGrandTotal = cartTotal + serviceFee;
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
   const navigationTabs = rewardsEnabled
-    ? [['menu', Home, 'Menu'], ['orders', History, 'Historial'], ['rewards', Star, 'Puntos']] as const
-    : [['menu', Home, 'Menu'], ['orders', History, 'Historial']] as const;
+    ? [['menu', Home, 'Menú'], ['orders', History, 'Historial'], ['rewards', Star, 'Puntos']] as const
+    : [['menu', Home, 'Menú'], ['orders', History, 'Historial']] as const;
   const activeTab: Tab = !rewardsEnabled && tab === 'rewards' ? 'menu' : tab;
 
   const availableProducts = useMemo(() => products.filter((p) => {
@@ -238,7 +238,7 @@ export function StudentMenuPage() {
             <div className="flex items-center gap-2">
               <UserNotificationBell userId={student.id} />
               <button onClick={() => setShowCart(true)} className="relative rounded-full bg-white/10 p-2" aria-label="Abrir carrito"><ShoppingCart className="h-5 w-5" />{cartCount > 0 && <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-orange-500 text-xs font-black">{cartCount}</span>}</button>
-              <button onClick={handleLogout} className="rounded-full bg-white/10 p-2" aria-label="Cerrar sesion"><LogOut className="h-5 w-5" /></button>
+              <button onClick={handleLogout} className="rounded-full bg-white/10 p-2" aria-label="Cerrar sesión"><LogOut className="h-5 w-5" /></button>
             </div>
           </div>
           <div className="mt-5 rounded-[2rem] bg-gradient-to-r from-orange-500 to-amber-400 p-4 text-white">
@@ -319,7 +319,7 @@ function CartSheet({
         <div className="space-y-4 p-5">
           {payStep === 'cart' && <>
             <div className="space-y-3">{cart.map((item) => <div key={item.id} className="flex items-center gap-3"><img src={item.image_url} alt={item.name} className="h-14 w-14 rounded-2xl object-cover" /><div className="flex-1"><p className="text-sm font-black">{item.name}</p><p className="text-sm font-bold text-orange-500">${fmt(item.price)} x {item.qty}</p></div><button onClick={() => onRemove(item.id)} className="rounded-full bg-orange-50 p-2 text-orange-600"><Minus className="h-4 w-4" /></button><button onClick={() => onAdd(item)} className="rounded-full bg-orange-500 p-2 text-white"><Plus className="h-4 w-4" /></button></div>)}</div>
-            <div><p className="mb-2 text-sm font-black">Metodo de pago</p><div className="grid grid-cols-2 gap-2">{paymentOptions.map((opt) => <button key={opt.value} onClick={() => onSelectPayment(opt.value)} className={`rounded-2xl border p-3 text-left ${paymentMethod === opt.value ? 'border-orange-500 bg-orange-50' : 'border-slate-100'}`}><span className={`mb-2 block h-2 w-8 rounded-full ${opt.accent}`} /><span className="block text-sm font-black">{opt.label}</span><span className="text-xs text-slate-600">{opt.hint}</span></button>)}</div></div>
+            <div><p className="mb-2 text-sm font-black">Método de pago</p><div className="grid grid-cols-2 gap-2">{paymentOptions.map((opt) => <button key={opt.value} onClick={() => onSelectPayment(opt.value)} className={`rounded-2xl border p-3 text-left ${paymentMethod === opt.value ? 'border-orange-500 bg-orange-50' : 'border-slate-100'}`}><span className={`mb-2 block h-2 w-8 rounded-full ${opt.accent}`} /><span className="block text-sm font-black">{opt.label}</span><span className="text-xs text-slate-600">{opt.hint}</span></button>)}</div></div>
             <textarea value={tip} onChange={(e) => onTip(e.target.value)} className="w-full rounded-2xl border border-slate-100 p-3 text-sm outline-none focus:ring-2 focus:ring-orange-300" rows={2} placeholder="Notas para cafeteria" />
             <Summary subtotal={cartTotal} fee={fee} total={total} />
             <Button onClick={() => onSetPayStep('payment')} className="w-full rounded-2xl bg-[#14213d] py-6 text-white">Continuar al pago <ChevronRight className="ml-1 h-5 w-5" /></Button>
@@ -351,7 +351,7 @@ function Empty({ icon: Icon, title, text }: { icon: LucideIcon; title: string; t
 function statusData(order: Order): [string, number, LucideIcon] {
   if (order.status === 'delivered') return ['Entregado', 100, CheckCircle2];
   if (order.status === 'ready') return ['Listo para recoger', 78, PackageCheck];
-  if (order.status === 'preparing') return ['En preparacion', 52, Utensils];
+  if (order.status === 'preparing') return ['En preparación', 52, Utensils];
   return ['Recibido', 22, Clock3];
 }
 

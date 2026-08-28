@@ -15,7 +15,8 @@ export function AdminDashboard() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const todayOrders = orders.filter(
+    const operationalOrders = orders.filter((order) => !order.admin_hidden);
+    const todayOrders = operationalOrders.filter(
       (o) => new Date(o.created_at) >= today
     );
 
@@ -30,8 +31,8 @@ export function AdminDashboard() {
     const outOfStock = products.filter((p) => p.stock === 0 && p.available).length;
     const lowStock = products.filter((p) => p.stock > 0 && p.stock <= 5 && p.available).length;
 
-    const pendingOrders = orders.filter((o) => o.status === 'pending').length;
-    const preparingOrders = orders.filter((o) => o.status === 'preparing').length;
+    const pendingOrders = operationalOrders.filter((o) => o.status === 'pending').length;
+    const preparingOrders = operationalOrders.filter((o) => o.status === 'preparing').length;
 
     return {
       todayOrders: todayOrders.length,
@@ -46,6 +47,7 @@ export function AdminDashboard() {
 
   const recentOrders = useMemo(() => {
     return orders
+      .filter((order) => !order.admin_hidden)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5);
   }, [orders]);
@@ -95,7 +97,7 @@ export function AdminDashboard() {
             <ShoppingBag className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.todayOrders}</span>
           </div>
-          <p className="text-blue-100 text-sm font-medium">Pedidos del Día</p>
+          <p className="text-blue-100 text-sm font-medium">Pedidos del día</p>
         </Card>
 
         <Card className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
@@ -103,7 +105,7 @@ export function AdminDashboard() {
             <CreditCard className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.confirmedPayments}</span>
           </div>
-          <p className="text-green-100 text-sm font-medium">Pagos Confirmados</p>
+          <p className="text-green-100 text-sm font-medium">Pagos confirmados</p>
         </Card>
 
         <Card className="p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
@@ -111,7 +113,7 @@ export function AdminDashboard() {
             <TrendingUp className="w-8 h-8 opacity-80" />
             <span className="text-2xl font-bold">${(stats.totalRevenue / 1000).toFixed(0)}K</span>
           </div>
-          <p className="text-purple-100 text-sm font-medium">Ingresos del Día</p>
+          <p className="text-purple-100 text-sm font-medium">Ingresos del día</p>
         </Card>
 
         <Card className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 shadow-lg">
@@ -119,7 +121,7 @@ export function AdminDashboard() {
             <AlertTriangle className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.outOfStock}</span>
           </div>
-          <p className="text-orange-100 text-sm font-medium">Productos Agotados</p>
+          <p className="text-orange-100 text-sm font-medium">Productos agotados</p>
         </Card>
       </div>
 
@@ -137,7 +139,7 @@ export function AdminDashboard() {
                 </div>
                 <Link to="/admin/orders">
                   <Button size="sm" className="bg-yellow-600 hover:bg-yellow-700 text-white">
-                    Ver Pedidos
+                    Ver pedidos
                   </Button>
                 </Link>
               </div>
@@ -155,7 +157,7 @@ export function AdminDashboard() {
                 </div>
                 <Link to="/admin/inventory">
                   <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white">
-                    Ver Inventario
+                    Ver inventario
                   </Button>
                 </Link>
               </div>
@@ -178,10 +180,10 @@ export function AdminDashboard() {
       {/* Recent Orders */}
       <Card className="p-6 bg-white shadow-lg border-0">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-blue-900">Actividad Reciente</h2>
+          <h2 className="text-2xl font-bold text-blue-900">Actividad reciente</h2>
           <Link to="/admin/orders">
             <Button variant="outline" size="sm" className="border-blue-600 text-blue-700 hover:bg-blue-50">
-              Ver Todos
+              Ver todos
             </Button>
           </Link>
         </div>

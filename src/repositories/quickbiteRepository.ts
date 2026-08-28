@@ -44,7 +44,7 @@ function productRpcError(error: unknown) {
     return new Error('El producto ya no existe en Supabase.');
   }
   if (/invalid_stock/i.test(message)) {
-    return new Error('El stock debe ser un numero mayor o igual a 0.');
+    return new Error('El stock debe ser un número mayor o igual que 0.');
   }
   if (/invalid_price/i.test(message)) {
     return new Error('El precio debe ser mayor o igual a 0.');
@@ -55,7 +55,7 @@ function productRpcError(error: unknown) {
 function orderStatusRpcError(error: unknown) {
   const message = getErrorMessage(error, 'No se pudo actualizar el estado del pedido.');
   if (/not_authorized|row-level security|permission denied/i.test(message)) {
-    return new Error('Tu sesion no tiene permisos de administrador para actualizar pedidos.');
+    return new Error('Tu sesión no tiene permisos de administrador para actualizar pedidos.');
   }
   if (/invalid_order_status/i.test(message)) {
     return new Error('El estado seleccionado no es valido.');
@@ -68,7 +68,7 @@ function orderStatusRpcError(error: unknown) {
 
 function loyaltyRpcError(error: unknown) {
   const message = getErrorMessage(error, 'No se pudo procesar el canje.');
-  if (/not_authorized/i.test(message)) return new Error('Tu sesion no puede canjear recompensas.');
+  if (/not_authorized/i.test(message)) return new Error('Tu sesión no puede canjear recompensas.');
   if (/loyalty_disabled/i.test(message)) return new Error('El programa de puntos esta desactivado por el administrador.');
   if (/reward_not_found/i.test(message)) return new Error('Esta recompensa ya no esta disponible.');
   if (/reward_out_of_stock/i.test(message)) return new Error('Esta recompensa se agoto. Elige otra opcion.');
@@ -78,7 +78,7 @@ function loyaltyRpcError(error: unknown) {
 
 function loyaltyFulfillmentError(error: unknown) {
   const message = getErrorMessage(error, 'No se pudo entregar el canje.');
-  if (/not_authorized/i.test(message)) return new Error('Tu sesion no puede entregar canjes.');
+  if (/not_authorized/i.test(message)) return new Error('Tu sesión no puede entregar canjes.');
   if (/redemption_not_found/i.test(message)) return new Error('El canje ya no existe.');
   if (/redemption_not_available/i.test(message)) return new Error('Este canje ya fue entregado o cancelado.');
   if (/invalid_redemption_code/i.test(message)) return new Error('El codigo del canje no coincide.');
@@ -249,6 +249,19 @@ export async function updateOrder(id: string, updates: Partial<Order>) {
     .single();
   if (error) throw error;
   return data as Order;
+}
+
+/** Archives the current operational orders without changing product stock. */
+export async function archiveOrders(ids: string[]) {
+  if (!ids.length) return 0;
+
+  const { data, error } = await requireSupabaseClient()
+    .from('orders')
+    .update({ admin_hidden: true })
+    .in('id', ids)
+    .select('id');
+  if (error) throw error;
+  return data?.length ?? 0;
 }
 
 export async function updateOrderStatus(id: string, status: Order['status']) {
@@ -441,7 +454,7 @@ export async function updateManagedUser(user: ManagedUserUpdate) {
   }
 
   if (isMissingRpc(error) && payload.p_password) {
-    throw new Error('Falta aplicar la migracion de contrasenas admin en Supabase.');
+    throw new Error('Falta aplicar la migración de contraseñas de administrador en Supabase.');
   }
 
   throw error;

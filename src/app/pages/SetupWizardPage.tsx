@@ -12,7 +12,7 @@ const steps = [
   {
     icon: KeyRound,
     title: 'Credenciales',
-    text: 'Copia solo la URL publica y la anon key en .env. Las service keys quedan fuera del frontend.',
+    text: 'Copia solo la URL pública y la clave anónima en .env. Las claves de servicio quedan fuera del frontend.',
   },
   {
     icon: ShieldCheck,
@@ -27,7 +27,7 @@ const steps = [
   {
     icon: Mail,
     title: 'Correo',
-    text: 'Conecta SMTP o proveedor transaccional para recuperacion de cuenta y notificaciones.',
+    text: 'Conecta SMTP o un proveedor transaccional para la recuperación de cuentas y las notificaciones.',
   },
   {
     icon: UploadCloud,
@@ -41,9 +41,9 @@ export function SetupWizardPage() {
     <main className="min-h-screen bg-[#fff7e8] px-4 py-8 text-[#14213d]">
       <section className="mx-auto max-w-5xl">
         <Badge className="mb-4 bg-orange-100 text-orange-800">Primer inicio</Badge>
-        <h1 className="text-3xl font-black sm:text-4xl">Configuracion inicial</h1>
+        <h1 className="text-3xl font-black sm:text-4xl">Configuración inicial</h1>
         <p className="mt-3 max-w-3xl text-slate-700">
-          QuickBite no encontro una configuracion completa para produccion. Puedes conectar un
+          QuickBite no encontró una configuración completa para producción. Puedes conectar un
           proyecto Supabase existente o crear uno nuevo manualmente, y completar las variables de
           entorno antes de habilitar el modo productivo.
         </p>
@@ -61,7 +61,7 @@ export function SetupWizardPage() {
         </div>
 
         <section className="mt-8 rounded-lg bg-white p-5 shadow-sm ring-1 ring-orange-100">
-          <h2 className="font-black">Variables minimas</h2>
+          <h2 className="font-black">Variables mínimas</h2>
           <pre className="mt-3 overflow-x-auto rounded-md bg-slate-950 p-4 text-sm text-slate-100">
             {`VITE_RUNTIME_MODE=supabase
 VITE_SUPABASE_URL=https://tu-proyecto.supabase.co

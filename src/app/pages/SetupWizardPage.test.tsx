@@ -6,7 +6,7 @@ describe('SetupWizardPage', () => {
   it('explains the required first-run configuration', () => {
     render(<SetupWizardPage />);
 
-    expect(screen.getByRole('heading', { name: /configuracion inicial/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /configuración inicial/i })).toBeInTheDocument();
     expect(screen.getByText(/conectar un proyecto supabase existente/i)).toBeInTheDocument();
     expect(screen.getByText(/VITE_SUPABASE_URL/i)).toBeInTheDocument();
   });

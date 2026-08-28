@@ -31,7 +31,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     if (error || !data.user) {
       writeAuditLog({ action: 'auth.error', actorEmail: normalizedEmail, metadata: { reason: error?.message } });
-      throw new Error('Correo o contrasena incorrectos.');
+      throw new Error('Correo o contraseña incorrectos.');
     }
 
     const profile = await getProfile(data.user.id);

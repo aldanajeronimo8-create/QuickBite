@@ -62,11 +62,11 @@ export function AdminUsers() {
       return;
     }
     if (!form.id && form.password.length < 6) {
-      toast.error('La contrasena temporal debe tener al menos 6 caracteres');
+      toast.error('La contraseña temporal debe tener al menos 6 caracteres');
       return;
     }
     if (form.id && form.password.trim() && form.password.length < 6) {
-      toast.error('La nueva contrasena debe tener al menos 6 caracteres');
+      toast.error('La nueva contraseña debe tener al menos 6 caracteres');
       return;
     }
 
@@ -181,7 +181,7 @@ export function AdminUsers() {
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               <div>
-                <Label>{form.id ? 'Nueva contrasena opcional' : 'Contrasena temporal'}</Label>
+                <Label>{form.id ? 'Nueva contraseña opcional' : 'Contraseña temporal'}</Label>
                 <Input
                   type="password"
                   value={form.password}

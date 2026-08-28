@@ -29,6 +29,7 @@ interface DataState {
   deleteProduct: (id: string) => Promise<void>;
   addOrder: (orderData: repo.NewOrder) => Promise<string>;
   updateOrder: (id: string, updates: Partial<Order>) => Promise<void>;
+  archiveOrders: (ids: string[]) => Promise<number>;
   deleteOrder: (id: string) => Promise<void>;
   addUser: (user: repo.NewManagedUser) => Promise<void>;
   updateUser: (user: repo.ManagedUserUpdate) => Promise<void>;
@@ -136,6 +137,24 @@ export const useDataStore = create<DataState>((set, get) => ({
       metadata: updates as Record<string, unknown>,
     });
     set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
+  },
+
+  archiveOrders: async (ids) => {
+    const archivedCount = await repo.archiveOrders(ids);
+    if (!archivedCount) return 0;
+
+    const archivedIds = new Set(ids);
+    await remoteAudit({
+      action: 'order.update',
+      entity: 'order',
+      metadata: { action: 'period_closed', archived_orders: archivedCount },
+    });
+    set({
+      orders: get().orders.map((order) => (
+        archivedIds.has(order.id) ? { ...order, admin_hidden: true } : order
+      )),
+    });
+    return archivedCount;
   },
 
   deleteOrder: async (id) => {

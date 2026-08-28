@@ -45,7 +45,10 @@ describe('buildActiveSalesWorkbook', () => {
     expect(workbook.Sheets.Resumen.A6.f).toBe("SUM('Ventas'!L6:L6)");
   });
 
-  it('does not include hidden sales', () => {
-    expect(() => buildActiveSalesWorkbook([{ ...order, admin_hidden: true }])).toThrow('No hay ventas activas');
+  it('includes archived sales to preserve the complete closing-period history', () => {
+    const workbook = buildActiveSalesWorkbook([{ ...order, admin_hidden: true }]);
+
+    expect(workbook.Sheets.Ventas.A6.v).toBe('QB-001');
+    expect(workbook.Sheets.Resumen.B6.f).toBe("COUNTA('Ventas'!A6:A6)");
   });
 });

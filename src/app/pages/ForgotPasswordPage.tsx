@@ -14,11 +14,11 @@ function getPasswordRecoveryMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (/email_not_found/i.test(message)) return 'No existe una cuenta con ese correo.';
   if (/invalid_reset_code/i.test(message)) return 'Codigo incorrecto.';
-  if (/password_too_short/i.test(message)) return 'La contrasena debe tener al menos 6 caracteres.';
+  if (/password_too_short/i.test(message)) return 'La contraseña debe tener al menos 6 caracteres.';
   if (/function.*does not exist|could not find the function|schema cache/i.test(message)) {
-    return 'Falta aplicar la migracion de recuperacion de contrasena en Supabase.';
+    return 'Falta aplicar la migración de recuperación de contraseña en Supabase.';
   }
-  return message || 'No se pudo completar la recuperacion';
+  return message || 'No se pudo completar la recuperación';
 }
 
 export function ForgotPasswordPage() {
@@ -73,7 +73,7 @@ export function ForgotPasswordPage() {
     e.preventDefault();
     setError('');
     if (!code.trim()) {
-      setError('Ingresa el codigo de recuperacion');
+      setError('Ingresa el código de recuperación');
       return;
     }
     setStep('reset');
@@ -83,11 +83,11 @@ export function ForgotPasswordPage() {
     e.preventDefault();
     setError('');
     if (password.length < 6) {
-      setError('La contrasena debe tener al menos 6 caracteres');
+      setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Las contrasenas no coinciden');
+      setError('Las contraseñas no coinciden');
       return;
     }
 
@@ -111,7 +111,7 @@ export function ForgotPasswordPage() {
       }
 
       await client.auth.signOut();
-      toast.success('Contrasena actualizada en Supabase. Inicia sesion.');
+      toast.success('Contraseña actualizada en Supabase. Inicia sesión.');
       navigate('/');
     } catch (err) {
       toast.error(getPasswordRecoveryMessage(err));
@@ -128,7 +128,7 @@ export function ForgotPasswordPage() {
             <Coffee className="h-8 w-8 text-white" />
           </div>
           <h1 className="mb-2 text-4xl font-bold text-white">QuickBite</h1>
-          <p className="text-blue-200">Recuperar contrasena</p>
+          <p className="text-blue-200">Recuperar contraseña</p>
         </div>
 
         <div className="rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
@@ -147,7 +147,7 @@ export function ForgotPasswordPage() {
             <form onSubmit={handleFindAccount} className="space-y-5">
               <div>
                 <h2 className="mb-1 text-2xl font-bold text-white">Ingresa tu correo</h2>
-                <p className="mb-6 text-sm text-blue-200">{emailMode ? 'Te enviaremos un enlace seguro.' : 'Validaremos tu cuenta y luego podras ingresar el codigo de recuperacion.'}</p>
+                <p className="mb-6 text-sm text-blue-200">{emailMode ? 'Te enviaremos un enlace seguro.' : 'Validaremos tu cuenta y luego podrás ingresar el código de recuperación.'}</p>
                 <Label htmlFor="fp-email" className="mb-2 block text-white/90">Correo electronico</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-blue-300" />
@@ -163,13 +163,13 @@ export function ForgotPasswordPage() {
             <div className="space-y-5 text-center">
               <CheckCircle2 className="mx-auto h-14 w-14 text-green-400" />
               <h2 className="text-2xl font-bold text-white">Correo enviado</h2>
-              <p className="text-sm text-blue-200">Revisa tu bandeja y sigue el enlace seguro para cambiar la contrasena.</p>
+              <p className="text-sm text-blue-200">Revisa tu bandeja y sigue el enlace seguro para cambiar la contraseña.</p>
             </div>
           )}
 
           {step === 'code' && (
             <form onSubmit={handleVerifyCode} className="space-y-5">
-              <h2 className="text-2xl font-bold text-white">Codigo de recuperacion</h2>
+              <h2 className="text-2xl font-bold text-white">Código de recuperación</h2>
               <Input value={code} onChange={(e) => { setCode(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-center text-xl font-bold tracking-[0.3em] text-white" placeholder="Codigo" autoFocus />
               {error && <p className="text-sm text-red-300">{error}</p>}
               <Button type="submit" className="w-full bg-blue-600 py-6 text-white hover:bg-blue-700">Verificar</Button>
@@ -178,9 +178,9 @@ export function ForgotPasswordPage() {
 
           {step === 'reset' && (
             <form onSubmit={handleReset} className="space-y-5">
-              <h2 className="text-2xl font-bold text-white">Nueva contrasena</h2>
-              <Input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-white" placeholder="Nueva contrasena" autoFocus />
-              <Input type="password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-white" placeholder="Confirmar contrasena" />
+              <h2 className="text-2xl font-bold text-white">Nueva contraseña</h2>
+              <Input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-white" placeholder="Nueva contraseña" autoFocus />
+              <Input type="password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-white" placeholder="Confirmar contraseña" />
               {error && <p className="text-sm text-red-300">{error}</p>}
               <Button type="submit" disabled={loading} className="w-full bg-green-600 py-6 text-white hover:bg-green-700">{loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}Actualizar</Button>
             </form>

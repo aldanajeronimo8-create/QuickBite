@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 
 const statusLabels: Record<Order['status'], { label: string; className: string }> = {
   pending: { label: 'Pedido recibido', className: 'bg-yellow-500 text-white' },
-  preparing: { label: 'En preparacion', className: 'bg-blue-500 text-white' },
+  preparing: { label: 'En preparación', className: 'bg-blue-500 text-white' },
   ready: { label: 'Listo para recoger', className: 'bg-green-500 text-white' },
   delivered: { label: 'Entregado', className: 'bg-gray-500 text-white' },
 };
@@ -27,12 +27,12 @@ const paymentLabels: Record<Order['payment_status'], { label: string; className:
 };
 
 function getOrderErrorMessage(error: unknown) {
-  const message = getErrorMessage(error, 'No se pudo completar la operacion con Supabase');
+  const message = getErrorMessage(error, 'No se pudo completar la operación con Supabase');
   if (message.includes('admin_hidden') || message.includes('column')) {
-    return 'Falta aplicar la migracion admin_hidden en Supabase. Ejecuta la nueva migracion y vuelve a intentar.';
+    return 'Falta aplicar la migración admin_hidden en Supabase. Ejecuta la nueva migración y vuelve a intentarlo.';
   }
   if (/not_authorized|row-level security|permission denied/i.test(message)) {
-    return 'Tu sesion no tiene permisos de administrador para actualizar pedidos.';
+    return 'Tu sesión no tiene permisos de administrador para actualizar pedidos.';
   }
   return message;
 }
@@ -52,11 +52,12 @@ function getItemsCount(order: Order) {
 }
 
 export function AdminOrders() {
-  const { orders, updateOrder } = useDataStore();
+  const { orders, updateOrder, archiveOrders } = useDataStore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showHidden, setShowHidden] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [closingPeriod, setClosingPeriod] = useState(false);
 
   const hiddenCount = useMemo(() => orders.filter((order) => order.admin_hidden).length, [orders]);
 
@@ -91,7 +92,7 @@ export function AdminOrders() {
   const handleHiddenChange = async (order: Order, hidden: boolean) => {
     try {
       await updateOrder(order.id, { admin_hidden: hidden });
-      toast.success(hidden ? 'Pedido ocultado en Admin' : 'Pedido restaurado en Admin');
+      toast.success(hidden ? 'Pedido archivado en Administración' : 'Pedido restaurado en Administración');
       if (selectedOrder?.id === order.id) {
         setSelectedOrder({ ...selectedOrder, admin_hidden: hidden });
       }
@@ -100,12 +101,40 @@ export function AdminOrders() {
     }
   };
 
-  const handleExcelDownload = () => {
+  const handleExcelDownload = async () => {
+    if (closingPeriod) return;
+    setClosingPeriod(true);
+
+    let result;
     try {
-      const result = downloadActiveSalesExcel(orders);
-      toast.success(`Se descargó el reporte profesional con ${result.count} ventas.`);
+      result = downloadActiveSalesExcel(orders);
     } catch (error) {
       toast.error(getOrderErrorMessage(error));
+      setClosingPeriod(false);
+      return;
+    }
+
+    const activeOrderIds = orders.filter((order) => !order.admin_hidden).map((order) => order.id);
+    if (!activeOrderIds.length) {
+      toast.success(`Se descargó el reporte profesional con ${result.count} ventas. No había ventas activas por reiniciar.`);
+      setClosingPeriod(false);
+      return;
+    }
+
+    try {
+      const archivedCount = await archiveOrders(activeOrderIds);
+      setSelectedOrder((order) => (order && activeOrderIds.includes(order.id)
+        ? { ...order, admin_hidden: true }
+        : order));
+      toast.success(
+        `Se descargó el reporte con ${result.count} ventas y se reiniciaron ${archivedCount} ventas activas. El inventario no cambió.`,
+      );
+    } catch (error) {
+      toast.error(
+        `El reporte se descargó, pero no se reiniciaron las ventas activas. ${getOrderErrorMessage(error)}`,
+      );
+    } finally {
+      setClosingPeriod(false);
     }
   };
 
@@ -113,17 +142,18 @@ export function AdminOrders() {
     <div>
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="mb-2 text-4xl font-bold text-blue-900">Gestion de pedidos</h1>
-          <p className="text-lg text-gray-600">Administra pedidos y descarga reportes profesionales de ventas.</p>
+          <h1 className="mb-2 text-4xl font-bold text-blue-900">Gestión de pedidos</h1>
+          <p className="text-lg text-gray-600">Administra pedidos, exporta el historial completo y reinicia las cifras operativas sin modificar el inventario.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button
             type="button"
             onClick={handleExcelDownload}
+            disabled={closingPeriod}
             className="bg-blue-700 text-white hover:bg-blue-800"
           >
             <Download className="h-4 w-4" />
-            Descargar reporte Excel
+            {closingPeriod ? 'Cerrando período...' : 'Exportar Excel y reiniciar período'}
           </Button>
         </div>
       </div>
@@ -138,7 +168,7 @@ export function AdminOrders() {
             <SelectContent>
               <SelectItem value="all">Todos los pedidos</SelectItem>
               <SelectItem value="pending">Pendientes</SelectItem>
-              <SelectItem value="preparing">En preparacion</SelectItem>
+              <SelectItem value="preparing">En preparación</SelectItem>
               <SelectItem value="ready">Listos</SelectItem>
               <SelectItem value="delivered">Entregados</SelectItem>
             </SelectContent>
@@ -151,7 +181,7 @@ export function AdminOrders() {
             className="border-blue-600 text-blue-700 hover:bg-blue-50"
           >
             {showHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-            {showHidden ? 'Ver activos' : `Ver ocultos (${hiddenCount})`}
+            {showHidden ? 'Ver ventas activas' : `Ver ventas archivadas (${hiddenCount})`}
           </Button>
 
           <div className="ml-auto">
@@ -177,13 +207,13 @@ export function AdminOrders() {
                     <h3 className="text-2xl font-bold text-green-700">{order.order_number}</h3>
                     {getStatusBadge(order.status)}
                     {getPaymentBadge(order.payment_status)}
-                    {order.admin_hidden && <Badge className="bg-slate-200 text-slate-700">Oculto</Badge>}
+                    {order.admin_hidden && <Badge className="bg-slate-200 text-slate-700">Archivado</Badge>}
                   </div>
                   <p className="mb-3 text-sm text-gray-600">
                     {format(new Date(order.created_at), "d 'de' MMMM, yyyy - HH:mm", { locale: es })}
                   </p>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">Articulos:</span>
+                    <span className="font-medium">Artículos:</span>
                     <span>{getItemsCount(order)} unidades</span>
                   </div>
                 </div>
@@ -211,7 +241,7 @@ export function AdminOrders() {
                       }
                     >
                       {order.admin_hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                      {order.admin_hidden ? 'Mostrar' : 'Hide'}
+                      {order.admin_hidden ? 'Restaurar' : 'Archivar'}
                     </Button>
                   </div>
                 </div>
@@ -239,7 +269,7 @@ export function AdminOrders() {
                         disabled={updatingOrderId === order.id}
                         className="bg-blue-500 text-white hover:bg-blue-600"
                       >
-                        En preparacion
+                        En preparación
                       </Button>
                     )}
                     {order.status !== 'ready' && (
@@ -280,7 +310,7 @@ export function AdminOrders() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="mb-1 text-sm text-gray-600">Numero de orden</p>
+                  <p className="mb-1 text-sm text-gray-600">Número de orden</p>
                   <p className="text-xl font-bold text-green-700">{selectedOrder.order_number}</p>
                 </div>
                 <div>
@@ -294,7 +324,7 @@ export function AdminOrders() {
                   {getStatusBadge(selectedOrder.status)}
                 </div>
                 <div>
-                  <p className="mb-1 text-sm text-gray-600">Metodo de pago</p>
+                  <p className="mb-1 text-sm text-gray-600">Método de pago</p>
                   <p className="font-medium capitalize">
                     {selectedOrder.payment_method === 'cash' ? 'Efectivo' : selectedOrder.payment_method}
                   </p>
@@ -302,7 +332,7 @@ export function AdminOrders() {
               </div>
 
               <div>
-                <h3 className="mb-3 text-lg font-bold text-blue-900">Articulos del pedido</h3>
+                <h3 className="mb-3 text-lg font-bold text-blue-900">Artículos del pedido</h3>
                 <div className="space-y-2">
                   {selectedOrder.order_items?.map((item) => (
                     <div key={item.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3">

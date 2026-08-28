@@ -28,10 +28,10 @@ export function AdminPayments() {
   const stats = useMemo(() => {
     const activeOrders = orders.filter((order) => !order.admin_hidden);
     const pending = activeOrders.filter((o) => o.payment_status === 'pending').length;
-    const confirmed = activeOrders.filter((o) => !o.admin_hidden && o.payment_status === 'confirmed').length;
+    const confirmed = activeOrders.filter((o) => o.payment_status === 'confirmed').length;
     const rejected = activeOrders.filter((o) => o.payment_status === 'rejected').length;
-    const totalConfirmed = orders
-      .filter((o) => !o.admin_hidden && o.payment_status === 'confirmed')
+    const totalConfirmed = activeOrders
+      .filter((o) => o.payment_status === 'confirmed')
       .reduce((sum, o) => sum + o.total, 0);
 
     return { pending, confirmed, rejected, totalConfirmed };
@@ -68,7 +68,7 @@ export function AdminPayments() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-blue-900 mb-2">GestiÃ³n de Pagos</h1>
+        <h1 className="text-4xl font-bold text-blue-900 mb-2">Gestión de pagos</h1>
         <p className="text-gray-600 text-lg">
           Confirma o rechaza pagos pendientes
         </p>
@@ -81,7 +81,7 @@ export function AdminPayments() {
             <Clock className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.pending}</span>
           </div>
-          <p className="text-yellow-100 text-sm font-medium">Pagos Pendientes</p>
+          <p className="text-yellow-100 text-sm font-medium">Pagos pendientes</p>
         </Card>
 
         <Card className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
@@ -89,7 +89,7 @@ export function AdminPayments() {
             <CheckCircle className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.confirmed}</span>
           </div>
-          <p className="text-green-100 text-sm font-medium">Pagos Confirmados</p>
+          <p className="text-green-100 text-sm font-medium">Pagos confirmados</p>
         </Card>
 
         <Card className="p-6 bg-gradient-to-br from-red-500 to-red-600 text-white border-0 shadow-lg">
@@ -97,7 +97,7 @@ export function AdminPayments() {
             <XCircle className="w-8 h-8 opacity-80" />
             <span className="text-3xl font-bold">{stats.rejected}</span>
           </div>
-          <p className="text-red-100 text-sm font-medium">Pagos Rechazados</p>
+          <p className="text-red-100 text-sm font-medium">Pagos rechazados</p>
         </Card>
 
         <Card className="p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg">
@@ -105,7 +105,7 @@ export function AdminPayments() {
             <CreditCard className="w-8 h-8 opacity-80" />
             <span className="text-2xl font-bold">${(stats.totalConfirmed / 1000).toFixed(0)}K</span>
           </div>
-          <p className="text-blue-100 text-sm font-medium">Total Confirmado</p>
+          <p className="text-blue-100 text-sm font-medium">Total confirmado</p>
         </Card>
       </div>
 
@@ -153,13 +153,13 @@ export function AdminPayments() {
                   </p>
                   <div className="flex items-center gap-4 text-sm">
                     <div>
-                      <span className="text-gray-600">MÃ©todo: </span>
+                      <span className="text-gray-600">Método: </span>
                       <span className="font-medium capitalize">
                         {order.payment_method === 'cash' ? 'Efectivo' : order.payment_method}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-600">ArtÃ­culos: </span>
+                      <span className="text-gray-600">Artículos: </span>
                       <span className="font-medium">
                         {order.order_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0}
                       </span>

@@ -42,8 +42,10 @@ function csvCell(value: unknown) {
   return `"${String(value).replace(/"/g, '""')}"`;
 }
 
-function activeOrders(orders: Order[]) {
-  return orders.filter((order) => !order.admin_hidden);
+function reportOrders(orders: Order[]) {
+  // A cierre de período must retain a complete audit trail, including orders
+  // that were archived from the operational admin view in a previous period.
+  return [...orders];
 }
 
 const purchaseDateFormatter = new Intl.DateTimeFormat('es-CO', {
@@ -136,8 +138,8 @@ function applyReportLayout(
 
 /** Creates a professional Excel workbook that works in Excel and Google Sheets. */
 export function buildActiveSalesWorkbook(orders: Order[]) {
-  const sales = activeOrders(orders);
-  if (!sales.length) throw new Error('No hay ventas activas para descargar.');
+  const sales = reportOrders(orders);
+  if (!sales.length) throw new Error('No hay ventas para descargar.');
 
   const salesRows = sales.map((order) => {
     const purchase = purchaseDateAndTime(order.created_at);
@@ -205,7 +207,7 @@ export function buildActiveSalesWorkbook(orders: Order[]) {
 }
 
 export function downloadActiveSalesExcel(orders: Order[]): ExcelSalesExportResult {
-  const sales = activeOrders(orders);
+  const sales = reportOrders(orders);
   const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(buildActiveSalesWorkbook(orders), fileName, { compression: true });
   return { count: sales.length, fileName };
@@ -213,8 +215,8 @@ export function downloadActiveSalesExcel(orders: Order[]): ExcelSalesExportResul
 
 /** Builds a UTF-8 CSV that Google Sheets can import without any external integration. */
 export function buildActiveSalesCsv(orders: Order[]) {
-  const sales = activeOrders(orders);
-  if (!sales.length) throw new Error('No hay ventas activas para descargar.');
+  const sales = reportOrders(orders);
+  if (!sales.length) throw new Error('No hay ventas para descargar.');
 
   const rows = sales.flatMap((order) => {
     const items = order.order_items?.length ? order.order_items : [undefined];
@@ -246,7 +248,7 @@ export function buildActiveSalesCsv(orders: Order[]) {
 }
 
 export function downloadActiveSalesCsv(orders: Order[]): CsvSalesExportResult {
-  const sales = activeOrders(orders);
+  const sales = reportOrders(orders);
   const csv = `\uFEFF${buildActiveSalesCsv(orders)}`;
   const fileName = `quickbite-ventas-${new Date().toISOString().slice(0, 10)}.csv`;
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));

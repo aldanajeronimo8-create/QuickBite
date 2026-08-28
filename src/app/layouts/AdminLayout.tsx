@@ -53,7 +53,7 @@ export function AdminLayout() {
 
   if (!user) return null;
 
-  const pendingCount = orders.filter((order) => order.status === 'pending').length;
+  const pendingCount = orders.filter((order) => !order.admin_hidden && order.status === 'pending').length;
   const isCurrentPath = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
@@ -77,10 +77,10 @@ export function AdminLayout() {
           <NavItem path="/admin/orders" label="Pedidos" icon={ShoppingBag} active={isCurrentPath('/admin/orders')} badge={pendingCount} />
           <NavItem path="/admin/payments" label="Pagos" icon={CreditCard} active={isCurrentPath('/admin/payments')} />
 
-          <p className="mb-2 mt-5 px-3 text-xs font-semibold uppercase tracking-widest" style={{ color: '#93C5FD' }}>Gestion</p>
+          <p className="mb-2 mt-5 px-3 text-xs font-semibold uppercase tracking-widest" style={{ color: '#93C5FD' }}>Gestión</p>
           <NavItem path="/admin/inventory" label="Inventario" icon={Package} active={isCurrentPath('/admin/inventory')} />
-          <NavItem path="/admin/menu" label="Menu" icon={UtensilsCrossed} active={isCurrentPath('/admin/menu')} />
-          <NavItem path="/admin/verification" label="Verificacion" icon={ScanLine} active={isCurrentPath('/admin/verification')} />
+          <NavItem path="/admin/menu" label="Menú" icon={UtensilsCrossed} active={isCurrentPath('/admin/menu')} />
+          <NavItem path="/admin/verification" label="Verificación" icon={ScanLine} active={isCurrentPath('/admin/verification')} />
           <NavItem path="/admin/users" label="Usuarios" icon={Users} active={isCurrentPath('/admin/users')} />
           <NavItem path="/admin/loyalty" label="Puntos y premios" icon={Gift} active={isCurrentPath('/admin/loyalty')} />
         </nav>
@@ -95,7 +95,7 @@ export function AdminLayout() {
           </div>
           <Button onClick={handleSignOut} variant="outline" size="sm" className="w-full text-xs" style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.2)', color: '#BFDBFE' }}>
             <LogOut className="mr-2 h-3.5 w-3.5" />
-            Cerrar sesion
+            Cerrar sesión
           </Button>
         </div>
       </aside>
