@@ -62,6 +62,7 @@ export interface Order {
   payment_status: 'pending' | 'confirmed' | 'rejected';
   order_number: string;
   created_at: string;
+  comment?: string | null;
   admin_hidden?: boolean;
   pickup_code?: string;
   estimated_minutes?: number;
