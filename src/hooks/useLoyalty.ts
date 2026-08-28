@@ -12,15 +12,14 @@ import {
 function calculatePoints(userId: string, orders: Order[], settings: LoyaltySettings | null, redemptions: LoyaltyRedemption[]) {
   if (!settings) return 0;
 
+  const unit = Math.max(1, Number(settings.points_per_currency_unit) || 1000);
   const earned = orders
     .filter((order) => order.user_id === userId && order.payment_status === 'confirmed')
-    .reduce(
-      (total, order) => total + Math.floor(Number(order.total) / settings.points_per_currency_unit),
-      0,
-    );
+    .reduce((total, order) => total + Math.floor(Number(order.total) / unit), 0);
+
   const redeemed = redemptions
     .filter((redemption) => redemption.status !== 'cancelled')
-    .reduce((total, redemption) => total + redemption.points_spent, 0);
+    .reduce((total, redemption) => total + Number(redemption.points_spent || 0), 0);
 
   return Math.max(0, earned - redeemed);
 }
@@ -95,8 +94,9 @@ export function useLoyalty(userId: string | undefined, orders: Order[]) {
   const redeem = useCallback(
     async (rewardId: string) => {
       try {
-        await redeemLoyaltyReward(rewardId);
+        const redemption = await redeemLoyaltyReward(rewardId);
         await refresh();
+        return redemption;
       } catch (cause) {
         const message = getErrorMessage(cause, 'No pudimos registrar el canje.');
         setError(message);
@@ -106,5 +106,15 @@ export function useLoyalty(userId: string | undefined, orders: Order[]) {
     [refresh],
   );
 
-  return { settings, rewards, redemptions, points, loading, error, refresh, redeem };
+  return {
+    settings,
+    rewards,
+    redemptions,
+    points,
+    availablePoints: points,
+    loading,
+    error,
+    refresh,
+    redeem,
+  };
 }
