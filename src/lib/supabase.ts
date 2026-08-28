@@ -19,7 +19,7 @@ export interface Category { id: string; name: string; description?: string; crea
 export interface Product { id: string; name: string; description?: string; price: number; image_url?: string; category_id: string; stock: number; available: boolean; created_at: string; category?: Category; }
 export interface Order {
   id: string; user_id: string | null; total: number;
-  status: 'pending' | 'preparing' | 'ready' | 'delivered';
+  status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
   payment_method: 'nequi' | 'cash' | 'bre-b';
   payment_status: 'pending' | 'confirmed' | 'rejected';
   order_number: string; created_at: string; admin_hidden?: boolean;

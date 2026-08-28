@@ -17,7 +17,7 @@ const fmt = (value: number) => value.toLocaleString('es-CO');
 type RedemptionQueryRow = SalesRedemptionExport;
 
 export function AdminPayments() {
-  const { orders, updateOrder } = useDataStore();
+  const { orders, moderateOrderPayment, updateOrder } = useDataStore();
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -41,12 +41,12 @@ export function AdminPayments() {
   }, [activeOrders]);
 
   const handleConfirmPayment = async (orderId: string) => {
-    try { await updateOrder(orderId, { payment_status: 'confirmed' }); toast.success('Pago confirmado exitosamente'); }
+    try { await moderateOrderPayment(orderId, 'approve'); toast.success('Pago confirmado exitosamente'); }
     catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo confirmar el pago'); }
   };
 
   const handleRejectPayment = async (orderId: string) => {
-    try { await updateOrder(orderId, { payment_status: 'rejected' }); toast.error('Pago rechazado'); }
+    try { await moderateOrderPayment(orderId, 'reject'); toast.success('Pago rechazado y pedido cancelado. El stock fue restaurado.'); }
     catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo rechazar el pago'); }
   };
 

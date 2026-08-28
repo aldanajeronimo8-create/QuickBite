@@ -40,7 +40,7 @@ function activeOrders(orders: Order[]) {
 
 const purchaseDateFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
 const purchaseTimeFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-const orderStatusLabel: Record<Order['status'], string> = { pending: 'Pendiente', preparing: 'En preparación', ready: 'Listo para recoger', delivered: 'Entregado' };
+const orderStatusLabel: Record<Order['status'], string> = { pending: 'Pendiente', preparing: 'En preparación', ready: 'Listo para recoger', delivered: 'Entregado', cancelled: 'Cancelado' };
 const paymentStatusLabel: Record<Order['payment_status'], string> = { pending: 'Pendiente', confirmed: 'Confirmado', rejected: 'Rechazado' };
 const paymentMethodLabel: Record<Order['payment_method'], string> = { nequi: 'Nequi', 'bre-b': 'Bre-B', cash: 'Efectivo' };
 const redemptionStatusLabel: Record<string, string> = { pending: 'Pendiente', approved: 'Aprobado', delivered: 'Entregado', cancelled: 'Cancelado' };

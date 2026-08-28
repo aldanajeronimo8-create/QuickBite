@@ -17,12 +17,12 @@ export function AdminVerification() {
   const [verifiedOrder, setVerifiedOrder] = useState<Order | null>(null);
 
   const recentOrders = useMemo(() => orders
-    .filter((order) => !order.admin_hidden && order.status !== 'delivered')
+    .filter((order) => !order.admin_hidden && order.status !== 'delivered' && order.status !== 'cancelled')
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 10), [orders]);
 
   const hasActiveVerifiedOrder = Boolean(
-    verifiedOrder && orders.some((order) => order.id === verifiedOrder.id && !order.admin_hidden),
+    verifiedOrder && orders.some((order) => order.id === verifiedOrder.id && !order.admin_hidden && order.status !== 'cancelled'),
   );
 
   const handleSearch = () => {
@@ -32,7 +32,7 @@ export function AdminVerification() {
     }
 
     const order = orders.find(
-      (o) => !o.admin_hidden && o.order_number.toLowerCase() === orderNumber.toLowerCase().trim()
+      (o) => !o.admin_hidden && o.status !== 'cancelled' && o.order_number.toLowerCase() === orderNumber.toLowerCase().trim()
     );
 
     if (!order) {
@@ -63,6 +63,7 @@ export function AdminVerification() {
       preparing: { label: 'En Preparación', className: 'bg-amber-500 text-white' },
       ready: { label: 'Listo para Recoger', className: 'bg-green-600 text-white' },
       delivered: { label: 'Entregado', className: 'bg-green-800 text-white' },
+      cancelled: { label: 'Cancelado', className: 'bg-red-600 text-white' },
     };
     const statusConfig = config[status as keyof typeof config] || config.pending;
     return <Badge className={statusConfig.className}>{statusConfig.label}</Badge>;
@@ -270,7 +271,7 @@ export function AdminVerification() {
           </div>
 
           {/* Actions */}
-          {verifiedOrder.status !== 'delivered' && (
+          {verifiedOrder.status !== 'delivered' && verifiedOrder.status !== 'cancelled' && (
             <div className="border-t border-gray-200 pt-6">
               <Button
                 onClick={handleMarkAsDelivered}

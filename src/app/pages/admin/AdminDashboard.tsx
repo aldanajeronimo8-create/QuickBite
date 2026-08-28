@@ -90,6 +90,7 @@ export function AdminDashboard() {
       preparing: { label: 'Preparando', className: 'bg-amber-500 text-white' },
       ready: { label: 'Listo', className: 'bg-green-600 text-white' },
       delivered: { label: 'Entregado', className: 'bg-green-800 text-white' },
+      cancelled: { label: 'Cancelado', className: 'bg-red-600 text-white' },
     };
     const statusConfig = config[status as keyof typeof config] || config.pending;
     return <Badge className={statusConfig.className}>{statusConfig.label}</Badge>;

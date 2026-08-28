@@ -39,6 +39,7 @@ interface DataState {
   deleteProduct: (id: string) => Promise<void>;
   addOrder: (orderData: repo.NewOrder) => Promise<string>;
   updateOrder: (id: string, updates: Partial<Order>) => Promise<void>;
+  moderateOrderPayment: (id: string, action: 'approve' | 'reject') => Promise<void>;
   archiveOrders: (ids: string[]) => Promise<number>;
   resetOrdersForNewPeriod: () => Promise<number>;
   deleteOrder: (id: string) => Promise<void>;
@@ -147,6 +148,17 @@ export const useDataStore = create<DataState>((set, get) => ({
       entity: 'order',
       entityId: id,
       metadata: updates as Record<string, unknown>,
+    });
+    set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
+  },
+
+  moderateOrderPayment: async (id, action) => {
+    const order = await repo.moderateOrderPayment(id, action);
+    await remoteAudit({
+      action: 'payment.update',
+      entity: 'order',
+      entityId: id,
+      metadata: { action, payment_status: order.payment_status, status: order.status },
     });
     set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
   },
