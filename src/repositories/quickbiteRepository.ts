@@ -485,6 +485,9 @@ export async function deleteManagedUser(id: string) {
   if (/cannot_delete_self/i.test(message)) {
     throw new Error('No puedes eliminar tu propia cuenta desde el panel.');
   }
+  if (/foreign key|violates.*constraint|database error deleting user/i.test(message)) {
+    throw new Error('No se pudo eliminar el usuario por datos relacionados. Inténtalo de nuevo; la cuenta protegida no se eliminará.');
+  }
   throw error;
 }
 

@@ -8,6 +8,7 @@ import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { listProtectedAdminEmails } from '../../../repositories/quickbiteRepository';
+import { isProtectedAdminEmail, protectedAdminEmails } from '../../../lib/protectedAccounts';
 
 type UserForm = {
   id?: string;
@@ -32,21 +33,26 @@ export function AdminUsers() {
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [protectedEmails, setProtectedEmails] = useState<Set<string> | null>(null);
+  const [protectedEmails, setProtectedEmails] = useState<Set<string>>(
+    () => new Set(protectedAdminEmails),
+  );
 
   useEffect(() => {
     let active = true;
     void listProtectedAdminEmails()
       .then((emails) => {
-        if (active) setProtectedEmails(new Set(emails));
+        if (active) setProtectedEmails(new Set([...protectedAdminEmails, ...emails]));
       })
       .catch(() => {
-        // Keep actions disabled until Supabase confirms which accounts are protected.
+        // The five known protected accounts remain disabled locally. Supabase
+        // independently rejects any protected-account deletion or modification.
       });
     return () => { active = false; };
   }, []);
 
-  const isProtected = (user: Profile) => protectedEmails === null || protectedEmails.has(user.email.trim().toLowerCase());
+  const isProtected = (user: Profile) => (
+    isProtectedAdminEmail(user.email) || protectedEmails.has(user.email.trim().toLowerCase())
+  );
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
