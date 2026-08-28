@@ -5,3 +5,4 @@ QuickBite is a React, TypeScript and Supabase-ready cafeteria ordering/admin app
 ## Requirements
 
 CI verification trigger: latest application fixes are ready for automated typecheck, lint, tests and build verification.
+CI verification
