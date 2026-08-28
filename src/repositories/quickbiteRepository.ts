@@ -20,173 +20,49 @@ export type NewOrder = Omit<Order, 'id' | 'created_at' | 'order_number' | 'order
   user_id: string;
   order_items?: NewOrderItem[];
 };
-export type NewManagedUser = {
-  email: string;
-  password: string;
-  full_name: string;
-  role: Profile['role'];
-  ti?: string;
-};
+export type NewManagedUser = { email: string; password: string; full_name: string; role: Profile['role']; ti?: string };
 export type ManagedUserUpdate = Omit<NewManagedUser, 'password'> & { id: string; password?: string };
 export type ProtectedCredentialsUpdate = { id: string; email: string; password?: string };
 export type LoyaltyRewardInput = Pick<LoyaltyReward, 'product_id' | 'title' | 'description' | 'points_required' | 'active'>;
 export type LoyaltyRewardUpdate = Partial<LoyaltyRewardInput>;
 
-function isMissingRpc(error: unknown) {
-  const message = getErrorMessage(error, '');
-  return /function.*does not exist|could not find the function|schema cache/i.test(message);
-}
+function isMissingRpc(error: unknown) { const message = getErrorMessage(error, ''); return /function.*does not exist|could not find the function|schema cache/i.test(message); }
+function productRpcError(error: unknown) { const message = getErrorMessage(error, ''); if (/not_authorized/i.test(message)) return new Error('No tienes permisos de administrador para modificar productos.'); if (/product_not_found/i.test(message)) return new Error('El producto ya no existe en Supabase.'); if (/invalid_stock/i.test(message)) return new Error('El stock debe ser un número mayor o igual que 0.'); if (/invalid_price/i.test(message)) return new Error('El precio debe ser mayor o igual a 0.'); return error; }
+function orderStatusRpcError(error: unknown) { const message = getErrorMessage(error, 'No se pudo actualizar el estado del pedido.'); if (/not_authorized|row-level security|permission denied/i.test(message)) return new Error('Tu sesión no tiene permisos de administrador para actualizar pedidos.'); if (/invalid_order_status/i.test(message)) return new Error('El estado seleccionado no es valido.'); if (/order_not_found/i.test(message)) return new Error('El pedido ya no existe o no esta disponible.'); return new Error(message); }
+function loyaltyRpcError(error: unknown) { const message = getErrorMessage(error, 'No se pudo procesar el canje.'); if (/not_authorized/i.test(message)) return new Error('Tu sesión no puede canjear recompensas.'); if (/loyalty_disabled/i.test(message)) return new Error('El programa de puntos esta desactivado por el administrador.'); if (/reward_not_found|reward_unavailable/i.test(message)) return new Error('Esta recompensa ya no esta disponible.'); if (/reward_out_of_stock/i.test(message)) return new Error('Esta recompensa se agoto. Elige otra opcion.'); if (/insufficient_loyalty_points|insufficient_points/i.test(message)) return new Error('No tienes puntos suficientes para este canje.'); return new Error(message); }
+function loyaltyFulfillmentError(error: unknown) { const message = getErrorMessage(error, 'No se pudo entregar el canje.'); if (/not_authorized/i.test(message)) return new Error('Tu sesión no puede entregar canjes.'); if (/redemption_not_found/i.test(message)) return new Error('El canje ya no existe.'); if (/redemption_not_available/i.test(message)) return new Error('Este canje ya fue entregado o cancelado.'); if (/invalid_redemption_code/i.test(message)) return new Error('El codigo del canje no coincide.'); return new Error(message); }
 
-function productRpcError(error: unknown) {
-  const message = getErrorMessage(error, '');
-  if (/not_authorized/i.test(message)) return new Error('No tienes permisos de administrador para modificar productos.');
-  if (/product_not_found/i.test(message)) return new Error('El producto ya no existe en Supabase.');
-  if (/invalid_stock/i.test(message)) return new Error('El stock debe ser un número mayor o igual que 0.');
-  if (/invalid_price/i.test(message)) return new Error('El precio debe ser mayor o igual a 0.');
-  return error;
-}
-
-function orderStatusRpcError(error: unknown) {
-  const message = getErrorMessage(error, 'No se pudo actualizar el estado del pedido.');
-  if (/not_authorized|row-level security|permission denied/i.test(message)) return new Error('Tu sesión no tiene permisos de administrador para actualizar pedidos.');
-  if (/invalid_order_status/i.test(message)) return new Error('El estado seleccionado no es valido.');
-  if (/order_not_found/i.test(message)) return new Error('El pedido ya no existe o no esta disponible.');
-  return new Error(message);
-}
-
-function loyaltyRpcError(error: unknown) {
-  const message = getErrorMessage(error, 'No se pudo procesar el canje.');
-  if (/not_authorized/i.test(message)) return new Error('Tu sesión no puede canjear recompensas.');
-  if (/loyalty_disabled/i.test(message)) return new Error('El programa de puntos esta desactivado por el administrador.');
-  if (/reward_not_found|reward_unavailable/i.test(message)) return new Error('Esta recompensa ya no esta disponible.');
-  if (/reward_out_of_stock/i.test(message)) return new Error('Esta recompensa se agoto. Elige otra opcion.');
-  if (/insufficient_loyalty_points|insufficient_points/i.test(message)) return new Error('No tienes puntos suficientes para este canje.');
-  return new Error(message);
-}
-
-function loyaltyFulfillmentError(error: unknown) {
-  const message = getErrorMessage(error, 'No se pudo entregar el canje.');
-  if (/not_authorized/i.test(message)) return new Error('Tu sesión no puede entregar canjes.');
-  if (/redemption_not_found/i.test(message)) return new Error('El canje ya no existe.');
-  if (/redemption_not_available/i.test(message)) return new Error('Este canje ya fue entregado o cancelado.');
-  if (/invalid_redemption_code/i.test(message)) return new Error('El codigo del canje no coincide.');
-  return new Error(message);
-}
-
-export async function listCategories() {
-  const { data, error } = await requireSupabaseClient().from('categories').select('*').order('name');
-  if (error) throw error;
-  return (data ?? []) as Category[];
-}
-
-export async function listProducts() {
-  const { data, error } = await requireSupabaseClient().from('products').select('*, category:categories(*)').order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Product[];
-}
-
-async function getProductById(id: string) {
-  const { data, error } = await requireSupabaseClient().from('products').select('*, category:categories(*)').eq('id', id).single();
-  if (error) throw error;
-  return data as Product;
-}
-
-export async function createProduct(product: NewProduct) {
-  const supabase = requireSupabaseClient();
-  const { data: productId, error: rpcError } = await supabase.rpc('admin_create_product', {
-    p_name: product.name, p_description: product.description ?? null, p_price: product.price,
-    p_image_url: product.image_url ?? null, p_category_id: product.category_id, p_stock: product.stock, p_available: product.available,
-  });
-  if (!rpcError) return getProductById(String(productId));
-  if (!isMissingRpc(rpcError)) throw productRpcError(rpcError);
-  const { data, error } = await supabase.from('products').insert(product).select('*, category:categories(*)').single();
-  if (error) throw productRpcError(error);
-  return data as Product;
-}
-
-export async function updateProduct(id: string, updates: ProductUpdate) {
-  const supabase = requireSupabaseClient();
-  const { data: productId, error: rpcError } = await supabase.rpc('admin_update_product', {
-    p_product_id: id, p_name: updates.name ?? null, p_description: updates.description ?? null, p_price: updates.price ?? null,
-    p_image_url: updates.image_url ?? null, p_category_id: updates.category_id ?? null, p_stock: updates.stock ?? null, p_available: updates.available ?? null,
-  });
-  if (!rpcError) return getProductById(String(productId));
-  if (!isMissingRpc(rpcError)) throw productRpcError(rpcError);
-  const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('*, category:categories(*)').single();
-  if (error) throw productRpcError(error);
-  return data as Product;
-}
-
-export async function deleteProduct(id: string) {
-  const supabase = requireSupabaseClient();
-  const { error: rpcError } = await supabase.rpc('admin_delete_product', { p_product_id: id });
-  if (!rpcError) return;
-  if (!isMissingRpc(rpcError)) throw productRpcError(rpcError);
-  const { error } = await supabase.from('products').delete().eq('id', id);
-  if (error) throw productRpcError(error);
-}
-
-export async function listOrders() {
-  const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Order[];
-}
-
-async function getOrderById(id: string) {
-  const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('id', id).single();
-  if (error) throw orderStatusRpcError(error);
-  return data as Order;
-}
-
-export async function listOrdersForExport(sinceIso: string, limit = 10000) {
-  const supabase = requireSupabaseClient();
-  const safeLimit = Math.min(Math.max(limit, 1), 10000);
-  const batchSize = 1000;
-  const orders: Order[] = [];
-  while (orders.length < safeLimit) {
-    const from = orders.length;
-    const to = Math.min(from + batchSize - 1, safeLimit - 1);
-    const { data, error } = await supabase.from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').gte('created_at', sinceIso).order('created_at', { ascending: false }).range(from, to);
-    if (error) throw error;
-    const batch = (data ?? []) as Order[];
-    orders.push(...batch);
-    if (batch.length < to - from + 1) break;
-  }
-  return orders;
-}
-
-export async function createOrder(order: NewOrder) {
-  const { order_items = [], ...orderFields } = order;
-  const { data, error } = await requireSupabaseClient().rpc('create_order_tx', {
-    p_user_id: orderFields.user_id,
-    p_payment_method: orderFields.payment_method,
-    p_payment_status: orderFields.payment_status,
-    p_status: orderFields.status,
-    p_pickup_code: orderFields.pickup_code ?? null,
-    p_estimated_minutes: orderFields.estimated_minutes ?? null,
-    p_payment_reference: orderFields.payment_reference ?? null,
-    p_items: order_items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
-    p_notes: orderFields.notes ?? null,
-  });
-  if (error) throw error;
-  return String(data);
-}
-
-export async function updateOrder(id: string, updates: Partial<Order>) {
-  const { data, error } = await requireSupabaseClient().from('orders').update(updates).eq('id', id).select('*, order_items(*, product:products(*)), user:profiles(*)').single();
-  if (error) throw error;
-  return data as Order;
-}
-
-export async function archiveOrders(ids: string[]) {
-  if (!ids.length) return 0;
-  const { data, error } = await requireSupabaseClient().from('orders').update({ admin_hidden: true }).in('id', ids).select('id');
-  if (error) throw error;
-  return data?.length ?? 0;
-}
-
-export async function resetOrdersForNewPeriod() {
-  const { data, error } = await requireSupabaseClient().from('orders').update({ admin_hidden: true }).eq('admin_hidden', false).select('id');
-  if (error) throw error;
-  return data?.length ?? 0;
-}
+export async function listCategories() { const { data, error } = await requireSupabaseClient().from('categories').select('*').order('name'); if (error) throw error; return (data ?? []) as Category[]; }
+export async function listProducts() { const { data, error } = await requireSupabaseClient().from('products').select('*, category:categories(*)').order('created_at', { ascending: false }); if (error) throw error; return (data ?? []) as Product[]; }
+async function getProductById(id: string) { const { data, error } = await requireSupabaseClient().from('products').select('*, category:categories(*)').eq('id', id).single(); if (error) throw error; return data as Product; }
+export async function createProduct(product: NewProduct) { const supabase = requireSupabaseClient(); const { data: productId, error: rpcError } = await supabase.rpc('admin_create_product', { p_name: product.name, p_description: product.description ?? null, p_price: product.price, p_image_url: product.image_url ?? null, p_category_id: product.category_id, p_stock: product.stock, p_available: product.available }); if (!rpcError) return getProductById(String(productId)); if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { data, error } = await supabase.from('products').insert(product).select('*, category:categories(*)').single(); if (error) throw productRpcError(error); return data as Product; }
+export async function updateProduct(id: string, updates: ProductUpdate) { const supabase = requireSupabaseClient(); const { data: productId, error: rpcError } = await supabase.rpc('admin_update_product', { p_product_id: id, p_name: updates.name ?? null, p_description: updates.description ?? null, p_price: updates.price ?? null, p_image_url: updates.image_url ?? null, p_category_id: updates.category_id ?? null, p_stock: updates.stock ?? null, p_available: updates.available ?? null }); if (!rpcError) return getProductById(String(productId)); if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('*, category:categories(*)').single(); if (error) throw productRpcError(error); return data as Product; }
+export async function deleteProduct(id: string) { const supabase = requireSupabaseClient(); const { error: rpcError } = await supabase.rpc('admin_delete_product', { p_product_id: id }); if (!rpcError) return; if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { error } = await supabase.from('products').delete().eq('id', id); if (error) throw productRpcError(error); }
+export async function listOrders() { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').order('created_at', { ascending: false }); if (error) throw error; return (data ?? []) as Order[]; }
+async function getOrderById(id: string) { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('id', id).single(); if (error) throw orderStatusRpcError(error); return data as Order; }
+export async function listOrdersForExport(sinceIso: string, limit = 10000) { const supabase = requireSupabaseClient(); const safeLimit = Math.min(Math.max(limit, 1), 10000); const batchSize = 1000; const orders: Order[] = []; while (orders.length < safeLimit) { const from = orders.length; const to = Math.min(from + batchSize - 1, safeLimit - 1); const { data, error } = await supabase.from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').gte('created_at', sinceIso).order('created_at', { ascending: false }).range(from, to); if (error) throw error; const batch = (data ?? []) as Order[]; orders.push(...batch); if (batch.length < to - from + 1) break; } return orders; }
+export async function createOrder(order: NewOrder) { const { order_items = [], ...orderFields } = order; const { data, error } = await requireSupabaseClient().rpc('create_order_tx', { p_user_id: orderFields.user_id, p_payment_method: orderFields.payment_method, p_payment_status: orderFields.payment_status, p_status: orderFields.status, p_pickup_code: orderFields.pickup_code ?? null, p_estimated_minutes: orderFields.estimated_minutes ?? null, p_payment_reference: orderFields.payment_reference ?? null, p_items: order_items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })), p_notes: orderFields.notes ?? null }); if (error) throw error; return String(data); }
+export async function updateOrder(id: string, updates: Partial<Order>) { const { data, error } = await requireSupabaseClient().from('orders').update(updates).eq('id', id).select('*, order_items(*, product:products(*)), user:profiles(*)').single(); if (error) throw error; return data as Order; }
+export async function archiveOrders(ids: string[]) { if (!ids.length) return 0; const { data, error } = await requireSupabaseClient().from('orders').update({ admin_hidden: true }).in('id', ids).select('id'); if (error) throw error; return data?.length ?? 0; }
+export async function resetOrdersForNewPeriod() { const { data, error } = await requireSupabaseClient().rpc('reset_all_orders'); if (error) throw error; return Number(data ?? 0); }
+export async function updateOrderStatus(id: string, status: Order['status']) { const supabase = requireSupabaseClient(); const { data: updatedOrderId, error: rpcError } = await supabase.rpc('admin_update_order_status', { p_order_id: id, p_status: status }); if (!rpcError) return getOrderById(String(updatedOrderId ?? id)); if (!isMissingRpc(rpcError)) throw orderStatusRpcError(rpcError); const { data, error } = await supabase.from('orders').update({ status }).eq('id', id).select('*, order_items(*, product:products(*)), user:profiles(*)').single(); if (error) throw orderStatusRpcError(error); return data as Order; }
+export async function listUserNotifications(userId: string, limit = 30) { const { data, error } = await requireSupabaseClient().from('notifications').select('id,user_id,order_id,type,title,body,read_at,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(Math.min(Math.max(limit, 1), 100)); if (error) throw error; return (data ?? []) as UserNotification[]; }
+export async function markUserNotificationsRead(notificationIds?: string[]) { const { error } = await requireSupabaseClient().rpc('mark_notifications_read', { p_notification_ids: notificationIds?.length ? notificationIds : null }); if (error) throw error; }
+export async function getLoyaltySettings() { const { data, error } = await requireSupabaseClient().from('loyalty_settings').select('id,enabled,points_per_currency_unit,updated_at').eq('id', true).single(); if (error) throw error; return data as LoyaltySettings; }
+export async function updateLoyaltySettings(updates: Pick<LoyaltySettings, 'enabled'>) { const { data, error } = await requireSupabaseClient().from('loyalty_settings').update(updates).eq('id', true).select('id,enabled,points_per_currency_unit,updated_at').single(); if (error) throw error; return data as LoyaltySettings; }
+export async function listLoyaltyRewards(includeInactive = false) { let query = requireSupabaseClient().from('loyalty_rewards').select('*, product:products(*)').order('points_required', { ascending: true }); if (!includeInactive) query = query.eq('active', true); const { data, error } = await query; if (error) throw error; return (data ?? []) as LoyaltyReward[]; }
+export async function createLoyaltyReward(reward: LoyaltyRewardInput) { const { data, error } = await requireSupabaseClient().from('loyalty_rewards').insert({ ...reward, points_cost: reward.points_required }).select('*, product:products(*)').single(); if (error) throw error; return data as LoyaltyReward; }
+export async function updateLoyaltyReward(id: string, updates: LoyaltyRewardUpdate) { const payload = { ...updates, ...(updates.points_required !== undefined ? { points_cost: updates.points_required } : {}) }; const { data, error } = await requireSupabaseClient().from('loyalty_rewards').update(payload).eq('id', id).select('*, product:products(*)').single(); if (error) throw error; return data as LoyaltyReward; }
+export async function listUserLoyaltyRedemptions(userId: string) { const { data, error } = await requireSupabaseClient().from('loyalty_redemptions').select('*, reward:loyalty_rewards(id,title,product:products(name))').eq('user_id', userId).order('created_at', { ascending: false }).limit(20); if (error) throw error; return (data ?? []) as LoyaltyRedemption[]; }
+export async function redeemLoyaltyReward(rewardId: string) { const { data, error } = await requireSupabaseClient().rpc('redeem_loyalty_reward', { p_reward_id: rewardId }); if (error) throw loyaltyRpcError(error); return data as Omit<LoyaltyRedemption, 'user_id' | 'product_id'>; }
+export async function listAdminLoyaltyRedemptions(limit = 50) { const { data, error } = await requireSupabaseClient().from('loyalty_redemptions').select('*, user:profiles(id,full_name,email), reward:loyalty_rewards(id,title)').order('created_at', { ascending: false }).limit(Math.min(Math.max(limit, 1), 100)); if (error) throw error; return (data ?? []) as AdminLoyaltyRedemption[]; }
+export async function fulfillLoyaltyRedemption(redemptionId: string, redemptionCode: string) { const { error } = await requireSupabaseClient().rpc('admin_fulfill_loyalty_redemption', { p_redemption_id: redemptionId, p_redemption_code: redemptionCode }); if (error) throw loyaltyFulfillmentError(error); }
+export async function deleteOrder(id: string) { const { error } = await requireSupabaseClient().from('orders').delete().eq('id', id); if (error) throw error; }
+export async function listProfiles() { const supabase = requireSupabaseClient(); const { data, error } = await supabase.rpc('admin_list_users'); if (!error) return (data ?? []) as Profile[]; if (!isMissingRpc(error)) throw error; const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id,email,full_name,role,ti,created_at').order('created_at', { ascending: false }); if (profilesError) throw profilesError; return (profiles ?? []) as Profile[]; }
+export async function getProfile(userId: string) { const { data, error } = await requireSupabaseClient().from('profiles').select('id,email,full_name,role,ti,created_at').eq('id', userId).maybeSingle(); if (error) throw error; return data as Profile | null; }
+export async function createManagedUser(user: NewManagedUser) { const { data, error } = await requireSupabaseClient().rpc('admin_create_user', { p_email: user.email, p_password: user.password, p_full_name: user.full_name, p_role: user.role, p_ti: user.ti ?? null }); if (error) throw error; return String(data); }
+export async function updateManagedUser(user: ManagedUserUpdate) { const supabase = requireSupabaseClient(); const payload = { p_user_id: user.id, p_email: user.email, p_full_name: user.full_name, p_role: user.role, p_ti: user.ti ?? null, p_password: user.password?.trim() || null }; const { error } = await supabase.rpc('admin_update_user', payload); if (!error) return; if (isMissingRpc(error) && !payload.p_password) { const { error: legacyError } = await supabase.rpc('admin_update_user', { p_user_id: user.id, p_email: user.email, p_full_name: user.full_name, p_role: user.role, p_ti: user.ti ?? null }); if (!legacyError) return; throw legacyError; } if (isMissingRpc(error) && payload.p_password) throw new Error('Falta aplicar la migración de contraseñas de administrador en Supabase.'); throw error; }
+export async function updateProtectedAdminCredentials(user: ProtectedCredentialsUpdate) { const { error } = await requireSupabaseClient().rpc('admin_update_protected_credentials', { p_user_id: user.id, p_email: user.email.trim().toLowerCase(), p_password: user.password?.trim() || null }); if (!error) return; const message = getErrorMessage(error, 'No se pudieron actualizar las credenciales de la cuenta protegida.'); if (/not_authorized/i.test(message)) throw new Error('Solo una cuenta con rol admin o both puede cambiar estas credenciales.'); if (/cannot_change_own_protected_credentials/i.test(message)) throw new Error('Por seguridad, otro administrador debe cambiar las credenciales de su propia cuenta protegida.'); if (/protected_account_not_found/i.test(message)) throw new Error('La cuenta ya no está registrada como protegida. Actualiza la página e inténtalo de nuevo.'); if (/email_already_registered/i.test(message)) throw new Error('Ese correo ya está registrado en otra cuenta.'); if (/password_too_short/i.test(message)) throw new Error('La nueva contraseña debe tener al menos 6 caracteres.'); throw new Error(message); }
+export async function deleteManagedUser(id: string) { const { error } = await requireSupabaseClient().rpc('admin_delete_user', { p_user_id: id }); if (!error) return; const message = getErrorMessage(error, 'No se pudo eliminar el usuario.'); if (/protected_admin|protected_account/i.test(message)) throw new Error('Esta cuenta está protegida y no se puede modificar ni eliminar.'); if (/cannot_delete_self/i.test(message)) throw new Error('No puedes eliminar tu propia cuenta desde el panel.'); if (/foreign key|violates.*constraint|database error deleting user/i.test(message)) throw new Error('No se pudo eliminar el usuario por datos relacionados. Inténtalo de nuevo; la cuenta protegida no se eliminará.'); throw error; }
+export async function listProtectedAdminEmails() { const { data, error } = await requireSupabaseClient().rpc('list_protected_admin_emails'); if (error) throw error; return ((data ?? []) as Array<{ email?: string | null }>).map((row) => typeof row?.email === 'string' ? row.email.trim().toLowerCase() : '').filter(Boolean); }
+export async function writeAudit(entry: { action: string; actor_id?: string; actor_email?: string; entity?: string; entity_id?: string; metadata?: Record<string, unknown> }) { const { error } = await requireSupabaseClient().from('audit_logs').insert({ action: entry.action, actor_id: entry.actor_id, actor_email: entry.actor_email, entity: entry.entity, entity_id: entry.entity_id, metadata: entry.metadata ?? {} }); if (error) throw error; }
