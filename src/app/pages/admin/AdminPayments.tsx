@@ -14,7 +14,7 @@ export function AdminPayments() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
   const filteredOrders = useMemo(() => {
-    let filtered = [...orders].sort(
+    let filtered = orders.filter((order) => !order.admin_hidden).sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
@@ -26,11 +26,12 @@ export function AdminPayments() {
   }, [orders, filterStatus]);
 
   const stats = useMemo(() => {
-    const pending = orders.filter((o) => o.payment_status === 'pending').length;
-    const confirmed = orders.filter((o) => o.payment_status === 'confirmed').length;
-    const rejected = orders.filter((o) => o.payment_status === 'rejected').length;
+    const activeOrders = orders.filter((order) => !order.admin_hidden);
+    const pending = activeOrders.filter((o) => o.payment_status === 'pending').length;
+    const confirmed = activeOrders.filter((o) => !o.admin_hidden && o.payment_status === 'confirmed').length;
+    const rejected = activeOrders.filter((o) => o.payment_status === 'rejected').length;
     const totalConfirmed = orders
-      .filter((o) => o.payment_status === 'confirmed')
+      .filter((o) => !o.admin_hidden && o.payment_status === 'confirmed')
       .reduce((sum, o) => sum + o.total, 0);
 
     return { pending, confirmed, rejected, totalConfirmed };
@@ -67,7 +68,7 @@ export function AdminPayments() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-blue-900 mb-2">Gestión de Pagos</h1>
+        <h1 className="text-4xl font-bold text-blue-900 mb-2">GestiÃ³n de Pagos</h1>
         <p className="text-gray-600 text-lg">
           Confirma o rechaza pagos pendientes
         </p>
@@ -152,13 +153,13 @@ export function AdminPayments() {
                   </p>
                   <div className="flex items-center gap-4 text-sm">
                     <div>
-                      <span className="text-gray-600">Método: </span>
+                      <span className="text-gray-600">MÃ©todo: </span>
                       <span className="font-medium capitalize">
                         {order.payment_method === 'cash' ? 'Efectivo' : order.payment_method}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Artículos: </span>
+                      <span className="text-gray-600">ArtÃ­culos: </span>
                       <span className="font-medium">
                         {order.order_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0}
                       </span>

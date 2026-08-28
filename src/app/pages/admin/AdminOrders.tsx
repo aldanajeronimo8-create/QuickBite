@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Eye, EyeOff, FileSpreadsheet, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
-import { exportWeeklyOrdersToExcel } from '../../../services/orderExportService';
+import { exportActiveSalesToGoogleSheets } from '../../../services/orderExportService';
 import { getErrorMessage } from '../../../lib/errorMessage';
 import type { Order } from '../../../lib/supabase';
 import { useDataStore } from '../../../store/dataStore';
@@ -104,8 +104,8 @@ export function AdminOrders() {
   const handleWeeklyExport = async () => {
     setExporting(true);
     try {
-      const result = await exportWeeklyOrdersToExcel();
-      toast.success(`Excel generado: ${result.count} pedido(s) exportado(s)`);
+      const result = await exportActiveSalesToGoogleSheets();
+      toast.success(`Ventas enviadas correctamente a Google Sheets. Se cerraron ${result.count} ventas.`);
     } catch (error) {
       toast.error(getOrderErrorMessage(error));
     } finally {
@@ -118,7 +118,7 @@ export function AdminOrders() {
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="mb-2 text-4xl font-bold text-blue-900">Gestion de pedidos</h1>
-          <p className="text-lg text-gray-600">Administra, oculta y exporta pedidos desde Supabase.</p>
+          <p className="text-lg text-gray-600">Administra pedidos y cierra las ventas activas en Google Sheets.</p>
         </div>
         <Button
           onClick={handleWeeklyExport}
@@ -126,7 +126,7 @@ export function AdminOrders() {
           className="bg-green-700 text-white hover:bg-green-800"
         >
           <FileSpreadsheet className="h-4 w-4" />
-          {exporting ? 'Generando Excel...' : 'Guardar semana Excel'}
+          {exporting ? 'Enviando ventas...' : 'Cerrar ventas y enviar a Sheets'}
         </Button>
       </div>
 
