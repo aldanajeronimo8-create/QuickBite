@@ -1,0 +1,39 @@
+name: QuickBite Database Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *'
+
+permissions:
+  contents: read
+
+env:
+  PGSSLMODE: require
+
+jobs:
+  backup:
+    name: PostgreSQL backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create compressed backup
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          test -n "$SUPABASE_DB_URL" || { echo 'Missing SUPABASE_DB_URL repository secret'; exit 1; }
+          mkdir -p backups
+          stamp=$(date -u +'%Y-%m-%dT%H-%M-%SZ')
+          pg_dump "$SUPABASE_DB_URL" --format=custom --no-owner --no-privileges --file="backups/quickbite-$stamp.dump"
+          sha256sum "backups/quickbite-$stamp.dump" > "backups/quickbite-$stamp.sha256"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quickbite-database-backup-${{ github.run_id }}
+          path: backups/
+          retention-days: 30
+          if-no-files-found: error
