@@ -1,5 +1,4 @@
 import { appConfig } from '../config/appConfig';
-import { requireSupabaseClient } from '../lib/supabase';
 import type { Order } from '../lib/supabase';
 import * as XLSX from '@redoper1/xlsx-js-style';
 
@@ -45,7 +44,7 @@ const alternateBodyStyle = { ...bodyStyle, fill: { fgColor: { rgb: 'F5F9FF' } } 
 const kpiLabelStyle = { fill: { fgColor: { rgb: 'DBEAFE' } }, font: { bold: true, color: { rgb: '1E3A8A' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder } };
 const kpiValueStyle = { fill: { fgColor: { rgb: 'EFF6FF' } }, font: { bold: true, sz: 13, color: { rgb: '0F172A' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder } };
 
-function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string[], rows: unknown[][], columnWidths: number[], numberColumns: number[] = []) {
+function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string[], rows: unknown[][], columnWidths: number[], currencyColumns: number[] = []) {
   sheet['A1'] = { v: title, t: 's', s: reportTitleStyle };
   sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
   sheet['!rows'] = [{ hpt: 28 }, { hpt: 19 }, { hpt: 19 }, { hpt: 8 }, { hpt: 34 }];
@@ -54,7 +53,7 @@ function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string
   sheet['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
   for (let column = 0; column < headers.length; column += 1) sheet[sheetCell(4, column)] = { v: headers[column], t: 's', s: tableHeaderStyle };
   for (let row = 0; row < rows.length; row += 1) for (let column = 0; column < headers.length; column += 1) {
-    const cell = sheetCell(row + 5, column); if (!sheet[cell]) sheet[cell] = { v: '', t: 's' }; sheet[cell].s = row % 2 === 0 ? bodyStyle : alternateBodyStyle; if (numberColumns.includes(column)) sheet[cell].z = '"$"#,##0';
+    const cell = sheetCell(row + 5, column); if (!sheet[cell]) sheet[cell] = { v: '', t: 's' }; sheet[cell].s = row % 2 === 0 ? bodyStyle : alternateBodyStyle; if (currencyColumns.includes(column)) sheet[cell].z = '"$"#,##0';
   }
 }
 
