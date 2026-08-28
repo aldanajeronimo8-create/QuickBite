@@ -87,5 +87,6 @@ export function useLoyalty(userId: string | undefined, orders: Order[]) {
     redeem,
     redemptions,
     rewards,
+    settings,
   };
 }
