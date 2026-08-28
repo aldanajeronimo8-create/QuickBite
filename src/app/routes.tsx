@@ -22,7 +22,7 @@ const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then((m) => ({ 
 const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty').then((m) => ({ default: m.AdminLoyalty })));
 
 function PageLoader() {
-  return <div className="grid min-h-screen place-items-center bg-[#fff7e8] text-sm font-bold text-slate-600">Cargando...</div>;
+  return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600">Cargando...</div>;
 }
 
 function lazyPage(Component: ComponentType) {

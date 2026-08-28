@@ -123,7 +123,7 @@ export function AdminMenu() {
         </div>
         <Button
           onClick={openNewProductDialog}
-          className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg"
+          className="bg-blue-600 text-white shadow-sm hover:bg-blue-700"
         >
           <Plus className="w-5 h-5 mr-2" />
           Agregar Producto
@@ -133,7 +133,7 @@ export function AdminMenu() {
       {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => (
-          <Card key={product.id} className="overflow-hidden bg-white shadow-lg border-0">
+          <Card key={product.id} className="overflow-hidden border border-slate-200 bg-white shadow-sm transition hover:shadow-lg">
             <div className="aspect-square overflow-hidden bg-gray-100">
               <img
                 src={product.image_url}
@@ -162,7 +162,7 @@ export function AdminMenu() {
                   <span className="text-sm text-gray-600">Stock:</span>
                   <span className={`font-bold ${
                     product.stock === 0 ? 'text-red-600' :
-                    product.stock <= 5 ? 'text-orange-600' :
+                    product.stock <= 5 ? 'text-amber-600' :
                     'text-green-700'
                   }`}>
                     {product.stock}

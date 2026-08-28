@@ -8,7 +8,7 @@ const ACTION_LABELS: Record<HistoryEntry['action'], { label: string; color: stri
   create: { label: 'Creado', color: 'bg-green-100 text-green-800' },
   update: { label: 'Actualizado', color: 'bg-blue-100 text-blue-800' },
   delete: { label: 'Eliminado', color: 'bg-red-100 text-red-800' },
-  status_change: { label: 'Estado', color: 'bg-yellow-100 text-yellow-800' },
+  status_change: { label: 'Estado', color: 'bg-amber-100 text-amber-800' },
 };
 
 const ENTITY_ICONS: Record<HistoryEntry['entity'], React.ElementType> = {

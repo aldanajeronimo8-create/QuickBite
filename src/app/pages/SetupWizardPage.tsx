@@ -38,9 +38,9 @@ const steps = [
 
 export function SetupWizardPage() {
   return (
-    <main className="min-h-screen bg-[#fff7e8] px-4 py-8 text-[#14213d]">
+    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
       <section className="mx-auto max-w-5xl">
-        <Badge className="mb-4 bg-orange-100 text-orange-800">Primer inicio</Badge>
+        <Badge className="mb-4 bg-blue-100 text-blue-800">Primer inicio</Badge>
         <h1 className="text-3xl font-black sm:text-4xl">Configuración inicial</h1>
         <p className="mt-3 max-w-3xl text-slate-700">
           QuickBite no encontró una configuración completa para producción. Puedes conectar un
@@ -50,9 +50,9 @@ export function SetupWizardPage() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {steps.map(({ icon: Icon, title, text }) => (
-            <Card key={title} className="rounded-lg border-orange-100 bg-white">
+            <Card key={title} className="rounded-xl border-slate-200 bg-white shadow-sm">
               <CardHeader>
-                <Icon className="h-6 w-6 text-orange-600" aria-hidden="true" />
+                <Icon className="h-6 w-6 text-blue-600" aria-hidden="true" />
                 <CardTitle className="text-lg">{title}</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-slate-700">{text}</CardContent>
@@ -60,7 +60,7 @@ export function SetupWizardPage() {
           ))}
         </div>
 
-        <section className="mt-8 rounded-lg bg-white p-5 shadow-sm ring-1 ring-orange-100">
+        <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="font-black">Variables mínimas</h2>
           <pre className="mt-3 overflow-x-auto rounded-md bg-slate-950 p-4 text-sm text-slate-100">
             {`VITE_RUNTIME_MODE=supabase

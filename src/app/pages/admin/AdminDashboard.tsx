@@ -54,10 +54,10 @@ export function AdminDashboard() {
 
   const getStatusBadge = (status: string) => {
     const config = {
-      pending: { label: 'Pendiente', className: 'bg-yellow-500 text-white' },
-      preparing: { label: 'Preparando', className: 'bg-blue-500 text-white' },
-      ready: { label: 'Listo', className: 'bg-green-500 text-white' },
-      delivered: { label: 'Entregado', className: 'bg-gray-500 text-white' },
+      pending: { label: 'Pendiente', className: 'bg-blue-600 text-white' },
+      preparing: { label: 'Preparando', className: 'bg-amber-500 text-white' },
+      ready: { label: 'Listo', className: 'bg-green-600 text-white' },
+      delivered: { label: 'Entregado', className: 'bg-green-800 text-white' },
     };
     const statusConfig = config[status as keyof typeof config] || config.pending;
     return <Badge className={statusConfig.className}>{statusConfig.label}</Badge>;
@@ -72,10 +72,10 @@ export function AdminDashboard() {
         </p>
       </div>
 
-      <Card className="mb-8 border-0 bg-white p-6 shadow-lg ring-1 ring-blue-900/5">
+      <Card className="mb-8 border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-4">
-            <div className="rounded-2xl bg-orange-100 p-3 text-orange-700">
+            <div className="rounded-2xl bg-blue-100 p-3 text-blue-700">
               <Star className="h-6 w-6" />
             </div>
             <div>
@@ -92,36 +92,36 @@ export function AdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <ShoppingBag className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.todayOrders}</span>
+            <ShoppingBag className="w-8 h-8 text-blue-600" />
+            <span className="text-3xl font-bold text-slate-900">{stats.todayOrders}</span>
           </div>
-          <p className="text-blue-100 text-sm font-medium">Pedidos del día</p>
+          <p className="text-sm font-medium text-slate-500">Pedidos del día</p>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <CreditCard className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.confirmedPayments}</span>
+            <CreditCard className="w-8 h-8 text-green-600" />
+            <span className="text-3xl font-bold text-slate-900">{stats.confirmedPayments}</span>
           </div>
-          <p className="text-green-100 text-sm font-medium">Pagos confirmados</p>
+          <p className="text-sm font-medium text-slate-500">Pagos confirmados</p>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="w-8 h-8 opacity-80" />
-            <span className="text-2xl font-bold">${(stats.totalRevenue / 1000).toFixed(0)}K</span>
+            <TrendingUp className="w-8 h-8 text-teal-700" />
+            <span className="text-2xl font-bold text-slate-900">${(stats.totalRevenue / 1000).toFixed(0)}K</span>
           </div>
-          <p className="text-purple-100 text-sm font-medium">Ingresos del día</p>
+          <p className="text-sm font-medium text-slate-500">Ingresos del día</p>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <AlertTriangle className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.outOfStock}</span>
+            <AlertTriangle className="w-8 h-8 text-amber-500" />
+            <span className="text-3xl font-bold text-slate-900">{stats.outOfStock}</span>
           </div>
-          <p className="text-orange-100 text-sm font-medium">Productos agotados</p>
+          <p className="text-sm font-medium text-slate-500">Productos agotados</p>
         </Card>
       </div>
 
@@ -129,16 +129,16 @@ export function AdminDashboard() {
       {(stats.outOfStock > 0 || stats.lowStock > 0 || stats.pendingOrders > 0) && (
         <div className="mb-8 space-y-3">
           {stats.pendingOrders > 0 && (
-            <Card className="p-4 bg-yellow-50 border-l-4 border-yellow-500">
+            <Card className="border-l-4 border-blue-600 bg-blue-50 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                  <p className="text-yellow-800 font-medium">
+                  <AlertTriangle className="w-5 h-5 text-blue-600" />
+                  <p className="font-medium text-blue-900">
                     Tienes {stats.pendingOrders} pedido(s) pendiente(s) por procesar
                   </p>
                 </div>
                 <Link to="/admin/orders">
-                  <Button size="sm" className="bg-yellow-600 hover:bg-yellow-700 text-white">
+                  <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
                     Ver pedidos
                   </Button>
                 </Link>
@@ -165,10 +165,10 @@ export function AdminDashboard() {
           )}
 
           {stats.lowStock > 0 && (
-            <Card className="p-4 bg-orange-50 border-l-4 border-orange-500">
+            <Card className="border-l-4 border-amber-500 bg-amber-50 p-4">
               <div className="flex items-center gap-3">
-                <Package className="w-5 h-5 text-orange-600" />
-                <p className="text-orange-800 font-medium">
+                <Package className="w-5 h-5 text-amber-600" />
+                <p className="font-medium text-amber-900">
                   {stats.lowStock} producto(s) con stock bajo (≤5 unidades)
                 </p>
               </div>
@@ -178,7 +178,7 @@ export function AdminDashboard() {
       )}
 
       {/* Recent Orders */}
-      <Card className="p-6 bg-white shadow-lg border-0">
+      <Card className="border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-blue-900">Actividad reciente</h2>
           <Link to="/admin/orders">
@@ -198,7 +198,7 @@ export function AdminDashboard() {
             {recentOrders.map((order) => (
               <div
                 key={order.id}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-4 transition hover:bg-slate-100"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
@@ -209,7 +209,7 @@ export function AdminDashboard() {
                         order.payment_status === 'confirmed'
                           ? 'bg-green-100 text-green-800'
                           : order.payment_status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800'
+                          ? 'bg-amber-100 text-amber-800'
                           : 'bg-red-100 text-red-800'
                       }
                     >

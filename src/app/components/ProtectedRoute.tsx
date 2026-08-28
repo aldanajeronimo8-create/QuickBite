@@ -39,7 +39,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           </p>
           <button
             onClick={() => window.location.href = '/login'}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-xl transition-all"
+            className="w-full rounded-xl bg-blue-600 px-6 py-3 font-medium text-white transition-all hover:bg-blue-700"
           >
             Volver al Login
           </button>

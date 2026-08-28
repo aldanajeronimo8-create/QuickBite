@@ -148,7 +148,7 @@ export function StudentRegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-500 via-orange-400 to-amber-300 flex flex-col items-center justify-center p-5">
+    <div className="min-h-screen bg-gradient-to-br from-green-700 via-green-600 to-emerald-500 flex flex-col items-center justify-center p-5">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -right-32 w-72 h-72 bg-yellow-300/30 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-red-400/20 rounded-full blur-3xl" />
@@ -157,10 +157,10 @@ export function StudentRegisterPage() {
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl mb-3 shadow-xl p-3 bg-white">
-            <Coffee className="w-9 h-9 text-orange-500" />
+            <Coffee className="w-9 h-9 text-green-600" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">QuickBite</h1>
-          <p className="text-orange-100 text-sm mt-1">Crear cuenta de estudiante</p>
+          <p className="text-green-100 text-sm mt-1">Crear cuenta de estudiante</p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl p-7 space-y-4">
@@ -263,7 +263,7 @@ export function StudentRegisterPage() {
 
             <Button
               type="submit"
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-6 rounded-xl !mt-5 shadow-lg shadow-orange-200"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-6 rounded-xl !mt-5 shadow-lg shadow-green-950/20"
             >
               Crear cuenta →
             </Button>
@@ -271,7 +271,7 @@ export function StudentRegisterPage() {
 
           <div className="border-t border-gray-100 pt-3">
             <Link to="/">
-              <Button variant="outline" className="w-full border-orange-200 text-orange-500 hover:bg-orange-50 py-5 rounded-xl text-sm">
+              <Button variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50 py-5 rounded-xl text-sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />Volver al inicio
               </Button>
             </Link>

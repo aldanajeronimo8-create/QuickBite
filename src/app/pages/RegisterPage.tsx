@@ -170,14 +170,14 @@ export function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
       {/* Animated background */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-green-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo & Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-2xl mb-4 shadow-lg shadow-green-500/50">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-950/30">
             <Coffee className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2">QuickBite Admin</h1>
@@ -350,7 +350,7 @@ export function RegisterPage() {
             <Button
               type="submit"
               disabled={loading || cooldown > 0}
-              className="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white font-medium py-6 rounded-xl shadow-lg shadow-green-500/30 transition-all duration-300 hover:shadow-green-500/50 mt-6 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="mt-6 w-full rounded-xl bg-blue-600 py-6 font-medium text-white shadow-lg shadow-blue-950/20 transition-all duration-300 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <>

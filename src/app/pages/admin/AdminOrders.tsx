@@ -14,15 +14,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../componen
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 
 const statusLabels: Record<Order['status'], { label: string; className: string }> = {
-  pending: { label: 'Pedido recibido', className: 'bg-yellow-500 text-white' },
-  preparing: { label: 'En preparación', className: 'bg-blue-500 text-white' },
-  ready: { label: 'Listo para recoger', className: 'bg-green-500 text-white' },
-  delivered: { label: 'Entregado', className: 'bg-gray-500 text-white' },
+  pending: { label: 'Pedido recibido', className: 'bg-blue-600 text-white' },
+  preparing: { label: 'En preparación', className: 'bg-amber-500 text-white' },
+  ready: { label: 'Listo para recoger', className: 'bg-green-600 text-white' },
+  delivered: { label: 'Entregado', className: 'bg-green-800 text-white' },
 };
 
 const paymentLabels: Record<Order['payment_status'], { label: string; className: string }> = {
   confirmed: { label: 'Confirmado', className: 'bg-green-100 text-green-800' },
-  pending: { label: 'Pendiente', className: 'bg-yellow-100 text-yellow-800' },
+  pending: { label: 'Pendiente', className: 'bg-amber-100 text-amber-800' },
   rejected: { label: 'Rechazado', className: 'bg-red-100 text-red-800' },
 };
 
@@ -158,7 +158,7 @@ export function AdminOrders() {
         </div>
       </div>
 
-      <Card className="mb-6 border-0 bg-white p-6 shadow-lg">
+      <Card className="mb-6 border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-4">
           <label className="font-medium text-gray-700">Filtrar por estado:</label>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -193,14 +193,14 @@ export function AdminOrders() {
       </Card>
 
       {filteredOrders.length === 0 ? (
-        <Card className="border-0 bg-white p-12 text-center shadow-lg">
+        <Card className="border border-slate-200 bg-white p-12 text-center shadow-sm">
           <ShoppingBag className="mx-auto mb-4 h-16 w-16 text-gray-300" />
           <p className="text-lg text-gray-500">No hay pedidos para mostrar</p>
         </Card>
       ) : (
         <div className="space-y-4">
           {filteredOrders.map((order) => (
-            <Card key={order.id} className="border-0 bg-white p-6 shadow-lg transition hover:shadow-xl">
+            <Card key={order.id} className="border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-lg">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex flex-wrap items-center gap-3">
@@ -257,7 +257,7 @@ export function AdminOrders() {
                         variant="outline"
                         onClick={() => handleStatusChange(order.id, 'pending')}
                         disabled={updatingOrderId === order.id}
-                        className="border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+                        className="border-blue-500 text-blue-700 hover:bg-blue-50"
                       >
                         Pendiente
                       </Button>
@@ -267,7 +267,7 @@ export function AdminOrders() {
                         size="sm"
                         onClick={() => handleStatusChange(order.id, 'preparing')}
                         disabled={updatingOrderId === order.id}
-                        className="bg-blue-500 text-white hover:bg-blue-600"
+                        className="bg-amber-500 text-white hover:bg-amber-600"
                       >
                         En preparación
                       </Button>
@@ -277,7 +277,7 @@ export function AdminOrders() {
                         size="sm"
                         onClick={() => handleStatusChange(order.id, 'ready')}
                         disabled={updatingOrderId === order.id}
-                        className="bg-green-500 text-white hover:bg-green-600"
+                        className="bg-green-600 text-white hover:bg-green-700"
                       >
                         Listo
                       </Button>
@@ -287,7 +287,7 @@ export function AdminOrders() {
                         size="sm"
                         onClick={() => handleStatusChange(order.id, 'delivered')}
                         disabled={updatingOrderId === order.id}
-                        className="bg-gray-500 text-white hover:bg-gray-600"
+                        className="bg-green-800 text-white hover:bg-green-900"
                       >
                         Entregado
                       </Button>

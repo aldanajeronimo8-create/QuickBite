@@ -66,15 +66,15 @@ export function AdminInventory() {
 
   const getStockBadge = (product: any) => {
     if (!product.available) {
-      return <Badge className="bg-gray-500 text-white">Oculto</Badge>;
+      return <Badge className="bg-slate-500 text-white">Oculto</Badge>;
     }
     if (product.stock === 0) {
       return <Badge className="bg-red-500 text-white">Agotado</Badge>;
     }
     if (product.stock <= 5) {
-      return <Badge className="bg-orange-500 text-white">Stock Bajo</Badge>;
+      return <Badge className="bg-amber-500 text-white">Stock bajo</Badge>;
     }
-    return <Badge className="bg-green-500 text-white">Disponible</Badge>;
+    return <Badge className="bg-green-600 text-white">Disponible</Badge>;
   };
 
   return (
@@ -88,41 +88,41 @@ export function AdminInventory() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <Package className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.available}</span>
+            <Package className="w-8 h-8 text-green-600" />
+            <span className="text-3xl font-bold text-slate-900">{stats.available}</span>
           </div>
-          <p className="text-green-100 text-sm font-medium">Productos Disponibles</p>
+          <p className="text-sm font-medium text-slate-500">Productos disponibles</p>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-red-500 to-red-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <AlertTriangle className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.outOfStock}</span>
+            <AlertTriangle className="w-8 h-8 text-red-600" />
+            <span className="text-3xl font-bold text-slate-900">{stats.outOfStock}</span>
           </div>
-          <p className="text-red-100 text-sm font-medium">Productos Agotados</p>
+          <p className="text-sm font-medium text-slate-500">Productos agotados</p>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <AlertTriangle className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.lowStock}</span>
+            <AlertTriangle className="w-8 h-8 text-amber-500" />
+            <span className="text-3xl font-bold text-slate-900">{stats.lowStock}</span>
           </div>
-          <p className="text-orange-100 text-sm font-medium">Stock Bajo (≤5)</p>
+          <p className="text-sm font-medium text-slate-500">Stock bajo (≤5)</p>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-gray-500 to-gray-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <EyeOff className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.hidden}</span>
+            <EyeOff className="w-8 h-8 text-slate-500" />
+            <span className="text-3xl font-bold text-slate-900">{stats.hidden}</span>
           </div>
-          <p className="text-gray-100 text-sm font-medium">Productos Ocultos</p>
+          <p className="text-sm font-medium text-slate-500">Productos ocultos</p>
         </Card>
       </div>
 
       {/* Products Table */}
-      <Card className="p-6 bg-white shadow-lg border-0">
+      <Card className="border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-blue-900 mb-6">Productos</h2>
 
         <div className="overflow-x-auto">
@@ -168,7 +168,7 @@ export function AdminInventory() {
                   <td className="py-4 px-4 text-center">
                     <span className={`text-lg font-bold ${
                       product.stock === 0 ? 'text-red-600' :
-                      product.stock <= 5 ? 'text-orange-600' :
+                      product.stock <= 5 ? 'text-amber-600' :
                       'text-green-700'
                     }`}>
                       {product.stock}

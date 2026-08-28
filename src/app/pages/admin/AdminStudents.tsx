@@ -46,7 +46,7 @@ export function AdminStudents() {
                     {student.ti && <p className="mt-1 text-sm text-gray-500">TI: {student.ti}</p>}
                   </div>
                   {pendingCash.length > 0 && (
-                    <Badge className="bg-amber-500 text-white">
+                    <Badge className="bg-blue-600 text-white">
                       {pendingCash.length} efectivo pendiente
                     </Badge>
                   )}

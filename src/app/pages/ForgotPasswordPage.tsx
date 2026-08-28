@@ -124,7 +124,7 @@ export function ForgotPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-green-400 to-blue-500 shadow-lg shadow-green-500/50">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-950/30">
             <Coffee className="h-8 w-8 text-white" />
           </div>
           <h1 className="mb-2 text-4xl font-bold text-white">QuickBite</h1>
@@ -182,7 +182,7 @@ export function ForgotPasswordPage() {
               <Input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-white" placeholder="Nueva contraseña" autoFocus />
               <Input type="password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-white" placeholder="Confirmar contraseña" />
               {error && <p className="text-sm text-red-300">{error}</p>}
-              <Button type="submit" disabled={loading} className="w-full bg-green-600 py-6 text-white hover:bg-green-700">{loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}Actualizar</Button>
+              <Button type="submit" disabled={loading} className="w-full bg-blue-600 py-6 text-white hover:bg-blue-700">{loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}Actualizar</Button>
             </form>
           )}
 

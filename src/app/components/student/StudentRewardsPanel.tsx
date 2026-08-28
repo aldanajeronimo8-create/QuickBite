@@ -23,14 +23,14 @@ export function StudentRewardsPanel({
 }: Props) {
   return (
     <main className="mx-auto max-w-3xl space-y-5 px-5 pt-6 lg:px-8">
-      <section className="bg-[#14213d] p-5 text-white">
+      <section className="rounded-3xl bg-[#166534] p-5 text-white shadow-lg shadow-green-950/10">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm text-orange-100">Puntos disponibles</p>
+            <p className="text-sm text-green-100">Puntos disponibles</p>
             <p className="mt-1 text-5xl font-black">{availablePoints}</p>
             <p className="mt-2 text-sm text-white/70">Usa tus puntos para reservar alimentos del menu.</p>
           </div>
-          <Trophy className="h-9 w-9 text-orange-300" />
+          <Trophy className="h-9 w-9 text-green-200" />
         </div>
       </section>
 
@@ -52,11 +52,11 @@ export function StudentRewardsPanel({
             const missingPoints = reward.points_required - availablePoints;
             const redeeming = redeemingRewardId === reward.id;
             return (
-              <article key={reward.id} className="flex gap-4 border border-orange-100 bg-white p-4 shadow-sm">
+              <article key={reward.id} className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 {reward.product?.image_url ? (
                   <img src={reward.product.image_url} alt={reward.title} className="h-20 w-20 shrink-0 object-cover" />
                 ) : (
-                  <div className="grid h-20 w-20 shrink-0 place-items-center bg-orange-50 text-orange-500"><Gift className="h-7 w-7" /></div>
+                  <div className="grid h-20 w-20 shrink-0 place-items-center bg-green-50 text-green-600"><Gift className="h-7 w-7" /></div>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -64,13 +64,13 @@ export function StudentRewardsPanel({
                       <h3 className="font-black">{reward.title}</h3>
                       <p className="mt-1 text-sm text-slate-600">{reward.description || reward.product?.name}</p>
                     </div>
-                    <span className="shrink-0 bg-orange-50 px-2 py-1 text-xs font-black text-orange-600">{reward.points_required} pts</span>
+                    <span className="shrink-0 bg-green-50 px-2 py-1 text-xs font-black text-green-700">{reward.points_required} pts</span>
                   </div>
                   <Button
                     type="button"
                     onClick={() => onRedeem(reward)}
                     disabled={!canRedeem || redeeming}
-                    className="mt-3 w-full bg-orange-500 text-white hover:bg-orange-600"
+                    className="mt-3 w-full bg-green-600 text-white hover:bg-green-700"
                   >
                     {redeeming ? 'Reservando...' : canRedeem ? 'Canjear alimento' : `Te faltan ${missingPoints} pts`}
                   </Button>

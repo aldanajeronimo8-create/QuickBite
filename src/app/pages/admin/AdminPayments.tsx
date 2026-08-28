@@ -57,8 +57,8 @@ export function AdminPayments() {
 
   const getPaymentStatusBadge = (status: string) => {
     const config = {
-      pending: { label: 'Pendiente', className: 'bg-yellow-500 text-white' },
-      confirmed: { label: 'Confirmado', className: 'bg-green-500 text-white' },
+      pending: { label: 'Pendiente', className: 'bg-amber-500 text-white' },
+      confirmed: { label: 'Confirmado', className: 'bg-green-600 text-white' },
       rejected: { label: 'Rechazado', className: 'bg-red-500 text-white' },
     };
     const statusConfig = config[status as keyof typeof config] || config.pending;
@@ -76,41 +76,41 @@ export function AdminPayments() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="p-6 bg-gradient-to-br from-yellow-500 to-yellow-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <Clock className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.pending}</span>
+            <Clock className="w-8 h-8 text-amber-500" />
+            <span className="text-3xl font-bold text-slate-900">{stats.pending}</span>
           </div>
-          <p className="text-yellow-100 text-sm font-medium">Pagos pendientes</p>
+          <p className="text-sm font-medium text-slate-500">Pagos pendientes</p>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <CheckCircle className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.confirmed}</span>
+            <CheckCircle className="w-8 h-8 text-green-600" />
+            <span className="text-3xl font-bold text-slate-900">{stats.confirmed}</span>
           </div>
-          <p className="text-green-100 text-sm font-medium">Pagos confirmados</p>
+          <p className="text-sm font-medium text-slate-500">Pagos confirmados</p>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-red-500 to-red-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <XCircle className="w-8 h-8 opacity-80" />
-            <span className="text-3xl font-bold">{stats.rejected}</span>
+            <XCircle className="w-8 h-8 text-red-600" />
+            <span className="text-3xl font-bold text-slate-900">{stats.rejected}</span>
           </div>
-          <p className="text-red-100 text-sm font-medium">Pagos rechazados</p>
+          <p className="text-sm font-medium text-slate-500">Pagos rechazados</p>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <CreditCard className="w-8 h-8 opacity-80" />
-            <span className="text-2xl font-bold">${(stats.totalConfirmed / 1000).toFixed(0)}K</span>
+            <CreditCard className="w-8 h-8 text-blue-600" />
+            <span className="text-2xl font-bold text-slate-900">${(stats.totalConfirmed / 1000).toFixed(0)}K</span>
           </div>
-          <p className="text-blue-100 text-sm font-medium">Total confirmado</p>
+          <p className="text-sm font-medium text-slate-500">Total confirmado</p>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card className="p-6 bg-white shadow-lg border-0 mb-6">
+      <Card className="mb-6 border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-4">
           <label className="font-medium text-gray-700">Filtrar por estado:</label>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -134,14 +134,14 @@ export function AdminPayments() {
 
       {/* Payments List */}
       {filteredOrders.length === 0 ? (
-        <Card className="p-12 bg-white text-center border-0 shadow-lg">
+        <Card className="border border-slate-200 bg-white p-12 text-center shadow-sm">
           <CreditCard className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">No hay pagos para mostrar</p>
         </Card>
       ) : (
         <div className="space-y-4">
           {filteredOrders.map((order) => (
-            <Card key={order.id} className="p-6 bg-white shadow-lg border-0 hover:shadow-xl transition">
+            <Card key={order.id} className="border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-lg">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">

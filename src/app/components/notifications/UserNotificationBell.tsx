@@ -102,13 +102,13 @@ export function UserNotificationBell({ userId }: { userId: string }) {
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
-        className="relative rounded-full bg-white/10 p-2 transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-orange-300"
+        className="relative rounded-full bg-white/10 p-2 transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-green-300"
         aria-label={`Notificaciones${unreadIds.length ? `, ${unreadIds.length} sin leer` : ''}`}
         aria-expanded={isOpen}
       >
         <Bell className="h-5 w-5" />
         {unreadIds.length > 0 && (
-          <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-orange-500 px-1 text-[11px] font-black">
+          <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-green-500 px-1 text-[11px] font-black">
             {unreadIds.length > 9 ? '9+' : unreadIds.length}
           </span>
         )}
@@ -158,11 +158,11 @@ export function UserNotificationBell({ userId }: { userId: string }) {
                     if (!notification.read_at) void markRead([notification.id]);
                   }}
                   className={`block w-full border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-slate-50 ${
-                    notification.read_at ? 'bg-white' : 'bg-orange-50/70'
+                    notification.read_at ? 'bg-white' : 'bg-green-50/70'
                   }`}
                 >
                   <div className="flex gap-3">
-                    {!notification.read_at && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-orange-500" aria-hidden="true" />}
+                    {!notification.read_at && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-green-500" aria-hidden="true" />}
                     <div className={notification.read_at ? 'pl-5' : ''}>
                       <p className="text-sm font-bold">{notification.title}</p>
                       <p className="mt-1 text-sm leading-5 text-slate-600">{notification.body}</p>

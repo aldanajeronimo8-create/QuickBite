@@ -71,12 +71,12 @@ export function ResetPasswordPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-400/20 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-2xl mb-4 shadow-lg shadow-green-500/50">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-950/30">
             <Coffee className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2">QuickBite</h1>
@@ -102,7 +102,7 @@ export function ResetPasswordPage() {
               </p>
               <Button
                 onClick={() => navigate('/forgot-password')}
-                className="w-full bg-gradient-to-r from-green-500 to-blue-600 text-white font-medium py-6 rounded-xl"
+                className="w-full rounded-xl bg-blue-600 py-6 font-medium text-white hover:bg-blue-700"
               >
                 Solicitar nuevo enlace
               </Button>
@@ -160,7 +160,7 @@ export function ResetPasswordPage() {
                 {passwordError && <p className="text-red-300 text-sm mt-1">{passwordError}</p>}
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white font-medium py-6 rounded-xl shadow-lg shadow-green-500/30 transition-all duration-300">
+              <Button type="submit" disabled={loading} className="w-full rounded-xl bg-blue-600 py-6 font-medium text-white shadow-lg shadow-blue-950/20 transition-all duration-300 hover:bg-blue-700">
                 {loading
                   ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Actualizando…</>
                   : 'Guardar nueva contraseña'}

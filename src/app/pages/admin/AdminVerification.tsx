@@ -49,10 +49,10 @@ export function AdminVerification() {
 
   const getStatusBadge = (status: string) => {
     const config = {
-      pending: { label: 'Pendiente', className: 'bg-yellow-500 text-white' },
-      preparing: { label: 'En Preparación', className: 'bg-blue-500 text-white' },
-      ready: { label: 'Listo para Recoger', className: 'bg-green-500 text-white' },
-      delivered: { label: 'Entregado', className: 'bg-gray-500 text-white' },
+      pending: { label: 'Pendiente', className: 'bg-blue-600 text-white' },
+      preparing: { label: 'En Preparación', className: 'bg-amber-500 text-white' },
+      ready: { label: 'Listo para Recoger', className: 'bg-green-600 text-white' },
+      delivered: { label: 'Entregado', className: 'bg-green-800 text-white' },
     };
     const statusConfig = config[status as keyof typeof config] || config.pending;
     return <Badge className={statusConfig.className}>{statusConfig.label}</Badge>;
@@ -197,9 +197,9 @@ export function AdminVerification() {
                 <Badge
                   className={
                     verifiedOrder.payment_status === 'confirmed'
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-green-600 text-white'
                       : verifiedOrder.payment_status === 'pending'
-                      ? 'bg-yellow-500 text-white'
+                      ? 'bg-amber-500 text-white'
                       : 'bg-red-500 text-white'
                   }
                 >
@@ -268,7 +268,7 @@ export function AdminVerification() {
             <div className="border-t border-gray-200 pt-6">
               <Button
                 onClick={handleMarkAsDelivered}
-                className="w-full h-14 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold text-lg shadow-lg"
+                className="h-14 w-full bg-blue-600 text-lg font-bold text-white shadow-sm hover:bg-blue-700"
               >
                 <CheckCircle className="w-6 h-6 mr-3" />
                 Marcar como Entregado

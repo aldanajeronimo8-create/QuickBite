@@ -86,16 +86,16 @@ export function LoginPage() {
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center p-5 transition-all duration-500 ${
       isStudent
-        ? 'bg-gradient-to-br from-orange-500 via-orange-400 to-amber-300'
+        ? 'bg-gradient-to-br from-green-700 via-green-600 to-emerald-500'
         : 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800'
     }`}>
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-7">
           <div className={`inline-flex items-center justify-center w-18 h-18 rounded-3xl mb-3 shadow-xl p-4 ${isStudent ? 'bg-white' : 'bg-white/10 border border-white/20'}`}>
-            <Coffee className={`w-9 h-9 ${isStudent ? 'text-orange-500' : 'text-white'}`} />
+            <Coffee className={`w-9 h-9 ${isStudent ? 'text-green-600' : 'text-white'}`} />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">QuickBite</h1>
-          <p className={`text-sm mt-1 ${isStudent ? 'text-orange-100' : 'text-blue-300'}`}>
+          <p className={`text-sm mt-1 ${isStudent ? 'text-green-100' : 'text-blue-300'}`}>
             Supabase conectado
           </p>
         </div>
@@ -105,7 +105,7 @@ export function LoginPage() {
             type="button"
             onClick={() => { setMode('student'); setErrors({}); }}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition ${
-              isStudent ? 'bg-white text-orange-500 shadow-md' : 'text-white/60 hover:text-white/90'
+              isStudent ? 'bg-white text-green-700 shadow-md' : 'text-white/60 hover:text-white/90'
             }`}
           >
             <GraduationCap className="w-4 h-4" />
@@ -138,7 +138,7 @@ export function LoginPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <Label htmlFor="student-password" className="text-gray-700 text-sm">Contraseña</Label>
-                  <Link to="/forgot-password" className="text-xs text-orange-500 underline underline-offset-2">Recuperar</Link>
+                  <Link to="/forgot-password" className="text-xs text-green-700 underline underline-offset-2">Recuperar</Link>
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -149,11 +149,11 @@ export function LoginPage() {
                 </div>
                 {errors.studentPassword && <p className="text-red-500 text-xs mt-1">{errors.studentPassword}</p>}
               </div>
-              <Button type="submit" disabled={loading} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-6 rounded-xl">
+              <Button type="submit" disabled={loading} className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-6 rounded-xl">
                 {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Entrando...</> : 'Ver menú'}
               </Button>
               <Link to="/register-student">
-                <Button type="button" variant="outline" className="w-full border-orange-200 text-orange-500 hover:bg-orange-50 py-5 rounded-xl text-sm">
+                <Button type="button" variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50 py-5 rounded-xl text-sm">
                   Crear cuenta de estudiante
                 </Button>
               </Link>
