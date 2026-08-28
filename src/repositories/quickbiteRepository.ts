@@ -28,6 +28,11 @@ export type NewManagedUser = {
   ti?: string;
 };
 export type ManagedUserUpdate = Omit<NewManagedUser, 'password'> & { id: string; password?: string };
+export type ProtectedCredentialsUpdate = {
+  id: string;
+  email: string;
+  password?: string;
+};
 export type LoyaltyRewardInput = Pick<LoyaltyReward, 'product_id' | 'title' | 'description' | 'points_required' | 'active'>;
 export type LoyaltyRewardUpdate = Partial<LoyaltyRewardInput>;
 
@@ -470,6 +475,33 @@ export async function updateManagedUser(user: ManagedUserUpdate) {
   }
 
   throw error;
+}
+
+export async function updateProtectedAdminCredentials(user: ProtectedCredentialsUpdate) {
+  const { error } = await requireSupabaseClient().rpc('admin_update_protected_credentials', {
+    p_user_id: user.id,
+    p_email: user.email.trim().toLowerCase(),
+    p_password: user.password?.trim() || null,
+  });
+  if (!error) return;
+
+  const message = getErrorMessage(error, 'No se pudieron actualizar las credenciales de la cuenta protegida.');
+  if (/not_authorized/i.test(message)) {
+    throw new Error('Solo una cuenta con rol admin o both puede cambiar estas credenciales.');
+  }
+  if (/cannot_change_own_protected_credentials/i.test(message)) {
+    throw new Error('Por seguridad, otro administrador debe cambiar las credenciales de su propia cuenta protegida.');
+  }
+  if (/protected_account_not_found/i.test(message)) {
+    throw new Error('La cuenta ya no está registrada como protegida. Actualiza la página e inténtalo de nuevo.');
+  }
+  if (/email_already_registered/i.test(message)) {
+    throw new Error('Ese correo ya está registrado en otra cuenta.');
+  }
+  if (/password_too_short/i.test(message)) {
+    throw new Error('La nueva contraseña debe tener al menos 6 caracteres.');
+  }
+  throw new Error(message);
 }
 
 export async function deleteManagedUser(id: string) {

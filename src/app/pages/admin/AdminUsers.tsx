@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Edit2, Plus, Trash2, UserCog, X } from 'lucide-react';
+import { Edit2, KeyRound, Plus, Trash2, UserCog, X } from 'lucide-react';
 import { useDataStore } from '../../../store/dataStore';
+import { useAuthStore } from '../../../store/authStore';
 import type { Profile } from '../../../lib/supabase';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { listProtectedAdminEmails } from '../../../repositories/quickbiteRepository';
-import { isProtectedAdminEmail, protectedAdminEmails } from '../../../lib/protectedAccounts';
+import { protectedAdminEmails } from '../../../lib/protectedAccounts';
 
 type UserForm = {
   id?: string;
@@ -28,11 +29,14 @@ const emptyForm: UserForm = {
 };
 
 export function AdminUsers() {
-  const { users, addUser, updateUser, deleteUser } = useDataStore();
+  const { users, addUser, updateUser, updateProtectedCredentials, deleteUser } = useDataStore();
+  const currentUser = useAuthStore((state) => state.user);
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [credentialOnly, setCredentialOnly] = useState(false);
+  const [protectedOriginalEmail, setProtectedOriginalEmail] = useState<string | null>(null);
   const [protectedEmails, setProtectedEmails] = useState<Set<string>>(
     () => new Set(protectedAdminEmails),
   );
@@ -41,18 +45,16 @@ export function AdminUsers() {
     let active = true;
     void listProtectedAdminEmails()
       .then((emails) => {
-        if (active) setProtectedEmails(new Set([...protectedAdminEmails, ...emails]));
+        if (active) setProtectedEmails(new Set(emails));
       })
       .catch(() => {
-        // The five known protected accounts remain disabled locally. Supabase
-        // independently rejects any protected-account deletion or modification.
+        // If Supabase is temporarily unreachable, retain the five known accounts
+        // as a safe local fallback. The backend independently enforces protection.
       });
     return () => { active = false; };
   }, []);
 
-  const isProtected = (user: Profile) => (
-    isProtectedAdminEmail(user.email) || protectedEmails.has(user.email.trim().toLowerCase())
-  );
+  const isProtected = (user: Profile) => protectedEmails.has(user.email.trim().toLowerCase());
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -62,12 +64,15 @@ export function AdminUsers() {
 
   const beginCreate = () => {
     setForm(emptyForm);
+    setCredentialOnly(false);
+    setProtectedOriginalEmail(null);
     setOpen(true);
   };
 
   const beginEdit = (user: Profile) => {
-    if (isProtected(user)) {
-      toast.error('Esta cuenta está protegida y no se puede modificar.');
+    const protectedAccount = isProtected(user);
+    if (protectedAccount && user.id === currentUser?.id) {
+      toast.error('Por seguridad, otro administrador debe cambiar las credenciales de su propia cuenta protegida.');
       return;
     }
     setForm({
@@ -78,6 +83,8 @@ export function AdminUsers() {
       role: user.role,
       ti: user.ti ?? '',
     });
+    setCredentialOnly(protectedAccount);
+    setProtectedOriginalEmail(protectedAccount ? user.email.trim().toLowerCase() : null);
     setOpen(true);
   };
 
@@ -98,7 +105,22 @@ export function AdminUsers() {
 
     setSaving(true);
     try {
-      if (form.id) {
+      if (form.id && credentialOnly) {
+        await updateProtectedCredentials({
+          id: form.id,
+          email: form.email.trim().toLowerCase(),
+          password: form.password.trim() || undefined,
+        });
+        if (protectedOriginalEmail) {
+          setProtectedEmails((current) => {
+            const next = new Set(current);
+            next.delete(protectedOriginalEmail);
+            next.add(form.email.trim().toLowerCase());
+            return next;
+          });
+        }
+        toast.success('Credenciales de la cuenta protegida actualizadas en Supabase');
+      } else if (form.id) {
         await updateUser({
           id: form.id,
           email: form.email.trim().toLowerCase(),
@@ -120,6 +142,8 @@ export function AdminUsers() {
       }
       setOpen(false);
       setForm(emptyForm);
+      setCredentialOnly(false);
+      setProtectedOriginalEmail(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo guardar el usuario');
     } finally {
@@ -182,7 +206,12 @@ export function AdminUsers() {
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
                     {isProtected(user) ? (
-                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">Cuenta protegida</span>
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => beginEdit(user)} aria-label={`Editar credenciales de ${user.full_name}`} className="border-amber-200 text-amber-800 hover:bg-amber-50">
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+                        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">Cuenta protegida</span>
+                      </>
                     ) : <>
                       <Button variant="outline" size="sm" onClick={() => beginEdit(user)} aria-label={`Editar ${user.full_name}`}><Edit2 className="h-4 w-4" /></Button>
                       <Button variant="outline" size="sm" onClick={() => removeUser(user)} className="border-red-200 text-red-600 hover:bg-red-50" aria-label={`Eliminar ${user.full_name}`}><Trash2 className="h-4 w-4" /></Button>
@@ -202,14 +231,17 @@ export function AdminUsers() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
           <Card className="w-full max-w-lg border-0 bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">{form.id ? 'Editar usuario' : 'Crear usuario'}</h2>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{credentialOnly ? 'Editar credenciales protegidas' : form.id ? 'Editar usuario' : 'Crear usuario'}</h2>
+                {credentialOnly && <p className="mt-1 text-sm text-gray-500">Solo otro administrador o una cuenta both puede cambiar el correo o la contraseña.</p>}
+              </div>
               <button onClick={() => setOpen(false)} className="rounded-full p-2 text-gray-400 hover:bg-gray-100"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={saveUser} className="space-y-4">
-              <div>
+              {!credentialOnly && <div>
                 <Label>Nombre completo</Label>
                 <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
-              </div>
+              </div>}
               <div>
                 <Label>Correo</Label>
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -223,7 +255,7 @@ export function AdminUsers() {
                   placeholder={form.id ? 'Dejar vacio para conservar la actual' : 'Minimo 6 caracteres'}
                 />
               </div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {!credentialOnly && <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <Label>Rol</Label>
                   <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Profile['role'] })} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
@@ -236,7 +268,7 @@ export function AdminUsers() {
                   <Label>TI</Label>
                   <Input value={form.ti} onChange={(e) => setForm({ ...form, ti: e.target.value })} disabled={form.role === 'admin'} />
                 </div>
-              </div>
+              </div>}
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit" disabled={saving} className="bg-blue-700 text-white hover:bg-blue-800">{saving ? 'Guardando...' : 'Guardar'}</Button>
