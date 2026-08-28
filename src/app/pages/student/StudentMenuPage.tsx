@@ -28,6 +28,7 @@ import {
   Utensils,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { canAccessStudent } from '../../../lib/access';
 
 type Tab = 'menu' | 'orders' | 'rewards';
 type PayStep = 'cart' | 'payment' | 'receipt';
@@ -90,7 +91,7 @@ export function StudentMenuPage() {
           .maybeSingle();
 
         if (error) throw error;
-        if (!profile || profile.role !== 'student') {
+        if (!profile || !canAccessStudent(profile.role)) {
           await client.auth.signOut();
           navigate('/');
           return;

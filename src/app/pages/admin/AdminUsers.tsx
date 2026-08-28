@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Edit2, Plus, Trash2, UserCog, X } from 'lucide-react';
 import { useDataStore } from '../../../store/dataStore';
@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { listProtectedAdminEmails } from '../../../repositories/quickbiteRepository';
 
 type UserForm = {
   id?: string;
@@ -31,6 +32,21 @@ export function AdminUsers() {
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [protectedEmails, setProtectedEmails] = useState<Set<string> | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void listProtectedAdminEmails()
+      .then((emails) => {
+        if (active) setProtectedEmails(new Set(emails));
+      })
+      .catch(() => {
+        // Keep actions disabled until Supabase confirms which accounts are protected.
+      });
+    return () => { active = false; };
+  }, []);
+
+  const isProtected = (user: Profile) => protectedEmails === null || protectedEmails.has(user.email.trim().toLowerCase());
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -44,6 +60,10 @@ export function AdminUsers() {
   };
 
   const beginEdit = (user: Profile) => {
+    if (isProtected(user)) {
+      toast.error('Esta cuenta está protegida y no se puede modificar.');
+      return;
+    }
     setForm({
       id: user.id,
       email: user.email,
@@ -78,7 +98,7 @@ export function AdminUsers() {
           email: form.email.trim().toLowerCase(),
           full_name: form.full_name.trim(),
           role: form.role,
-          ti: form.role === 'student' ? form.ti.trim() : '',
+          ti: form.role === 'admin' ? '' : form.ti.trim(),
           password: form.password.trim() || undefined,
         });
         toast.success('Usuario actualizado en Supabase');
@@ -88,7 +108,7 @@ export function AdminUsers() {
           password: form.password,
           full_name: form.full_name.trim(),
           role: form.role,
-          ti: form.role === 'student' ? form.ti.trim() : '',
+          ti: form.role === 'admin' ? '' : form.ti.trim(),
         });
         toast.success('Usuario creado en Supabase');
       }
@@ -102,7 +122,11 @@ export function AdminUsers() {
   };
 
   const removeUser = async (user: Profile) => {
-    if (!window.confirm(`Eliminar definitivamente a ${user.email}?`)) return;
+    if (isProtected(user)) {
+      toast.error('Esta cuenta está protegida y no se puede eliminar.');
+      return;
+    }
+    if (!window.confirm(`Eliminar definitivamente a ${user.email}? Se quitará su acceso y sus datos personales; los pedidos quedarán anonimizados en el historial.`)) return;
     try {
       await deleteUser(user.id);
       toast.success('Usuario eliminado en Supabase');
@@ -151,8 +175,12 @@ export function AdminUsers() {
                 <td className="px-4 py-3 text-gray-600">{user.ti || '-'}</td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => beginEdit(user)}><Edit2 className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="sm" onClick={() => removeUser(user)} className="border-red-200 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
+                    {isProtected(user) ? (
+                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">Cuenta protegida</span>
+                    ) : <>
+                      <Button variant="outline" size="sm" onClick={() => beginEdit(user)} aria-label={`Editar ${user.full_name}`}><Edit2 className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => removeUser(user)} className="border-red-200 text-red-600 hover:bg-red-50" aria-label={`Eliminar ${user.full_name}`}><Trash2 className="h-4 w-4" /></Button>
+                    </>}
                   </div>
                 </td>
               </tr>
@@ -195,11 +223,12 @@ export function AdminUsers() {
                   <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Profile['role'] })} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                     <option value="student">Estudiante</option>
                     <option value="admin">Admin</option>
+                    <option value="both">Admin y estudiante</option>
                   </select>
                 </div>
                 <div>
                   <Label>TI</Label>
-                  <Input value={form.ti} onChange={(e) => setForm({ ...form, ti: e.target.value })} disabled={form.role !== 'student'} />
+                  <Input value={form.ti} onChange={(e) => setForm({ ...form, ti: e.target.value })} disabled={form.role === 'admin'} />
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">

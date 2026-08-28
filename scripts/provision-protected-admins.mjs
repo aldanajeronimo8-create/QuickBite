@@ -58,7 +58,7 @@ try {
               email_confirmed_at = NOW(),
               banned_until = NULL,
               raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb)
-                || jsonb_build_object('full_name', $3::text, 'role', 'admin'),
+                || jsonb_build_object('full_name', $3::text, 'role', 'both'),
               updated_at = NOW()
           WHERE id = $1
         `,
@@ -75,7 +75,7 @@ try {
           '00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
           $1::text, extensions.crypt($2::text, extensions.gen_salt('bf')), NOW(), NULL,
           jsonb_build_object('provider', 'email', 'providers', ARRAY['email']),
-          jsonb_build_object('full_name', $3::text, 'role', 'admin'), NOW(), NOW()
+          jsonb_build_object('full_name', $3::text, 'role', 'both'), NOW(), NOW()
         )
         RETURNING id
       `,
@@ -99,8 +99,8 @@ try {
     await client.query(
       `
         INSERT INTO public.profiles (id, email, full_name, role)
-        VALUES ($1, $2, $3, 'admin')
-        ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = 'admin', updated_at = NOW()
+        VALUES ($1, $2, $3, 'both')
+        ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = 'both', updated_at = NOW()
       `,
       [userId, email, fullName],
     );

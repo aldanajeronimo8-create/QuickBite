@@ -16,7 +16,8 @@ import { getErrorMessage } from '../lib/errorMessage';
 export type NewProduct = Omit<Product, 'id' | 'created_at' | 'category'>;
 export type ProductUpdate = Partial<NewProduct>;
 export type NewOrderItem = Omit<OrderItem, 'id' | 'order_id' | 'product'>;
-export type NewOrder = Omit<Order, 'id' | 'created_at' | 'order_number' | 'order_items' | 'user'> & {
+export type NewOrder = Omit<Order, 'id' | 'created_at' | 'order_number' | 'order_items' | 'user' | 'user_id'> & {
+  user_id: string;
   order_items?: NewOrderItem[];
 };
 export type NewManagedUser = {
@@ -464,7 +465,24 @@ export async function deleteManagedUser(id: string) {
   const { error } = await requireSupabaseClient().rpc('admin_delete_user', {
     p_user_id: id,
   });
+  if (!error) return;
+
+  const message = getErrorMessage(error, 'No se pudo eliminar el usuario.');
+  if (/protected_admin|protected_account/i.test(message)) {
+    throw new Error('Esta cuenta está protegida y no se puede modificar ni eliminar.');
+  }
+  if (/cannot_delete_self/i.test(message)) {
+    throw new Error('No puedes eliminar tu propia cuenta desde el panel.');
+  }
+  throw error;
+}
+
+export async function listProtectedAdminEmails() {
+  const { data, error } = await requireSupabaseClient().rpc('list_protected_admin_emails');
   if (error) throw error;
+  return ((data ?? []) as Array<{ email?: string | null }>)
+    .map((row) => typeof row?.email === 'string' ? row.email.trim().toLowerCase() : '')
+    .filter(Boolean);
 }
 
 export async function writeAudit(entry: {

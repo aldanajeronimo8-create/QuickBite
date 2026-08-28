@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { appConfig, hasSupabaseConfig } from '../config/appConfig';
+import type { UserRole } from './access';
 
 export const supabase = hasSupabaseConfig()
   ? createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
@@ -27,7 +28,7 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string;
-  role: 'admin' | 'student';
+  role: UserRole;
   ti?: string | null;
   created_at: string;
 }
@@ -54,7 +55,7 @@ export interface Product {
 
 export interface Order {
   id: string;
-  user_id: string;
+  user_id: string | null;
   total: number;
   status: 'pending' | 'preparing' | 'ready' | 'delivered';
   payment_method: 'nequi' | 'bancolombia' | 'daviplata' | 'bre-b' | 'bank_keys' | 'cash';

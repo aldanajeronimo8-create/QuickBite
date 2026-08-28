@@ -4,10 +4,11 @@ import { useDataStore } from '../../../store/dataStore';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
+import { canAccessStudent } from '../../../lib/access';
 
 export function AdminStudents() {
   const { users, orders } = useDataStore();
-  const students = users.filter((user) => user.role === 'student');
+  const students = users.filter((user) => canAccessStudent(user.role));
 
   return (
     <div>

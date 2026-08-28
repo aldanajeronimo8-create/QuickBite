@@ -7,6 +7,7 @@ import { requireSupabaseClient } from '../../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { canAccessStudent } from '../../lib/access';
 
 type Mode = 'student' | 'admin';
 
@@ -45,7 +46,7 @@ export function LoginPage() {
         .eq('id', data.user.id)
         .maybeSingle();
       if (profileError) throw profileError;
-      if (!profile || profile.role !== 'student') {
+      if (!profile || !canAccessStudent(profile.role)) {
         await supabase.auth.signOut();
         throw new Error('No tienes permisos de estudiante.');
       }

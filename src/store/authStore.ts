@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { requireSupabaseClient, type Profile } from '../lib/supabase';
 import { writeAuditLog } from '../lib/auditLog';
 import { getProfile } from '../repositories/quickbiteRepository';
+import { canAccessAdmin } from '../lib/access';
 
 interface AuthState {
   user: Profile | null;
@@ -35,7 +36,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     const profile = await getProfile(data.user.id);
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || !canAccessAdmin(profile.role)) {
       await supabase.auth.signOut();
       writeAuditLog({ action: 'auth.error', actorEmail: normalizedEmail, metadata: { reason: 'not_admin' } });
       throw new Error('No tienes permisos de administrador.');
