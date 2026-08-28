@@ -120,10 +120,10 @@ export function StudentMenuPage() {
 
   const myOrders = useMemo(() => (student ? orders.filter((o) => o.user_id === student.id) : []), [orders, student]);
   const loyalty = useLoyalty(student?.id, orders);
-  const rewardsEnabled = loyalty.enabled;
+  const rewardsEnabled = loyalty.settings?.enabled ?? false;
   const cartTotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const serviceFee = paymentMethod === 'cash' ? 0 : 250;
-  const cartGrandTotal = cartTotal + serviceFee;
+  const serviceFee = 0;
+  const cartGrandTotal = cartTotal;
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
   const navigationTabs = rewardsEnabled
     ? [['menu', Home, 'Menú'], ['orders', History, 'Historial'], ['rewards', Star, 'Puntos']] as const
@@ -195,8 +195,20 @@ export function StudentMenuPage() {
         payment_reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : reference,
         order_items: cart.map((i) => ({ product_id: i.id, quantity: i.qty, price: i.price })),
       });
+
+      const comment = tip.trim() || null;
+      if (comment) {
+        const { error: commentError } = await requireSupabaseClient()
+          .from('orders')
+          .update({ comment })
+          .eq('order_number', orderNumber)
+          .eq('user_id', student.id);
+        if (commentError) throw commentError;
+      }
+
       setLastReceipt({ orderNumber, reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : reference, pickup });
       setCart([]);
+      setTip('');
       setPayStep('receipt');
       toast.success(`Pedido ${orderNumber} creado`);
       await loadData();
@@ -217,7 +229,7 @@ export function StudentMenuPage() {
     setRedeemingRewardId(reward.id);
     try {
       const redemption = await loyalty.redeem(reward.id);
-      toast.success(`Canje confirmado. Presenta el codigo ${redemption.redemption_code} en caja.`);
+      toast.success(`Canje confirmado. Presenta el codigo ${redemption.redemption_code ?? 'generado en tu historial'} en caja.`);
     } catch (error) {
       toast.error(getErrorMessage(error, 'No se pudo completar el canje.'));
     } finally {
@@ -358,5 +370,44 @@ function statusData(order: Order): [string, number, LucideIcon] {
 
 function OrderCard({ order }: { order: Order }) {
   const [label, progress, Icon] = statusData(order);
-  return <article className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-xs font-bold text-slate-400">#{order.order_number}</p><h3 className="font-black">{label}</h3></div><Badge className={order.payment_status === 'confirmed' ? 'bg-green-500 text-white' : order.payment_status === 'rejected' ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'}>{order.payment_status === 'confirmed' ? 'Pagado' : order.payment_status === 'rejected' ? 'Rechazado' : 'Pendiente'}</Badge></div><div className="mt-3 flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl bg-green-50 text-green-700"><Icon className="h-5 w-5" /></div><div className="flex-1"><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-green-600" style={{ width: `${progress}%` }} /></div><p className="mt-1 text-xs text-slate-600">Recogida: <b>{order.pickup_code ?? '----'}</b> - {order.estimated_minutes ?? 12} min</p></div></div><div className="mt-3 flex justify-between border-t pt-3 text-sm"><span className="text-slate-600">Total</span><b className="text-green-800">${fmt(order.total)}</b></div></article>;
+  const createdAt = new Date(order.created_at);
+  return (
+    <article className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div><p className="text-xs font-bold text-slate-400">#{order.order_number}</p><h3 className="font-black">{label}</h3></div>
+        <Badge className={order.payment_status === 'confirmed' ? 'bg-green-500 text-white' : order.payment_status === 'rejected' ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'}>
+          {order.payment_status === 'confirmed' ? 'Pagado' : order.payment_status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+        </Badge>
+      </div>
+
+      <div className="mt-3 flex items-center gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-green-50 text-green-700"><Icon className="h-5 w-5" /></div>
+        <div className="flex-1"><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-green-600" style={{ width: `${progress}%` }} /></div><p className="mt-1 text-xs text-slate-600">Recogida: <b>{order.pickup_code ?? '----'}</b> - {order.estimated_minutes ?? 12} min</p></div>
+      </div>
+
+      <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-sm">
+        <div className="flex justify-between"><span className="text-slate-500">Fecha</span><b>{createdAt.toLocaleDateString('es-CO')}</b></div>
+        <div className="mt-1 flex justify-between"><span className="text-slate-500">Hora</span><b>{createdAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</b></div>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        <p className="text-sm font-black text-slate-800">Detalle de compra</p>
+        {order.order_items?.map((item) => (
+          <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2 text-sm">
+            <span><b>{item.quantity}x</b> {item.product?.name ?? 'Producto'}</span>
+            <b>${fmt(Number(item.price) * item.quantity)}</b>
+          </div>
+        ))}
+      </div>
+
+      {order.comment && (
+        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-black">Comentario enviado</p>
+          <p className="mt-1">{order.comment}</p>
+        </div>
+      )}
+
+      <div className="mt-3 flex justify-between border-t pt-3 text-sm"><span className="text-slate-600">Total</span><b className="text-green-800">${fmt(order.total)}</b></div>
+    </article>
+  );
 }
