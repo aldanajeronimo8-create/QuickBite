@@ -20,7 +20,7 @@ export interface Product { id: string; name: string; description?: string; price
 export interface Order {
   id: string; user_id: string | null; total: number;
   status: 'pending' | 'preparing' | 'ready' | 'delivered';
-  payment_method: 'nequi' | 'bancolombia' | 'daviplata' | 'bre-b' | 'bank_keys' | 'cash';
+  payment_method: 'nequi' | 'cash' | 'bre-b';
   payment_status: 'pending' | 'confirmed' | 'rejected';
   order_number: string; created_at: string; admin_hidden?: boolean;
   pickup_code?: string; estimated_minutes?: number; payment_reference?: string;
