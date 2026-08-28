@@ -34,10 +34,10 @@ const order = {
 } satisfies Order;
 
 describe('buildActiveSalesWorkbook', () => {
-  it('creates a structured workbook with sales, product detail, and purchase time', () => {
+  it('creates a structured workbook with sales, product detail, purchase time, and redemptions', () => {
     const workbook = buildActiveSalesWorkbook([order]);
 
-    expect(workbook.SheetNames).toEqual(['Resumen', 'Ventas', 'Detalle de productos']);
+    expect(workbook.SheetNames).toEqual(['Resumen', 'Ventas', 'Detalle de productos', 'Canjes']);
     expect(workbook.Sheets.Ventas.C6.v).toBe('07:00');
     expect(workbook.Sheets.Ventas.D6.v).toBe('Ana "Pérez"');
     expect(workbook.Sheets['Detalle de productos'].D6.v).toBe('Empanada, queso');
