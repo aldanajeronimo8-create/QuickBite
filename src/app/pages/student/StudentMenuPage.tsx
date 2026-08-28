@@ -148,7 +148,7 @@ export function StudentMenuPage() {
     if (redeemingRewardId) return;
     setRedeemingRewardId(reward.id);
     try {
-      const redemption = await loyalty.redeem(reward.id);
+      await loyalty.redeem(reward.id);
       toast.success(`Canje solicitado. El codigo estara disponible cuando Admin lo apruebe.`);
     } catch (error) { toast.error(getErrorMessage(error, 'No se pudo completar el canje.')); }
     finally { setRedeemingRewardId(null); }
