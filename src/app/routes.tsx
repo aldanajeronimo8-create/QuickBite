@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthRedirect } from './components/AuthRedirect';
 import { LoginPage } from './pages/LoginPage';
 import { SetupWizardPage } from './pages/SetupWizardPage';
+import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
 
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
@@ -22,7 +23,14 @@ const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then((m) => ({ 
 const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty').then((m) => ({ default: m.AdminLoyalty })));
 
 function PageLoader() {
-  return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600">Cargando...</div>;
+  return (
+    <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600">
+      <div className="flex flex-col items-center gap-3">
+        <QuickBiteLogo className="h-16 w-16 rounded-2xl" />
+        <span>Cargando...</span>
+      </div>
+    </div>
+  );
 }
 
 function lazyPage(Component: ComponentType) {

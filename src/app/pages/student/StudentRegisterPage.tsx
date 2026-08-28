@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Coffee, User, ArrowLeft, Mail, Lock, Eye, EyeOff, CreditCard } from 'lucide-react';
+import { User, ArrowLeft, Mail, Lock, Eye, EyeOff, CreditCard } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { toast } from 'sonner';
 import { requireSupabaseClient } from '../../../lib/supabase';
+import { QuickBiteLogo } from '../../components/brand/QuickBiteLogo';
 
 export interface StudentProfile {
   id: string;
@@ -156,9 +157,7 @@ export function StudentRegisterPage() {
 
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl mb-3 shadow-xl p-3 bg-white">
-            <Coffee className="w-9 h-9 text-green-600" />
-          </div>
+          <QuickBiteLogo className="mb-3 h-16 w-16 rounded-3xl" />
           <h1 className="text-3xl font-bold text-white tracking-tight">QuickBite</h1>
           <p className="text-green-100 text-sm mt-1">Crear cuenta de estudiante</p>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDataStore } from '../../../store/dataStore';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -9,11 +9,21 @@ import { ScanLine, CheckCircle, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { Order } from '../../../lib/supabase';
 
 export function AdminVerification() {
   const { orders, updateOrder } = useDataStore();
   const [orderNumber, setOrderNumber] = useState('');
-  const [verifiedOrder, setVerifiedOrder] = useState<any>(null);
+  const [verifiedOrder, setVerifiedOrder] = useState<Order | null>(null);
+
+  const recentOrders = useMemo(() => orders
+    .filter((order) => !order.admin_hidden && order.status !== 'delivered')
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10), [orders]);
+
+  const hasActiveVerifiedOrder = Boolean(
+    verifiedOrder && orders.some((order) => order.id === verifiedOrder.id && !order.admin_hidden),
+  );
 
   const handleSearch = () => {
     if (!orderNumber.trim()) {
@@ -22,7 +32,7 @@ export function AdminVerification() {
     }
 
     const order = orders.find(
-      (o) => o.order_number.toLowerCase() === orderNumber.toLowerCase().trim()
+      (o) => !o.admin_hidden && o.order_number.toLowerCase() === orderNumber.toLowerCase().trim()
     );
 
     if (!order) {
@@ -114,11 +124,7 @@ export function AdminVerification() {
         <Card className="p-6 bg-white shadow-lg border-0">
           <h2 className="text-xl font-bold text-blue-900 mb-4">Pedidos Recientes</h2>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {orders
-              .filter((o) => o.status !== 'delivered')
-              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-              .slice(0, 10)
-              .map((order) => (
+            {recentOrders.map((order) => (
                 <button
                   key={order.id}
                   onClick={() => {
@@ -143,7 +149,7 @@ export function AdminVerification() {
       </div>
 
       {/* Order Details */}
-      {verifiedOrder && (
+      {verifiedOrder && hasActiveVerifiedOrder && (
         <Card className="p-8 bg-white shadow-2xl border-0 mt-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-blue-900 mb-2">
@@ -244,7 +250,7 @@ export function AdminVerification() {
               Artículos del Pedido
             </h3>
             <div className="space-y-3">
-              {verifiedOrder.order_items?.map((item: any) => (
+              {verifiedOrder.order_items?.map((item) => (
                 <div
                   key={item.id}
                   className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"

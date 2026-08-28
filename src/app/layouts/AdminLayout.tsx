@@ -7,6 +7,7 @@ import { useDataStore } from '../../store/dataStore';
 import { Button } from '../components/ui/button';
 import { Toaster } from '../components/ui/sonner';
 import { canAccessStudent } from '../../lib/access';
+import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
 const primaryColor = '#1E3A8A';
 const navigationAccent = '#DBEAFE';
@@ -62,7 +63,7 @@ export function AdminLayout() {
       <aside className="fixed left-0 top-0 z-10 flex h-full w-64 flex-col shadow-xl" style={{ background: primaryColor }}>
         <div className="px-5 pb-5 pt-7">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold shadow-md" style={{ background: navigationAccent, color: primaryColor }}>Q</div>
+            <QuickBiteLogo className="h-10 w-10 rounded-xl shadow-md" alt="QuickBite Administración" />
             <div>
               <p className="text-base font-bold leading-tight text-white">QuickBite Admin</p>
               <p className="text-xs" style={{ color: '#93C5FD' }}>Panel de control</p>

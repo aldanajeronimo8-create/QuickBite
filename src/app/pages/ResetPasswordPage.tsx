@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Coffee, Lock, Eye, EyeOff, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
+import { Lock, Eye, EyeOff, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
+import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
 export function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -76,9 +77,7 @@ export function ResetPasswordPage() {
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-950/30">
-            <Coffee className="w-8 h-8 text-white" />
-          </div>
+          <QuickBiteLogo className="mb-4 h-16 w-16 rounded-2xl" />
           <h1 className="text-4xl font-bold text-white mb-2">QuickBite</h1>
           <p className="text-blue-200">Cambiar contraseña</p>
         </div>

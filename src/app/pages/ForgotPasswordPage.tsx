@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, CheckCircle2, Coffee, Loader2, Mail } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, Mail } from 'lucide-react';
 import { appConfig } from '../../config/appConfig';
 import { requireSupabaseClient } from '../../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
 type Step = 'email' | 'sent' | 'code' | 'reset';
 
@@ -124,9 +125,7 @@ export function ForgotPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-950/30">
-            <Coffee className="h-8 w-8 text-white" />
-          </div>
+          <QuickBiteLogo className="mb-4 h-16 w-16 rounded-2xl" />
           <h1 className="mb-2 text-4xl font-bold text-white">QuickBite</h1>
           <p className="text-blue-200">Recuperar contraseña</p>
         </div>

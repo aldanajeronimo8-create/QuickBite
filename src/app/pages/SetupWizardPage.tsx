@@ -2,6 +2,7 @@ import { Database, Globe2, KeyRound, Mail, ShieldCheck, UploadCloud } from 'luci
 import { appConfig } from '../../config/appConfig';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
 const steps = [
   {
@@ -40,7 +41,10 @@ export function SetupWizardPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
       <section className="mx-auto max-w-5xl">
-        <Badge className="mb-4 bg-blue-100 text-blue-800">Primer inicio</Badge>
+        <div className="mb-5 flex items-center gap-3">
+          <QuickBiteLogo className="h-14 w-14 rounded-2xl" />
+          <Badge className="bg-blue-100 text-blue-800">Primer inicio</Badge>
+        </div>
         <h1 className="text-3xl font-black sm:text-4xl">Configuración inicial</h1>
         <p className="mt-3 max-w-3xl text-slate-700">
           QuickBite no encontró una configuración completa para producción. Puedes conectar un

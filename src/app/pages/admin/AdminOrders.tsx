@@ -52,7 +52,7 @@ function getItemsCount(order: Order) {
 }
 
 export function AdminOrders() {
-  const { orders, updateOrder, archiveOrders } = useDataStore();
+  const { orders, updateOrder, resetOrdersForNewPeriod } = useDataStore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showHidden, setShowHidden] = useState(false);
@@ -114,24 +114,16 @@ export function AdminOrders() {
       return;
     }
 
-    const activeOrderIds = orders.filter((order) => !order.admin_hidden).map((order) => order.id);
-    if (!activeOrderIds.length) {
-      toast.success(`Se descargó el reporte profesional con ${result.count} ventas. No había ventas activas por reiniciar.`);
-      setClosingPeriod(false);
-      return;
-    }
-
     try {
-      const archivedCount = await archiveOrders(activeOrderIds);
-      setSelectedOrder((order) => (order && activeOrderIds.includes(order.id)
-        ? { ...order, admin_hidden: true }
-        : order));
+      const resetCount = await resetOrdersForNewPeriod();
+      setSelectedOrder(null);
+      setShowHidden(false);
       toast.success(
-        `Se descargó el reporte con ${result.count} ventas y se reiniciaron ${archivedCount} ventas activas. El inventario no cambió.`,
+        `Se descargó el reporte con ${result.count} ventas y se reiniciaron ${resetCount} pedidos, incluidos los archivados. El inventario no cambió.`,
       );
     } catch (error) {
       toast.error(
-        `El reporte se descargó, pero no se reiniciaron las ventas activas. ${getOrderErrorMessage(error)}`,
+        `El reporte se descargó, pero no se reiniciaron todos los pedidos. ${getOrderErrorMessage(error)}`,
       );
     } finally {
       setClosingPeriod(false);
@@ -143,7 +135,7 @@ export function AdminOrders() {
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="mb-2 text-4xl font-bold text-blue-900">Gestión de pedidos</h1>
-          <p className="text-lg text-gray-600">Administra pedidos, exporta el historial completo y reinicia las cifras operativas sin modificar el inventario.</p>
+          <p className="text-lg text-gray-600">Administra pedidos y exporta el historial completo. Al cerrar el período se eliminan todos los pedidos de la aplicación, incluidos los archivados, sin modificar el inventario.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button

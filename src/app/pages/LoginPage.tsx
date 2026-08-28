@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Coffee, Eye, EyeOff, GraduationCap, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, GraduationCap, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
 import { requireSupabaseClient } from '../../lib/supabase';
@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { canAccessStudent } from '../../lib/access';
+import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
 type Mode = 'student' | 'admin';
 
@@ -92,9 +93,7 @@ export function LoginPage() {
     }`}>
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-7">
-          <div className={`inline-flex items-center justify-center w-18 h-18 rounded-3xl mb-3 shadow-xl p-4 ${isStudent ? 'bg-white' : 'bg-white/10 border border-white/20'}`}>
-            <Coffee className={`w-9 h-9 ${isStudent ? 'text-green-600' : 'text-white'}`} />
-          </div>
+          <QuickBiteLogo className="mb-3 h-[4.5rem] w-[4.5rem] rounded-3xl" />
           <h1 className="text-3xl font-bold text-white tracking-tight">QuickBite</h1>
           <p className={`text-sm mt-1 ${isStudent ? 'text-green-100' : 'text-blue-300'}`}>
             Supabase conectado

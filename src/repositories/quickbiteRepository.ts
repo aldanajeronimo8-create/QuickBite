@@ -265,6 +265,17 @@ export async function archiveOrders(ids: string[]) {
   return data?.length ?? 0;
 }
 
+/**
+ * Starts a new sales period after the Excel report has been generated.
+ * The database function deletes orders, their line items and linked order
+ * notifications, but deliberately never restores or changes product stock.
+ */
+export async function resetOrdersForNewPeriod() {
+  const { data, error } = await requireSupabaseClient().rpc('reset_all_orders');
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
 export async function updateOrderStatus(id: string, status: Order['status']) {
   const supabase = requireSupabaseClient();
   const { data: updatedOrderId, error: rpcError } = await supabase.rpc('admin_update_order_status', {

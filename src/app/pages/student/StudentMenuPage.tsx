@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
-  Coffee,
   CreditCard,
   History,
   Home,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { canAccessStudent } from '../../../lib/access';
+import { QuickBiteLogo } from '../../components/brand/QuickBiteLogo';
 
 type Tab = 'menu' | 'orders' | 'rewards';
 type PayStep = 'cart' | 'payment' | 'receipt';
@@ -233,7 +233,7 @@ export function StudentMenuPage() {
         <div className="mx-auto max-w-6xl px-5 pb-5 pt-5 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-green-600 shadow-lg shadow-green-950/20"><Coffee className="h-6 w-6" /></div>
+              <QuickBiteLogo className="h-11 w-11 rounded-2xl" />
               <div><p className="text-lg font-black leading-none">QuickBite</p><p className="text-xs text-green-100">{student.name}{student.grade ? ` - ${student.grade}` : ''}</p></div>
             </div>
             <div className="flex items-center gap-2">

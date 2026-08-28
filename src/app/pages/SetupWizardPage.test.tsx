@@ -7,6 +7,7 @@ describe('SetupWizardPage', () => {
     render(<SetupWizardPage />);
 
     expect(screen.getByRole('heading', { name: /configuración inicial/i })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'QuickBite' })).toBeInTheDocument();
     expect(screen.getByText(/conectar un proyecto supabase existente/i)).toBeInTheDocument();
     expect(screen.getByText(/VITE_SUPABASE_URL/i)).toBeInTheDocument();
   });
