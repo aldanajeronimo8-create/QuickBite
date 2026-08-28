@@ -42,7 +42,7 @@ declare
   v_order public.orders;
   v_status text;
 begin
-  if not public.is_admin(auth.uid()) then
+  if not public.is_admin() then
     raise exception 'not_admin';
   end if;
   if p_action not in ('approve','reject') then

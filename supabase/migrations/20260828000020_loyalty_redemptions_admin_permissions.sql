@@ -6,5 +6,5 @@ create policy "Admins can manage loyalty redemptions"
 on public.loyalty_redemptions
 for all
 to authenticated
-using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','administrator')))
-with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','administrator')));
+using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','both','administrator')))
+with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin','both','administrator')));

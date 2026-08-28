@@ -1,4 +1,10 @@
-CREATE OR REPLACE FUNCTION public.redeem_loyalty_reward(p_reward_id UUID)
+-- PostgreSQL cannot change a function return type with CREATE OR REPLACE.
+-- The earlier implementation returned a loyalty_redemptions row, whereas the
+-- client-facing implementation below returns JSONB. Dropping only this exact
+-- signature preserves all data and lets the replacement be installed safely.
+DROP FUNCTION IF EXISTS public.redeem_loyalty_reward(UUID);
+
+CREATE FUNCTION public.redeem_loyalty_reward(p_reward_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -14,7 +20,7 @@ DECLARE
   v_spent_points INTEGER;
 BEGIN
   IF auth.uid() IS NULL OR NOT EXISTS (
-    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'student'
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('student', 'both')
   ) THEN RAISE EXCEPTION 'not_authorized'; END IF;
 
   SELECT * INTO v_settings FROM public.loyalty_settings WHERE id = TRUE;
@@ -33,7 +39,7 @@ BEGIN
   SELECT COALESCE(SUM(points_spent), 0)::INTEGER
     INTO v_spent_points
     FROM public.loyalty_redemptions
-    WHERE user_id = auth.uid() AND status IN ('pending', 'approved', 'delivered');
+    WHERE user_id = auth.uid() AND status IN ('pending', 'approved', 'fulfilled', 'delivered');
 
   IF v_earned_points - v_spent_points < v_reward.points_required THEN RAISE EXCEPTION 'insufficient_points'; END IF;
 

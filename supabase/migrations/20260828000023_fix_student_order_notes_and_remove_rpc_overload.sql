@@ -17,7 +17,7 @@ CREATE OR REPLACE FUNCTION public.create_order_tx(
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = pg_catalog, public, auth
 AS $$
 DECLARE
   v_order_id UUID := gen_random_uuid();

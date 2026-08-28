@@ -11,7 +11,7 @@ DECLARE
 BEGIN
   IF v_admin IS NULL OR NOT EXISTS (
     SELECT 1 FROM public.profiles p
-    WHERE p.id = v_admin AND p.role IN ('admin', 'administrator')
+    WHERE p.id = v_admin AND p.role IN ('admin', 'both', 'administrator')
   ) THEN
     RAISE EXCEPTION 'not_authorized';
   END IF;

@@ -6,20 +6,51 @@ ALTER TABLE public.orders
 
 CREATE TABLE IF NOT EXISTS public.student_data_consents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  representative_name TEXT NOT NULL,
-  representative_relationship TEXT NOT NULL,
-  representative_email TEXT NOT NULL,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  student_name TEXT NOT NULL,
+  guardian_name TEXT NOT NULL,
+  guardian_relationship TEXT NOT NULL,
+  guardian_email TEXT NOT NULL,
   student_acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
-  representative_authorized BOOLEAN NOT NULL DEFAULT FALSE,
+  guardian_authorized BOOLEAN NOT NULL DEFAULT FALSE,
   purpose TEXT NOT NULL,
-  policy_version TEXT NOT NULL,
-  consented_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  privacy_policy_version TEXT NOT NULL,
+  consent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   revoked_at TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_student_data_consents_student_created
-  ON public.student_data_consents(student_id, consented_at DESC);
+-- Previous deployments already created this table using the user/guardian
+-- naming used by the application. Keep that data and add only missing fields
+-- so the migration is safe on both fresh and existing projects.
+ALTER TABLE public.student_data_consents
+  ADD COLUMN IF NOT EXISTS user_id UUID,
+  ADD COLUMN IF NOT EXISTS student_name TEXT,
+  ADD COLUMN IF NOT EXISTS guardian_name TEXT,
+  ADD COLUMN IF NOT EXISTS guardian_relationship TEXT,
+  ADD COLUMN IF NOT EXISTS guardian_email TEXT,
+  ADD COLUMN IF NOT EXISTS student_acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS guardian_authorized BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS purpose TEXT,
+  ADD COLUMN IF NOT EXISTS privacy_policy_version TEXT,
+  ADD COLUMN IF NOT EXISTS consent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+
+DO $$
+BEGIN
+  -- Support the temporary student_id column from an earlier draft without
+  -- requiring a destructive table recreation.
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'student_data_consents'
+      AND column_name = 'student_id'
+  ) THEN
+    EXECUTE 'UPDATE public.student_data_consents SET user_id = COALESCE(user_id, student_id)';
+  END IF;
+END;
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_student_data_consents_user_created
+  ON public.student_data_consents(user_id, consent_at DESC);
 
 ALTER TABLE public.student_data_consents ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.student_data_consents FROM anon, authenticated;
@@ -28,7 +59,7 @@ GRANT SELECT ON TABLE public.student_data_consents TO authenticated;
 DROP POLICY IF EXISTS student_data_consents_select_own_or_admin ON public.student_data_consents;
 CREATE POLICY student_data_consents_select_own_or_admin
   ON public.student_data_consents FOR SELECT TO authenticated
-  USING (student_id = auth.uid() OR public.is_admin());
+  USING (user_id = auth.uid() OR public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.create_student_profile_with_consent(
   p_user_id UUID,
@@ -46,7 +77,7 @@ CREATE OR REPLACE FUNCTION public.create_student_profile_with_consent(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = pg_catalog, public, auth
 AS $$
 DECLARE
   v_profile_id UUID;
@@ -80,17 +111,19 @@ BEGIN
   v_profile_id := p_user_id;
 
   INSERT INTO public.student_data_consents (
-    student_id,
-    representative_name,
-    representative_relationship,
-    representative_email,
+    user_id,
+    student_name,
+    guardian_name,
+    guardian_relationship,
+    guardian_email,
     student_acknowledged,
-    representative_authorized,
+    guardian_authorized,
     purpose,
-    policy_version
+    privacy_policy_version
   )
   VALUES (
     p_user_id,
+    trim(p_full_name),
     trim(p_guardian_name),
     trim(p_guardian_relationship),
     lower(trim(p_guardian_email)),
