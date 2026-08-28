@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDataStore } from '../../../store/dataStore';
+import { requireSupabaseClient } from '../../../lib/supabase';
+import type { SalesRedemptionExport } from '../../../services/orderExportService';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -11,6 +13,8 @@ import { toast } from 'sonner';
 import { downloadActiveSalesExcel } from '../../../services/orderExportService';
 
 const fmt = (value: number) => value.toLocaleString('es-CO');
+
+type RedemptionQueryRow = SalesRedemptionExport;
 
 export function AdminPayments() {
   const { orders, updateOrder } = useDataStore();
@@ -50,14 +54,21 @@ export function AdminPayments() {
     if (exportableOrders.length === 0) { toast.info('No hay ventas confirmadas para exportar.'); return; }
     setExporting(true);
     try {
-      // Genera el libro XLSX estructurado (Resumen, Ventas y Detalle de productos).
-      // El archivo se descarga localmente antes de ocultar las ventas del período.
-      const result = downloadActiveSalesExcel(exportableOrders);
+      const { data, error } = await requireSupabaseClient()
+        .from('loyalty_redemptions')
+        .select('id,redemption_code,points_spent,status,created_at,reward:loyalty_rewards(title,product:products(name)),user:profiles!loyalty_redemptions_user_id_fkey(full_name,email)')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      const redemptions = (data ?? []) as unknown as RedemptionQueryRow[];
+
+      // Genera el libro XLSX estructurado (Resumen, Ventas, Detalle de productos y Canjes).
+      // Las cantidades/pedidos/unidades/puntos se exportan como números; solo los precios usan moneda.
+      const result = downloadActiveSalesExcel(exportableOrders, redemptions);
       if (!result.fileName || result.count !== exportableOrders.length) throw new Error('No se pudo generar el archivo completo de ventas.');
 
       await Promise.all(exportableOrders.map((order) => updateOrder(order.id, { admin_hidden: true })));
       setShowExportConfirm(false);
-      toast.success(`${exportableOrders.length} venta(s) exportadas y retiradas de Gestión de pagos.`);
+      toast.success(`${exportableOrders.length} venta(s) y ${redemptions.length} canje(s) exportados y retirados de Gestión de pagos.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo completar la exportación. No se reinició Gestión de pagos.');
     } finally { setExporting(false); }
