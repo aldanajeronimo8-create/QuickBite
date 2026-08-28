@@ -68,7 +68,7 @@ export function useLoyalty(userId: string | undefined, orders: Order[]) {
 
   const spentPoints = useMemo(
     () => redemptions
-      .filter((redemption) => redemption.status === 'reserved' || redemption.status === 'fulfilled')
+      .filter((redemption) => redemption.status === 'pending' || redemption.status === 'approved')
       .reduce((sum, redemption) => sum + redemption.points_spent, 0),
     [redemptions],
   );
@@ -88,5 +88,6 @@ export function useLoyalty(userId: string | undefined, orders: Order[]) {
     redemptions,
     rewards,
     settings,
+    refresh,
   };
 }
