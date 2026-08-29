@@ -7,6 +7,7 @@ import { AuthRedirect } from './components/AuthRedirect';
 import { LoginPage } from './pages/LoginPage';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
+import { StudentPlatformBridge } from './components/student/StudentPlatformBridge';
 
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
@@ -42,11 +43,20 @@ function lazyPage(Component: ComponentType) {
   );
 }
 
+function StudentMenuRoute() {
+  return (
+    <>
+      {lazyPage(StudentMenuPage)}
+      <StudentPlatformBridge />
+    </>
+  );
+}
+
 export const router = createBrowserRouter([
   { path: '/', element: <LoginPage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/register-student', element: lazyPage(StudentRegisterPage) },
-  { path: '/menu', element: lazyPage(StudentMenuPage) },
+  { path: '/menu', element: <StudentMenuRoute /> },
   {
     path: '/register',
     element: (
