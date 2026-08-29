@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, Bell, Boxes, RefreshCw, ShieldCheck, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../../store/authStore';
-import { getDailySales, getDailySummary, getDemandTrend, getStaffRole, listLowStockProducts, listNotifications, listOpenAlerts, resolveAlert, subscribeToOrderQueue } from '../../../services/platformFeatures';
+import { getDailySales, getDailySummary, getStaffRole, listLowStockProducts, listNotifications, listOpenAlerts, resolveAlert, subscribeToOrderQueue } from '../../../services/platformFeatures';
 
 export function AdminPlatformHub() {
   const user = useAuthStore((state) => state.user);
