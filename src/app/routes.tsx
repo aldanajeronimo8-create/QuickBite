@@ -17,7 +17,7 @@ const StudentMenuPage = lazy(() => import('./pages/student/StudentMenuPage').the
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({default:m.AdminDashboard})));
 const AdminOrdersFixed = lazy(() => import('./pages/admin/AdminOrdersFixed').then(m => ({default:m.AdminOrdersFixed})));
 const AdminPaymentsFixed = lazy(() => import('./pages/admin/AdminPaymentsFixed').then(m => ({default:m.AdminPaymentsFixed})));
-const AdminReportsStable = lazy(() => import('./pages/admin/AdminReportsStable').then(m => ({default:m.AdminReportsStable})));
+const AdminReportsStable = lazy(() => import('./pages/admin/AdminReportsStable').then(m => ({default:m.default})));
 const AdminInventory = lazy(() => import('./pages/admin/AdminInventory').then(m => ({default:m.AdminInventory})));
 const AdminMenu = lazy(() => import('./pages/admin/AdminMenu').then(m => ({default:m.AdminMenu})));
 const AdminVerification = lazy(() => import('./pages/admin/AdminVerification').then(m => ({default:m.AdminVerification})));
