@@ -21,6 +21,7 @@ const AdminMenu = lazy(() => import('./pages/admin/AdminMenu').then((m) => ({ de
 const AdminVerification = lazy(() => import('./pages/admin/AdminVerification').then((m) => ({ default: m.AdminVerification })));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then((m) => ({ default: m.AdminUsers })));
 const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty').then((m) => ({ default: m.AdminLoyalty })));
+const AdminAutomation = lazy(() => import('./pages/admin/AdminAutomation').then((m) => ({ default: m.AdminAutomation })));
 
 function PageLoader() {
   return (
@@ -42,15 +43,10 @@ function lazyPage(Component: ComponentType) {
 }
 
 export const router = createBrowserRouter([
-  // Unified login — root of the app
   { path: '/', element: <LoginPage /> },
   { path: '/login', element: <LoginPage /> },
-
-  // Student routes
   { path: '/register-student', element: lazyPage(StudentRegisterPage) },
   { path: '/menu', element: lazyPage(StudentMenuPage) },
-
-  // Admin routes
   {
     path: '/register',
     element: (
@@ -80,8 +76,8 @@ export const router = createBrowserRouter([
       { path: 'verification', element: lazyPage(AdminVerification) },
       { path: 'users', element: lazyPage(AdminUsers) },
       { path: 'loyalty', element: lazyPage(AdminLoyalty) },
+      { path: 'automation', element: lazyPage(AdminAutomation) },
     ],
   },
-
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
