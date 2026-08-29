@@ -2,7 +2,7 @@
 @import './tailwind.css';
 @import './theme.css';
 
-/* Student navigation: collapse the green header while scrolling down and restore it when scrolling up. */
+/* Student navigation: collapse the green header while scrolling down and bring the tab bar to the top. */
 @supports (animation-timeline: scroll()) {
   header.sticky[class*="bg-[#166534]"] {
     animation: quickbite-student-header-hide linear both;
@@ -10,8 +10,19 @@
     animation-range: 0px 120px;
   }
 
+  header.sticky[class*="bg-[#166534]"] + nav {
+    animation: quickbite-student-nav-rise linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0px 120px;
+  }
+
   @keyframes quickbite-student-header-hide {
     from { transform: translateY(0); }
     to { transform: translateY(-100%); }
+  }
+
+  @keyframes quickbite-student-nav-rise {
+    from { top: 190px; }
+    to { top: 0px; }
   }
 }
