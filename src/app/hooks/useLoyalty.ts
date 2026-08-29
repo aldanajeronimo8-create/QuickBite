@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { appConfig } from '../../config/appConfig';
 import { getErrorMessage } from '../../lib/errorMessage';
-import { requireSupabaseClient, type LoyaltyRedemption, type LoyaltyReward, type LoyaltySettings, type Order } from '../../lib/supabase';
+import { requireSupabaseClient, type LoyaltyRedemption, type LoyaltyReward, type LoyaltySettings } from '../../lib/supabase';
 import { getLoyaltySettings, getUserLoyaltyPoints, listLoyaltyRewards, listUserLoyaltyRedemptions, redeemLoyaltyReward } from '../../repositories/quickbiteRepository';
 
-export function useLoyalty(userId: string | undefined, orders: Order[]) {
+export function useLoyalty(userId: string | undefined) {
   const [settings, setSettings] = useState<LoyaltySettings | null>(null);
   const [rewards, setRewards] = useState<LoyaltyReward[]>([]);
   const [redemptions, setRedemptions] = useState<LoyaltyRedemption[]>([]);
