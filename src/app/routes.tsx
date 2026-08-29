@@ -21,56 +21,25 @@ const AdminMenu = lazy(() => import('./pages/admin/AdminMenu').then((m) => ({ de
 const AdminVerification = lazy(() => import('./pages/admin/AdminVerification').then((m) => ({ default: m.AdminVerification })));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then((m) => ({ default: m.AdminUsers })));
 const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty').then((m) => ({ default: m.AdminLoyalty })));
+const AdminReports = lazy(() => import('./pages/admin/AdminReports').then((m) => ({ default: m.AdminReports })));
 
 function PageLoader() {
-  return (
-    <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600">
-      <div className="flex flex-col items-center gap-3">
-        <QuickBiteLogo className="h-16 w-16 rounded-2xl" />
-        <span>Cargando...</span>
-      </div>
-    </div>
-  );
+  return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600"><div className="flex flex-col items-center gap-3"><QuickBiteLogo className="h-16 w-16 rounded-2xl" /><span>Cargando...</span></div></div>;
 }
-
-function lazyPage(Component: ComponentType) {
-  return (
-    <Suspense fallback={<PageLoader />}>
-      <Component />
-    </Suspense>
-  );
-}
+function lazyPage(Component: ComponentType) { return <Suspense fallback={<PageLoader />}><Component /></Suspense>; }
 
 export const router = createBrowserRouter([
-  // Unified login — root of the app
   { path: '/', element: <LoginPage /> },
   { path: '/login', element: <LoginPage /> },
-
-  // Student routes
   { path: '/register-student', element: lazyPage(StudentRegisterPage) },
   { path: '/menu', element: lazyPage(StudentMenuPage) },
-
-  // Admin routes
-  {
-    path: '/register',
-    element: (
-      <AuthRedirect>
-        <Suspense fallback={<PageLoader />}>
-          <RegisterPage />
-        </Suspense>
-      </AuthRedirect>
-    ),
-  },
+  { path: '/register', element: <AuthRedirect><Suspense fallback={<PageLoader />}><RegisterPage /></Suspense></AuthRedirect> },
   { path: '/forgot-password', element: lazyPage(ForgotPasswordPage) },
   { path: '/reset-password', element: lazyPage(ResetPasswordPage) },
   { path: '/setup', element: <SetupWizardPage /> },
   {
     path: '/admin',
-    element: (
-      <ProtectedRoute>
-        <AdminLayout />
-      </ProtectedRoute>
-    ),
+    element: <ProtectedRoute><AdminLayout /></ProtectedRoute>,
     children: [
       { index: true, element: lazyPage(AdminDashboard) },
       { path: 'orders', element: lazyPage(AdminOrders) },
@@ -80,8 +49,8 @@ export const router = createBrowserRouter([
       { path: 'verification', element: lazyPage(AdminVerification) },
       { path: 'users', element: lazyPage(AdminUsers) },
       { path: 'loyalty', element: lazyPage(AdminLoyalty) },
+      { path: 'reports', element: lazyPage(AdminReports) },
     ],
   },
-
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
