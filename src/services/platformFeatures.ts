@@ -3,61 +3,19 @@ import { requireSupabaseClient } from '../lib/supabase';
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
 export type StaffRole = 'super_admin' | 'administrator' | 'cafeteria' | 'finance';
 
-type LowStockProduct = {
-  id: string;
-  name: string;
-  stock: number;
-  available: boolean;
-  product_stock_settings?: Array<{ minimum_stock: number }>;
-};
-
-type ReorderProduct = {
-  id: string;
-  name: string;
-  price: number;
-  stock: number;
-  available: boolean;
-  image_url: string | null;
-  category_id: string | null;
-};
-
-type ReorderItem = {
-  product_id: string;
-  quantity: number;
-  price: number;
-  product: ReorderProduct;
-};
-
+type LowStockProduct = { id: string; name: string; stock: number; available: boolean; product_stock_settings?: Array<{ minimum_stock: number }> };
+type ReorderProduct = { id: string; name: string; price: number; stock: number; available: boolean; image_url: string | null; category_id: string | null };
+type ReorderItem = { product_id: string; quantity: number; price: number; product: ReorderProduct };
 const supabase = () => requireSupabaseClient();
-
-export function subscribeToOrder(orderId: string, onChange: (payload: unknown) => void) {
-  return supabase().channel(`quickbite-order-${orderId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, onChange).subscribe();
-}
-export function subscribeToOrderQueue(onChange: (payload: unknown) => void) {
-  return supabase().channel('quickbite-order-queue').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, onChange).subscribe();
-}
+export function subscribeToOrder(orderId: string, onChange: (payload: unknown) => void) { return supabase().channel(`quickbite-order-${orderId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, onChange).subscribe(); }
+export function subscribeToOrderQueue(onChange: (payload: unknown) => void) { return supabase().channel('quickbite-order-queue').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, onChange).subscribe(); }
 export async function setOrderStatus(orderId: string, status: OrderStatus) { const { error } = await supabase().rpc('set_order_status', { p_order_id: orderId, p_status: status }); if (error) throw error; }
 export async function scheduleOrder(orderId: string, pickupSlotId: string, scheduledFor: string) { const { data, error } = await supabase().from('orders').update({ pickup_slot_id: pickupSlotId, scheduled_for: scheduledFor }).eq('id', orderId).select().single(); if (error) throw error; return data; }
 export async function listPickupSlots() { const { data, error } = await supabase().from('pickup_slots').select('*').eq('enabled', true).order('starts_at'); if (error) throw error; return data; }
 export async function listNotifications(userId: string) { const { data, error } = await supabase().from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }); if (error) throw error; return data; }
 export async function markNotificationRead(notificationId: string) { const { error } = await supabase().from('notifications').update({ read_at: new Date().toISOString() }).eq('id', notificationId); if (error) throw error; }
 export async function listOrderHistory(userId: string) { const { data, error } = await supabase().from('orders').select('*, order_items(*, product:products(*))').eq('user_id', userId).order('created_at', { ascending: false }); if (error) throw error; return data; }
-export async function getReorderItems(orderId: string): Promise<ReorderItem[]> {
-  const { data, error } = await supabase().from('order_items').select('product_id, quantity, price, product:products(id,name,price,stock,available,image_url,category_id)').eq('order_id', orderId);
-  if (error) throw error;
-  const items = (data ?? []) as unknown as Array<{
-    product_id: string;
-    quantity: number;
-    price: number;
-    product: ReorderProduct | ReorderProduct[] | null;
-  }>;
-  return items.flatMap((item) => {
-    const product = Array.isArray(item.product) ? item.product[0] : item.product;
-    return product && product.available && product.stock > 0
-      ? [{ product_id: item.product_id, quantity: item.quantity, price: item.price, product }]
-      : [];
-  });
-}
+export async function getReorderItems(orderId: string): Promise<ReorderItem[]> { const { data, error } = await supabase().from('order_items').select('product_id, quantity, price, product:products(id,name,price,stock,available,image_url,category_id)').eq('order_id', orderId); if (error) throw error; const items = (data ?? []) as unknown as Array<{ product_id: string; quantity: number; price: number; product: ReorderProduct | ReorderProduct[] | null }>; return items.flatMap((item) => { const product = Array.isArray(item.product) ? item.product[0] : item.product; return product && product.available && product.stock > 0 ? [{ product_id: item.product_id, quantity: item.quantity, price: item.price, product }] : []; }); }
 export async function setFavorite(userId: string, productId: string, favorite: boolean) { if (favorite) { const { error } = await supabase().from('favorites').upsert({ user_id: userId, product_id: productId }); if (error) throw error; } else { const { error } = await supabase().from('favorites').delete().eq('user_id', userId).eq('product_id', productId); if (error) throw error; } }
 export async function listFavorites(userId: string) { const { data, error } = await supabase().from('favorites').select('product:products(*)').eq('user_id', userId); if (error) throw error; return data; }
 export async function searchProducts(term: string) { const safe = term.trim().replace(/[%_,]/g, ''); const { data, error } = await supabase().from('products').select('*, category:categories(*)').eq('available', true).ilike('name', `%${safe}%`).order('name'); if (error) throw error; return data; }
