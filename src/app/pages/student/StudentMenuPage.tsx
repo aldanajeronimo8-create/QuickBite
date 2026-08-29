@@ -9,10 +9,11 @@ import { StudentRewardsPanel } from '../../components/student/StudentRewardsPane
 import { useLoyalty } from '../../hooks/useLoyalty';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
-import { CheckCircle2, ChevronRight, Clock3, CreditCard, History, Home, LogOut, Minus, PackageCheck, Plus, ReceiptText, Search, ShoppingCart, Star, Utensils } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Clock3, CreditCard, Heart, History, Home, LogOut, Minus, PackageCheck, Plus, ReceiptText, Search, ShoppingCart, Star, Utensils } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { canAccessStudent } from '../../../lib/access';
 import { QuickBiteLogo } from '../../components/brand/QuickBiteLogo';
+import { listFavorites, setFavorite } from '../../../services/platformFeatures';
 
 type Tab = 'menu' | 'orders' | 'rewards';
 type PayStep = 'cart' | 'payment' | 'receipt';
@@ -41,6 +42,8 @@ export function StudentMenuPage() {
   const [tip, setTip] = useState('');
   const [lastReceipt, setLastReceipt] = useState<{ orderNumber: string; reference: string; pickup: string } | null>(null);
   const [redeemingRewardId, setRedeemingRewardId] = useState<string | null>(null);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -56,6 +59,12 @@ export function StudentMenuPage() {
         if (!profile || !canAccessStudent(profile.role)) { await client.auth.signOut(); navigate('/'); return; }
         if (active) setStudent({ id: profile.id, name: profile.full_name, grade: profile.ti ?? '', email: profile.email });
         await loadData();
+        const favorites = await listFavorites(profile.id);
+        if (active) setFavoriteIds(new Set(favorites.flatMap((row) => {
+          const product = row.product as Product | Product[] | null;
+          const resolved = Array.isArray(product) ? product[0] : product;
+          return resolved?.id ? [resolved.id] : [];
+        })));
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'No se pudo cargar tu sesión');
         navigate('/setup');
@@ -100,7 +109,6 @@ export function StudentMenuPage() {
     const params = new URLSearchParams(window.location.search);
     const rawReorder = params.get('reorder');
     if (!rawReorder || products.length === 0) return;
-
     const requested = rawReorder.split(',').flatMap((entry) => {
       const [productId, quantityText] = entry.split(':');
       const quantity = Number(quantityText);
@@ -109,27 +117,16 @@ export function StudentMenuPage() {
     const unavailable: string[] = [];
     const nextCart = requested.flatMap(({ productId, quantity }) => {
       const product = products.find((item) => item.id === productId);
-      if (!product || !product.available || product.stock <= 0) {
-        unavailable.push(productId);
-        return [];
-      }
+      if (!product || !product.available || product.stock <= 0) { unavailable.push(productId); return []; }
       const qty = Math.min(quantity, product.stock);
       if (qty < quantity) unavailable.push(`${product.name} (stock ${product.stock})`);
       return [{ ...product, qty }];
     });
-
     params.delete('reorder');
     const cleanQuery = params.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`);
-
-    if (nextCart.length > 0) {
-      setCart(nextCart);
-      setPayStep('cart');
-      setShowCart(true);
-      toast.success('Recompra cargada en tu carrito.');
-    } else {
-      toast.info('Los productos de ese pedido ya no están disponibles.');
-    }
+    if (nextCart.length > 0) { setCart(nextCart); setPayStep('cart'); setShowCart(true); toast.success('Recompra cargada en tu carrito.'); }
+    else toast.info('Los productos de ese pedido ya no están disponibles.');
     if (unavailable.length > 0 && nextCart.length > 0) toast.warning('Algunos productos se ajustaron por disponibilidad o stock.');
   }, [products]);
 
@@ -144,6 +141,17 @@ export function StudentMenuPage() {
     return existing.qty === 1 ? prev.filter((i) => i.id !== id) : prev.map((i) => i.id === id ? { ...i, qty: i.qty - 1 } : i);
   });
   const cartQty = (id: string) => cart.find((i) => i.id === id)?.qty ?? 0;
+  const toggleFavorite = async (productId: string) => {
+    if (!student || favoriteBusyId) return;
+    const nextFavorite = !favoriteIds.has(productId);
+    setFavoriteBusyId(productId);
+    try {
+      await setFavorite(student.id, productId, nextFavorite);
+      setFavoriteIds((current) => { const next = new Set(current); if (nextFavorite) next.add(productId); else next.delete(productId); return next; });
+      toast.success(nextFavorite ? 'Producto guardado en favoritos.' : 'Producto quitado de favoritos.');
+    } catch (error) { toast.error(getErrorMessage(error, 'No se pudo actualizar favoritos.')); }
+    finally { setFavoriteBusyId(null); }
+  };
   const reference = useMemo(() => `QB-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, [showCart, payStep]);
   const pickup = useMemo(() => Math.random().toString(36).slice(2, 6).toUpperCase(), [showCart, payStep]);
 
@@ -162,40 +170,29 @@ export function StudentMenuPage() {
         payment_reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : reference,
         order_items: cart.map((i) => ({ product_id: i.id, quantity: i.qty, price: i.price })),
       });
-
       const comment = tip.trim();
       if (comment) {
-        const { error: commentError } = await requireSupabaseClient().rpc('update_own_order_comment', {
-          p_order_number: orderNumber,
-          p_comment: comment,
-        });
+        const { error: commentError } = await requireSupabaseClient().rpc('update_own_order_comment', { p_order_number: orderNumber, p_comment: comment });
         if (commentError) throw commentError;
       }
-
       setLastReceipt({ orderNumber, reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : reference, pickup });
-      setCart([]);
-      setTip('');
-      setPayStep('receipt');
+      setCart([]); setTip(''); setPayStep('receipt');
       toast.success(`Pedido ${orderNumber} creado`);
       await loadData();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Error al enviar el pedido');
-    } finally { setPlacing(false); }
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Error al enviar el pedido'); }
+    finally { setPlacing(false); }
   };
 
   const handleLogout = async () => { await requireSupabaseClient().auth.signOut(); navigate('/'); };
   const handleRewardRedemption = async (reward: LoyaltyReward) => {
     if (redeemingRewardId) return;
     setRedeemingRewardId(reward.id);
-    try {
-      const redemption = await loyalty.redeem(reward.id);
-      toast.success(`Canje confirmado. Presenta el codigo ${redemption.redemption_code ?? 'generado en tu historial'} en caja.`);
-    } catch (error) { toast.error(getErrorMessage(error, 'No se pudo completar el canje.')); }
+    try { const redemption = await loyalty.redeem(reward.id); toast.success(`Canje confirmado. Presenta el codigo ${redemption.redemption_code ?? 'generado en tu historial'} en caja.`); }
+    catch (error) { toast.error(getErrorMessage(error, 'No se pudo completar el canje.')); }
     finally { setRedeemingRewardId(null); }
   };
 
   if (!student) return null;
-
   return (
     <div className="min-h-screen bg-slate-50 pb-24 text-slate-900">
       <header className="sticky top-0 z-20 bg-[#166534] text-white shadow-xl shadow-green-950/10">
@@ -207,15 +204,12 @@ export function StudentMenuPage() {
           <div className="mt-5 rounded-[2rem] bg-gradient-to-r from-green-600 to-green-700 p-4 text-white shadow-lg shadow-green-950/10"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-green-100">Recreo inteligente</p><h1 className="mt-1 text-2xl font-black">Pide ahora, recoge sin fila</h1></div>{rewardsEnabled && <Badge className="bg-white text-green-800">{loyalty.availablePoints} pts</Badge>}</div><div className="mt-4 flex gap-2 overflow-x-auto"><span className="rounded-full bg-white/20 px-3 py-1 text-xs">Inventario en vivo</span><span className="rounded-full bg-white/20 px-3 py-1 text-xs">Tiempo promedio: 12 min</span></div></div>
         </div>
       </header>
-
       <nav className={`sticky top-[190px] z-10 mx-5 mt-5 grid ${rewardsEnabled ? 'grid-cols-3' : 'grid-cols-2'} rounded-3xl bg-white p-1.5 shadow-lg ring-1 ring-slate-200`}>{navigationTabs.map(([id, Icon, label]) => <button key={id} onClick={() => setTab(id)} className={`flex items-center justify-center gap-1 rounded-xl py-2 text-sm font-bold transition ${activeTab === id ? 'bg-green-600 text-white shadow-sm' : 'text-slate-600 hover:bg-green-50'}`}><Icon className="h-4 w-4" />{label}</button>)}</nav>
-
       {activeTab === 'menu' && <main className="mx-auto max-w-6xl px-5 pt-6 lg:px-8">
         <div className="relative mb-3"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar empanadas, jugos, almuerzos..." className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 outline-none focus:ring-2 focus:ring-green-200" /></div>
         <div className="mb-4 flex gap-2 overflow-x-auto pb-1"><button onClick={() => setSelectedCat(null)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${!selectedCat ? 'bg-[#DCFCE7] text-green-800' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Todo</button>{categories.map((cat) => <button key={cat.id} onClick={() => setSelectedCat(cat.id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${selectedCat === cat.id ? 'bg-[#DCFCE7] text-green-800' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{cat.name}</button>)}</div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{availableProducts.map((product) => { const qty = cartQty(product.id); return <article key={product.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"><div className="relative"><img src={product.image_url} alt={product.name} className="h-44 w-full object-cover" /><span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[11px] font-bold text-slate-700">Stock {product.stock}</span></div><div className="p-4"><p className="min-h-10 text-sm font-black leading-tight">{product.name}</p><p className="line-clamp-1 text-xs text-slate-600">{product.description}</p><p className="mt-2 text-lg font-black text-green-800">${fmt(product.price)}</p>{qty === 0 ? <button onClick={() => addToCart(product)} className="mt-2 flex w-full items-center justify-center gap-1 rounded-2xl bg-green-600 py-2 text-sm font-bold text-white hover:bg-green-700"><Plus className="h-4 w-4" />Agregar</button> : <div className="mt-2 flex items-center justify-between rounded-2xl bg-green-50 p-1"><button onClick={() => removeFromCart(product.id)} className="grid h-8 w-8 place-items-center rounded-full bg-white text-green-700"><Minus className="h-4 w-4" /></button><span className="font-black">{qty}</span><button onClick={() => addToCart(product)} className="grid h-8 w-8 place-items-center rounded-full bg-green-600 text-white hover:bg-green-700"><Plus className="h-4 w-4" /></button></div>}</div></article>; })}</div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{availableProducts.map((product) => { const qty = cartQty(product.id); const favorite = favoriteIds.has(product.id); return <article key={product.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"><div className="relative"><img src={product.image_url} alt={product.name} className="h-44 w-full object-cover" /><span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[11px] font-bold text-slate-700">Stock {product.stock}</span><button type="button" onClick={() => toggleFavorite(product.id)} disabled={favoriteBusyId === product.id} aria-label={favorite ? `Quitar ${product.name} de favoritos` : `Agregar ${product.name} a favoritos`} className={`absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-white/95 shadow-sm transition hover:scale-105 ${favorite ? 'text-rose-600' : 'text-slate-500'}`}><Heart className={`h-5 w-5 ${favorite ? 'fill-current' : ''}`} /></button></div><div className="p-4"><p className="min-h-10 text-sm font-black leading-tight">{product.name}</p><p className="line-clamp-1 text-xs text-slate-600">{product.description}</p><p className="mt-2 text-lg font-black text-green-800">${fmt(product.price)}</p>{qty === 0 ? <button onClick={() => addToCart(product)} className="mt-2 flex w-full items-center justify-center gap-1 rounded-2xl bg-green-600 py-2 text-sm font-bold text-white hover:bg-green-700"><Plus className="h-4 w-4" />Agregar</button> : <div className="mt-2 flex items-center justify-between rounded-2xl bg-green-50 p-1"><button onClick={() => removeFromCart(product.id)} className="grid h-8 w-8 place-items-center rounded-full bg-white text-green-700"><Minus className="h-4 w-4" /></button><span className="font-black">{qty}</span><button onClick={() => addToCart(product)} className="grid h-8 w-8 place-items-center rounded-full bg-green-600 text-white hover:bg-green-700"><Plus className="h-4 w-4" /></button></div>}</div></article>; })}</div>
       </main>}
-
       {activeTab === 'orders' && <main className="mx-auto max-w-3xl space-y-4 px-5 pt-6 lg:px-8">{myOrders.length === 0 ? <Empty icon={ReceiptText} title="Aun no tienes compras" text="Cuando confirmes tu primer pedido aparecera aqui con su recibo y estado." /> : myOrders.map((o) => <OrderCard key={o.id} order={o} />)}</main>}
       {activeTab === 'rewards' && rewardsEnabled && <StudentRewardsPanel availablePoints={loyalty.availablePoints} error={loyalty.error} loading={loyalty.loading} onRedeem={handleRewardRedemption} redeemingRewardId={redeemingRewardId} redemptions={loyalty.redemptions} rewards={loyalty.rewards} />}
       {cartCount > 0 && !showCart && <div className="fixed bottom-4 left-4 right-4 z-30"><button onClick={() => { setShowCart(true); setPayStep('cart'); }} className="flex w-full items-center justify-between rounded-3xl bg-green-600 px-5 py-4 font-black text-white shadow-2xl shadow-green-950/20 hover:bg-green-700"><span>{cartCount} items</span><span>Ver pedido</span><span>${fmt(cartGrandTotal)}</span></button></div>}
