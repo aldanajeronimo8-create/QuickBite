@@ -51,22 +51,9 @@ export const useDataStore = create<DataState>((set, get) => ({
     } finally { if (!options?.silent) set({ loading: false }); }
   },
 
-  addProduct: async (productData) => {
-    const product = await repo.createProduct(productData);
-    await remoteAudit({ action: 'product.create', entity: 'product', entityId: product.id, metadata: { name: product.name } });
-    set({ products: [product, ...get().products] });
-  },
-
-  updateProduct: async (id, updates) => {
-    const product = await repo.updateProduct(id, updates);
-    await remoteAudit({ action: 'product.update', entity: 'product', entityId: id, metadata: updates as Record<string, unknown> });
-    set({ products: get().products.map((item) => item.id === id ? product : item) });
-  },
-
-  deleteProduct: async (id) => {
-    await repo.deleteProduct(id); await remoteAudit({ action: 'product.delete', entity: 'product', entityId: id });
-    set({ products: get().products.filter((product) => product.id !== id) });
-  },
+  addProduct: async (productData) => { const product = await repo.createProduct(productData); await remoteAudit({ action: 'product.create', entity: 'product', entityId: product.id, metadata: { name: product.name } }); set({ products: [product, ...get().products] }); },
+  updateProduct: async (id, updates) => { const product = await repo.updateProduct(id, updates); await remoteAudit({ action: 'product.update', entity: 'product', entityId: id, metadata: updates as Record<string, unknown> }); set({ products: get().products.map((item) => item.id === id ? product : item) }); },
+  deleteProduct: async (id) => { await repo.deleteProduct(id); await remoteAudit({ action: 'product.delete', entity: 'product', entityId: id }); set({ products: get().products.filter((product) => product.id !== id) }); },
 
   addOrder: async (orderData) => {
     const orderNumber = await repo.createOrder(orderData);
@@ -77,35 +64,22 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
 
   updateOrder: async (id, updates) => {
-    const order = updates.status && Object.keys(updates).length === 1
-      ? (await setOrderStatus(id, updates.status), get().orders.find((item) => item.id === id) ?? await repo.getOrderById(id))
-      : await repo.updateOrder(id, updates);
-    await remoteAudit({ action: updates.payment_status ? 'payment.update' : updates.status ? 'order.status_change' : 'order.update', entity: 'order', entityId: id, metadata: updates as Record<string, unknown> });
-    if (updates.status) {
-      set({ orders: get().orders.map((item) => item.id === id ? { ...item, status: updates.status! } : item) });
+    let order: Order;
+    if (updates.status && Object.keys(updates).length === 1) {
+      await setOrderStatus(id, updates.status);
+      const current = get().orders.find((item) => item.id === id);
+      if (!current) { await get().loadData({ silent: true }); return; }
+      order = { ...current, status: updates.status };
     } else {
-      set({ orders: get().orders.map((item) => item.id === id ? order : item) });
+      order = await repo.updateOrder(id, updates);
     }
+    await remoteAudit({ action: updates.payment_status ? 'payment.update' : updates.status ? 'order.status_change' : 'order.update', entity: 'order', entityId: id, metadata: updates as Record<string, unknown> });
+    set({ orders: get().orders.map((item) => item.id === id ? order : item) });
   },
 
-  archiveOrders: async (ids) => {
-    const archivedCount = await repo.archiveOrders(ids); if (!archivedCount) return 0;
-    const archivedIds = new Set(ids);
-    await remoteAudit({ action: 'order.update', entity: 'order', metadata: { action: 'period_closed', archived_orders: archivedCount } });
-    set({ orders: get().orders.map((order) => archivedIds.has(order.id) ? { ...order, admin_hidden: true } : order) }); return archivedCount;
-  },
-
-  resetOrdersForNewPeriod: async () => {
-    const resetCount = await repo.resetOrdersForNewPeriod();
-    await remoteAudit({ action: 'order.update', entity: 'order', metadata: { action: 'period_reset', deleted_orders: resetCount, inventory_changed: false } });
-    set({ orders: [] }); return resetCount;
-  },
-
-  deleteOrder: async (id) => {
-    await repo.deleteOrder(id); await remoteAudit({ action: 'order.update', entity: 'order', entityId: id, metadata: { deleted: true } });
-    set({ orders: get().orders.filter((order) => order.id !== id) });
-  },
-
+  archiveOrders: async (ids) => { const archivedCount = await repo.archiveOrders(ids); if (!archivedCount) return 0; const archivedIds = new Set(ids); await remoteAudit({ action: 'order.update', entity: 'order', metadata: { action: 'period_closed', archived_orders: archivedCount } }); set({ orders: get().orders.map((order) => archivedIds.has(order.id) ? { ...order, admin_hidden: true } : order) }); return archivedCount; },
+  resetOrdersForNewPeriod: async () => { const resetCount = await repo.resetOrdersForNewPeriod(); await remoteAudit({ action: 'order.update', entity: 'order', metadata: { action: 'period_reset', deleted_orders: resetCount, inventory_changed: false } }); set({ orders: [] }); return resetCount; },
+  deleteOrder: async (id) => { await repo.deleteOrder(id); await remoteAudit({ action: 'order.update', entity: 'order', entityId: id, metadata: { deleted: true } }); set({ orders: get().orders.filter((order) => order.id !== id) }); },
   addUser: async (user) => { await repo.createManagedUser(user); await remoteAudit({ action: 'auth.signup', actorEmail: user.email, entity: 'user', metadata: { role: user.role } }); await get().loadData({ silent: true }); },
   updateUser: async (user) => { await repo.updateManagedUser(user); await remoteAudit({ action: 'settings.update', actorEmail: user.email, entity: 'user', entityId: user.id, metadata: { role: user.role } }); await get().loadData({ silent: true }); },
   updateProtectedCredentials: async (user) => { await repo.updateProtectedAdminCredentials(user); await remoteAudit({ action: 'settings.update', actorEmail: user.email, entity: 'user', entityId: user.id, metadata: { protectedCredentialsChanged: true } }); await get().loadData({ silent: true }); },
