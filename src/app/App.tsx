@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 import { Toaster } from './components/ui/sonner';
@@ -8,6 +8,28 @@ import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { supabase } from '../lib/supabase';
+import { AdminPlatformHub } from './components/admin/AdminPlatformHub';
+
+function AdminEnhancements() {
+  const user = useAuthStore((state) => state.user);
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+  useEffect(() => {
+    const update = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
+  }, []);
+  if (!pathname.startsWith('/admin') || !user) return null;
+  return <AdminPlatformHub />;
+}
+
+function AppShell() {
+  return (
+    <>
+      <RouterProvider router={router} />
+      <AdminEnhancements />
+    </>
+  );
+}
 
 function App() {
   const checkSession = useAuthStore((s) => s.checkSession);
@@ -25,12 +47,9 @@ function App() {
     let cleanupRealtime = subscribeRealtime();
     const { data } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       cleanupRealtime();
-      if (session?.access_token) {
-        supabaseClient.realtime.setAuth(session.access_token);
-      }
+      if (session?.access_token) supabaseClient.realtime.setAuth(session.access_token);
       cleanupRealtime = subscribeRealtime();
     });
-
     return () => {
       cleanupRealtime();
       data.subscription?.unsubscribe();
@@ -40,7 +59,7 @@ function App() {
   return (
     <>
       <ErrorBoundary>
-        {needsSetup ? <SetupWizardPage /> : <RouterProvider router={router} />}
+        {needsSetup ? <SetupWizardPage /> : <AppShell />}
       </ErrorBoundary>
       <Toaster position="top-center" />
     </>

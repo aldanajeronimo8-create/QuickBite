@@ -3,6 +3,7 @@ import { requireSupabaseClient, type Category, type Order, type Product, type Pr
 import { writeAuditLog } from '../lib/auditLog';
 import { appConfig } from '../config/appConfig';
 import * as repo from '../repositories/quickbiteRepository';
+import { recordDemand, setOrderStatus } from '../services/platformFeatures';
 
 const REALTIME_TABLES = [
   'profiles',
@@ -14,6 +15,14 @@ const REALTIME_TABLES = [
   'loyalty_settings',
   'loyalty_rewards',
   'loyalty_redemptions',
+  'favorites',
+  'pickup_slots',
+  'product_stock_settings',
+  'system_alerts',
+  'daily_summaries',
+  'staff_roles',
+  'demand_observations',
+  'automation_jobs',
 ] as const;
 
 export interface HistoryEntry {
@@ -100,23 +109,13 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   addProduct: async (productData) => {
     const product = await repo.createProduct(productData);
-    await remoteAudit({
-      action: 'product.create',
-      entity: 'product',
-      entityId: product.id,
-      metadata: { name: product.name },
-    });
+    await remoteAudit({ action: 'product.create', entity: 'product', entityId: product.id, metadata: { name: product.name } });
     set({ products: [product, ...get().products] });
   },
 
   updateProduct: async (id, updates) => {
     const product = await repo.updateProduct(id, updates);
-    await remoteAudit({
-      action: 'product.update',
-      entity: 'product',
-      entityId: id,
-      metadata: updates as Record<string, unknown>,
-    });
+    await remoteAudit({ action: 'product.update', entity: 'product', entityId: id, metadata: updates as Record<string, unknown> });
     set({ products: get().products.map((item) => (item.id === id ? product : item)) });
   },
 
@@ -128,54 +127,41 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   addOrder: async (orderData) => {
     const orderNumber = await repo.createOrder(orderData);
-    await remoteAudit({
-      action: 'order.create',
-      actorId: orderData.user_id,
-      entity: 'order',
-      metadata: { payment_method: orderData.payment_method },
-    });
+    await remoteAudit({ action: 'order.create', actorId: orderData.user_id, entity: 'order', metadata: { payment_method: orderData.payment_method } });
+    await Promise.allSettled((orderData.order_items ?? []).map((item) => recordDemand(item.product_id, item.quantity, 'order')));
     await get().loadData({ silent: true });
     return orderNumber;
   },
 
   updateOrder: async (id, updates) => {
-    const order = updates.status && Object.keys(updates).length === 1
-      ? await repo.updateOrderStatus(id, updates.status)
-      : await repo.updateOrder(id, updates);
-    await remoteAudit({
-      action: updates.payment_status ? 'payment.update' : updates.status ? 'order.status_change' : 'order.update',
-      entity: 'order',
-      entityId: id,
-      metadata: updates as Record<string, unknown>,
-    });
+    let order: Order;
+    if (updates.status && Object.keys(updates).length === 1) {
+      await setOrderStatus(id, updates.status);
+      const current = get().orders.find((item) => item.id === id);
+      if (!current) {
+        await get().loadData({ silent: true });
+        return;
+      }
+      order = { ...current, status: updates.status };
+    } else {
+      order = await repo.updateOrder(id, updates);
+    }
+    await remoteAudit({ action: updates.payment_status ? 'payment.update' : updates.status ? 'order.status_change' : 'order.update', entity: 'order', entityId: id, metadata: updates as Record<string, unknown> });
     set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
   },
 
   archiveOrders: async (ids) => {
     const archivedCount = await repo.archiveOrders(ids);
     if (!archivedCount) return 0;
-
     const archivedIds = new Set(ids);
-    await remoteAudit({
-      action: 'order.update',
-      entity: 'order',
-      metadata: { action: 'period_closed', archived_orders: archivedCount },
-    });
-    set({
-      orders: get().orders.map((order) => (
-        archivedIds.has(order.id) ? { ...order, admin_hidden: true } : order
-      )),
-    });
+    await remoteAudit({ action: 'order.update', entity: 'order', metadata: { action: 'period_closed', archived_orders: archivedCount } });
+    set({ orders: get().orders.map((order) => archivedIds.has(order.id) ? { ...order, admin_hidden: true } : order) });
     return archivedCount;
   },
 
   resetOrdersForNewPeriod: async () => {
     const resetCount = await repo.resetOrdersForNewPeriod();
-    await remoteAudit({
-      action: 'order.update',
-      entity: 'order',
-      metadata: { action: 'period_reset', deleted_orders: resetCount, inventory_changed: false },
-    });
+    await remoteAudit({ action: 'order.update', entity: 'order', metadata: { action: 'period_reset', deleted_orders: resetCount, inventory_changed: false } });
     set({ orders: [] });
     return resetCount;
   },
@@ -194,25 +180,13 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   updateUser: async (user) => {
     await repo.updateManagedUser(user);
-    await remoteAudit({
-      action: 'settings.update',
-      actorEmail: user.email,
-      entity: 'user',
-      entityId: user.id,
-      metadata: { role: user.role },
-    });
+    await remoteAudit({ action: 'settings.update', actorEmail: user.email, entity: 'user', entityId: user.id, metadata: { role: user.role } });
     await get().loadData({ silent: true });
   },
 
   updateProtectedCredentials: async (user) => {
     await repo.updateProtectedAdminCredentials(user);
-    await remoteAudit({
-      action: 'settings.update',
-      actorEmail: user.email,
-      entity: 'user',
-      entityId: user.id,
-      metadata: { protectedCredentialsChanged: true },
-    });
+    await remoteAudit({ action: 'settings.update', actorEmail: user.email, entity: 'user', entityId: user.id, metadata: { protectedCredentialsChanged: true } });
     await get().loadData({ silent: true });
   },
 
@@ -240,10 +214,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(() => {
         get().loadData({ silent: true }).catch((error) => {
-          writeAuditLog({
-            action: 'app.error',
-            metadata: { source: 'realtime_refresh', message: String(error) },
-          });
+          writeAuditLog({ action: 'app.error', metadata: { source: 'realtime_refresh', message: String(error) } });
         });
       }, 150);
     };
@@ -253,28 +224,19 @@ export const useDataStore = create<DataState>((set, get) => ({
 
     let channel = supabase.channel('quickbite-db-changes');
     REALTIME_TABLES.forEach((table) => {
-      channel = channel.on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table },
-        scheduleRefresh,
-      );
+      channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, scheduleRefresh);
     });
 
     channel.subscribe((status, error) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        writeAuditLog({
-          action: 'app.error',
-          metadata: { source: 'realtime_subscription', status, message: error?.message },
-        });
+        writeAuditLog({ action: 'app.error', metadata: { source: 'realtime_subscription', status, message: error?.message } });
       }
       if (status === 'SUBSCRIBED') scheduleRefresh();
     });
 
     document.addEventListener('visibilitychange', refreshOnFocus);
     window.addEventListener('focus', scheduleRefresh);
-    if (appConfig.dataRefreshIntervalMs > 0) {
-      refreshInterval = setInterval(scheduleRefresh, appConfig.dataRefreshIntervalMs);
-    }
+    if (appConfig.dataRefreshIntervalMs > 0) refreshInterval = setInterval(scheduleRefresh, appConfig.dataRefreshIntervalMs);
 
     return () => {
       if (refreshTimer) clearTimeout(refreshTimer);

@@ -7,6 +7,8 @@ import { AuthRedirect } from './components/AuthRedirect';
 import { LoginPage } from './pages/LoginPage';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
+import { StudentPlatformBridge } from './components/student/StudentPlatformBridge';
+import { StudentOrderRealtimeBridge } from './components/student/StudentOrderRealtimeBridge';
 
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
@@ -21,6 +23,7 @@ const AdminMenu = lazy(() => import('./pages/admin/AdminMenu').then((m) => ({ de
 const AdminVerification = lazy(() => import('./pages/admin/AdminVerification').then((m) => ({ default: m.AdminVerification })));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then((m) => ({ default: m.AdminUsers })));
 const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty').then((m) => ({ default: m.AdminLoyalty })));
+const AdminAutomation = lazy(() => import('./pages/admin/AdminAutomation').then((m) => ({ default: m.AdminAutomation })));
 
 function PageLoader() {
   return (
@@ -41,16 +44,21 @@ function lazyPage(Component: ComponentType) {
   );
 }
 
+function StudentMenuRoute() {
+  return (
+    <>
+      {lazyPage(StudentMenuPage)}
+      <StudentPlatformBridge />
+      <StudentOrderRealtimeBridge />
+    </>
+  );
+}
+
 export const router = createBrowserRouter([
-  // Unified login — root of the app
   { path: '/', element: <LoginPage /> },
   { path: '/login', element: <LoginPage /> },
-
-  // Student routes
   { path: '/register-student', element: lazyPage(StudentRegisterPage) },
-  { path: '/menu', element: lazyPage(StudentMenuPage) },
-
-  // Admin routes
+  { path: '/menu', element: <StudentMenuRoute /> },
   {
     path: '/register',
     element: (
@@ -80,8 +88,8 @@ export const router = createBrowserRouter([
       { path: 'verification', element: lazyPage(AdminVerification) },
       { path: 'users', element: lazyPage(AdminUsers) },
       { path: 'loyalty', element: lazyPage(AdminLoyalty) },
+      { path: 'automation', element: lazyPage(AdminAutomation) },
     ],
   },
-
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
