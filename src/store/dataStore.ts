@@ -3,6 +3,7 @@ import { requireSupabaseClient, type Category, type Order, type Product, type Pr
 import { writeAuditLog } from '../lib/auditLog';
 import { appConfig } from '../config/appConfig';
 import * as repo from '../repositories/quickbiteRepository';
+import { recordDemand } from '../services/platformFeatures';
 
 const REALTIME_TABLES = [
   'profiles',
@@ -14,6 +15,14 @@ const REALTIME_TABLES = [
   'loyalty_settings',
   'loyalty_rewards',
   'loyalty_redemptions',
+  'favorites',
+  'pickup_slots',
+  'system_alerts',
+  'product_stock_settings',
+  'daily_summaries',
+  'staff_roles',
+  'demand_observations',
+  'automation_jobs',
 ] as const;
 
 export interface HistoryEntry {
@@ -134,6 +143,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       entity: 'order',
       metadata: { payment_method: orderData.payment_method },
     });
+    await Promise.allSettled(
+      orderData.order_items.map((item) => recordDemand(item.product_id, item.quantity, 'order')),
+    );
     await get().loadData({ silent: true });
     return orderNumber;
   },
