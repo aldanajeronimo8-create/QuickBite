@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { appConfig } from '../../config/appConfig';
 import { getErrorMessage } from '../../lib/errorMessage';
 import { requireSupabaseClient, type LoyaltyRedemption, type LoyaltyReward, type LoyaltySettings, type Order } from '../../lib/supabase';
-import { getLoyaltySettings, listLoyaltyRewards, listUserLoyaltyRedemptions, redeemLoyaltyReward } from '../../repositories/quickbiteRepository';
+import { getLoyaltySettings, getUserLoyaltyPoints, listLoyaltyRewards, listUserLoyaltyRedemptions, redeemLoyaltyReward } from '../../repositories/quickbiteRepository';
 
 export function useLoyalty(userId: string | undefined, orders: Order[]) {
   const [settings, setSettings] = useState<LoyaltySettings | null>(null);
   const [rewards, setRewards] = useState<LoyaltyReward[]>([]);
   const [redemptions, setRedemptions] = useState<LoyaltyRedemption[]>([]);
+  const [earnedPoints, setEarnedPoints] = useState(0);
   const [loading, setLoading] = useState(Boolean(userId));
   const [error, setError] = useState<string | null>(null);
 
@@ -15,14 +16,16 @@ export function useLoyalty(userId: string | undefined, orders: Order[]) {
     if (!userId) return;
     try {
       setError(null);
-      const [nextSettings, nextRewards, nextRedemptions] = await Promise.all([
+      const [nextSettings, nextRewards, nextRedemptions, nextEarnedPoints] = await Promise.all([
         getLoyaltySettings(),
         listLoyaltyRewards(),
         listUserLoyaltyRedemptions(userId),
+        getUserLoyaltyPoints(userId),
       ]);
       setSettings(nextSettings);
       setRewards(nextRewards);
       setRedemptions(nextRedemptions);
+      setEarnedPoints(nextEarnedPoints);
     } catch (nextError) {
       setError(getErrorMessage(nextError, 'No se pudo cargar el programa de puntos.'));
     } finally {
@@ -50,6 +53,16 @@ export function useLoyalty(userId: string | undefined, orders: Order[]) {
         { event: '*', schema: 'public', table: 'loyalty_redemptions', filter: `user_id=eq.${userId}` },
         () => void refresh(),
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'loyalty_point_ledger', filter: `user_id=eq.${userId}` },
+        () => void refresh(),
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${userId}` },
+        () => void refresh(),
+      )
       .subscribe();
 
     return () => {
@@ -58,17 +71,9 @@ export function useLoyalty(userId: string | undefined, orders: Order[]) {
     };
   }, [refresh, userId]);
 
-  const earnedPoints = useMemo(() => {
-    const unit = settings?.points_per_currency_unit ?? 1000;
-    const confirmedTotal = orders
-      .filter((order) => order.payment_status === 'confirmed')
-      .reduce((sum, order) => sum + Number(order.total), 0);
-    return Math.floor(confirmedTotal / unit);
-  }, [orders, settings?.points_per_currency_unit]);
-
   const spentPoints = useMemo(
     () => redemptions
-      .filter((redemption) => redemption.status === 'pending' || redemption.status === 'approved')
+      .filter((redemption) => redemption.status !== 'cancelled')
       .reduce((sum, redemption) => sum + redemption.points_spent, 0),
     [redemptions],
   );

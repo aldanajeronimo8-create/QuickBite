@@ -57,7 +57,8 @@ export function AdminPayments() {
     try {
       const { data, error } = await requireSupabaseClient()
         .from('loyalty_redemptions')
-        .select('id,redemption_code,points_spent,status,created_at,reward:loyalty_rewards(title,product:products(name)),user:profiles!loyalty_redemptions_user_id_fkey(full_name,email)')
+        .select('id,redemption_code,points_spent,status,created_at,admin_hidden,reward:loyalty_rewards(title,product:products(name)),user:profiles!loyalty_redemptions_user_id_fkey(full_name,email)')
+        .eq('admin_hidden', false)
         .order('created_at', { ascending: true });
       if (error) throw error;
       const redemptions = (data ?? []) as unknown as RedemptionQueryRow[];
