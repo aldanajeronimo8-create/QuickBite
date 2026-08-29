@@ -18,7 +18,7 @@ export function AdminPlatformHub() {
   const [demand, setDemand] = useState<Array<Record<string, unknown>>>([]);
   const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [role, setRole] = useState<string>('');
+  const [role, setRole] = useState<string | null>(null);
   const [realtime, setRealtime] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -34,7 +34,7 @@ export function AdminPlatformHub() {
       setSales((salesRows ?? []) as Array<Record<string, unknown>>);
       setDemand((demandRows ?? []) as Array<Record<string, unknown>>);
       setSummary((summaryRow ?? null) as Record<string, unknown> | null);
-      setRole(staffRole ?? 'administrator');
+      setRole(staffRole ?? null);
       setOrders((orderRows ?? []) as AdminOrder[]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron cargar los controles de plataforma.');
@@ -68,7 +68,7 @@ export function AdminPlatformHub() {
   return <>
     <button type="button" onClick={() => setOpen(true)} className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-blue-700 px-4 py-3 text-sm font-black text-white shadow-xl ring-4 ring-white/80 hover:bg-blue-800" aria-label="Abrir centro de plataforma"><Activity className="h-4 w-4" /> Plataforma {alerts.length > 0 && <span className="rounded-full bg-white px-2 py-0.5 text-xs text-blue-800">{alerts.length}</span>}</button>
     {open && <div className="fixed inset-0 z-50 bg-slate-950/40 p-4" onMouseDown={() => setOpen(false)}><section className="mx-auto mt-8 max-h-[88vh] max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
-      <header className="mb-5 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-700">Centro de plataforma</p><h2 className="text-2xl font-black text-slate-950">Operación automática de QuickBite</h2><p className="text-sm text-slate-500">Rol: {role || 'cargando'} · {realtime ? 'Realtime activo' : 'Esperando eventos'}</p></div><div className="flex gap-2"><button onClick={() => void refresh()} disabled={loading} className="rounded-xl border p-2" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button><button onClick={() => setOpen(false)} className="rounded-xl border p-2" aria-label="Cerrar"><X className="h-4 w-4" /></button></div></header>
+      <header className="mb-5 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-700">Centro de plataforma</p><h2 className="text-2xl font-black text-slate-950">Operación automática de QuickBite</h2><p className="text-sm text-slate-500">Rol: {role || 'sin rol asignado'} · {realtime ? 'Realtime activo' : 'Esperando eventos'}</p></div><div className="flex gap-2"><button onClick={() => void refresh()} disabled={loading} className="rounded-xl border p-2" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button><button onClick={() => setOpen(false)} className="rounded-xl border p-2" aria-label="Cerrar"><X className="h-4 w-4" /></button></div></header>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Metric icon={BarChart3} label="Ventas 14 días" value={sales.length ? `${sales.length} días` : 'Sin datos'} />
         <Metric icon={Boxes} label="Stock crítico" value={String(lowStock.length)} />
