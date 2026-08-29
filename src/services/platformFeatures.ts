@@ -3,6 +3,14 @@ import { requireSupabaseClient } from '../lib/supabase';
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
 export type StaffRole = 'super_admin' | 'administrator' | 'cafeteria' | 'finance';
 
+type LowStockProduct = {
+  id: string;
+  name: string;
+  stock: number;
+  available: boolean;
+  product_stock_settings?: Array<{ minimum_stock: number }>;
+};
+
 const supabase = () => requireSupabaseClient();
 
 export function subscribeToOrder(orderId: string, onChange: (payload: unknown) => void) {
@@ -23,7 +31,7 @@ export async function listFavorites(userId: string) { const { data, error } = aw
 export async function searchProducts(term: string) { const safe = term.trim().replace(/[%_,]/g, ''); const { data, error } = await supabase().from('products').select('*, category:categories(*)').eq('available', true).ilike('name', `%${safe}%`).order('name'); if (error) throw error; return data; }
 export async function listMenuByCategory(categoryId?: string) { let query = supabase().from('products').select('*, category:categories(*)').eq('available', true).gt('stock', 0).order('name'); if (categoryId) query = query.eq('category_id', categoryId); const { data, error } = await query; if (error) throw error; return data; }
 export async function setStockThreshold(productId: string, minimumStock: number, reorderQuantity: number) { const { error } = await supabase().from('product_stock_settings').upsert({ product_id: productId, minimum_stock: minimumStock, reorder_quantity: reorderQuantity, updated_at: new Date().toISOString() }); if (error) throw error; }
-export async function listLowStockProducts() { const { data, error } = await supabase().from('products').select('id,name,stock,available,product_stock_settings(*)').order('stock'); if (error) throw error; const products = (data ?? []) as unknown as Array<{ stock: number; available: boolean; product_stock_settings?: Array<{ minimum_stock: number }> }>; return products.filter((product) => { const settings = product.product_stock_settings?.[0]; return Boolean(settings && product.stock <= settings.minimum_stock); }); }
+export async function listLowStockProducts(): Promise<LowStockProduct[]> { const { data, error } = await supabase().from('products').select('id,name,stock,available,product_stock_settings(*)').order('stock'); if (error) throw error; const products = (data ?? []) as unknown as LowStockProduct[]; return products.filter((product) => { const settings = product.product_stock_settings?.[0]; return Boolean(settings && product.stock <= settings.minimum_stock); }); }
 export async function listOpenAlerts() { const { data, error } = await supabase().from('system_alerts').select('*').is('resolved_at', null).order('created_at', { ascending: false }); if (error) throw error; return data; }
 export async function resolveAlert(alertId: string) { const { error } = await supabase().from('system_alerts').update({ resolved_at: new Date().toISOString() }).eq('id', alertId); if (error) throw error; }
 export async function getDailySales(days = 14) { const since = new Date(Date.now() - days * 86400000).toISOString(); const { data, error } = await supabase().from('admin_sales_daily').select('*').gte('business_date', since.slice(0, 10)).order('business_date'); if (error) throw error; return data; }
