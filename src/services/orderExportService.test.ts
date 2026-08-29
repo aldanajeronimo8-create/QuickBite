@@ -42,10 +42,28 @@ describe('buildActiveSalesWorkbook', () => {
     expect(workbook.Sheets.Ventas.D6.v).toBe('Ana "Pérez"');
     expect(workbook.Sheets['Detalle de productos'].D6.v).toBe('Empanada, queso');
     expect(workbook.Sheets.Ventas['!autofilter']).toEqual({ ref: 'A5:O6' });
-    expect(workbook.Sheets.Resumen.A6.f).toBe("SUM('Ventas'!L6:L6)");
+    expect(workbook.Sheets.Resumen.A6.f).toBe("SUMIF('Ventas'!H6:H6,\"Confirmado\",'Ventas'!L6:L6)");
+    expect(workbook.Sheets.Resumen.A6.v).toBe(12500);
+    expect(workbook.Sheets.Resumen.B6.v).toBe(1);
+    expect(workbook.Sheets.Resumen.D6.v).toBe(2);
   });
 
   it('rejects archived sales because the export is limited to the active closing period', () => {
     expect(() => buildActiveSalesWorkbook([{ ...order, admin_hidden: true }])).toThrow('No hay ventas activas para descargar.');
+  });
+
+  it('can include archived orders in the complete period report', () => {
+    const workbook = buildActiveSalesWorkbook([{ ...order, admin_hidden: true }], [], { includeHidden: true });
+    expect(workbook.Sheets.Ventas.A6.v).toBe('QB-001');
+    expect(workbook.Sheets.Resumen.B6.v).toBe(1);
+  });
+
+  it('lists rejected payments but excludes them from confirmed-sale KPIs', () => {
+    const rejectedOrder = { ...order, id: 'order-2', order_number: 'QB-002', payment_status: 'rejected' as const, status: 'cancelled' as const, total: 9000 };
+    const workbook = buildActiveSalesWorkbook([order, rejectedOrder]);
+    expect(workbook.Sheets.Ventas.H7.v).toBe('Rechazado');
+    expect(workbook.Sheets.Resumen.A6.v).toBe(12500);
+    expect(workbook.Sheets.Resumen.B6.v).toBe(2);
+    expect(workbook.Sheets.Resumen.D6.v).toBe(2);
   });
 });

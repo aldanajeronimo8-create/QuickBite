@@ -38,6 +38,8 @@ function activeOrders(orders: Order[]) {
   return orders.filter((order) => !order.admin_hidden);
 }
 
+type SalesWorkbookOptions = { includeHidden?: boolean };
+
 const purchaseDateFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
 const purchaseTimeFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const orderStatusLabel: Record<Order['status'], string> = { pending: 'Pendiente', preparing: 'En preparación', ready: 'Listo para recoger', delivered: 'Entregado', cancelled: 'Cancelado' };
@@ -72,14 +74,17 @@ function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string
   }
 }
 
-export function buildActiveSalesWorkbook(orders: Order[], redemptions: SalesRedemptionExport[] = []) {
-  const sales = activeOrders(orders);
+export function buildActiveSalesWorkbook(orders: Order[], redemptions: SalesRedemptionExport[] = [], options: SalesWorkbookOptions = {}) {
+  const sales = options.includeHidden ? orders : activeOrders(orders);
   if (!sales.length) throw new Error('No hay ventas activas para descargar.');
   const salesRows = sales.map((order) => { const purchase = purchaseDateAndTime(order.created_at); const totalUnits = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0; return [order.order_number, purchase.date, purchase.time, order.user?.full_name ?? 'Sin cliente', order.user?.email ?? '', order.user?.ti ?? '', orderStatusLabel[order.status], paymentStatusLabel[order.payment_status], paymentMethodLabel[order.payment_method], order.pickup_code ?? '', order.payment_reference ?? '', Number(order.total), Number(order.order_items?.length ?? 0), Number(totalUnits), Number(order.estimated_minutes ?? 0)]; });
   const detailRows = sales.flatMap((order) => { const purchase = purchaseDateAndTime(order.created_at); return (order.order_items ?? []).map((item) => [order.order_number, purchase.date, purchase.time, item.product?.name ?? 'Producto no disponible', item.product?.category?.name ?? 'Sin categoría', Number(item.price), Number(item.quantity), Number(item.price) * Number(item.quantity), Number(item.product?.stock ?? 0), order.user?.full_name ?? 'Sin cliente']); });
   const redemptionRows = redemptions.map((redemption) => [redemption.redemption_code, purchaseDateAndTime(redemption.created_at).date, redemption.user?.full_name ?? 'Estudiante', redemption.user?.email ?? '', redemption.reward?.title ?? 'Recompensa', redemption.reward?.product?.name ?? '', Number(redemption.points_spent), redemptionStatusLabel[redemption.status] ?? redemption.status]);
   const earliestOrder = sales.reduce((earliest, order) => new Date(order.created_at) < new Date(earliest.created_at) ? order : earliest, sales[0]);
   const latestOrder = sales.reduce((latest, order) => new Date(order.created_at) > new Date(latest.created_at) ? order : latest, sales[0]);
+  const confirmedSales = sales.filter((order) => order.payment_status === 'confirmed');
+  const confirmedTotal = confirmedSales.reduce((sum, order) => sum + Number(order.total), 0);
+  const confirmedUnits = confirmedSales.reduce((sum, order) => sum + (order.order_items?.reduce((units, item) => units + Number(item.quantity), 0) ?? 0), 0);
   const workbook = XLSX.utils.book_new();
   const summary = XLSX.utils.aoa_to_sheet([
     ['QuickBite | Reporte profesional de ventas'],
@@ -96,7 +101,11 @@ export function buildActiveSalesWorkbook(orders: Order[], redemptions: SalesRede
   summary['!cols'] = [{ wch: 25 }, { wch: 23 }, { wch: 23 }, { wch: 23 }];
   summary['!rows'] = [{ hpt: 30 }, { hpt: 20 }, { hpt: 20 }, { hpt: 10 }, { hpt: 28 }, { hpt: 32 }, { hpt: 10 }, { hpt: 22 }, { hpt: 36 }];
   for (let column = 0; column < 4; column += 1) { summary[sheetCell(4, column)] = { v: ['Total facturado', 'Pedidos exportados', 'Ticket promedio', 'Unidades vendidas'][column], t: 's', s: kpiLabelStyle }; summary[sheetCell(5, column)] = { t: 'n', s: kpiValueStyle }; }
-  summary.A6.f = `SUM('Ventas'!L6:L${salesRows.length + 5})`; summary.A6.z = '"$"#,##0'; summary.B6.f = `COUNTA('Ventas'!A6:A${salesRows.length + 5})`; summary.B6.z = '0'; summary.C6.f = 'IFERROR(A6/B6,0)'; summary.C6.z = '"$"#,##0'; summary.D6.f = `SUM('Ventas'!N6:N${salesRows.length + 5})`; summary.D6.z = '0';
+  const salesLastRow = salesRows.length + 5;
+  summary.A6 = { v: confirmedTotal, t: 'n', f: `SUMIF('Ventas'!H6:H${salesLastRow},"Confirmado",'Ventas'!L6:L${salesLastRow})`, s: kpiValueStyle, z: '"$"#,##0' };
+  summary.B6 = { v: sales.length, t: 'n', f: `COUNTA('Ventas'!A6:A${salesLastRow})`, s: kpiValueStyle, z: '0' };
+  summary.C6 = { v: confirmedSales.length ? confirmedTotal / confirmedSales.length : 0, t: 'n', f: `IFERROR(A6/COUNTIF('Ventas'!H6:H${salesLastRow},"Confirmado"),0)`, s: kpiValueStyle, z: '"$"#,##0' };
+  summary.D6 = { v: confirmedUnits, t: 'n', f: `SUMIF('Ventas'!H6:H${salesLastRow},"Confirmado",'Ventas'!N6:N${salesLastRow})`, s: kpiValueStyle, z: '0' };
   summary.A8 = { v: 'Guía de uso', t: 's', s: { ...tableHeaderStyle, alignment: { horizontal: 'left', vertical: 'center' } } }; summary.A9 = { v: 'El archivo contiene ventas, detalle de productos y canjes. Los importes monetarios llevan formato de moneda; cantidades, pedidos, unidades, stock y puntos son números sin símbolo $.', t: 's', s: { ...bodyStyle, alignment: { wrapText: true, vertical: 'center' } } }; summary.A2.s = bodyStyle; summary.B2.s = bodyStyle; summary.A3.s = bodyStyle; summary.B3.s = bodyStyle;
   applyReportLayout(salesSheet, 'QuickBite | Ventas por pedido', salesHeaders, salesRows, [14, 15, 14, 25, 29, 16, 19, 17, 18, 18, 22, 16, 12, 12, 20], [11], [12, 13, 14]);
   applyReportLayout(detailsSheet, 'QuickBite | Detalle de productos vendidos', detailHeaders, detailRows, [14, 15, 14, 30, 20, 16, 12, 16, 14, 25], [5, 7], [6, 8]);
@@ -105,6 +114,8 @@ export function buildActiveSalesWorkbook(orders: Order[], redemptions: SalesRede
 }
 
 export function downloadActiveSalesExcel(orders: Order[], redemptions: SalesRedemptionExport[] = []): ExcelSalesExportResult { const sales = activeOrders(orders); const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`; XLSX.writeFile(buildActiveSalesWorkbook(orders, redemptions), fileName, { compression: true }); return { count: sales.length, fileName }; }
+
+export function downloadAllSalesExcel(orders: Order[], redemptions: SalesRedemptionExport[] = []): ExcelSalesExportResult { const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`; XLSX.writeFile(buildActiveSalesWorkbook(orders, redemptions, { includeHidden: true }), fileName, { compression: true }); return { count: orders.length, fileName }; }
 
 export function buildActiveSalesCsv(orders: Order[]) {
   const sales = activeOrders(orders); if (!sales.length) throw new Error('No hay ventas activas para descargar.');
