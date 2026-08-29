@@ -3,7 +3,7 @@ import { Bell, CalendarClock, ChevronRight, Heart, History, RefreshCw, Star, X }
 import { toast } from 'sonner';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { getReorderItems, listFavorites, listNotifications, listOrderHistory, listPickupSlots, markNotificationRead, scheduleOrder, setFavorite } from '../../../services/platformFeatures';
+import { getReorderItems, listFavorites, listNotifications, listOrderHistory, listPickupSlots, markNotificationRead, scheduleOrder, setFavorite, subscribeToOrder } from '../../../services/platformFeatures';
 
 type Product = { id: string; name: string; price: number; stock: number; available: boolean; image_url: string | null };
 type FeatureHubProps = { userId: string };
@@ -56,6 +56,17 @@ export function StudentFeatureHub({ userId }: FeatureHubProps) {
   }
 
   useEffect(() => { if (open) void refresh(); }, [open, userId]);
+
+  useEffect(() => {
+    if (!open || !selectedOrder) return;
+    const channel = subscribeToOrder(selectedOrder, (payload) => {
+      const updated = (payload as { new?: Partial<HistoryOrder> }).new;
+      if (!updated?.id) return;
+      setHistory((current) => current.map((order) => order.id === updated.id ? { ...order, ...updated } : order));
+      toast.success(`Pedido ${updated.order_number ?? ''} actualizado: ${updated.status ?? 'nuevo estado'}`.trim());
+    });
+    return () => { void channel.unsubscribe(); };
+  }, [open, selectedOrder]);
 
   async function toggleFavorite(product: Product) {
     const exists = favorites.some((item) => item.id === product.id);
