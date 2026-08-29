@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, Bell, Boxes, RefreshCw, ShieldCheck, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../../store/authStore';
-import { getDailySales, getDailySummary, getDemandSummary, getStaffRole, listLowStockProducts, listNotifications, listOpenAlerts, resolveAlert, subscribeToOrderQueue } from '../../../services/platformFeatures';
+import { getDailySales, getDailySummary, getDemandSummary, getStaffRole, listAdminOrders, listLowStockProducts, listNotifications, listOpenAlerts, resolveAlert, setOrderStatus, subscribeToOrderQueue, type OrderStatus } from '../../../services/platformFeatures';
+
+type AdminOrder = { id: string; status?: OrderStatus; total?: number; total_amount?: number; created_at?: string; user_id?: string };
+const ORDER_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'];
 
 export function AdminPlatformHub() {
   const user = useAuthStore((state) => state.user);
@@ -14,6 +17,7 @@ export function AdminPlatformHub() {
   const [sales, setSales] = useState<Array<Record<string, unknown>>>([]);
   const [demand, setDemand] = useState<Array<Record<string, unknown>>>([]);
   const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [role, setRole] = useState<string>('');
   const [realtime, setRealtime] = useState(false);
 
@@ -21,8 +25,8 @@ export function AdminPlatformHub() {
     if (!user) return;
     setLoading(true);
     try {
-      const [stockRows, alertRows, notificationRows, salesRows, demandRows, summaryRow, staffRole] = await Promise.all([
-        listLowStockProducts(), listOpenAlerts(), listNotifications(user.id), getDailySales(14), getDemandSummary(14), getDailySummary(), getStaffRole(user.id),
+      const [stockRows, alertRows, notificationRows, salesRows, demandRows, summaryRow, staffRole, orderRows] = await Promise.all([
+        listLowStockProducts(), listOpenAlerts(), listNotifications(user.id), getDailySales(14), getDemandSummary(14), getDailySummary(), getStaffRole(user.id), listAdminOrders(12),
       ]);
       setLowStock(stockRows.map(({ id, name, stock, available }) => ({ id, name, stock, available })));
       setAlerts(alertRows ?? []);
@@ -31,6 +35,7 @@ export function AdminPlatformHub() {
       setDemand((demandRows ?? []) as Array<Record<string, unknown>>);
       setSummary((summaryRow ?? null) as Record<string, unknown> | null);
       setRole(staffRole ?? 'administrator');
+      setOrders((orderRows ?? []) as AdminOrder[]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron cargar los controles de plataforma.');
     } finally { setLoading(false); }
@@ -39,7 +44,7 @@ export function AdminPlatformHub() {
   useEffect(() => {
     if (!open) return;
     void refresh();
-    const channel = subscribeToOrderQueue(() => setRealtime(true));
+    const channel = subscribeToOrderQueue(() => { setRealtime(true); void refresh(); });
     return () => { void channel.unsubscribe(); };
   }, [open, refresh]);
 
@@ -47,10 +52,17 @@ export function AdminPlatformHub() {
   const todaySales = summary ? Number(summary.total_sales ?? summary.sales ?? 0) : 0;
   const todayOrders = summary ? Number(summary.total_orders ?? summary.orders ?? 0) : 0;
   const demandTotal = demand.reduce((total, row) => total + Number(row.quantity ?? row.total_quantity ?? 0), 0);
+  const canManageOrders = role === 'super_admin' || role === 'administrator' || role === 'cafeteria';
 
   async function dismissAlert(id: string) {
     try { await resolveAlert(id); setAlerts((current) => current.filter((item) => item.id !== id)); }
     catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo cerrar la alerta.'); }
+  }
+
+  async function changeStatus(orderId: string, status: OrderStatus) {
+    if (!canManageOrders) return;
+    try { await setOrderStatus(orderId, status); setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status } : order)); toast.success('Estado del pedido actualizado.'); }
+    catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el pedido.'); }
   }
 
   return <>
@@ -64,6 +76,7 @@ export function AdminPlatformHub() {
         <Metric icon={ShieldCheck} label="Pedidos hoy" value={String(todayOrders || 0)} />
         <Metric icon={TrendingUp} label="Demanda 14 días" value={String(demandTotal)} />
       </div>
+      <section className="mt-4 rounded-2xl border p-4"><h3 className="mb-3 font-black">Pedidos recientes</h3>{orders.length ? <div className="space-y-2">{orders.map((order) => <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-3"><div><p className="font-bold">Pedido #{order.id.slice(0, 8)}</p><p className="text-xs text-slate-500">{order.created_at ? new Date(order.created_at).toLocaleString('es-CO') : 'Fecha no disponible'} · {order.user_id ? `Cliente ${order.user_id.slice(0, 8)}` : 'Cliente no disponible'}</p></div><div className="flex items-center gap-2"><span className="text-sm font-black">${Number(order.total_amount ?? order.total ?? 0).toLocaleString('es-CO')}</span><select aria-label={`Estado del pedido ${order.id}`} value={order.status ?? 'pending'} disabled={!canManageOrders} onChange={(event) => void changeStatus(order.id, event.target.value as OrderStatus)} className="rounded-lg border bg-white px-2 py-1 text-sm font-bold">{ORDER_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}</select></div></div>)}</div> : <p className="text-sm text-slate-500">No hay pedidos recientes.</p>}</section>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border p-4"><h3 className="mb-3 flex items-center gap-2 font-black"><AlertTriangle className="h-5 w-5" /> Alertas y stock</h3>{alerts.length ? <div className="space-y-2">{alerts.slice(0, 5).map((alert) => <div key={alert.id} className="flex items-start justify-between gap-3 rounded-xl bg-amber-50 p-3"><div><p className="font-bold">{alert.title ?? 'Alerta'}</p><p className="text-sm text-slate-600">{alert.message}</p></div><button className="text-xs font-bold text-blue-700" onClick={() => void dismissAlert(alert.id)}>Resolver</button></div>)}</div> : <p className="text-sm text-slate-500">No hay alertas abiertas.</p>}{lowStock.length > 0 && <div className="mt-3 space-y-2">{lowStock.slice(0, 5).map((product) => <div key={product.id} className="flex justify-between rounded-xl bg-slate-50 p-3 text-sm"><span className="font-bold">{product.name}</span><span className="font-black text-amber-700">Stock {product.stock}</span></div>)}</div>}</section>
         <section className="rounded-2xl border p-4"><h3 className="mb-3 flex items-center gap-2 font-black"><TrendingUp className="h-5 w-5" /> Resumen operativo</h3><div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Ventas hoy</p><p className="text-xl font-black">${todaySales.toLocaleString('es-CO')}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Notificaciones</p><p className="text-xl font-black">{notifications.length}</p></div></div><p className="mt-3 text-xs text-slate-500">Demanda registrada: {demand.length} registros · {demandTotal} unidades en los últimos 14 días.</p><p className="mt-1 text-xs text-slate-500">Las métricas y alertas se consultan desde Supabase; Realtime actualiza el estado cuando llegan cambios de pedidos.</p></section>
