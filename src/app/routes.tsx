@@ -24,6 +24,7 @@ const AdminVerification = lazy(() => import('./pages/admin/AdminVerification').t
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then((m) => ({ default: m.AdminUsers })));
 const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty').then((m) => ({ default: m.AdminLoyalty })));
 const AdminAutomation = lazy(() => import('./pages/admin/AdminAutomation').then((m) => ({ default: m.AdminAutomation })));
+const AdminReports = lazy(() => import('./pages/admin/AdminReports').then((m) => ({ default: m.AdminReports })));
 
 function PageLoader() {
   return (
@@ -83,6 +84,7 @@ export const router = createBrowserRouter([
       { index: true, element: lazyPage(AdminDashboard) },
       { path: 'orders', element: lazyPage(AdminOrders) },
       { path: 'payments', element: lazyPage(AdminPayments) },
+      { path: 'reports', element: lazyPage(AdminReports) },
       { path: 'inventory', element: lazyPage(AdminInventory) },
       { path: 'menu', element: lazyPage(AdminMenu) },
       { path: 'verification', element: lazyPage(AdminVerification) },
