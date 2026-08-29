@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, CreditCard, Gift, GraduationCap, LayoutDashboard, LogOut, Package, ScanLine, ShoppingBag, Users, UtensilsCrossed } from 'lucide-react';
+import { Activity, BarChart3, CreditCard, Gift, GraduationCap, LayoutDashboard, LogOut, Package, ScanLine, ShoppingBag, Users, UtensilsCrossed } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
@@ -12,21 +12,11 @@ import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 const primaryColor = '#1E3A8A';
 const navigationAccent = '#DBEAFE';
 
-type NavItemProps = {
-  path: string;
-  label: string;
-  icon: LucideIcon;
-  active: boolean;
-  badge?: number;
-};
+type NavItemProps = { path: string; label: string; icon: LucideIcon; active: boolean; badge?: number };
 
 function NavItem({ path, label, icon: Icon, active, badge }: NavItemProps) {
   return (
-    <Link
-      to={path}
-      className="mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all"
-      style={active ? { background: 'rgba(255,255,255,0.13)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : { color: '#BFDBFE' }}
-    >
+    <Link to={path} className="mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all" style={active ? { background: 'rgba(255,255,255,0.13)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : { color: '#BFDBFE' }}>
       <Icon className="h-4 w-4 shrink-0" />
       <span className="flex-1">{label}</span>
       {badge != null && badge > 0 && <span className="rounded-full px-1.5 py-0.5 text-xs font-bold" style={{ background: navigationAccent, color: primaryColor }}>{badge}</span>}
@@ -60,6 +50,7 @@ export function AdminLayout() {
           <NavItem path="/admin" label="Dashboard" icon={LayoutDashboard} active={location.pathname === '/admin'} />
           <NavItem path="/admin/orders" label="Pedidos" icon={ShoppingBag} active={isCurrentPath('/admin/orders')} badge={pendingCount} />
           <NavItem path="/admin/payments" label="Pagos" icon={CreditCard} active={isCurrentPath('/admin/payments')} />
+          <NavItem path="/admin/reports" label="Informes" icon={BarChart3} active={isCurrentPath('/admin/reports')} />
           <NavItem path="/admin/automation" label="Automatización" icon={Activity} active={isCurrentPath('/admin/automation')} />
 
           <p className="mb-2 mt-5 px-3 text-xs font-semibold uppercase tracking-widest" style={{ color: '#93C5FD' }}>Gestión</p>
