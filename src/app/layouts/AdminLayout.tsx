@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button';
 import { Toaster } from '../components/ui/sonner';
 import { canAccessStudent } from '../../lib/access';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
+import { ResetTestDataButton } from '../components/admin/ResetTestDataButton';
 
 const primaryColor = '#1E3A8A';
 const navigationAccent = '#DBEAFE';
@@ -53,6 +54,7 @@ export function AdminLayout() {
     </aside>
     <header className="sticky top-0 z-20 flex h-14 items-center border-b border-slate-200 bg-white/95 px-4 shadow-sm backdrop-blur lg:hidden"><button type="button" onClick={() => setMobileSidebarOpen(true)} className="rounded-xl p-2 text-blue-900 hover:bg-blue-50" aria-label="Abrir menú lateral"><Menu className="h-6 w-6" /></button><div className="ml-3 flex items-center gap-2"><QuickBiteLogo className="h-8 w-8 rounded-lg" alt="QuickBite" /><span className="font-black text-blue-900">QuickBite Admin</span></div></header>
     <button type="button" onClick={() => setSidebarCollapsed((value) => !value)} className="fixed bottom-5 left-4 z-50 hidden h-10 w-10 items-center justify-center rounded-full bg-blue-900 text-white shadow-lg transition hover:bg-blue-800 lg:flex" title={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'} aria-label={sidebarCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}>{sidebarCollapsed ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}</button>
+    {location.pathname === '/admin/reports' && <div className="fixed bottom-5 right-5 z-40"><ResetTestDataButton /></div>}
     <main className={`${mainMargin} min-h-screen transition-all duration-200`}><div className="p-4 sm:p-6 lg:p-8"><Outlet /></div></main><Toaster position="top-center" />
   </div>;
 }
