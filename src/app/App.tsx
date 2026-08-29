@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { RouterProvider, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 import { Toaster } from './components/ui/sonner';
 import { useAuthStore } from '../store/authStore';
@@ -11,9 +11,14 @@ import { supabase } from '../lib/supabase';
 import { StudentFeatureHub } from './components/student/StudentFeatureHub';
 
 function StudentEnhancements() {
-  const location = useLocation();
   const user = useAuthStore((state) => state.user);
-  if (location.pathname !== '/menu' || !user) return null;
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+  useEffect(() => {
+    const update = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
+  }, []);
+  if (pathname !== '/menu' || !user) return null;
   return <StudentFeatureHub userId={user.id} />;
 }
 
