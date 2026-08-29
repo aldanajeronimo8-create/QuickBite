@@ -96,6 +96,43 @@ export function StudentMenuPage() {
     });
   }, [products]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rawReorder = params.get('reorder');
+    if (!rawReorder || products.length === 0) return;
+
+    const requested = rawReorder.split(',').flatMap((entry) => {
+      const [productId, quantityText] = entry.split(':');
+      const quantity = Number(quantityText);
+      return productId && Number.isFinite(quantity) && quantity > 0 ? [{ productId, quantity: Math.floor(quantity) }] : [];
+    });
+    const unavailable: string[] = [];
+    const nextCart = requested.flatMap(({ productId, quantity }) => {
+      const product = products.find((item) => item.id === productId);
+      if (!product || !product.available || product.stock <= 0) {
+        unavailable.push(productId);
+        return [];
+      }
+      const qty = Math.min(quantity, product.stock);
+      if (qty < quantity) unavailable.push(`${product.name} (stock ${product.stock})`);
+      return [{ ...product, qty }];
+    });
+
+    params.delete('reorder');
+    const cleanQuery = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`);
+
+    if (nextCart.length > 0) {
+      setCart(nextCart);
+      setPayStep('cart');
+      setShowCart(true);
+      toast.success('Recompra cargada en tu carrito.');
+    } else {
+      toast.info('Los productos de ese pedido ya no están disponibles.');
+    }
+    if (unavailable.length > 0 && nextCart.length > 0) toast.warning('Algunos productos se ajustaron por disponibilidad o stock.');
+  }, [products]);
+
   const addToCart = (product: Product) => {
     const current = cart.find((i) => i.id === product.id)?.qty ?? 0;
     if (current >= product.stock) { toast.warning('No queda mas stock disponible'); return; }
