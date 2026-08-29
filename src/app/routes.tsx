@@ -17,7 +17,7 @@ const StudentMenuPage = lazy(() => import('./pages/student/StudentMenuPage').the
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({default:m.AdminDashboard})));
 const AdminOrdersFixed = lazy(() => import('./pages/admin/AdminOrdersFixed').then(m => ({default:m.AdminOrdersFixed})));
 const AdminPaymentsFixed = lazy(() => import('./pages/admin/AdminPaymentsFixed').then(m => ({default:m.AdminPaymentsFixed})));
-const AdminReportsFixed = lazy(() => import('./pages/admin/AdminReportsFixed').then(m => ({default:m.AdminReportsFixed})));
+const AdminReportsStable = lazy(() => import('./pages/admin/AdminReportsStable').then(m => ({default:m.AdminReportsStable})));
 const AdminInventory = lazy(() => import('./pages/admin/AdminInventory').then(m => ({default:m.AdminInventory})));
 const AdminMenu = lazy(() => import('./pages/admin/AdminMenu').then(m => ({default:m.AdminMenu})));
 const AdminVerification = lazy(() => import('./pages/admin/AdminVerification').then(m => ({default:m.AdminVerification})));
@@ -31,7 +31,7 @@ export const router=createBrowserRouter([
  {path:'/',element:<LoginPage/>},{path:'/login',element:<LoginPage/>},{path:'/register-student',element:lazyPage(StudentRegisterPage)},{path:'/menu',element:<StudentMenuRoute/>},
  {path:'/register',element:<AuthRedirect><Suspense fallback={<PageLoader/>}><RegisterPage/></Suspense></AuthRedirect>},{path:'/forgot-password',element:lazyPage(ForgotPasswordPage)},{path:'/reset-password',element:lazyPage(ResetPasswordPage)},{path:'/setup',element:<SetupWizardPage/>},
  {path:'/admin',element:<ProtectedRoute><AdminLayoutFixed/></ProtectedRoute>,children:[
-  {index:true,element:lazyPage(AdminDashboard)},{path:'orders',element:lazyPage(AdminOrdersFixed)},{path:'payments',element:lazyPage(AdminPaymentsFixed)},{path:'reports',element:lazyPage(AdminReportsFixed)},
+  {index:true,element:lazyPage(AdminDashboard)},{path:'orders',element:lazyPage(AdminOrdersFixed)},{path:'payments',element:lazyPage(AdminPaymentsFixed)},{path:'reports',element:lazyPage(AdminReportsStable)},
   {path:'inventory',element:lazyPage(AdminInventory)},{path:'menu',element:lazyPage(AdminMenu)},{path:'verification',element:lazyPage(AdminVerification)},{path:'users',element:lazyPage(AdminUsers)},{path:'loyalty',element:lazyPage(AdminLoyalty)},{path:'automation',element:lazyPage(AdminAutomation)}
  ]},{path:'*',element:<Navigate to="/" replace/>}
 ]);
