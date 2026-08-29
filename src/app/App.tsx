@@ -9,6 +9,7 @@ import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { supabase } from '../lib/supabase';
 import { StudentFeatureHub } from './components/student/StudentFeatureHub';
+import { AdminPlatformHub } from './components/admin/AdminPlatformHub';
 
 function StudentEnhancements() {
   const user = useAuthStore((state) => state.user);
@@ -22,11 +23,24 @@ function StudentEnhancements() {
   return <StudentFeatureHub userId={user.id} />;
 }
 
+function AdminEnhancements() {
+  const user = useAuthStore((state) => state.user);
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+  useEffect(() => {
+    const update = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
+  }, []);
+  if (!pathname.startsWith('/admin') || !user) return null;
+  return <AdminPlatformHub />;
+}
+
 function AppShell() {
   return (
     <>
       <RouterProvider router={router} />
       <StudentEnhancements />
+      <AdminEnhancements />
     </>
   );
 }
