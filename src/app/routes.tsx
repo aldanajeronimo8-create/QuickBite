@@ -8,6 +8,7 @@ import { LoginPage } from './pages/LoginPage';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
 import { StudentPlatformBridge } from './components/student/StudentPlatformBridge';
+import { StudentOrderRealtimeBridge } from './components/student/StudentOrderRealtimeBridge';
 
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
@@ -48,6 +49,7 @@ function StudentMenuRoute() {
     <>
       {lazyPage(StudentMenuPage)}
       <StudentPlatformBridge />
+      <StudentOrderRealtimeBridge />
     </>
   );
 }
