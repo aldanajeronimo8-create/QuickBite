@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, Bell, Boxes, RefreshCw, ShieldCheck, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../../store/authStore';
-import { getDailySales, getDailySummary, getDemandTrend, getStaffRole, listLowStockProducts, listNotifications, listOpenAlerts, resolveAlert, subscribeToOrderQueue } from '../../../services/platformFeatures';
+import { getDailySales, getDailySummary, getDemandSummary, getStaffRole, listLowStockProducts, listNotifications, listOpenAlerts, resolveAlert, subscribeToOrderQueue } from '../../../services/platformFeatures';
 
 export function AdminPlatformHub() {
   const user = useAuthStore((state) => state.user);
@@ -22,7 +22,7 @@ export function AdminPlatformHub() {
     setLoading(true);
     try {
       const [stockRows, alertRows, notificationRows, salesRows, demandRows, summaryRow, staffRole] = await Promise.all([
-        listLowStockProducts(), listOpenAlerts(), listNotifications(user.id), getDailySales(14), getDemandTrend(14), getDailySummary(), getStaffRole(user.id),
+        listLowStockProducts(), listOpenAlerts(), listNotifications(user.id), getDailySales(14), getDemandSummary(14), getDailySummary(), getStaffRole(user.id),
       ]);
       setLowStock(stockRows.map(({ id, name, stock, available }) => ({ id, name, stock, available })));
       setAlerts(alertRows ?? []);
