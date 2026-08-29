@@ -4,7 +4,8 @@ import { getErrorMessage } from '../../lib/errorMessage';
 import { requireSupabaseClient, type LoyaltyRedemption, type LoyaltyReward, type LoyaltySettings } from '../../lib/supabase';
 import { getLoyaltySettings, getUserLoyaltyPoints, listLoyaltyRewards, listUserLoyaltyRedemptions, redeemLoyaltyReward } from '../../repositories/quickbiteRepository';
 
-export function useLoyalty(userId: string | undefined) {
+export function useLoyalty(userId: string | undefined, _orders?: unknown) {
+  void _orders;
   const [settings, setSettings] = useState<LoyaltySettings | null>(null);
   const [rewards, setRewards] = useState<LoyaltyReward[]>([]);
   const [redemptions, setRedemptions] = useState<LoyaltyRedemption[]>([]);
