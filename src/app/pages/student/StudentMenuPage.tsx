@@ -13,10 +13,11 @@ import { CheckCircle2, ChevronRight, Clock3, CreditCard, Heart, History, Home, L
 import type { LucideIcon } from 'lucide-react';
 import { canAccessStudent } from '../../../lib/access';
 import { QuickBiteLogo } from '../../components/brand/QuickBiteLogo';
-import { listFavorites, setFavorite } from '../../../services/platformFeatures';
+import { listFavorites, listPickupSlots, scheduleOrderForUser, setFavorite } from '../../../services/platformFeatures';
 
 type Tab = 'menu' | 'orders' | 'rewards';
 type PayStep = 'cart' | 'payment' | 'receipt';
+type PickupSlot = { id: string; name: string; starts_at: string; ends_at: string; enabled: boolean; max_orders: number };
 interface CartItem extends Product { qty: number; }
 interface Student { id: string; name: string; grade: string; email?: string; }
 const fmt = (n: number) => n.toLocaleString('es-CO');
@@ -26,6 +27,16 @@ const paymentOptions = [
   { value: 'daviplata', label: 'Daviplata', hint: 'Pago digital', accent: 'bg-red-500' },
   { value: 'cash', label: 'Efectivo', hint: 'Pago al recoger', accent: 'bg-emerald-500' },
 ] as const;
+function scheduledIsoForToday(time: string) {
+  const [hour, minute, second = 0] = time.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hour, minute, second, 0);
+  return date.toISOString();
+}
+function slotTimeLabel(value: string) {
+  const [hour, minute] = value.split(':');
+  return `${hour}:${minute}`;
+}
 
 export function StudentMenuPage() {
   const navigate = useNavigate();
@@ -44,6 +55,8 @@ export function StudentMenuPage() {
   const [redeemingRewardId, setRedeemingRewardId] = useState<string | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
+  const [pickupSlots, setPickupSlots] = useState<PickupSlot[]>([]);
+  const [selectedPickupSlotId, setSelectedPickupSlotId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -59,12 +72,16 @@ export function StudentMenuPage() {
         if (!profile || !canAccessStudent(profile.role)) { await client.auth.signOut(); navigate('/'); return; }
         if (active) setStudent({ id: profile.id, name: profile.full_name, grade: profile.ti ?? '', email: profile.email });
         await loadData();
-        const favorites = await listFavorites(profile.id);
-        if (active) setFavoriteIds(new Set(favorites.flatMap((row) => {
-          const product = row.product as Product | Product[] | null;
-          const resolved = Array.isArray(product) ? product[0] : product;
-          return resolved?.id ? [resolved.id] : [];
-        })));
+        const [favorites, slots] = await Promise.all([listFavorites(profile.id), listPickupSlots()]);
+        if (active) {
+          setFavoriteIds(new Set(favorites.flatMap((row) => {
+            const product = row.product as Product | Product[] | null;
+            const resolved = Array.isArray(product) ? product[0] : product;
+            return resolved?.id ? [resolved.id] : [];
+          })));
+          setPickupSlots((slots ?? []) as PickupSlot[]);
+          if (slots?.length) setSelectedPickupSlotId(slots[0].id);
+        }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'No se pudo cargar tu sesión');
         navigate('/setup');
@@ -170,6 +187,10 @@ export function StudentMenuPage() {
         payment_reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : reference,
         order_items: cart.map((i) => ({ product_id: i.id, quantity: i.qty, price: i.price })),
       });
+      if (selectedPickupSlotId) {
+        const slot = pickupSlots.find((item) => item.id === selectedPickupSlotId);
+        if (slot) await scheduleOrderForUser(orderNumber, student.id, slot.id, scheduledIsoForToday(slot.starts_at));
+      }
       const comment = tip.trim();
       if (comment) {
         const { error: commentError } = await requireSupabaseClient().rpc('update_own_order_comment', { p_order_number: orderNumber, p_comment: comment });
@@ -213,14 +234,14 @@ export function StudentMenuPage() {
       {activeTab === 'orders' && <main className="mx-auto max-w-3xl space-y-4 px-5 pt-6 lg:px-8">{myOrders.length === 0 ? <Empty icon={ReceiptText} title="Aun no tienes compras" text="Cuando confirmes tu primer pedido aparecera aqui con su recibo y estado." /> : myOrders.map((o) => <OrderCard key={o.id} order={o} />)}</main>}
       {activeTab === 'rewards' && rewardsEnabled && <StudentRewardsPanel availablePoints={loyalty.availablePoints} error={loyalty.error} loading={loyalty.loading} onRedeem={handleRewardRedemption} redeemingRewardId={redeemingRewardId} redemptions={loyalty.redemptions} rewards={loyalty.rewards} />}
       {cartCount > 0 && !showCart && <div className="fixed bottom-4 left-4 right-4 z-30"><button onClick={() => { setShowCart(true); setPayStep('cart'); }} className="flex w-full items-center justify-between rounded-3xl bg-green-600 px-5 py-4 font-black text-white shadow-2xl shadow-green-950/20 hover:bg-green-700"><span>{cartCount} items</span><span>Ver pedido</span><span>${fmt(cartGrandTotal)}</span></button></div>}
-      {showCart && <CartSheet cart={cart} cartTotal={cartTotal} fee={serviceFee} total={cartGrandTotal} lastReceipt={lastReceipt} payStep={payStep} paymentMethod={paymentMethod} placing={placing} reference={reference} tip={tip} onAdd={addToCart} onClose={() => { setShowCart(false); setPayStep('cart'); }} onPay={handlePlaceOrder} onRemove={removeFromCart} onSelectPayment={setPaymentMethod} onSetPayStep={setPayStep} onSetTab={setTab} onTip={setTip} />}
+      {showCart && <CartSheet cart={cart} cartTotal={cartTotal} fee={serviceFee} total={cartGrandTotal} lastReceipt={lastReceipt} payStep={payStep} paymentMethod={paymentMethod} placing={placing} reference={reference} tip={tip} pickupSlots={pickupSlots} selectedPickupSlotId={selectedPickupSlotId} onPickupSlotChange={setSelectedPickupSlotId} onAdd={addToCart} onClose={() => { setShowCart(false); setPayStep('cart'); }} onPay={handlePlaceOrder} onRemove={removeFromCart} onSelectPayment={setPaymentMethod} onSetPayStep={setPayStep} onSetTab={setTab} onTip={setTip} />}
     </div>
   );
 }
 
-function CartSheet({ cart, cartTotal, fee, total, lastReceipt, payStep, paymentMethod, placing, reference, tip, onAdd, onClose, onPay, onRemove, onSelectPayment, onSetPayStep, onSetTab, onTip }: { cart: CartItem[]; cartTotal: number; fee: number; total: number; lastReceipt: { orderNumber: string; reference: string; pickup: string } | null; payStep: PayStep; paymentMethod: Order['payment_method']; placing: boolean; reference: string; tip: string; onAdd: (product: Product) => void; onClose: () => void; onPay: () => void; onRemove: (id: string) => void; onSelectPayment: (method: Order['payment_method']) => void; onSetPayStep: (step: PayStep) => void; onSetTab: (tab: Tab) => void; onTip: (tip: string) => void; }) {
+function CartSheet({ cart, cartTotal, fee, total, lastReceipt, payStep, paymentMethod, placing, reference, tip, pickupSlots, selectedPickupSlotId, onPickupSlotChange, onAdd, onClose, onPay, onRemove, onSelectPayment, onSetPayStep, onSetTab, onTip }: { cart: CartItem[]; cartTotal: number; fee: number; total: number; lastReceipt: { orderNumber: string; reference: string; pickup: string } | null; payStep: PayStep; paymentMethod: Order['payment_method']; placing: boolean; reference: string; tip: string; pickupSlots: PickupSlot[]; selectedPickupSlotId: string | null; onPickupSlotChange: (id: string) => void; onAdd: (product: Product) => void; onClose: () => void; onPay: () => void; onRemove: (id: string) => void; onSelectPayment: (method: Order['payment_method']) => void; onSetPayStep: (step: PayStep) => void; onSetTab: (tab: Tab) => void; onTip: (tip: string) => void; }) {
   return <div className="fixed inset-0 z-40 flex flex-col justify-end bg-slate-950/50" onClick={onClose}><section className="max-h-[88vh] overflow-y-auto rounded-t-[2rem] bg-white" onClick={(e) => e.stopPropagation()}><div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-5 py-4"><h2 className="text-xl font-black">{payStep === 'receipt' ? 'Recibo digital' : payStep === 'payment' ? 'Confirmar pago' : 'Tu pedido'}</h2><button onClick={onClose} className="text-sm font-bold text-slate-400">Cerrar</button></div><div className="space-y-4 p-5">
-    {payStep === 'cart' && <><div className="space-y-3">{cart.map((item) => <div key={item.id} className="flex items-center gap-3"><img src={item.image_url} alt={item.name} className="h-14 w-14 rounded-2xl object-cover" /><div className="flex-1"><p className="text-sm font-black">{item.name}</p><p className="text-sm font-bold text-green-800">${fmt(item.price)} x {item.qty}</p></div><button onClick={() => onRemove(item.id)} className="rounded-full bg-green-50 p-2 text-green-700"><Minus className="h-4 w-4" /></button><button onClick={() => onAdd(item)} className="rounded-full bg-green-600 p-2 text-white"><Plus className="h-4 w-4" /></button></div>)}</div><div><p className="mb-2 text-sm font-black">Método de pago</p><div className="grid grid-cols-2 gap-2">{paymentOptions.map((opt) => <button key={opt.value} onClick={() => onSelectPayment(opt.value)} className={`rounded-2xl border p-3 text-left ${paymentMethod === opt.value ? 'border-green-600 bg-green-50' : 'border-slate-200'}`}><span className={`mb-2 block h-2 w-8 rounded-full ${opt.accent}`} /><span className="block text-sm font-black">{opt.label}</span><span className="text-xs text-slate-600">{opt.hint}</span></button>)}</div></div><textarea value={tip} onChange={(e) => onTip(e.target.value)} className="w-full rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-green-200" rows={2} placeholder="Notas para cafeteria" /><Summary subtotal={cartTotal} fee={fee} total={total} /><Button onClick={() => onSetPayStep('payment')} className="w-full rounded-2xl bg-green-600 py-6 text-white">Continuar al pago <ChevronRight className="ml-1 h-5 w-5" /></Button></>}
+    {payStep === 'cart' && <><div className="space-y-3">{cart.map((item) => <div key={item.id} className="flex items-center gap-3"><img src={item.image_url} alt={item.name} className="h-14 w-14 rounded-2xl object-cover" /><div className="flex-1"><p className="text-sm font-black">{item.name}</p><p className="text-sm font-bold text-green-800">${fmt(item.price)} x {item.qty}</p></div><button onClick={() => onRemove(item.id)} className="rounded-full bg-green-50 p-2 text-green-700"><Minus className="h-4 w-4" /></button><button onClick={() => onAdd(item)} className="rounded-full bg-green-600 p-2 text-white"><Plus className="h-4 w-4" /></button></div>)}</div><div><p className="mb-2 text-sm font-black">Método de pago</p><div className="grid grid-cols-2 gap-2">{paymentOptions.map((opt) => <button key={opt.value} onClick={() => onSelectPayment(opt.value)} className={`rounded-2xl border p-3 text-left ${paymentMethod === opt.value ? 'border-green-600 bg-green-50' : 'border-slate-200'}`}><span className={`mb-2 block h-2 w-8 rounded-full ${opt.accent}`} /><span className="block text-sm font-black">{opt.label}</span><span className="text-xs text-slate-600">{opt.hint}</span></button>)}</div></div><div><div className="mb-2 flex items-center justify-between"><p className="text-sm font-black">Horario de recogida</p><span className="text-xs font-bold text-green-700">Planifica antes de pagar</span></div>{pickupSlots.length ? <div className="grid gap-2 sm:grid-cols-2">{pickupSlots.map((slot) => <button key={slot.id} type="button" onClick={() => onPickupSlotChange(slot.id)} className={`rounded-2xl border p-3 text-left ${selectedPickupSlotId === slot.id ? 'border-green-600 bg-green-50' : 'border-slate-200'}`}><span className="flex items-center gap-2 text-sm font-black"><Clock3 className="h-4 w-4 text-green-700" />{slot.name}</span><span className="mt-1 block text-xs text-slate-600">{slotTimeLabel(slot.starts_at)} - {slotTimeLabel(slot.ends_at)} · máximo {slot.max_orders} pedidos</span></button>)}</div> : <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">No hay horarios de recogida habilitados. El pedido se registrará sin programación.</p>}</div><textarea value={tip} onChange={(e) => onTip(e.target.value)} className="w-full rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-green-200" rows={2} placeholder="Notas para cafeteria" /><Summary subtotal={cartTotal} fee={fee} total={total} /><Button onClick={() => onSetPayStep('payment')} className="w-full rounded-2xl bg-green-600 py-6 text-white">Continuar al pago <ChevronRight className="ml-1 h-5 w-5" /></Button></>}
     {payStep === 'payment' && <><div className="rounded-3xl bg-slate-50 p-4"><div className="mb-3 flex items-center gap-2"><CreditCard className="h-5 w-5 text-green-600" /><p className="font-black">Pago - {paymentOptions.find((p) => p.value === paymentMethod)?.label}</p></div><p className="text-sm text-slate-600">Referencia: <b>{reference}</b></p><p className="text-sm text-slate-600">Total a registrar: <b>${fmt(total)}</b></p><p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">{paymentMethod === 'cash' ? 'El pedido quedara pendiente hasta que el admin confirme el efectivo.' : 'El pedido quedara confirmado y sincronizado en Supabase.'}</p></div><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => onSetPayStep('cart')} className="rounded-2xl py-6">Volver</Button><Button disabled={placing} onClick={onPay} className="rounded-2xl bg-green-600 py-6 text-white">{placing ? 'Procesando...' : 'Pagar'}</Button></div></>}
     {payStep === 'receipt' && lastReceipt && <div className="rounded-3xl border border-dashed border-green-300 bg-green-50 p-5 text-center"><CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-green-600" /><p className="text-sm font-bold text-slate-600">Pedido creado</p><p className="text-3xl font-black text-slate-900">{lastReceipt.orderNumber}</p><p className="mt-3 text-sm">Código de recogida</p><p className="text-4xl font-black tracking-[0.2em] text-green-800">{lastReceipt.pickup}</p><p className="mt-3 text-xs text-slate-600">Ref. pago: {lastReceipt.reference}</p><Button onClick={() => { onClose(); onSetTab('orders'); onSetPayStep('cart'); }} className="mt-5 w-full rounded-2xl bg-green-600 py-6 text-white">Ver historial</Button></div>}
   </div></section></div>;
