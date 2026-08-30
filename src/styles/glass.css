@@ -57,6 +57,23 @@ body {
 .min-h-screen > aside a:hover { background:rgba(255,255,255,.08)!important; color:#fff!important; }
 .min-h-screen > main { background:var(--qb-dark)!important; }
 .min-h-screen > main > div { max-width:1600px; margin-inline:auto; }
+.qb-admin-shell [data-slot="card"] { background:rgba(255,255,255,.05)!important; border-color:rgba(255,255,255,.12)!important; color:#F9FAFB!important; box-shadow:0 8px 32px rgba(0,0,0,.2); }
+.qb-admin-shell .text-blue-900,
+.qb-admin-shell .text-gray-900,
+.qb-admin-shell .text-gray-800,
+.qb-admin-shell .text-slate-900 { color:#F9FAFB!important; }
+.qb-admin-shell .text-gray-700,
+.qb-admin-shell .text-gray-600,
+.qb-admin-shell .text-slate-700,
+.qb-admin-shell .text-slate-600,
+.qb-admin-shell .text-slate-500 { color:#9CA3AF!important; }
+.qb-admin-shell input,
+.qb-admin-shell textarea,
+.qb-admin-shell [role="combobox"] { background:rgba(255,255,255,.06)!important; color:#F9FAFB!important; border-color:rgba(255,255,255,.12)!important; }
+.qb-admin-shell table { color:#F9FAFB; border-collapse:separate; border-spacing:0; }
+.qb-admin-shell thead { background:rgba(255,255,255,.04); }
+.qb-admin-shell th,
+.qb-admin-shell td { border-color:rgba(255,255,255,.08)!important; }
 
 @media (max-width:767px) {
   .min-h-screen > aside { width:76px!important; transition:width .22s ease; overflow:hidden; }
