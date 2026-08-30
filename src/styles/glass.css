@@ -84,3 +84,6 @@ body {
 }
 
 [data-slot="dialog-content"], [data-slot="popover-content"], [data-slot="select-content"] { background:rgba(18,20,24,.94)!important; color:var(--qb-primary-text)!important; border-color:var(--qb-glass-border)!important; box-shadow:var(--qb-glass-shadow)!important; backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); }
+
+/* stable visual marker */
+.qb-glass-surface { color: var(--qb-primary-text); }
