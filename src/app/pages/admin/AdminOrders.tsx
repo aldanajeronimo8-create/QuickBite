@@ -111,7 +111,7 @@ export function AdminOrders() {
     setClosingPeriod(true);
 
     try {
-      const result = downloadActiveSalesExcel(orders);
+      const result = await downloadActiveSalesExcel(orders);
       const resetCount = await resetOrdersForNewPeriod();
       setSelectedOrder(null);
       setShowHidden(false);
