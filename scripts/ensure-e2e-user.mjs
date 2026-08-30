@@ -1,71 +1,96 @@
-import { createClient } from '@supabase/supabase-js';
-
 const url = process.env.VITE_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
 const email = process.env.PLAYWRIGHT_E2E_EMAIL?.trim().toLowerCase();
 const password = process.env.PLAYWRIGHT_E2E_PASSWORD;
 
-if (!url || !serviceRoleKey || !email || !password) {
+if (!url || !serviceRoleKey || !anonKey || !email || !password) {
   throw new Error('E2E Supabase configuration is incomplete.');
 }
 
-const admin = createClient(url, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const headers = {
+  apikey: serviceRoleKey,
+  Authorization: `Bearer ${serviceRoleKey}`,
+  'Content-Type': 'application/json',
+};
 
-let user = null;
+async function adminRequest(path, options = {}) {
+  const response = await fetch(`${url}/auth/v1${path}`, {
+    ...options,
+    headers: { ...headers, ...(options.headers ?? {}) },
+  });
+  const text = await response.text();
+  let body = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+  if (!response.ok) {
+    throw new Error(`Supabase Admin ${options.method ?? 'GET'} ${path} failed (${response.status}): ${typeof body === 'string' ? body : JSON.stringify(body)}`);
+  }
+  return body;
+}
+
+let users = [];
 let page = 1;
-while (!user) {
-  const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 100 });
-  if (error) throw error;
-  user = data.users.find((candidate) => candidate.email?.toLowerCase() === email) ?? null;
-  if (data.users.length < 100) break;
+while (true) {
+  const body = await adminRequest(`/admin/users?page=${page}&per_page=100`);
+  const batch = Array.isArray(body?.users) ? body.users : [];
+  users.push(...batch);
+  if (batch.length < 100) break;
   page += 1;
 }
 
+let user = users.find((candidate) => candidate.email?.toLowerCase() === email);
+
 if (user) {
-  const { data, error } = await admin.auth.admin.updateUserById(user.id, {
-    password,
-    email_confirm: true,
-    user_metadata: {
-      ...(user.user_metadata ?? {}),
-      role: 'student',
-      full_name: 'QuickBite E2E Student',
-    },
+  user = await adminRequest(`/admin/users/${encodeURIComponent(user.id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      password,
+      email_confirm: true,
+      user_metadata: {
+        ...(user.user_metadata ?? {}),
+        role: 'student',
+        full_name: 'QuickBite E2E Student',
+      },
+    }),
   });
-  if (error) throw error;
-  user = data.user;
 } else {
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { role: 'student', full_name: 'QuickBite E2E Student' },
+  user = await adminRequest('/admin/users', {
+    method: 'POST',
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { role: 'student', full_name: 'QuickBite E2E Student' },
+    }),
   });
-  if (error) throw error;
-  user = data.user;
 }
 
-const { error: profileError } = await admin.from('profiles').upsert(
-  {
+const profileResponse = await fetch(`${url}/rest/v1/profiles?on_conflict=id`, {
+  method: 'POST',
+  headers: {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    'Content-Type': 'application/json',
+    Prefer: 'resolution=merge-duplicates,return=minimal',
+  },
+  body: JSON.stringify({
     id: user.id,
     email,
     full_name: 'QuickBite E2E Student',
     role: 'student',
-  },
-  { onConflict: 'id' },
-);
-if (profileError) throw profileError;
-
-const publicClient = createClient(url, process.env.VITE_SUPABASE_ANON_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
+  }),
 });
-const { data: sessionData, error: signInError } = await publicClient.auth.signInWithPassword({
-  email,
-  password,
-});
-if (signInError || !sessionData.user) {
-  throw signInError ?? new Error('E2E user could not sign in after provisioning.');
+if (!profileResponse.ok) {
+  throw new Error(`Supabase profile upsert failed (${profileResponse.status}): ${await profileResponse.text()}`);
 }
 
-console.log(`E2E user ready: ${email}`);
+const signInResponse = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+  method: 'POST',
+  headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password }),
+});
+if (!signInResponse.ok) {
+  throw new Error(`E2E login validation failed (${signInResponse.status}): ${await signInResponse.text()}`);
+}
+
+console.log(`E2E user ready and login verified: ${email}`);
