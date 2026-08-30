@@ -17,7 +17,14 @@ jobs:
   quality:
     name: Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      VITE_RUNTIME_MODE: supabase
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_SUPABASE_REALTIME_ENABLED: 'true'
+      PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+      PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,6 +44,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
 
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -48,3 +58,6 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
