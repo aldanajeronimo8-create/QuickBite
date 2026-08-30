@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, CheckCircle2, Loader2, Mail } from 'lucide-react';
 import { requireSupabaseClient } from '../../lib/supabase';
@@ -8,108 +8,40 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
-type Step = 'email' | 'code' | 'reset';
-
-function getPasswordRecoveryMessage(error: unknown) {
+function getRecoveryMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  if (/email_not_found/i.test(message)) return 'No existe una cuenta con ese correo.';
-  if (/invalid_reset_code/i.test(message)) return 'Codigo incorrecto.';
-  if (/password_too_short/i.test(message)) return 'La contraseña debe tener al menos 6 caracteres.';
-  if (/administrator_password_requires_admin_panel/i.test(message)) {
-    return 'Las contraseñas de administrador solo pueden cambiarse desde Usuarios por otro administrador.';
-  }
-  if (/function.*does not exist|could not find the function|schema cache/i.test(message)) {
-    return 'Falta aplicar la migración de recuperación de contraseña en Supabase.';
-  }
-  return message || 'No se pudo completar la recuperación';
+  if (/rate limit|too many requests/i.test(message)) return 'Demasiadas solicitudes. Espera unos minutos e inténtalo de nuevo.';
+  if (/captcha/i.test(message)) return 'No se pudo validar la solicitud. Inténtalo de nuevo.';
+  return message || 'No se pudo enviar el enlace de recuperación.';
 }
 
 export function ForgotPasswordPage() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
 
-  const totalSteps = 3;
-  const stepNum = step === 'email' ? 1 : step === 'code' ? 2 : 3;
-
-  const handleFindAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError('');
+
     const normalizedEmail = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setError('Ingresa un correo electronico valido');
+      setError('Ingresa un correo electrónico válido.');
       return;
     }
 
     setLoading(true);
     try {
       const client = requireSupabaseClient();
-      const { data: exists, error: existsError } = await client.rpc('email_exists', { p_email: normalizedEmail });
-      if (existsError) throw existsError;
-      if (!exists) {
-        setError('No existe una cuenta con ese correo.');
-        return;
-      }
-
-      setStep('code');
+      const redirectTo = `${window.location.origin}/reset-password`;
+      const { error: resetError } = await client.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
+      if (resetError) throw resetError;
+      setSent(true);
     } catch (err) {
-      toast.error(getPasswordRecoveryMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyCode = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (!code.trim()) {
-      setError('Ingresa el código de recuperación');
-      return;
-    }
-    setStep('reset');
-  };
-
-  const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const client = requireSupabaseClient();
-      const { error: resetError } = await client.rpc('reset_user_password', {
-        p_email: email.trim().toLowerCase(),
-        p_reset_code: code.trim(),
-        p_new_password: password,
-      });
-
-      if (resetError) {
-        if (/invalid_reset_code/i.test(resetError.message)) {
-          setStep('code');
-          setError('Codigo incorrecto');
-          return;
-        }
-        setError(getPasswordRecoveryMessage(resetError));
-        return;
-      }
-
-      await client.auth.signOut();
-      toast.success('Contraseña actualizada en Supabase. Inicia sesión.');
-      navigate('/');
-    } catch (err) {
-      toast.error(getPasswordRecoveryMessage(err));
+      const message = getRecoveryMessage(err);
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -125,49 +57,43 @@ export function ForgotPasswordPage() {
         </div>
 
         <div className="qb-auth-card rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
-          <div className="mb-8 flex items-center gap-2">
-            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((n, i) => (
-              <div key={n} className="contents">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${stepNum >= n ? 'bg-blue-500 text-white' : 'bg-white/20 text-white/50'}`}>
-                  {stepNum > n ? <CheckCircle2 className="h-5 w-5" /> : n}
-                </div>
-                {i < totalSteps - 1 && <div className={`h-0.5 flex-1 ${stepNum > n ? 'bg-green-500' : 'bg-white/20'}`} />}
-              </div>
-            ))}
-          </div>
-
-          {step === 'email' && (
-            <form onSubmit={handleFindAccount} className="space-y-5">
+          {sent ? (
+            <div className="space-y-5 text-center">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-green-300" />
               <div>
-                <h2 className="mb-1 text-2xl font-bold text-white">Ingresa tu correo</h2>
-                <p className="mb-6 text-sm text-blue-200">Valida tu cuenta de estudiante y luego ingresa el código de recuperación.</p>
-                <Label htmlFor="fp-email" className="mb-2 block text-white/90">Correo electronico</Label>
+                <h2 className="mb-2 text-2xl font-bold text-white">Revisa tu correo</h2>
+                <p className="text-sm text-blue-200">
+                  Si la cuenta existe, recibirás un enlace para cambiar la contraseña. El enlace es temporal y solo permite recuperar cuentas de estudiante.
+                </p>
+              </div>
+              <Button type="button" onClick={() => setSent(false)} className="w-full bg-blue-600 py-6 text-white hover:bg-blue-700">
+                Enviar otro enlace
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <h2 className="mb-1 text-2xl font-bold text-white">Restablece tu contraseña</h2>
+                <p className="mb-6 text-sm text-blue-200">Te enviaremos un enlace seguro por correo. Ya no usamos códigos fijos de recuperación.</p>
+                <Label htmlFor="fp-email" className="mb-2 block text-white/90">Correo electrónico</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-blue-300" />
-                  <Input id="fp-email" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} className="border-white/20 bg-white/5 pl-11 text-white placeholder:text-white/40 focus:border-blue-400" placeholder="tu@correo.com" autoFocus />
+                  <Input
+                    id="fp-email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => { setEmail(event.target.value); setError(''); }}
+                    className="border-white/20 bg-white/5 pl-11 text-white placeholder:text-white/40 focus:border-blue-400"
+                    placeholder="tu@correo.com"
+                    autoFocus
+                  />
                 </div>
                 {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
               </div>
-              <Button type="submit" disabled={loading} className="w-full bg-blue-600 py-6 text-white hover:bg-blue-700">{loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}Continuar</Button>
-            </form>
-          )}
-
-          {step === 'code' && (
-            <form onSubmit={handleVerifyCode} className="space-y-5">
-              <h2 className="text-2xl font-bold text-white">Código de recuperación</h2>
-              <Input value={code} onChange={(e) => { setCode(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-center text-xl font-bold tracking-[0.3em] text-white" placeholder="Codigo" autoFocus />
-              {error && <p className="text-sm text-red-300">{error}</p>}
-              <Button type="submit" className="w-full bg-blue-600 py-6 text-white hover:bg-blue-700">Verificar</Button>
-            </form>
-          )}
-
-          {step === 'reset' && (
-            <form onSubmit={handleReset} className="space-y-5">
-              <h2 className="text-2xl font-bold text-white">Nueva contraseña</h2>
-              <Input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-white" placeholder="Nueva contraseña" autoFocus />
-              <Input type="password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }} className="border-white/20 bg-white/5 text-white" placeholder="Confirmar contraseña" />
-              {error && <p className="text-sm text-red-300">{error}</p>}
-              <Button type="submit" disabled={loading} className="w-full bg-blue-600 py-6 text-white hover:bg-blue-700">{loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}Actualizar</Button>
+              <Button type="submit" disabled={loading} className="w-full bg-blue-600 py-6 text-white hover:bg-blue-700">
+                {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                Enviar enlace seguro
+              </Button>
             </form>
           )}
 
