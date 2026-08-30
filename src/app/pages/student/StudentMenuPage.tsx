@@ -67,16 +67,6 @@ export function StudentMenuPage() {
     });
   }, [pickupSlots]);
 
-  const futurePickupSlots = useMemo(() => {
-    const now = new Date();
-    return pickupSlots.filter((slot) => {
-      const [hour, minute, second = 0] = slot.starts_at.split(':').map(Number);
-      const candidate = new Date();
-      candidate.setHours(hour, minute, second, 0);
-      return candidate.getTime() >= now.getTime();
-    });
-  }, [pickupSlots]);
-
   useEffect(() => {
     let active = true;
     async function initializeStudentSession() {
