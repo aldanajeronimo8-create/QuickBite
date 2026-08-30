@@ -1,0 +1,1 @@
+This directory contains reusable QuickBite UI for the feature center. The FeatureCenter component intentionally exposes the 25 principal capabilities without changing existing business logic or persistence behavior.
