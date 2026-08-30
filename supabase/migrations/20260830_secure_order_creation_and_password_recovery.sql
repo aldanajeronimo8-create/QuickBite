@@ -1,7 +1,9 @@
--- QuickBite production hardening: secure password recovery and order creation.
+-- QuickBite production hardening: secure password recovery, order creation,
+-- and execution grants for privileged SECURITY DEFINER helpers.
 -- 1) Remove the legacy fixed password-reset code/RPC. Password recovery now uses Supabase Auth email links.
 -- 2) Force every client-created order to start pending/pending.
 -- 3) Prevent authenticated clients from bypassing the transactional order RPC with direct INSERTs.
+-- 4) Minimize anonymous execution of privileged SECURITY DEFINER helpers.
 
 -- -----------------------------------------------------------------------------
 -- Password recovery
@@ -10,6 +12,9 @@ DROP FUNCTION IF EXISTS public.reset_user_password(text, text, text);
 
 DELETE FROM public.app_secrets
 WHERE key = 'password_reset_code';
+
+-- The legacy email enumeration helper is no longer needed by the client.
+REVOKE EXECUTE ON FUNCTION public.email_exists(TEXT) FROM anon, authenticated;
 
 -- -----------------------------------------------------------------------------
 -- Orders: transactional creation is the only client write path.
@@ -22,7 +27,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_user_request_id
   ON public.orders(user_id, request_id)
   WHERE request_id IS NOT NULL;
 
--- Remove both historical overloads before recreating the current signature.
+-- Remove historical overloads before recreating the current signature.
 DROP FUNCTION IF EXISTS public.create_order_tx(uuid, text, text, text, text, integer, text, jsonb);
 DROP FUNCTION IF EXISTS public.create_order_tx(uuid, text, text, text, text, integer, text, jsonb, text);
 DROP FUNCTION IF EXISTS public.create_order_tx(uuid, text, text, text, text, integer, text, jsonb, text, uuid);
@@ -61,8 +66,6 @@ BEGIN
     RAISE EXCEPTION 'order_items_required';
   END IF;
 
-  -- A retry with the same request id returns the original order instead of
-  -- charging/decrementing inventory twice.
   IF p_request_id IS NOT NULL THEN
     SELECT order_number
       INTO v_existing_order_number
@@ -82,32 +85,14 @@ BEGIN
     || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6));
 
   INSERT INTO public.orders (
-    id,
-    user_id,
-    total,
-    status,
-    payment_method,
-    payment_status,
-    order_number,
-    pickup_code,
-    estimated_minutes,
-    payment_reference,
-    notes,
-    request_id
+    id, user_id, total, status, payment_method, payment_status,
+    order_number, pickup_code, estimated_minutes, payment_reference,
+    notes, request_id
   )
   VALUES (
-    v_order_id,
-    p_user_id,
-    0,
-    'pending',
-    p_payment_method,
-    'pending',
-    v_order_number,
-    p_pickup_code,
-    p_estimated_minutes,
-    p_payment_reference,
-    NULLIF(trim(p_notes), ''),
-    p_request_id
+    v_order_id, p_user_id, 0, 'pending', p_payment_method, 'pending',
+    v_order_number, p_pickup_code, p_estimated_minutes, p_payment_reference,
+    NULLIF(trim(p_notes), ''), p_request_id
   );
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
@@ -152,12 +137,18 @@ $$;
 REVOKE ALL ON FUNCTION public.create_order_tx(uuid, text, text, text, text, integer, text, jsonb, text, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_order_tx(uuid, text, text, text, text, integer, text, jsonb, text, uuid) TO authenticated;
 
--- Clients must use create_order_tx so price, stock and initial state cannot be
--- bypassed. Existing admin UPDATE/DELETE flows remain unchanged.
 DROP POLICY IF EXISTS orders_insert_own ON public.orders;
 DROP POLICY IF EXISTS order_items_insert_own ON public.order_items;
 REVOKE INSERT ON public.orders FROM authenticated;
 REVOKE INSERT ON public.order_items FROM authenticated;
+
+-- Admin profile creation is privileged; anonymous clients must not be able to
+-- invoke the SECURITY DEFINER function. Authenticated callers are still subject
+-- to the server-side invite-code validation defined in the previous migration.
+REVOKE EXECUTE ON FUNCTION public.create_admin_profile(UUID, TEXT, TEXT, TEXT) FROM anon;
+GRANT EXECUTE ON FUNCTION public.create_admin_profile(UUID, TEXT, TEXT, TEXT) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.set_admin_invite_code(TEXT) FROM anon, authenticated;
 
 COMMENT ON FUNCTION public.create_order_tx(uuid, text, text, text, text, integer, text, jsonb, text, uuid)
   IS 'Creates a pending order atomically, calculates server-side totals, locks stock, and prevents client-supplied status/payment status from bypassing moderation.';
