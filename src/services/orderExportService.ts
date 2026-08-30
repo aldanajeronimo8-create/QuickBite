@@ -6,47 +6,20 @@ export interface ActiveSalesExportResult { count: number; batchId: string; }
 export interface WeeklyOrderExportResult extends ActiveSalesExportResult { fileName: string; weekStartIso: string; }
 export interface CsvSalesExportResult { count: number; fileName: string; }
 export interface ExcelSalesExportResult { count: number; fileName: string; }
-export interface SalesRedemptionExport {
-  id: string;
-  redemption_code: string;
-  points_spent: number;
-  status: string;
-  created_at: string;
-  reward?: { title?: string | null; product?: { name?: string | null } | null } | null;
-  user?: { full_name?: string | null; email?: string | null } | null;
-}
-
-const csvHeaders = [
-  'Número de pedido', 'Fecha de creación', 'Cliente', 'Correo', 'Documento', 'Estado del pedido', 'Estado del pago', 'Método de pago',
-  'Total del pedido', 'Código de recogida', 'Minutos estimados', 'Referencia de pago', 'Producto', 'Categoría', 'Precio unitario', 'Cantidad', 'Subtotal', 'Stock actual',
-];
-const salesHeaders = [
-  'N.º pedido', 'Fecha de compra', 'Hora de compra', 'Cliente', 'Correo', 'Documento', 'Estado pedido', 'Estado pago', 'Método de pago',
-  'Código recogida', 'Referencia de pago', 'Total pedido', 'Productos', 'Unidades', 'Tiempo estimado (min)',
-];
-const detailHeaders = [
-  'N.º pedido', 'Fecha de compra', 'Hora de compra', 'Producto', 'Categoría', 'Precio unitario', 'Cantidad', 'Subtotal', 'Stock actual', 'Cliente',
-];
-
-function csvCell(value: unknown) {
-  if (value === null || value === undefined) return '';
-  return `"${String(value).replace(/"/g, '""')}"`;
-}
-
-function activeOrders(orders: Order[]) {
-  return orders.filter((order) => !order.admin_hidden);
-}
-
+export interface SalesRedemptionExport { id: string; redemption_code: string; points_spent: number; status: string; created_at: string; reward?: { title?: string | null; product?: { name?: string | null } | null } | null; user?: { full_name?: string | null; email?: string | null } | null; }
+const csvHeaders = ['Número de pedido', 'Fecha de creación', 'Cliente', 'Correo', 'Documento', 'Estado del pedido', 'Estado del pago', 'Método de pago', 'Total del pedido', 'Código de recogida', 'Minutos estimados', 'Referencia de pago', 'Producto', 'Categoría', 'Precio unitario', 'Cantidad', 'Subtotal', 'Stock actual'];
+const salesHeaders = ['N.º pedido', 'Fecha de compra', 'Hora de compra', 'Cliente', 'Correo', 'Documento', 'Estado pedido', 'Estado pago', 'Método de pago', 'Código recogida', 'Referencia de pago', 'Total pedido', 'Productos', 'Unidades', 'Tiempo estimado (min)'];
+const detailHeaders = ['N.º pedido', 'Fecha de compra', 'Hora de compra', 'Producto', 'Categoría', 'Precio unitario', 'Cantidad', 'Subtotal', 'Stock actual', 'Cliente'];
+function csvCell(value: unknown) { if (value === null || value === undefined) return ''; return `"${String(value).replace(/"/g, '""')}"`; }
+function activeOrders(orders: Order[]) { return orders.filter((order) => !order.admin_hidden); }
 type SalesWorkbookOptions = { includeHidden?: boolean };
-
 const purchaseDateFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
 const purchaseTimeFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-const orderStatusLabel: Record<Order['status'], string> = { pending: 'Pendiente', preparing: 'En preparación', ready: 'Listo para recoger', delivered: 'Entregado', cancelled: 'Cancelado' };
+const orderStatusLabel: Record<Order['status'], string> = { pending: 'Pendiente', preparing: 'En preparación', ready: 'Listo para recoger', delivered: 'Entregado', rejected: 'Rechazado', cancelled: 'Cancelado' };
 const paymentStatusLabel: Record<Order['payment_status'], string> = { pending: 'Pendiente', confirmed: 'Confirmado', rejected: 'Rechazado' };
 const paymentMethodLabel: Record<Order['payment_method'], string> = { nequi: 'Nequi', 'bre-b': 'Bre-B', cash: 'Efectivo' };
 function purchaseDateAndTime(createdAt: string) { const value = new Date(createdAt); return { date: purchaseDateFormatter.format(value), time: purchaseTimeFormatter.format(value) }; }
 function sheetCell(row: number, column: number) { return XLSX.utils.encode_cell({ r: row, c: column }); }
-
 const thinBorder = { style: 'thin', color: { rgb: 'D9E2F3' } };
 const reportTitleStyle = { fill: { fgColor: { rgb: '1E3A8A' } }, font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'left', vertical: 'center' } };
 const tableHeaderStyle = { fill: { fgColor: { rgb: '14532D' } }, font: { bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder } };
@@ -54,98 +27,18 @@ const bodyStyle = { alignment: { vertical: 'center', wrapText: true }, border: {
 const alternateBodyStyle = { ...bodyStyle, fill: { fgColor: { rgb: 'F5F9FF' } } };
 const kpiLabelStyle = { fill: { fgColor: { rgb: 'DBEAFE' } }, font: { bold: true, color: { rgb: '1E3A8A' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder } };
 const kpiValueStyle = { fill: { fgColor: { rgb: 'EFF6FF' } }, font: { bold: true, sz: 13, color: { rgb: '0F172A' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder } };
+function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string[], rows: unknown[][], columnWidths: number[], currencyColumns: number[] = [], integerColumns: number[] = []) { sheet['A1'] = { v: title, t: 's', s: reportTitleStyle }; sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }]; sheet['!rows'] = [{ hpt: 28 }, { hpt: 19 }, { hpt: 19 }, { hpt: 8 }, { hpt: 34 }]; sheet['!cols'] = columnWidths.map((wch) => ({ wch })); sheet['!autofilter'] = { ref: `A5:${sheetCell(rows.length + 4, headers.length - 1)}` }; sheet['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' }; for (let column = 0; column < headers.length; column += 1) sheet[sheetCell(4, column)] = { v: headers[column], t: 's', s: tableHeaderStyle }; for (let row = 0; row < rows.length; row += 1) for (let column = 0; column < headers.length; column += 1) { const cell = sheetCell(row + 5, column); if (!sheet[cell]) sheet[cell] = { v: '', t: 's' }; sheet[cell].s = row % 2 === 0 ? bodyStyle : alternateBodyStyle; if (currencyColumns.includes(column)) sheet[cell].z = '"$"#,##0'; else if (integerColumns.includes(column)) sheet[cell].z = '0'; } }
 
-function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string[], rows: unknown[][], columnWidths: number[], currencyColumns: number[] = [], integerColumns: number[] = []) {
-  sheet['A1'] = { v: title, t: 's', s: reportTitleStyle };
-  sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
-  sheet['!rows'] = [{ hpt: 28 }, { hpt: 19 }, { hpt: 19 }, { hpt: 8 }, { hpt: 34 }];
-  sheet['!cols'] = columnWidths.map((wch) => ({ wch }));
-  sheet['!autofilter'] = { ref: `A5:${sheetCell(rows.length + 4, headers.length - 1)}` };
-  sheet['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
-  for (let column = 0; column < headers.length; column += 1) sheet[sheetCell(4, column)] = { v: headers[column], t: 's', s: tableHeaderStyle };
-  for (let row = 0; row < rows.length; row += 1) for (let column = 0; column < headers.length; column += 1) {
-    const cell = sheetCell(row + 5, column);
-    if (!sheet[cell]) sheet[cell] = { v: '', t: 's' };
-    sheet[cell].s = row % 2 === 0 ? bodyStyle : alternateBodyStyle;
-    if (currencyColumns.includes(column)) sheet[cell].z = '"$"#,##0';
-    else if (integerColumns.includes(column)) sheet[cell].z = '0';
-  }
-}
+export function buildActiveSalesWorkbook(orders: Order[], redemptions: SalesRedemptionExport[] = [], options: SalesWorkbookOptions = {}) { void redemptions; const sales = options.includeHidden ? orders : activeOrders(orders); if (!sales.length) throw new Error('No hay ventas activas para descargar.'); const salesRows = sales.map((order) => { const purchase = purchaseDateAndTime(order.created_at); const totalUnits = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0; return [order.order_number, purchase.date, purchase.time, order.user?.full_name ?? 'Sin cliente', order.user?.email ?? '', order.user?.ti ?? '', orderStatusLabel[order.status], paymentStatusLabel[order.payment_status], paymentMethodLabel[order.payment_method], order.pickup_code ?? '', order.payment_reference ?? '', Number(order.total), Number(order.order_items?.length ?? 0), Number(totalUnits), Number(order.estimated_minutes ?? 0)]; }); const detailRows = sales.flatMap((order) => { const purchase = purchaseDateAndTime(order.created_at); return (order.order_items ?? []).map((item) => [order.order_number, purchase.date, purchase.time, item.product?.name ?? 'Producto no disponible', item.product?.category?.name ?? 'Sin categoría', Number(item.price), Number(item.quantity), Number(item.price) * Number(item.quantity), Number(item.product?.stock ?? 0), order.user?.full_name ?? 'Sin cliente']); }); const earliestOrder = sales.reduce((earliest, order) => new Date(order.created_at) < new Date(earliest.created_at) ? order : earliest, sales[0]); const latestOrder = sales.reduce((latest, order) => new Date(order.created_at) > new Date(latest.created_at) ? order : latest, sales[0]); const confirmedSales = sales.filter((order) => order.payment_status === 'confirmed'); const confirmedTotal = confirmedSales.reduce((sum, order) => sum + Number(order.total), 0); const confirmedUnits = confirmedSales.reduce((sum, order) => sum + (order.order_items?.reduce((units, item) => units + Number(item.quantity), 0) ?? 0), 0); const workbook = XLSX.utils.book_new(); const summary = XLSX.utils.aoa_to_sheet([['QuickBite | Reporte profesional de ventas'], ['Periodo incluido', `${purchaseDateAndTime(earliestOrder.created_at).date} a ${purchaseDateAndTime(latestOrder.created_at).date}`], ['Generado el', new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', hour12: false })], [], ['Total facturado', 'Pedidos exportados', 'Ticket promedio', 'Unidades vendidas'], [null, null, null, null], [], ['Guía de uso'], ['El archivo contiene ventas y detalle de productos. Los importes monetarios llevan formato de moneda; cantidades, pedidos, unidades y stock son números sin símbolo $.']]); const salesSheet = XLSX.utils.aoa_to_sheet([[], [], [], [], salesHeaders, ...salesRows]); const detailsSheet = XLSX.utils.aoa_to_sheet([[], [], [], [], detailHeaders, ...detailRows]); summary['A1'] = { v: 'QuickBite | Reporte profesional de ventas', t: 's', s: reportTitleStyle }; summary['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, { s: { r: 7, c: 0 }, e: { r: 7, c: 3 } }, { s: { r: 8, c: 0 }, e: { r: 8, c: 3 } }]; summary['!cols'] = [{ wch: 25 }, { wch: 23 }, { wch: 23 }, { wch: 23 }]; summary['!rows'] = [{ hpt: 30 }, { hpt: 20 }, { hpt: 20 }, { hpt: 10 }, { hpt: 28 }, { hpt: 32 }, { hpt: 10 }, { hpt: 22 }, { hpt: 36 }]; for (let column = 0; column < 4; column += 1) { summary[sheetCell(4, column)] = { v: ['Total facturado', 'Pedidos exportados', 'Ticket promedio', 'Unidades vendidas'][column], t: 's', s: kpiLabelStyle }; summary[sheetCell(5, column)] = { t: 'n', s: kpiValueStyle }; } summary['A6'].v = confirmedTotal; summary['B6'].v = sales.length; summary['C6'].v = confirmedSales.length ? confirmedTotal / confirmedSales.length : 0; summary['D6'].v = confirmedUnits; summary['A6'].z = summary['C6'].z = '"$"#,##0'; summary['B6'].z = summary['D6'].z = '0'; applyReportLayout(salesSheet, 'Ventas por pedido', salesHeaders, salesRows, [18, 13, 10, 24, 30, 18, 20, 18, 18, 18, 24, 16, 11, 11, 18], [11], [12, 13, 14]); applyReportLayout(detailsSheet, 'Detalle de productos vendidos', detailHeaders, detailRows, [18, 13, 10, 30, 22, 16, 12, 16, 14, 24], [5, 7], [6, 8]); XLSX.utils.book_append_sheet(workbook, summary, 'Resumen'); XLSX.utils.book_append_sheet(workbook, salesSheet, 'Ventas'); XLSX.utils.book_append_sheet(workbook, detailsSheet, 'Detalle'); return workbook; }
 
-export function buildActiveSalesWorkbook(orders: Order[], redemptions: SalesRedemptionExport[] = [], options: SalesWorkbookOptions = {}) {
-  void redemptions;
-  const sales = options.includeHidden ? orders : activeOrders(orders);
-  if (!sales.length) throw new Error('No hay ventas activas para descargar.');
-  const salesRows = sales.map((order) => { const purchase = purchaseDateAndTime(order.created_at); const totalUnits = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0; return [order.order_number, purchase.date, purchase.time, order.user?.full_name ?? 'Sin cliente', order.user?.email ?? '', order.user?.ti ?? '', orderStatusLabel[order.status], paymentStatusLabel[order.payment_status], paymentMethodLabel[order.payment_method], order.pickup_code ?? '', order.payment_reference ?? '', Number(order.total), Number(order.order_items?.length ?? 0), Number(totalUnits), Number(order.estimated_minutes ?? 0)]; });
-  const detailRows = sales.flatMap((order) => { const purchase = purchaseDateAndTime(order.created_at); return (order.order_items ?? []).map((item) => [order.order_number, purchase.date, purchase.time, item.product?.name ?? 'Producto no disponible', item.product?.category?.name ?? 'Sin categoría', Number(item.price), Number(item.quantity), Number(item.price) * Number(item.quantity), Number(item.product?.stock ?? 0), order.user?.full_name ?? 'Sin cliente']); });
-  const earliestOrder = sales.reduce((earliest, order) => new Date(order.created_at) < new Date(earliest.created_at) ? order : earliest, sales[0]);
-  const latestOrder = sales.reduce((latest, order) => new Date(order.created_at) > new Date(latest.created_at) ? order : latest, sales[0]);
-  const confirmedSales = sales.filter((order) => order.payment_status === 'confirmed');
-  const confirmedTotal = confirmedSales.reduce((sum, order) => sum + Number(order.total), 0);
-  const confirmedUnits = confirmedSales.reduce((sum, order) => sum + (order.order_items?.reduce((units, item) => units + Number(item.quantity), 0) ?? 0), 0);
-  const workbook = XLSX.utils.book_new();
-  const summary = XLSX.utils.aoa_to_sheet([
-    ['QuickBite | Reporte profesional de ventas'],
-    ['Periodo incluido', `${purchaseDateAndTime(earliestOrder.created_at).date} a ${purchaseDateAndTime(latestOrder.created_at).date}`],
-    ['Generado el', new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', hour12: false })], [],
-    ['Total facturado', 'Pedidos exportados', 'Ticket promedio', 'Unidades vendidas'], [null, null, null, null], [],
-    ['Guía de uso'], ['El archivo contiene ventas y detalle de productos. Los importes monetarios llevan formato de moneda; cantidades, pedidos, unidades y stock son números sin símbolo $.'],
-  ]);
-  const salesSheet = XLSX.utils.aoa_to_sheet([[], [], [], [], salesHeaders, ...salesRows]);
-  const detailsSheet = XLSX.utils.aoa_to_sheet([[], [], [], [], detailHeaders, ...detailRows]);
-  summary['A1'] = { v: 'QuickBite | Reporte profesional de ventas', t: 's', s: reportTitleStyle };
-  summary['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, { s: { r: 7, c: 0 }, e: { r: 7, c: 3 } }, { s: { r: 8, c: 0 }, e: { r: 8, c: 3 } }];
-  summary['!cols'] = [{ wch: 25 }, { wch: 23 }, { wch: 23 }, { wch: 23 }];
-  summary['!rows'] = [{ hpt: 30 }, { hpt: 20 }, { hpt: 20 }, { hpt: 10 }, { hpt: 28 }, { hpt: 32 }, { hpt: 10 }, { hpt: 22 }, { hpt: 36 }];
-  for (let column = 0; column < 4; column += 1) { summary[sheetCell(4, column)] = { v: ['Total facturado', 'Pedidos exportados', 'Ticket promedio', 'Unidades vendidas'][column], t: 's', s: kpiLabelStyle }; summary[sheetCell(5, column)] = { t: 'n', s: kpiValueStyle }; }
-  const salesLastRow = salesRows.length + 5;
-  summary.A6 = { v: confirmedTotal, t: 'n', f: `SUMIF('Ventas'!H6:H${salesLastRow},"Confirmado",'Ventas'!L6:L${salesLastRow})`, s: kpiValueStyle, z: '"$"#,##0' };
-  summary.B6 = { v: sales.length, t: 'n', f: `COUNTA('Ventas'!A6:A${salesLastRow})`, s: kpiValueStyle, z: '0' };
-  summary.C6 = { v: confirmedSales.length ? confirmedTotal / confirmedSales.length : 0, t: 'n', f: `IFERROR(A6/COUNTIF('Ventas'!H6:H${salesLastRow},"Confirmado"),0)`, s: kpiValueStyle, z: '"$"#,##0' };
-  summary.D6 = { v: confirmedUnits, t: 'n', f: `SUMIF('Ventas'!H6:H${salesLastRow},"Confirmado",'Ventas'!N6:N${salesLastRow})`, s: kpiValueStyle, z: '0' };
-  summary.A8 = { v: 'Guía de uso', t: 's', s: { ...tableHeaderStyle, alignment: { horizontal: 'left', vertical: 'center' } } };
-  summary.A9 = { v: 'El archivo contiene ventas y detalle de productos. Los importes monetarios llevan formato de moneda; cantidades, pedidos, unidades y stock son números sin símbolo $.', t: 's', s: { ...bodyStyle, alignment: { wrapText: true, vertical: 'center' } } };
-  summary.A2.s = bodyStyle; summary.B2.s = bodyStyle; summary.A3.s = bodyStyle; summary.B3.s = bodyStyle;
-  applyReportLayout(salesSheet, 'QuickBite | Ventas por pedido', salesHeaders, salesRows, [14, 15, 14, 25, 29, 16, 19, 17, 18, 18, 22, 16, 12, 12, 20], [11], [12, 13, 14]);
-  applyReportLayout(detailsSheet, 'QuickBite | Detalle de productos vendidos', detailHeaders, detailRows, [14, 15, 14, 30, 20, 16, 12, 16, 14, 25], [5, 7], [6, 8]);
-  XLSX.utils.book_append_sheet(workbook, summary, 'Resumen'); XLSX.utils.book_append_sheet(workbook, salesSheet, 'Ventas'); XLSX.utils.book_append_sheet(workbook, detailsSheet, 'Detalle de productos'); return workbook;
-}
+export function downloadAllSalesExcel(orders: Order[], redemptions: SalesRedemptionExport[] = []) { const workbook = buildActiveSalesWorkbook(orders, redemptions, { includeHidden: true }); const fileName = `QuickBite_ventas_${new Date().toISOString().slice(0, 10)}.xlsx`; XLSX.writeFile(workbook, fileName); return { count: orders.length, fileName }; }
 
-export function downloadActiveSalesExcel(orders: Order[], redemptions: SalesRedemptionExport[] = []): ExcelSalesExportResult { const sales = activeOrders(orders); const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`; XLSX.writeFile(buildActiveSalesWorkbook(orders, redemptions), fileName, { compression: true }); return { count: sales.length, fileName }; }
+export function downloadActiveSalesExcel(orders: Order[], redemptions: SalesRedemptionExport[] = []) { const workbook = buildActiveSalesWorkbook(orders, redemptions); const fileName = `QuickBite_ventas_activas_${new Date().toISOString().slice(0, 10)}.xlsx`; XLSX.writeFile(workbook, fileName); return { count: activeOrders(orders).length, fileName }; }
 
-export function downloadAllSalesExcel(orders: Order[], redemptions: SalesRedemptionExport[] = []): ExcelSalesExportResult { const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`; XLSX.writeFile(buildActiveSalesWorkbook(orders, redemptions, { includeHidden: true }), fileName, { compression: true }); return { count: orders.length, fileName }; }
+export function exportOrdersToCSV(orders: Order[]) { const rows = orders.flatMap((order) => (order.order_items ?? []).map((item) => [order.order_number, order.created_at, order.user?.full_name ?? '', order.user?.email ?? '', order.user?.ti ?? '', orderStatusLabel[order.status], paymentStatusLabel[order.payment_status], paymentMethodLabel[order.payment_method], order.total, order.pickup_code ?? '', order.estimated_minutes ?? '', order.payment_reference ?? '', item.product?.name ?? '', item.product?.category?.name ?? '', item.price, item.quantity, Number(item.price) * Number(item.quantity), item.product?.stock ?? ''])); const csv = [csvHeaders, ...rows].map((row) => row.map(csvCell).join(',')).join('\n'); const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `quickbite_pedidos_${new Date().toISOString().slice(0, 10)}.csv`; anchor.click(); URL.revokeObjectURL(url); return { count: orders.length }; }
 
-export function buildActiveSalesCsv(orders: Order[]) {
-  const sales = activeOrders(orders); if (!sales.length) throw new Error('No hay ventas activas para descargar.');
-  const rows = sales.flatMap((order) => { const items = order.order_items?.length ? order.order_items : [undefined]; return items.map((item) => [order.order_number, order.created_at, order.user?.full_name, order.user?.email, order.user?.ti, order.status, order.payment_status, order.payment_method, order.total, order.pickup_code, order.estimated_minutes, order.payment_reference, item?.product?.name, item?.product?.category?.name, item?.price, item?.quantity, item ? item.price * item.quantity : undefined, item?.product?.stock]); });
-  return [csvHeaders, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
-}
-export function downloadActiveSalesCsv(orders: Order[]): CsvSalesExportResult { const sales = activeOrders(orders); const csv = `\uFEFF${buildActiveSalesCsv(orders)}`; const fileName = `quickbite-ventas-${new Date().toISOString().slice(0, 10)}.csv`; const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = fileName; link.style.display = 'none'; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 0); return { count: sales.length, fileName }; }
+export async function exportOrdersToExcel(orders: Order[], redemptions: SalesRedemptionExport[] = []) { return downloadAllSalesExcel(orders, redemptions); }
 
-function exportEndpoint() { const baseUrl = appConfig.apiBaseUrl.trim().replace(/\/+$/, ''); if (!baseUrl) throw new Error('La exportación a Google Sheets no está configurada.'); return `${baseUrl}/api/export-google-sheets`; }
-function errorForStatus(status: number) { if (status === 401 || status === 403) return 'No tienes autorización para exportar las ventas.'; if (status === 404) return 'El servicio de exportación no está disponible.'; if (status >= 500) return 'El servicio de exportación presentó un error. Intenta nuevamente.'; return `La exportación falló con código ${status}.`; }
+export async function exportWeeklyOrdersToExcel(orders: Order[], weekStartIso: string, redemptions: SalesRedemptionExport[] = []) { const result = downloadAllSalesExcel(orders, redemptions); return { ...result, batchId: crypto.randomUUID(), weekStartIso }; }
 
-export async function exportActiveSalesToGoogleSheets(orders: Order[]): Promise<ActiveSalesExportResult> {
-  const sales = activeOrders(orders); if (!sales.length) throw new Error('No hay ventas activas para exportar.');
-  const response = await fetch(exportEndpoint(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orders: sales }) });
-  if (!response.ok) throw new Error(errorForStatus(response.status));
-  const payload = await response.json() as { count?: number; batchId?: string };
-  if (!payload.batchId) throw new Error('La exportación no devolvió confirmación de recepción.');
-  return { count: payload.count ?? sales.length, batchId: payload.batchId };
-}
-
-export async function exportWeeklyOrdersToGoogleSheets(orders: Order[], weekStartIso: string): Promise<WeeklyOrderExportResult> {
-  const response = await fetch(exportEndpoint(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orders: reportWeeklyOrders(orders, weekStartIso), weekStartIso }) });
-  if (!response.ok) throw new Error(errorForStatus(response.status));
-  const payload = await response.json() as { count?: number; batchId?: string; fileName?: string };
-  if (!payload.batchId) throw new Error('La exportación no devolvió confirmación de recepción.');
-  return { count: payload.count ?? 0, batchId: payload.batchId, fileName: payload.fileName ?? `quickbite-semana-${weekStartIso}.xlsx`, weekStartIso };
-}
-
-function reportWeeklyOrders(orders: Order[], weekStartIso: string) {
-  const start = new Date(`${weekStartIso}T00:00:00`); const end = new Date(start); end.setUTCDate(end.getUTCDate() + 7);
-  return orders.filter((order) => { const created = new Date(order.created_at); return created >= start && created < end; });
-}
-
-export async function exportOrdersToGoogleSheets(orders: Order[]): Promise<ActiveSalesExportResult> { return exportActiveSalesToGoogleSheets(orders); }
-export function downloadOrdersCsv(orders: Order[]) { return downloadActiveSalesCsv(orders); }
+export function getAppVersionForExport() { return appConfig.appVersion; }
