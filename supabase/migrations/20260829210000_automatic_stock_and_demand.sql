@@ -1,0 +1,82 @@
+-- Automatic operational signals: low-stock alerts and demand observations.
+-- SECURITY DEFINER keeps student checkout from requiring admin-only INSERT policies.
+
+CREATE OR REPLACE FUNCTION public.record_order_item_demand()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.demand_observations (product_id, quantity, source)
+  VALUES (NEW.product_id, NEW.quantity, 'order');
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.record_order_item_demand() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_order_item_demand ON public.order_items;
+CREATE TRIGGER trg_order_item_demand
+AFTER INSERT ON public.order_items
+FOR EACH ROW
+EXECUTE FUNCTION public.record_order_item_demand();
+
+CREATE OR REPLACE FUNCTION public.create_low_stock_alert()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  minimum_stock INTEGER;
+  alert_kind TEXT;
+  alert_severity TEXT;
+  alert_title TEXT;
+  alert_message TEXT;
+BEGIN
+  SELECT s.minimum_stock INTO minimum_stock
+  FROM public.product_stock_settings s
+  WHERE s.product_id = NEW.id;
+
+  IF minimum_stock IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.stock = 0 THEN
+    alert_kind := 'out_of_stock';
+    alert_severity := 'critical';
+    alert_title := 'Producto agotado';
+    alert_message := format('%s se quedó sin stock.', NEW.name);
+  ELSIF NEW.stock <= minimum_stock THEN
+    alert_kind := 'low_stock';
+    alert_severity := 'warning';
+    alert_title := 'Stock bajo';
+    alert_message := format('%s tiene stock bajo (%s unidades; mínimo %s).', NEW.name, NEW.stock, minimum_stock);
+  ELSE
+    RETURN NEW;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.system_alerts
+    WHERE resolved_at IS NULL
+      AND kind = alert_kind
+      AND entity_type = 'product'
+      AND entity_id = NEW.id::text
+  ) THEN
+    INSERT INTO public.system_alerts (kind, severity, title, message, entity_type, entity_id, metadata)
+    VALUES (alert_kind, alert_severity, alert_title, alert_message, 'product', NEW.id::text,
+            jsonb_build_object('stock', NEW.stock, 'minimum_stock', minimum_stock));
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_low_stock_alert() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_product_low_stock_alert ON public.products;
+CREATE TRIGGER trg_product_low_stock_alert
+AFTER INSERT OR UPDATE OF stock ON public.products
+FOR EACH ROW
+EXECUTE FUNCTION public.create_low_stock_alert();

@@ -1,0 +1,297 @@
+:root {
+  --qb-accent: #FF5A36;
+  --qb-accent-strong: #E94B2B;
+  --qb-accent-soft: rgba(255, 90, 54, 0.10);
+  --qb-blue: #2563EB;
+  --qb-green: #16A34A;
+  --qb-yellow: #F59E0B;
+  --qb-red: #DC2626;
+  --qb-student-bg: #F8FAFC;
+  --qb-surface: rgba(255, 255, 255, 0.72);
+  --qb-surface-strong: rgba(255, 255, 255, 0.88);
+  --qb-glass-border: rgba(255, 255, 255, 0.48);
+  --qb-glass-border-dark: rgba(255, 255, 255, 0.12);
+  --qb-glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+  --qb-glass-shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.22);
+  --qb-text: #0F172A;
+  --qb-muted: #64748B;
+  --qb-dark: #0F172A;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--qb-student-bg);
+  color: var(--qb-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ---------- Shared Liquid Glass primitives ---------- */
+.qb-glass-surface {
+  background: var(--qb-surface);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--qb-glass-border);
+  box-shadow: var(--qb-glass-shadow);
+}
+
+/* ---------- Student: light, airy, food-commerce UI ---------- */
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 90, 54, 0.08), transparent 28%),
+    radial-gradient(circle at 92% 8%, rgba(37, 99, 235, 0.07), transparent 26%),
+    #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > header {
+  background: rgba(255, 255, 255, 0.78) !important;
+  color: #0F172A !important;
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > header .text-white { color: #0F172A !important; }
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > header .text-green-100,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > header .text-green-200 { color: #64748B !important; }
+
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > header .bg-green-600,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > header .bg-green-700 {
+  background: linear-gradient(135deg, #FF5A36 0%, #FF7658 100%) !important;
+  box-shadow: 0 16px 36px rgba(255, 90, 54, 0.18) !important;
+}
+
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > header [class*="bg-white/10"] {
+  background: rgba(255, 255, 255, 0.62) !important;
+  color: #334155 !important;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main {
+  color: #0F172A;
+}
+
+/* Product and content cards become unmistakably glass without going dark. */
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main article,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main [data-slot="card"] {
+  background: rgba(255, 255, 255, 0.70) !important;
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.07) !important;
+  border-radius: 18px;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main article:hover,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main [data-slot="card"]:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 90, 54, 0.20) !important;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.10), 0 0 24px rgba(255, 90, 54, 0.07) !important;
+}
+
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main .text-slate-500,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main .text-slate-600 {
+  color: #64748B !important;
+}
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main .text-slate-700,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main .text-slate-800,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main .text-slate-900 {
+  color: #0F172A !important;
+}
+
+/* Inputs / selectors */
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main input,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main textarea,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main select {
+  background: rgba(255, 255, 255, 0.74) !important;
+  color: #0F172A !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main input::placeholder,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main textarea::placeholder { color: #94A3B8 !important; }
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main input:focus,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main textarea:focus,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main select:focus {
+  outline: none;
+  border-color: rgba(255, 90, 54, 0.42) !important;
+  box-shadow: 0 0 0 4px rgba(255, 90, 54, 0.10) !important;
+}
+
+/* Orange as primary CTA, but preserve semantic green for success states. */
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main button[class*="bg-green-600"]:not([data-keep-green="true"]),
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main button[class*="bg-green-700"]:not([data-keep-green="true"]) {
+  background: linear-gradient(135deg, #FF5A36 0%, #FF7658 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 26px rgba(255, 90, 54, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 12px;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main button[class*="bg-green-600"]:not([data-keep-green="true"]):hover,
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) main button[class*="bg-green-700"]:not([data-keep-green="true"]):hover {
+  transform: scale(1.02);
+  box-shadow: 0 14px 30px rgba(255, 90, 54, 0.28), 0 0 26px rgba(255, 90, 54, 0.10);
+}
+
+/* Floating Student cart / bottom navigation / sheets */
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > nav {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.10) !important;
+}
+
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > div.fixed.inset-0 {
+  background: rgba(15, 23, 42, 0.28) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+.min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > div.fixed.inset-0 > section {
+  background: rgba(255, 255, 255, 0.82) !important;
+  color: #0F172A !important;
+  border: 1px solid rgba(255, 255, 255, 0.76) !important;
+  box-shadow: 0 -24px 60px rgba(15, 23, 42, 0.16) !important;
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+/* ---------- Admin: dark professional glass ---------- */
+.qb-admin-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(255, 90, 54, 0.07), transparent 26%),
+    radial-gradient(circle at 90% 10%, rgba(37, 99, 235, 0.08), transparent 24%),
+    #0F172A !important;
+  color: #F8FAFC !important;
+}
+
+.qb-admin-shell .qb-admin-sidebar,
+.qb-admin-shell > aside {
+  background: rgba(15, 23, 42, 0.78) !important;
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  border-right: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 14px 0 40px rgba(0, 0, 0, 0.22) !important;
+}
+.qb-admin-shell > main {
+  background: transparent !important;
+}
+.qb-admin-shell [data-slot="card"],
+.qb-admin-shell article {
+  background: rgba(255, 255, 255, 0.055) !important;
+  backdrop-filter: blur(20px) saturate(125%);
+  -webkit-backdrop-filter: blur(20px) saturate(125%);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: var(--qb-glass-shadow-dark) !important;
+  color: #F8FAFC !important;
+  border-radius: 18px;
+}
+.qb-admin-shell .text-gray-900,
+.qb-admin-shell .text-gray-800,
+.qb-admin-shell .text-blue-900,
+.qb-admin-shell .text-slate-900 { color: #F8FAFC !important; }
+.qb-admin-shell .text-gray-700,
+.qb-admin-shell .text-gray-600,
+.qb-admin-shell .text-slate-700,
+.qb-admin-shell .text-slate-600,
+.qb-admin-shell .text-slate-500 { color: #94A3B8 !important; }
+.qb-admin-shell input,
+.qb-admin-shell textarea,
+.qb-admin-shell select,
+.qb-admin-shell [role="combobox"] {
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: #F8FAFC !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px;
+}
+.qb-admin-shell table { color: #F8FAFC !important; border-collapse: separate; border-spacing: 0; }
+.qb-admin-shell thead { background: rgba(255, 255, 255, 0.04) !important; }
+.qb-admin-shell th,
+.qb-admin-shell td { border-color: rgba(255, 255, 255, 0.08) !important; }
+.qb-admin-shell .bg-blue-700,
+.qb-admin-shell button[class*="bg-blue-700"] {
+  background: linear-gradient(135deg, #FF5A36 0%, #FF7658 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 26px rgba(255, 90, 54, 0.18);
+}
+.qb-admin-shell button {
+  border-radius: 12px;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.qb-admin-shell button:hover { transform: scale(1.01); }
+.qb-admin-shell .border-green-300,
+.qb-admin-shell .border-green-200,
+.qb-admin-shell .border-blue-200,
+.qb-admin-shell .border-blue-300 { border-color: rgba(255,255,255,.12) !important; }
+
+/* State pills */
+.qb-status-pill,
+.qb-admin-shell [data-status-pill="pending"] { background: rgba(245,158,11,.15) !important; border: 1px solid rgba(245,158,11,.25) !important; color: #FCD34D !important; }
+.qb-admin-shell [data-status-pill="confirmed"] { background: rgba(37,99,235,.15) !important; border: 1px solid rgba(96,165,250,.24) !important; color: #93C5FD !important; }
+.qb-admin-shell [data-status-pill="preparing"] { background: rgba(124,58,237,.15) !important; border: 1px solid rgba(167,139,250,.24) !important; color: #C4B5FD !important; }
+.qb-admin-shell [data-status-pill="ready"] { background: rgba(22,163,74,.15) !important; border: 1px solid rgba(74,222,128,.24) !important; color: #86EFAC !important; }
+.qb-admin-shell [data-status-pill="delivered"] { background: rgba(22,163,74,.15) !important; border: 1px solid rgba(74,222,128,.24) !important; color: #86EFAC !important; }
+.qb-admin-shell [data-status-pill="rejected"] { background: rgba(220,38,38,.15) !important; border: 1px solid rgba(248,113,113,.24) !important; color: #FCA5A5 !important; }
+
+/* Generic Radix overlays */
+[data-slot="dialog-content"],
+[data-slot="popover-content"],
+[data-slot="select-content"] {
+  background: rgba(255,255,255,.92) !important;
+  color: #0F172A !important;
+  border: 1px solid rgba(255,255,255,.72) !important;
+  box-shadow: 0 18px 55px rgba(15,23,42,.16) !important;
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+.qb-admin-shell [data-slot="dialog-content"],
+.qb-admin-shell [data-slot="popover-content"],
+.qb-admin-shell [data-slot="select-content"] {
+  background: rgba(17,24,39,.94) !important;
+  color: #F8FAFC !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+/* Mobile Student bottom glass bar */
+@media (max-width: 767px) {
+  .min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) { padding-bottom: 92px !important; }
+  .min-h-screen.bg-slate-50.text-slate-900:not(.qb-admin-shell) > nav {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    margin: 0 !important;
+    z-index: 60;
+    border-radius: 18px !important;
+    padding: 6px !important;
+  }
+  .qb-admin-shell .qb-admin-sidebar,
+  .qb-admin-shell > aside {
+    width: 76px !important;
+    transition: width .22s ease;
+    overflow: hidden;
+  }
+  .qb-admin-shell .qb-admin-sidebar:hover,
+  .qb-admin-shell .qb-admin-sidebar:focus-within,
+  .qb-admin-shell > aside:hover,
+  .qb-admin-shell > aside:focus-within { width: 260px !important; }
+  .qb-admin-shell > main { margin-left: 76px !important; transition: margin-left .22s ease; }
+  .qb-admin-shell > aside:hover + main,
+  .qb-admin-shell > aside:focus-within + main { margin-left: 260px !important; }
+  .qb-admin-shell > main > div { padding: 18px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
