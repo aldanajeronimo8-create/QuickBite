@@ -19,7 +19,9 @@ export interface Category { id: string; name: string; description?: string; crea
 export interface Product { id: string; name: string; description?: string; price: number; image_url?: string; category_id: string; stock: number; available: boolean; created_at: string; category?: Category; }
 export interface Order {
   id: string; user_id: string | null; total: number;
-  status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'rejected';
+  // `cancelled` is retained only as a legacy client-side value for compatibility with old records/tests.
+  // New rejected orders use `rejected`, which is the canonical database status.
+  status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'rejected' | 'cancelled';
   payment_method: 'nequi' | 'cash' | 'bre-b';
   payment_status: 'pending' | 'confirmed' | 'rejected';
   order_number: string; created_at: string; admin_hidden?: boolean;
