@@ -1,13 +1,13 @@
 import { lazy, Suspense } from 'react';
 import type { ComponentType } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { AdminLayout } from './layouts/AdminLayout';
+import { AdminExperienceLayout } from './layouts/AdminExperienceLayout';
+import { StudentExperienceLayout } from './layouts/StudentExperienceLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthRedirect } from './components/AuthRedirect';
 import { LoginPage } from './pages/LoginPage';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
-import { StudentExperienceLayout } from './layouts/StudentExperienceLayout';
 
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
@@ -44,7 +44,7 @@ export const router = createBrowserRouter([
   { path: '/setup', element: <SetupWizardPage /> },
   {
     path: '/admin',
-    element: <ProtectedRoute><AdminLayout /></ProtectedRoute>,
+    element: <ProtectedRoute><AdminExperienceLayout /></ProtectedRoute>,
     children: [
       { index: true, element: lazyPage(AdminDashboard) },
       { path: 'features', element: lazyPage(QuickBiteFeatureCenter) },
