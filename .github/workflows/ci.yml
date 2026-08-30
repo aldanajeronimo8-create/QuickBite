@@ -92,6 +92,9 @@ jobs:
           test -n "${PLAYWRIGHT_E2E_PASSWORD}" || { echo "PLAYWRIGHT_E2E_PASSWORD is missing"; exit 1; }
           test -n "${SUPABASE_SERVICE_ROLE_KEY}" || { echo "SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
 
+      - name: Provision E2E user
+        run: node scripts/ensure-e2e-user.mjs
+
       - name: Run Playwright E2E
         run: pnpm test:e2e
 
