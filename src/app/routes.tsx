@@ -7,12 +7,13 @@ import { AuthRedirect } from './components/AuthRedirect';
 import { LoginPage } from './pages/LoginPage';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
+import { StudentExperienceLayout } from './layouts/StudentExperienceLayout';
 
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
 const StudentRegisterPage = lazy(() => import('./pages/student/StudentRegisterPage').then((m) => ({ default: m.StudentRegisterPage })));
-const StudentMenuPage = lazy(() => import('./pages/student/StudentMenuPage').then((m) => ({ default: m.StudentMenuPage })));
+const StudentFeatureCenter = lazy(() => import('./pages/student/StudentFeatureCenter').then((m) => ({ default: m.StudentFeatureCenter })));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders').then((m) => ({ default: m.AdminOrders })));
 const AdminPayments = lazy(() => import('./pages/admin/AdminPayments').then((m) => ({ default: m.AdminPayments })));
@@ -35,7 +36,8 @@ export const router = createBrowserRouter([
   { path: '/', element: <LoginPage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/register-student', element: lazyPage(StudentRegisterPage) },
-  { path: '/menu', element: lazyPage(StudentMenuPage) },
+  { path: '/menu', element: <StudentExperienceLayout /> },
+  { path: '/student/features', element: lazyPage(StudentFeatureCenter) },
   { path: '/register', element: <AuthRedirect><Suspense fallback={<PageLoader />}><RegisterPage /></Suspense></AuthRedirect> },
   { path: '/forgot-password', element: lazyPage(ForgotPasswordPage) },
   { path: '/reset-password', element: lazyPage(ResetPasswordPage) },
