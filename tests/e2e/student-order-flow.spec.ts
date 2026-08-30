@@ -17,13 +17,13 @@ test.describe('student purchase flow', () => {
     await page.getByLabel('Contraseña').first().fill(password!);
     await page.getByRole('button', { name: 'Ver menú' }).click();
 
-    await page.waitForTimeout(500);
-    const loginError = page.locator('p.text-red-500').first();
-    const errorText = await loginError.textContent().catch(() => null);
-    await expect(page).toHaveURL(/\/menu$/, {
-      timeout: 10_000,
-      message: `Student login did not navigate to /menu. Visible login error: ${errorText ?? 'none'}`,
-    });
+    await page.waitForTimeout(1000);
+    if (!page.url().endsWith('/menu')) {
+      const errors = await page.locator('p.text-red-500').allTextContents();
+      const toasts = await page.locator('[data-sonner-toast]').allTextContents().catch(() => []);
+      throw new Error(`Student login failed before navigation. URL=${page.url()} errors=${JSON.stringify(errors)} toasts=${JSON.stringify(toasts)}`);
+    }
+    await expect(page).toHaveURL(/\/menu$/);
     await expect(page.getByRole('heading', { name: /Pide ahora, recoge sin fila/i })).toBeVisible();
 
     const addButton = page.getByRole('button', { name: 'Agregar', exact: true }).first();
