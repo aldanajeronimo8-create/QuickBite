@@ -22,6 +22,9 @@ const AdminVerification = lazy(() => import('./pages/admin/AdminVerification').t
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then((m) => ({ default: m.AdminUsers })));
 const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty').then((m) => ({ default: m.AdminLoyalty })));
 const AdminReports = lazy(() => import('./pages/admin/AdminReports').then((m) => ({ default: m.AdminReports })));
+const AdminHistory = lazy(() => import('./pages/admin/AdminHistory').then((m) => ({ default: m.AdminHistory })));
+const AdminSystem = lazy(() => import('./pages/admin/AdminSystem').then((m) => ({ default: m.AdminSystem })));
+const QuickBiteFeatureCenter = lazy(() => import('./pages/admin/QuickBiteFeatureCenter').then((m) => ({ default: m.QuickBiteFeatureCenter })));
 
 function PageLoader() {
   return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600"><div className="flex flex-col items-center gap-3"><QuickBiteLogo className="h-16 w-16 rounded-2xl" /><span>Cargando...</span></div></div>;
@@ -42,6 +45,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute><AdminLayout /></ProtectedRoute>,
     children: [
       { index: true, element: lazyPage(AdminDashboard) },
+      { path: 'features', element: lazyPage(QuickBiteFeatureCenter) },
       { path: 'orders', element: lazyPage(AdminOrders) },
       { path: 'payments', element: lazyPage(AdminPayments) },
       { path: 'inventory', element: lazyPage(AdminInventory) },
@@ -50,6 +54,8 @@ export const router = createBrowserRouter([
       { path: 'users', element: lazyPage(AdminUsers) },
       { path: 'loyalty', element: lazyPage(AdminLoyalty) },
       { path: 'reports', element: lazyPage(AdminReports) },
+      { path: 'history', element: lazyPage(AdminHistory) },
+      { path: 'system', element: lazyPage(AdminSystem) },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
