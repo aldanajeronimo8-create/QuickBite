@@ -121,14 +121,14 @@ export function LoginPage() {
 
         <div className={`qb-auth-card rounded-3xl shadow-2xl p-7 ${isStudent ? 'bg-white' : 'bg-white/10 backdrop-blur-xl border border-white/20'}`}>
           {isStudent ? (
-            <form onSubmit={handleStudentLogin} className="space-y-4">
+            <form onSubmit={handleStudentLogin} autoComplete="on" className="space-y-4">
               <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-1">Hola, estudiante</h2>
                 <p className="text-gray-400 text-sm mb-5">Inicia sesión para ver el menú en tiempo real.</p>
                 <Label htmlFor="student-email" className="text-gray-700 text-sm mb-1 block">Correo electrónico</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input id="student-email" type="email" value={studentEmail} onChange={(e) => setStudentEmail(e.target.value)} className="pl-9" />
+                  <Input name="email" autoComplete="username" id="student-email" type="email" value={studentEmail} onChange={(e) => setStudentEmail(e.target.value)} className="pl-9" />
                 </div>
               </div>
               <div>
@@ -138,7 +138,7 @@ export function LoginPage() {
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input id="student-password" type={showStudentPwd ? 'text' : 'password'} value={studentPassword} onChange={(e) => setStudentPassword(e.target.value)} className="pl-9 pr-10" />
+                  <Input name="current-password" autoComplete="current-password" id="student-password" type={showStudentPwd ? 'text' : 'password'} value={studentPassword} onChange={(e) => setStudentPassword(e.target.value)} className="pl-9 pr-10" />
                   <button type="button" onClick={() => setShowStudentPwd(!showStudentPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                     {showStudentPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -155,21 +155,21 @@ export function LoginPage() {
               </Link>
             </form>
           ) : (
-            <form onSubmit={handleAdminLogin} className="space-y-4">
+            <form onSubmit={handleAdminLogin} autoComplete="on" className="space-y-4">
               <div>
                 <h2 className="text-xl font-bold text-white mb-1">Panel de control</h2>
                 <p className="text-blue-300 text-sm mb-5">Acceso solo para administradores.</p>
                 <Label htmlFor="admin-email" className="text-white/80 text-sm mb-1 block">Correo electrónico</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
-                  <Input id="admin-email" type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="pl-9 bg-white/5 border-white/20 text-white" />
+                  <Input name="email" autoComplete="username" id="admin-email" type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="pl-9 bg-white/5 border-white/20 text-white" />
                 </div>
               </div>
               <div>
                 <Label htmlFor="admin-password" className="mb-1 block text-sm text-white/80">Contraseña</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
-                  <Input id="admin-password" type={showAdminPwd ? 'text' : 'password'} value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="pl-9 pr-10 bg-white/5 border-white/20 text-white" />
+                  <Input name="current-password" autoComplete="current-password" id="admin-password" type={showAdminPwd ? 'text' : 'password'} value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="pl-9 pr-10 bg-white/5 border-white/20 text-white" />
                   <button type="button" onClick={() => setShowAdminPwd(!showAdminPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300">
                     {showAdminPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
