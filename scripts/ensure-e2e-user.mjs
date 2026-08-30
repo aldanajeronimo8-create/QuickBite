@@ -15,7 +15,7 @@ const headers = {
 };
 
 async function adminRequest(path, options = {}) {
-  const response = await fetch(`${url}/auth/v1${path}`, {
+  const response = await globalThis.fetch(`${url}/auth/v1${path}`, {
     ...options,
     headers: { ...headers, ...(options.headers ?? {}) },
   });
@@ -65,7 +65,7 @@ if (user) {
   });
 }
 
-const profileResponse = await fetch(`${url}/rest/v1/profiles?on_conflict=id`, {
+const profileResponse = await globalThis.fetch(`${url}/rest/v1/profiles?on_conflict=id`, {
   method: 'POST',
   headers: {
     apikey: serviceRoleKey,
@@ -84,7 +84,7 @@ if (!profileResponse.ok) {
   throw new Error(`Supabase profile upsert failed (${profileResponse.status}): ${await profileResponse.text()}`);
 }
 
-const signInResponse = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+const signInResponse = await globalThis.fetch(`${url}/auth/v1/token?grant_type=password`, {
   method: 'POST',
   headers: { apikey: anonKey, 'Content-Type': 'application/json' },
   body: JSON.stringify({ email, password }),
