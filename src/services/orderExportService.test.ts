@@ -34,10 +34,10 @@ const order = {
 } satisfies Order;
 
 describe('buildActiveSalesWorkbook', () => {
-  it('creates a structured workbook with sales, product detail, purchase time, and redemptions', () => {
+  it('creates a structured workbook with sales and product detail', () => {
     const workbook = buildActiveSalesWorkbook([order]);
 
-    expect(workbook.SheetNames).toEqual(['Resumen', 'Ventas', 'Detalle de productos', 'Canjes']);
+    expect(workbook.SheetNames).toEqual(['Resumen', 'Ventas', 'Detalle de productos']);
     expect(workbook.Sheets.Ventas.C6.v).toBe('07:00');
     expect(workbook.Sheets.Ventas.D6.v).toBe('Ana "Pérez"');
     expect(workbook.Sheets['Detalle de productos'].D6.v).toBe('Empanada, queso');
@@ -46,6 +46,7 @@ describe('buildActiveSalesWorkbook', () => {
     expect(workbook.Sheets.Resumen.A6.v).toBe(12500);
     expect(workbook.Sheets.Resumen.B6.v).toBe(1);
     expect(workbook.Sheets.Resumen.D6.v).toBe(2);
+    expect(workbook.Sheets.Canjes).toBeUndefined();
   });
 
   it('rejects archived sales because the export is limited to the active closing period', () => {
@@ -56,6 +57,7 @@ describe('buildActiveSalesWorkbook', () => {
     const workbook = buildActiveSalesWorkbook([{ ...order, admin_hidden: true }], [], { includeHidden: true });
     expect(workbook.Sheets.Ventas.A6.v).toBe('QB-001');
     expect(workbook.Sheets.Resumen.B6.v).toBe(1);
+    expect(workbook.SheetNames).not.toContain('Canjes');
   });
 
   it('lists rejected payments but excludes them from confirmed-sale KPIs', () => {
@@ -65,5 +67,6 @@ describe('buildActiveSalesWorkbook', () => {
     expect(workbook.Sheets.Resumen.A6.v).toBe(12500);
     expect(workbook.Sheets.Resumen.B6.v).toBe(2);
     expect(workbook.Sheets.Resumen.D6.v).toBe(2);
+    expect(workbook.SheetNames).not.toContain('Canjes');
   });
 });
