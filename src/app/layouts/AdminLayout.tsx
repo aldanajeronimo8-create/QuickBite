@@ -14,7 +14,7 @@ const primaryColor = '#1747B8';
 const navigationAccent = '#E0ECFF';
 type NavItemProps = { path: string; label: string; icon: LucideIcon; active: boolean; badge?: number; collapsed?: boolean };
 function NavItem({ path, label, icon: Icon, active, badge, collapsed = false }: NavItemProps) {
-  return <Link to={path} title={collapsed ? label : undefined} className={`admin-nav-link mb-0.5 flex items-center rounded-2xl py-2.5 text-sm font-medium transition-all ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'}`} style={active ? { background: 'rgba(255,255,255,0.13)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : { color: '#BFDBFE' }}><Icon className="h-4 w-4 shrink-0" />{!collapsed && <span className="flex-1">{label}</span>}{!collapsed && badge != null && badge > 0 && <span className="rounded-full px-1.5 py-0.5 text-xs font-bold" style={{ background: navigationAccent, color: primaryColor }}>{badge}</span>}{collapsed && badge != null && badge > 0 && <span className="absolute ml-6 mt-[-18px] h-2.5 w-2.5 rounded-full" style={{ background: navigationAccent }} aria-label={`${badge} pendientes`} />}</Link>;
+  return <Link to={path} title={collapsed ? label : undefined} className={`admin-nav-link relative mb-0.5 flex items-center rounded-2xl py-2.5 text-sm font-medium transition-all ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'}`} style={active ? { background: 'rgba(255,255,255,0.13)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : { color: '#BFDBFE' }}><Icon className="h-4 w-4 shrink-0" />{!collapsed && <span className="flex-1">{label}</span>}{!collapsed && badge != null && badge > 0 && <span className="rounded-full px-1.5 py-0.5 text-xs font-bold" style={{ background: navigationAccent, color: primaryColor }}>{badge}</span>}{collapsed && badge != null && badge > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full" style={{ background: navigationAccent }} aria-label={`${badge} pendientes`} />}</Link>;
 }
 
 export function AdminLayout() {
@@ -26,12 +26,12 @@ export function AdminLayout() {
   if (!user) return null;
   const pendingCount = orders.filter((order) => !order.admin_hidden && order.status === 'pending').length;
   const isCurrentPath = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
-  const desktopSidebarTransform = sidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0';
   const sidebarContentCollapsed = sidebarCollapsed && !mobileSidebarOpen;
-  const mainMargin = sidebarCollapsed ? 'lg:ml-0' : 'lg:ml-64';
+  const sidebarWidth = sidebarCollapsed ? 'lg:w-20' : 'lg:w-64';
+  const mainMargin = sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64';
   return <div className="admin-shell min-h-screen" style={{ background: '#F8FAFC' }}>
     {mobileSidebarOpen && <button type="button" aria-label="Cerrar menú" className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" onClick={() => setMobileSidebarOpen(false)} />}
-    <aside className={`admin-sidebar fixed left-0 top-0 z-40 flex h-full w-72 flex-col shadow-xl transition-transform duration-200 lg:w-64 ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${desktopSidebarTransform}`} style={{ background: primaryColor }}>
+    <aside className={`admin-sidebar fixed left-0 top-0 z-40 flex h-full w-72 flex-col shadow-xl transition-[width,transform] duration-200 ${sidebarWidth} ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ background: primaryColor }}>
       <div className={`px-5 pb-5 pt-7 ${sidebarContentCollapsed ? 'lg:px-3' : ''}`}><div className={`flex items-center ${sidebarContentCollapsed ? 'justify-center' : 'gap-3'}`}><QuickBiteLogo className="h-10 w-10 shrink-0 rounded-xl shadow-md" alt="QuickBite Administración" />{!sidebarContentCollapsed && <div className="min-w-0"><p className="text-base font-bold leading-tight text-white">QuickBite Admin</p><p className="text-xs" style={{ color: '#93C5FD' }}>Panel de control</p></div>}<button type="button" className="ml-auto rounded-full p-2 text-blue-100 hover:bg-white/10 lg:hidden" onClick={() => setMobileSidebarOpen(false)} aria-label="Cerrar menú lateral"><X className="h-5 w-5" /></button></div></div>
       <div className="mx-4 mb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }} />
       <nav className={`flex-1 overflow-y-auto px-3 ${sidebarContentCollapsed ? 'lg:px-2' : ''}`}>
