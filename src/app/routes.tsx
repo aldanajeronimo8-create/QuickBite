@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react';
 import type { ComponentType } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { AdminLayout } from './layouts/AdminLayout';
+import { AdminExperienceLayout } from './layouts/AdminExperienceLayout';
+import { StudentExperienceLayout } from './layouts/StudentExperienceLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthRedirect } from './components/AuthRedirect';
 import { LoginPage } from './pages/LoginPage';
@@ -12,7 +13,7 @@ const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ de
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
 const StudentRegisterPage = lazy(() => import('./pages/student/StudentRegisterPage').then((m) => ({ default: m.StudentRegisterPage })));
-const StudentMenuPage = lazy(() => import('./pages/student/StudentMenuPage').then((m) => ({ default: m.StudentMenuPage })));
+const StudentFeatureCenter = lazy(() => import('./pages/student/StudentFeatureCenter').then((m) => ({ default: m.StudentFeatureCenter })));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders').then((m) => ({ default: m.AdminOrders })));
 const AdminPayments = lazy(() => import('./pages/admin/AdminPayments').then((m) => ({ default: m.AdminPayments })));
@@ -22,6 +23,9 @@ const AdminVerification = lazy(() => import('./pages/admin/AdminVerification').t
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then((m) => ({ default: m.AdminUsers })));
 const AdminLoyalty = lazy(() => import('./pages/admin/AdminLoyalty').then((m) => ({ default: m.AdminLoyalty })));
 const AdminReports = lazy(() => import('./pages/admin/AdminReports').then((m) => ({ default: m.AdminReports })));
+const AdminHistory = lazy(() => import('./pages/admin/AdminHistory').then((m) => ({ default: m.AdminHistory })));
+const AdminSystem = lazy(() => import('./pages/admin/AdminSystem').then((m) => ({ default: m.AdminSystem })));
+const QuickBiteFeatureCenter = lazy(() => import('./pages/admin/QuickBiteFeatureCenter').then((m) => ({ default: m.QuickBiteFeatureCenter })));
 
 function PageLoader() {
   return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600"><div className="flex flex-col items-center gap-3"><QuickBiteLogo className="h-16 w-16 rounded-2xl" /><span>Cargando...</span></div></div>;
@@ -32,16 +36,18 @@ export const router = createBrowserRouter([
   { path: '/', element: <LoginPage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/register-student', element: lazyPage(StudentRegisterPage) },
-  { path: '/menu', element: lazyPage(StudentMenuPage) },
+  { path: '/menu', element: <StudentExperienceLayout /> },
+  { path: '/student/features', element: lazyPage(StudentFeatureCenter) },
   { path: '/register', element: <AuthRedirect><Suspense fallback={<PageLoader />}><RegisterPage /></Suspense></AuthRedirect> },
   { path: '/forgot-password', element: lazyPage(ForgotPasswordPage) },
   { path: '/reset-password', element: lazyPage(ResetPasswordPage) },
   { path: '/setup', element: <SetupWizardPage /> },
   {
     path: '/admin',
-    element: <ProtectedRoute><AdminLayout /></ProtectedRoute>,
+    element: <ProtectedRoute><AdminExperienceLayout /></ProtectedRoute>,
     children: [
       { index: true, element: lazyPage(AdminDashboard) },
+      { path: 'features', element: lazyPage(QuickBiteFeatureCenter) },
       { path: 'orders', element: lazyPage(AdminOrders) },
       { path: 'payments', element: lazyPage(AdminPayments) },
       { path: 'inventory', element: lazyPage(AdminInventory) },
@@ -50,6 +56,8 @@ export const router = createBrowserRouter([
       { path: 'users', element: lazyPage(AdminUsers) },
       { path: 'loyalty', element: lazyPage(AdminLoyalty) },
       { path: 'reports', element: lazyPage(AdminReports) },
+      { path: 'history', element: lazyPage(AdminHistory) },
+      { path: 'system', element: lazyPage(AdminSystem) },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
