@@ -206,10 +206,16 @@ export function buildActiveSalesWorkbook(orders: Order[]) {
   return workbook;
 }
 
-export function downloadActiveSalesExcel(orders: Order[]): ExcelSalesExportResult {
+export async function downloadActiveSalesExcel(orders: Order[]): Promise<ExcelSalesExportResult> {
   const sales = reportOrders(orders);
   const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`;
-  XLSX.writeFile(buildActiveSalesWorkbook(orders), fileName, { compression: true });
+  const workbook = buildActiveSalesWorkbook(orders);
+  const { data } = await requireSupabaseClient().from('loyalty_redemptions').select('redemption_code,created_at,points_spent,status,user:profiles!loyalty_redemptions_user_id_fkey(full_name),reward:loyalty_rewards(title)');
+  const rows = (data ?? []).map((r: any) => [r.redemption_code ?? '', new Date(r.created_at).toLocaleString('es-CO'), Array.isArray(r.user) ? (r.user[0]?.full_name ?? '') : (r.user?.full_name ?? ''), Array.isArray(r.reward) ? (r.reward[0]?.title ?? '') : (r.reward?.title ?? ''), Number(r.points_spent ?? 0), r.status ?? '']);
+  const canjes = XLSX.utils.aoa_to_sheet([['Código','Fecha','Estudiante','Recompensa','Puntos','Estado'], ...rows]);
+  canjes['!cols'] = [{wch:18},{wch:22},{wch:28},{wch:28},{wch:12},{wch:16}];
+  XLSX.utils.book_append_sheet(workbook, canjes, 'Canjes');
+  XLSX.writeFile(workbook, fileName, { compression: true });
   return { count: sales.length, fileName };
 }
 
