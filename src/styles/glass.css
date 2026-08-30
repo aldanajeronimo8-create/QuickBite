@@ -25,198 +25,45 @@ body {
   box-shadow: var(--qb-glass-shadow);
 }
 
-/* Student: preserve the existing hierarchy while giving it the new visual language. */
-.min-h-screen.bg-slate-50.text-slate-900 {
-  position: relative;
-  isolation: isolate;
-  min-height: 100vh;
-  background: var(--qb-dark) !important;
-  color: var(--qb-primary-text) !important;
-}
-
-.min-h-screen.bg-slate-50.text-slate-900 > header {
-  background: rgba(13, 15, 18, 0.78) !important;
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  border-bottom: 1px solid var(--qb-glass-border);
-  box-shadow: 0 12px 40px rgba(0,0,0,.18);
-}
-
-.min-h-screen.bg-slate-50.text-slate-900 > header > div > div + div {
-  background: linear-gradient(135deg, rgba(255, 90, 54, 0.88), rgba(255, 90, 54, 0.62)) !important;
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow: 0 18px 48px rgba(255, 90, 54, 0.16);
-}
-
-.min-h-screen.bg-slate-50.text-slate-900 > nav {
-  background: rgba(255,255,255,.05) !important;
-  border: 1px solid var(--qb-glass-border);
-  box-shadow: var(--qb-glass-shadow);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-.min-h-screen.bg-slate-50.text-slate-900 > nav button {
-  color: var(--qb-secondary-text);
-}
-
-.min-h-screen.bg-slate-50.text-slate-900 > nav button[class*="bg-green-600"] {
-  background: linear-gradient(135deg, #FF5A36, #ff7a5d) !important;
-  color: #fff !important;
-  box-shadow: 0 8px 24px rgba(255, 90, 54, .24);
-}
-
+.min-h-screen.bg-slate-50.text-slate-900 { position: relative; isolation: isolate; min-height: 100vh; background: var(--qb-dark) !important; color: var(--qb-primary-text) !important; }
+.min-h-screen.bg-slate-50.text-slate-900 > header { background: rgba(13,15,18,.78) !important; backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border-bottom: 1px solid var(--qb-glass-border); box-shadow: 0 12px 40px rgba(0,0,0,.18); }
+.min-h-screen.bg-slate-50.text-slate-900 > header > div > div + div { background: linear-gradient(135deg, rgba(255,90,54,.88), rgba(255,90,54,.62)) !important; border: 1px solid rgba(255,255,255,.14); box-shadow: 0 18px 48px rgba(255,90,54,.16); }
+.min-h-screen.bg-slate-50.text-slate-900 > nav { background: rgba(255,255,255,.05) !important; border: 1px solid var(--qb-glass-border); box-shadow: var(--qb-glass-shadow); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+.min-h-screen.bg-slate-50.text-slate-900 > nav button { color: var(--qb-secondary-text); }
+.min-h-screen.bg-slate-50.text-slate-900 > nav button[class*="bg-green-600"] { background: linear-gradient(135deg,#FF5A36,#ff7a5d) !important; color:#fff !important; box-shadow:0 8px 24px rgba(255,90,54,.24); }
 .min-h-screen.bg-slate-50.text-slate-900 main input,
-.min-h-screen.bg-slate-50.text-slate-900 main textarea {
-  background: rgba(255,255,255,.06) !important;
-  color: var(--qb-primary-text) !important;
-  border-color: var(--qb-glass-border) !important;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-
+.min-h-screen.bg-slate-50.text-slate-900 main textarea { background:rgba(255,255,255,.06)!important; color:var(--qb-primary-text)!important; border-color:var(--qb-glass-border)!important; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
 .min-h-screen.bg-slate-50.text-slate-900 main input::placeholder,
-.min-h-screen.bg-slate-50.text-slate-900 main textarea::placeholder {
-  color: #6b7280;
-}
-
-.min-h-screen.bg-slate-50.text-slate-900 main > div:last-child > article,
-.min-h-screen.bg-slate-50.text-slate-900 main article {
-  background: rgba(255,255,255,.055) !important;
-  border-color: var(--qb-glass-border) !important;
-  box-shadow: var(--qb-glass-shadow);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
-}
-
-.min-h-screen.bg-slate-50.text-slate-900 main article:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255,255,255,.22) !important;
-  box-shadow: 0 14px 38px rgba(0,0,0,.28), 0 0 24px rgba(255,90,54,.06);
-}
-
+.min-h-screen.bg-slate-50.text-slate-900 main textarea::placeholder { color:#6b7280; }
+.min-h-screen.bg-slate-50.text-slate-900 main article { background:rgba(255,255,255,.055)!important; border-color:var(--qb-glass-border)!important; box-shadow:var(--qb-glass-shadow); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease; }
+.min-h-screen.bg-slate-50.text-slate-900 main article:hover { transform:translateY(-3px); border-color:rgba(255,255,255,.22)!important; box-shadow:0 14px 38px rgba(0,0,0,.28),0 0 24px rgba(255,90,54,.06); }
 .min-h-screen.bg-slate-50.text-slate-900 main article .text-slate-600,
-.min-h-screen.bg-slate-50.text-slate-900 main article .text-slate-500 {
-  color: #9CA3AF !important;
-}
-
+.min-h-screen.bg-slate-50.text-slate-900 main article .text-slate-500 { color:#9CA3AF!important; }
 .min-h-screen.bg-slate-50.text-slate-900 main article .text-green-800,
-.min-h-screen.bg-slate-50.text-slate-900 main article .text-green-700 {
-  color: #ff987f !important;
+.min-h-screen.bg-slate-50.text-slate-900 main article .text-green-700 { color:#ff987f!important; }
+.min-h-screen.bg-slate-50.text-slate-900 main article button[class*="bg-green-600"] { background:linear-gradient(135deg,#FF5A36,#ff7a5d)!important; box-shadow:0 8px 22px rgba(255,90,54,.22); }
+.min-h-screen.bg-slate-50.text-slate-900 > div.fixed.inset-0 { background:rgba(0,0,0,.62)!important; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+.min-h-screen.bg-slate-50.text-slate-900 > div.fixed.inset-0 > section { background:rgba(18,20,24,.92)!important; color:var(--qb-primary-text)!important; border:1px solid var(--qb-glass-border); box-shadow:0 -20px 60px rgba(0,0,0,.32); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); }
+
+@media (max-width:767px) {
+  .min-h-screen.bg-slate-50.text-slate-900 > nav { position:fixed!important; top:auto!important; bottom:12px; left:12px; right:12px; margin:0!important; z-index:60; border-radius:18px!important; padding:6px!important; }
+  .min-h-screen.bg-slate-50.text-slate-900 { padding-bottom:92px!important; }
+  .min-h-screen.bg-slate-50.text-slate-900 > header > div { padding-left:16px!important; padding-right:16px!important; }
+  .min-h-screen.bg-slate-50.text-slate-900 main { padding-left:16px!important; padding-right:16px!important; }
 }
 
-.min-h-screen.bg-slate-50.text-slate-900 main article button[class*="bg-green-600"] {
-  background: linear-gradient(135deg, #FF5A36, #ff7a5d) !important;
-  box-shadow: 0 8px 22px rgba(255,90,54,.22);
+.min-h-screen > aside { background:rgba(13,15,18,.82)!important; border-right:1px solid var(--qb-glass-border); box-shadow:14px 0 40px rgba(0,0,0,.22)!important; backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); }
+.min-h-screen > aside a { border-radius:12px; }
+.min-h-screen > aside a:hover { background:rgba(255,255,255,.08)!important; color:#fff!important; }
+.min-h-screen > main { background:var(--qb-dark)!important; }
+.min-h-screen > main > div { max-width:1600px; margin-inline:auto; }
+
+@media (max-width:767px) {
+  .min-h-screen > aside { width:76px!important; transition:width .22s ease; overflow:hidden; }
+  .min-h-screen > aside:hover,.min-h-screen > aside:focus-within { width:260px!important; }
+  .min-h-screen > aside + main { margin-left:76px!important; transition:margin-left .22s ease; }
+  .min-h-screen > aside:hover + main,.min-h-screen > aside:focus-within + main { margin-left:260px!important; }
+  .min-h-screen > main > div { padding:18px!important; }
 }
 
-.min-h-screen.bg-slate-50.text-slate-900 > div.fixed.inset-0 {
-  background: rgba(0,0,0,.62) !important;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-
-.min-h-screen.bg-slate-50.text-slate-900 > div.fixed.inset-0 > section {
-  background: rgba(18,20,24,.92) !important;
-  color: var(--qb-primary-text) !important;
-  border: 1px solid var(--qb-glass-border);
-  box-shadow: 0 -20px 60px rgba(0,0,0,.32);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-}
-
-/* Existing Student tabs become a fixed glass navigation bar on small screens. */
-@media (max-width: 767px) {
-  .min-h-screen.bg-slate-50.text-slate-900 > nav {
-    position: fixed !important;
-    top: auto !important;
-    bottom: 12px;
-    left: 12px;
-    right: 12px;
-    margin: 0 !important;
-    z-index: 60;
-    border-radius: 18px !important;
-    padding: 6px !important;
-  }
-
-  .min-h-screen.bg-slate-50.text-slate-900 {
-    padding-bottom: 92px !important;
-  }
-
-  .min-h-screen.bg-slate-50.text-slate-900 > header > div {
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-  }
-
-  .min-h-screen.bg-slate-50.text-slate-900 main {
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-  }
-}
-
-/* Admin: desktop sidebar stays expanded; mobile becomes a CSS drawer that opens on hover/focus. */
-.min-h-screen > aside {
-  background: rgba(13,15,18,.82) !important;
-  border-right: 1px solid var(--qb-glass-border);
-  box-shadow: 14px 0 40px rgba(0,0,0,.22) !important;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-}
-
-.min-h-screen > aside a {
-  border-radius: 12px;
-}
-
-.min-h-screen > aside a:hover {
-  background: rgba(255,255,255,.08) !important;
-  color: #fff !important;
-}
-
-.min-h-screen > main {
-  background: var(--qb-dark) !important;
-}
-
-.min-h-screen > main > div {
-  max-width: 1600px;
-  margin-inline: auto;
-}
-
-@media (max-width: 767px) {
-  .min-h-screen > aside {
-    width: 76px !important;
-    transition: width .22s ease;
-    overflow: hidden;
-  }
-
-  .min-h-screen > aside:hover,
-  .min-h-screen > aside:focus-within {
-    width: 260px !important;
-  }
-
-  .min-h-screen > aside + main {
-    margin-left: 76px !important;
-    transition: margin-left .22s ease;
-  }
-
-  .min-h-screen > aside:hover + main,
-  .min-h-screen > aside:focus-within + main {
-    margin-left: 260px !important;
-  }
-
-  .min-h-screen > main > div {
-    padding: 18px !important;
-  }
-}
-
-/* Global glass helpers for existing shadcn primitives. */
-[data-slot="dialog-content"],
-[data-slot="popover-content"],
-[data-slot="select-content"] {
-  background: rgba(18,20,24,.94) !important;
-  color: var(--qb-primary-text) !important;
-  border-color: var(--qb-glass-border) !important;
-  box-shadow: var(--qb-glass-shadow) !important;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-}
+[data-slot="dialog-content"], [data-slot="popover-content"], [data-slot="select-content"] { background:rgba(18,20,24,.94)!important; color:var(--qb-primary-text)!important; border-color:var(--qb-glass-border)!important; box-shadow:var(--qb-glass-shadow)!important; backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); }
