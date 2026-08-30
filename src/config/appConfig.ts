@@ -3,6 +3,7 @@ export type AppEnvironment = 'development' | 'staging' | 'production';
 
 export const appConfig = {
   appName: import.meta.env.VITE_APP_NAME ?? 'QuickBite',
+  appVersion: import.meta.env.VITE_APP_VERSION ?? '1.0.0',
   appEnv: (import.meta.env.VITE_APP_ENV ?? 'development') as AppEnvironment,
   publicAppUrl: import.meta.env.VITE_PUBLIC_APP_URL ?? '',
   runtimeMode: (import.meta.env.VITE_RUNTIME_MODE ?? 'supabase') as RuntimeMode,
@@ -10,9 +11,6 @@ export const appConfig = {
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL ?? '',
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
   supabaseStorageBucket: import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? '',
-  // Realtime is part of the multi-device experience. It stays enabled unless
-  // an environment explicitly turns it off, so a missing Vercel variable does
-  // not silently prevent devices from refreshing one another.
   supabaseRealtimeEnabled: import.meta.env.VITE_SUPABASE_REALTIME_ENABLED !== 'false',
   dataRefreshIntervalMs: Number(import.meta.env.VITE_DATA_REFRESH_INTERVAL_MS ?? 5000),
   passwordResetMode: import.meta.env.VITE_PASSWORD_RESET_MODE ?? 'code',
@@ -22,18 +20,10 @@ export const appConfig = {
   analyticsKey: import.meta.env.VITE_ANALYTICS_KEY ?? '',
   otelEndpoint: import.meta.env.VITE_OTEL_EXPORTER_OTLP_ENDPOINT ?? '',
   adminInviteCode: import.meta.env.VITE_ADMIN_INVITE_CODE ?? '',
-  allowedOrigins: (import.meta.env.VITE_ALLOWED_ORIGINS ?? '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
+  allowedOrigins: (import.meta.env.VITE_ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
   primaryDomain: import.meta.env.VITE_PRIMARY_DOMAIN ?? '',
   cdnUrl: import.meta.env.VITE_CDN_URL ?? '',
 };
 
-export function hasSupabaseConfig() {
-  return Boolean(appConfig.supabaseUrl && appConfig.supabaseAnonKey);
-}
-
-export function needsFirstRunSetup() {
-  return appConfig.runtimeMode === 'supabase' && !hasSupabaseConfig();
-}
+export function hasSupabaseConfig() { return Boolean(appConfig.supabaseUrl && appConfig.supabaseAnonKey); }
+export function needsFirstRunSetup() { return appConfig.runtimeMode === 'supabase' && !hasSupabaseConfig(); }
