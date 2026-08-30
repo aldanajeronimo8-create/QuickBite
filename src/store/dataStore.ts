@@ -80,7 +80,7 @@ export const useDataStore = create<DataState>((set, get) => ({
   loadData: async (options) => {
     if (!options?.silent) set({ loading: true });
     try {
-      const [categories, products, orders] = await Promise.all([
+      const [categories, products, allOrders] = await Promise.all([
         repo.listCategories(),
         repo.listProducts(),
         repo.listOrders(),
@@ -92,6 +92,11 @@ export const useDataStore = create<DataState>((set, get) => ({
       } catch {
         users = [];
       }
+
+      const isAdminContext = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+      const orders = isAdminContext
+        ? allOrders
+        : allOrders.filter((order) => order.payment_status === 'confirmed' || order.payment_status === 'rejected');
 
       set({ categories, products, orders, users });
     } finally {
@@ -160,10 +165,16 @@ export const useDataStore = create<DataState>((set, get) => ({
       entityId: id,
       metadata: { action, payment_status: order.payment_status, status: order.status },
     });
-    set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
+
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin') && action === 'approve') {
+      set({ orders: [...get().orders.filter((item) => item.id !== id), order] });
+    } else {
+      set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
+    }
   },
 
   archiveOrders: async (ids) => {
+    if (!ids.length) return 0;
     const archivedCount = await repo.archiveOrders(ids);
     if (!archivedCount) return 0;
 
