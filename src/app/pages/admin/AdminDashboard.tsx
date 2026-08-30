@@ -7,8 +7,14 @@ import { Button } from '../../components/ui/button';
 import { ShoppingBag, CreditCard, Package, TrendingUp, AlertTriangle, CheckCircle, Star, Activity } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { SystemHealthCheck } from '../../../lib/supabase';
-import { getSystemHealthSummary } from '../../../repositories/quickbiteRepository';
+import { requireSupabaseClient } from '../../../lib/supabase';
+
+type SystemHealthCheck = {
+  service: string;
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  latency_ms: number | null;
+  checked_at: string;
+};
 
 export function AdminDashboard() {
   const { orders, products } = useDataStore();
@@ -18,7 +24,13 @@ export function AdminDashboard() {
     let active = true;
     const loadHealth = async () => {
       try {
-        const currentHealth = await getSystemHealthSummary();
+        const { data, error } = await requireSupabaseClient()
+          .from('system_health_checks')
+          .select('service,status,latency_ms,checked_at')
+          .order('checked_at', { ascending: false })
+          .limit(20);
+        if (error) throw error;
+        const currentHealth = (data ?? []) as SystemHealthCheck[];
         if (active) setHealth(currentHealth);
       } catch {
         // Health information is supplementary: a failed dashboard read must
