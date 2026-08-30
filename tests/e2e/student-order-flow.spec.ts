@@ -4,7 +4,11 @@ const email = process.env.PLAYWRIGHT_E2E_EMAIL;
 const password = process.env.PLAYWRIGHT_E2E_PASSWORD;
 
 test.describe('student purchase flow', () => {
-  test.skip(!email || !password, 'Set PLAYWRIGHT_E2E_EMAIL and PLAYWRIGHT_E2E_PASSWORD to run the real Supabase purchase flow.');
+  test.beforeAll(() => {
+    if (!email || !password) {
+      throw new Error('PLAYWRIGHT_E2E_EMAIL and PLAYWRIGHT_E2E_PASSWORD must be configured; the production purchase E2E must never silently skip in CI.');
+    }
+  });
 
   test('student can login, add a product, submit an order and see it in history', async ({ page }) => {
     await page.goto('/');
