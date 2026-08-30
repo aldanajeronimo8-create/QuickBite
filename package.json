@@ -3,7 +3,6 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "node --require ./scripts/esbuild-windows-spawn-fix.cjs ./node_modules/vite/bin/vite.js --configLoader native --host 127.0.0.1 --port 5173",
     "dev:local": "node --require ./scripts/esbuild-windows-spawn-fix.cjs ./node_modules/vite/bin/vite.js --configLoader native --host 127.0.0.1 --port 5173 --strictPort",
