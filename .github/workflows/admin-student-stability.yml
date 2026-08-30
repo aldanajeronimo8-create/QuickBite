@@ -16,52 +16,50 @@ jobs:
           from pathlib import Path
           import re
 
-          # Admin: add confirmation before changing order status.
           p = Path('src/app/pages/admin/AdminOrdersFixed.tsx')
           s = p.read_text()
           s = s.replace("import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Gift, ShoppingBag } from 'lucide-react';", "import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Gift, ShoppingBag, ShieldCheck } from 'lucide-react';", 1)
           if 'pendingStatusChange' not in s:
               s = s.replace("  const [redemptions, setRedemptions] = useState<Redemption[]>([]);", "  const [redemptions, setRedemptions] = useState<Redemption[]>([]);\n  const [pendingStatusChange, setPendingStatusChange] = useState<{ order: Order; status: Order['status'] } | null>(null);", 1)
-          s = re.sub(r"  const changeStatus = async \(orderId: string, status: Order\['status'\]\) => \{.*?\n  \};", "  const requestStatusChange = (order: Order, status: Order['status']) => {\n    if (status === order.status) return;\n    if (status !== 'pending' && order.payment_status !== 'confirmed') { toast.warning('Primero debes verificar y confirmar el pago.'); return; }\n    setPendingStatusChange({ order, status });\n  };\n\n  const changeStatus = async () => {\n    if (!pendingStatusChange) return;\n    try { await updateOrder(pendingStatusChange.order.id, { status: pendingStatusChange.status }); toast.success('Estado del pedido actualizado'); setPendingStatusChange(null); }\n    catch (error) { toast.error(getErrorMessage(error, 'No se pudo actualizar el pedido.')); }\n  };", s, count=1, flags=re.S)
-          s = s.replace("onClick={() => void changeStatus(order.id, status)}", "onClick={() => requestStatusChange(order, status)}", 1)
+          pattern = r"  const changeStatus = async \(orderId: string, status: Order\['status'\]\) => \{.*?\n  \};"
+          repl = "  const requestStatusChange = (order: Order, status: Order['status']) => {\n    if (status === order.status) return;\n    if (status !== 'pending' && order.payment_status !== 'confirmed') { toast.warning('Primero debes verificar y confirmar el pago.'); return; }\n    setPendingStatusChange({ order, status });\n  };\n\n  const changeStatus = async () => {\n    if (!pendingStatusChange) return;\n    try { await updateOrder(pendingStatusChange.order.id, { status: pendingStatusChange.status }); toast.success('Estado del pedido actualizado'); setPendingStatusChange(null); }\n    catch (error) { toast.error(getErrorMessage(error, 'No se pudo actualizar el pedido.')); }\n  };"
+          s2 = re.sub(pattern, repl, s, count=1, flags=re.S)
+          if s2 == s: raise SystemExit('status handler replacement failed')
+          s = s2.replace("onClick={() => void changeStatus(order.id, status)}", "onClick={() => requestStatusChange(order, status)}", 1)
           if 'Confirmar cambio de estado' not in s:
               marker = '    <Dialog open={confirmingExport}'
+              if marker not in s: raise SystemExit('export dialog marker not found')
               dialog = "    <Dialog open={!!pendingStatusChange} onOpenChange={(open) => !open && setPendingStatusChange(null)}><DialogContent><DialogHeader><DialogTitle>Confirmar cambio de estado</DialogTitle></DialogHeader>{pendingStatusChange && <div className=\"space-y-4\"><div className=\"rounded-xl bg-slate-50 p-4 text-sm\"><p><strong>Pedido:</strong> {pendingStatusChange.order.order_number}</p><p><strong>Nuevo estado:</strong> {statusLabels[pendingStatusChange.status]}</p><p><strong>Pago:</strong> {paymentLabels[pendingStatusChange.order.payment_status]}</p></div><p className=\"text-sm text-slate-600\">Confirma que quieres aplicar este cambio.</p><div className=\"flex justify-end gap-2\"><Button variant=\"outline\" onClick={() => setPendingStatusChange(null)}>Cancelar</Button><Button onClick={() => void changeStatus()} className=\"bg-blue-700 text-white\"><ShieldCheck className=\"mr-2 h-4 w-4\" />Confirmar</Button></div></div>}</DialogContent></Dialog>\n"
-              if marker in s: s = s.replace(marker, dialog + marker, 1)
+              s = s.replace(marker, dialog + marker, 1)
           p.write_text(s)
 
-          # Student: normalize break names and explanatory payment text.
           p = Path('src/app/pages/student/StudentMenuPage.tsx')
           s = p.read_text()
-          old = "{paymentMethod === 'cash' ? 'El pedido quedara pendiente hasta que el admin confirme el efectivo.' : 'El pedido quedara confirmado y sincronizado en Supabase.'}"
-          if old in s: s = s.replace(old, "{paymentMethod === 'cash' ? 'El pedido quedara pendiente hasta que el admin confirme el pago en efectivo.' : 'El pedido quedara pendiente hasta que el admin verifique y confirme el pago.'}", 1)
           s = s.replace('<span>{slot.name}</span>', "<span>{/primer/i.test(slot.name) ? 'Primer Descanso' : /segundo/i.test(slot.name) ? 'Segundo Descanso' : slot.name}</span>", 1)
+          s = s.replace("{paymentMethod === 'cash' ? 'El pedido quedara pendiente hasta que el admin confirme el efectivo.' : 'El pedido quedara confirmado y sincronizado en Supabase.'}", "{paymentMethod === 'cash' ? 'El pedido quedara pendiente hasta que el admin confirme el pago en efectivo.' : 'El pedido quedara pendiente hasta que el admin verifique y confirme el pago.'}", 1)
           p.write_text(s)
 
-          # Admin sidebar: improve grouping rhythm without altering navigation.
           p = Path('src/app/layouts/AdminLayoutFixed.tsx')
           s = p.read_text().replace('space-y-1"', 'space-y-1.5"', 1).replace('rounded-lg px-3 py-2.5 text-sm font-semibold', 'rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors', 1)
           p.write_text(s)
 
-          # Excel: append the canonical Canjes sheet to the existing professional workbook.
           p = Path('src/services/orderExportService.ts')
           s = p.read_text()
           if 'export async function downloadActiveSalesExcel' not in s:
-              old = "export function downloadActiveSalesExcel(orders: Order[]): ExcelSalesExportResult {"
-              new = "export async function downloadActiveSalesExcel(orders: Order[]): Promise<ExcelSalesExportResult> {"
+              s = s.replace("export function downloadActiveSalesExcel(orders: Order[]): ExcelSalesExportResult {", "export async function downloadActiveSalesExcel(orders: Order[]): Promise<ExcelSalesExportResult> {", 1)
+              old = "  const sales = reportOrders(orders);\n  const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`;\n  XLSX.writeFile(buildActiveSalesWorkbook(orders), fileName, { compression: true });"
+              new = "  const sales = reportOrders(orders);\n  const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`;\n  const workbook = buildActiveSalesWorkbook(orders);\n  const { data } = await requireSupabaseClient().from('loyalty_redemptions').select('redemption_code,created_at,points_spent,status,user:profiles!loyalty_redemptions_user_id_fkey(full_name),reward:loyalty_rewards(title)');\n  const rows = (data ?? []).map((r: any) => [r.redemption_code ?? '', new Date(r.created_at).toLocaleString('es-CO'), Array.isArray(r.user) ? (r.user[0]?.full_name ?? '') : (r.user?.full_name ?? ''), Array.isArray(r.reward) ? (r.reward[0]?.title ?? '') : (r.reward?.title ?? ''), Number(r.points_spent ?? 0), r.status ?? '']);\n  const canjes = XLSX.utils.aoa_to_sheet([['Código','Fecha','Estudiante','Recompensa','Puntos','Estado'], ...rows]);\n  canjes['!cols'] = [{wch:18},{wch:22},{wch:28},{wch:28},{wch:12},{wch:16}];\n  XLSX.utils.book_append_sheet(workbook, canjes, 'Canjes');\n  XLSX.writeFile(workbook, fileName, { compression: true });"
+              if old not in s: raise SystemExit('exporter block not found')
               s = s.replace(old, new, 1)
-              s = s.replace("  const sales = reportOrders(orders);\n  const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`;\n  XLSX.writeFile(buildActiveSalesWorkbook(orders), fileName, { compression: true });", "  const sales = reportOrders(orders);\n  const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`;\n  const workbook = buildActiveSalesWorkbook(orders);\n  const { data } = await requireSupabaseClient().from('loyalty_redemptions').select('redemption_code,created_at,points_spent,status,user:profiles!loyalty_redemptions_user_id_fkey(full_name),reward:loyalty_rewards(title)');\n  const rows = (data ?? []).map((r: any) => [r.redemption_code ?? '', new Date(r.created_at).toLocaleString('es-CO'), Array.isArray(r.user) ? (r.user[0]?.full_name ?? '') : (r.user?.full_name ?? ''), Array.isArray(r.reward) ? (r.reward[0]?.title ?? '') : (r.reward?.title ?? ''), Number(r.points_spent ?? 0), r.status ?? '']);\n  const canjes = XLSX.utils.aoa_to_sheet([['Código','Fecha','Estudiante','Recompensa','Puntos','Estado'], ...rows]);\n  canjes['!cols'] = [{wch:18},{wch:22},{wch:28},{wch:28},{wch:12},{wch:16}];\n  XLSX.utils.book_append_sheet(workbook, canjes, 'Canjes');\n  XLSX.writeFile(workbook, fileName, { compression: true });", 1)
-              p.write_text(s)
+          p.write_text(s)
 
-          # Remove this temporary workflow before committing the actual changes.
-          wf = Path('.github/workflows/admin-student-stability.yml')
-          if wf.exists(): wf.unlink()
+          Path('.github/workflows/admin-student-stability.yml').unlink(missing_ok=True)
           PY
       - name: Commit focused changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/app/pages/admin/AdminOrdersFixed.tsx src/app/pages/student/StudentMenuPage.tsx src/app/layouts/AdminLayoutFixed.tsx src/services/orderExportService.ts supabase/migrations/20260830004000_seed_pickup_breaks_and_lock_payment_methods.sql .github/workflows/admin-student-stability.yml
+          git add src/app/pages/admin/AdminOrdersFixed.tsx src/app/pages/student/StudentMenuPage.tsx src/app/layouts/AdminLayoutFixed.tsx src/services/orderExportService.ts .github/workflows/admin-student-stability.yml
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "fix: stabilize admin reports orders and pickup"
           git push
