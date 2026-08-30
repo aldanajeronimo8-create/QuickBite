@@ -14,6 +14,9 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
 const StudentRegisterPage = lazy(() => import('./pages/student/StudentRegisterPage').then((m) => ({ default: m.StudentRegisterPage })));
 const StudentFeatureCenter = lazy(() => import('./pages/student/StudentFeatureCenter').then((m) => ({ default: m.StudentFeatureCenter })));
+const StudentHistoryPage = lazy(() => import('./pages/student/StudentHistoryPage').then((m) => ({ default: m.StudentHistoryPage })));
+const StudentRewardsPage = lazy(() => import('./pages/student/StudentRewardsPage').then((m) => ({ default: m.StudentRewardsPage })));
+const StudentNotificationsPage = lazy(() => import('./pages/student/StudentNotificationsPage').then((m) => ({ default: m.StudentNotificationsPage })));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders').then((m) => ({ default: m.AdminOrders })));
 const AdminPayments = lazy(() => import('./pages/admin/AdminPayments').then((m) => ({ default: m.AdminPayments })));
@@ -38,6 +41,9 @@ export const router = createBrowserRouter([
   { path: '/register-student', element: lazyPage(StudentRegisterPage) },
   { path: '/menu', element: <StudentExperienceLayout /> },
   { path: '/student/features', element: lazyPage(StudentFeatureCenter) },
+  { path: '/student/history', element: lazyPage(StudentHistoryPage) },
+  { path: '/student/rewards', element: lazyPage(StudentRewardsPage) },
+  { path: '/student/notifications', element: lazyPage(StudentNotificationsPage) },
   { path: '/register', element: <AuthRedirect><Suspense fallback={<PageLoader />}><RegisterPage /></Suspense></AuthRedirect> },
   { path: '/forgot-password', element: lazyPage(ForgotPasswordPage) },
   { path: '/reset-password', element: lazyPage(ResetPasswordPage) },
