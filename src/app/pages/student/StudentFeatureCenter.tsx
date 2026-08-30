@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Bell, Heart, History, Package, RefreshCcw, Star, UtensilsCrossed } from 'lucide-react';
 import { requireSupabaseClient, type Product } from '../../../lib/supabase';
 
 export function StudentFeatureCenter() {
-  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
