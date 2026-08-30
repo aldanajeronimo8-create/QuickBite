@@ -1,0 +1,37 @@
+name: Cleanup Student visual branch
+on:
+  push:
+    branches:
+      - feat/liquid-glass-ui
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove duplicated Student visual helper
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/app/pages/student/StudentMenuPage.tsx')
+          s = p.read_text()
+          block = "  const futurePickupSlots = useMemo(() => {\n    const now = new Date();\n    return pickupSlots.filter((slot) => {\n      const [hour, minute, second = 0] = slot.starts_at.split(':').map(Number);\n      const candidate = new Date();\n      candidate.setHours(hour, minute, second, 0);\n      return candidate.getTime() >= now.getTime();\n    });\n  }, [pickupSlots]);\n\n"
+          if s.count(block) > 1:
+              first = s.find(block)
+              second = s.find(block, first + len(block))
+              s = s[:second] + s[second + len(block):]
+              p.write_text(s)
+          PY
+      - name: Remove temporary workflow
+        run: |
+          git rm .github/workflows/cleanup-student-visual.yml || true
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/pages/student/StudentMenuPage.tsx
+          git commit -m "chore: remove duplicated Student helper" || true
+          git push
