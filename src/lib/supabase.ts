@@ -23,6 +23,7 @@ export interface Order {
   payment_method: 'nequi' | 'cash' | 'bre-b';
   payment_status: 'pending' | 'confirmed' | 'rejected';
   order_number: string; created_at: string; admin_hidden?: boolean;
+  order_type?: 'purchase' | 'redemption'; redemption_id?: string | null;
   pickup_code?: string; estimated_minutes?: number; payment_reference?: string;
   notes?: string | null; user?: Profile; order_items?: OrderItem[];
 }
