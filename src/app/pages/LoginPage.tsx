@@ -9,6 +9,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { canAccessStudent } from '../../lib/access';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
+import { bindStudentUser, clearBoundStudentUser, getBoundStudentUserId } from '../../lib/studentDeviceSession';
 
 type Mode = 'student' | 'admin';
 
@@ -41,6 +42,12 @@ export function LoginPage() {
       });
       if (error || !data.user) throw new Error('Correo o contraseña incorrectos.');
 
+      const boundUserId = getBoundStudentUserId();
+      if (boundUserId && boundUserId !== data.user.id) {
+        await supabase.auth.signOut();
+        throw new Error('Este dispositivo ya está asociado a otra cuenta de estudiante. Usa “Cambiar estudiante en este dispositivo” para cambiarla.');
+      }
+
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('id,role')
@@ -52,6 +59,7 @@ export function LoginPage() {
         throw new Error('No tienes permisos de estudiante.');
       }
 
+      bindStudentUser(data.user.id);
       navigate('/menu');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
@@ -83,7 +91,18 @@ export function LoginPage() {
     }
   };
 
+  const changeStudentOnDevice = async () => {
+    const supabase = requireSupabaseClient();
+    await supabase.auth.signOut();
+    clearBoundStudentUser();
+    setStudentEmail('');
+    setStudentPassword('');
+    setErrors({});
+    toast.success('Este dispositivo ya puede vincularse a otro estudiante.');
+  };
+
   const isStudent = mode === 'student';
+  const studentIsBound = Boolean(getBoundStudentUserId());
 
   return (
     <div className={`qb-auth qb-auth--${isStudent ? 'student' : 'admin'} min-h-screen flex flex-col items-center justify-center p-5 transition-all duration-500`}>
@@ -148,6 +167,11 @@ export function LoginPage() {
               <Button type="submit" disabled={loading} className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-6 rounded-xl">
                 {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Entrando...</> : 'Ver menú'}
               </Button>
+              {studentIsBound && (
+                <Button type="button" variant="ghost" onClick={() => void changeStudentOnDevice()} disabled={loading} className="w-full text-xs text-slate-500 hover:bg-slate-50 hover:text-green-700">
+                  Cambiar estudiante en este dispositivo
+                </Button>
+              )}
               <Link to="/register-student">
                 <Button type="button" variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50 py-5 rounded-xl text-sm">
                   Crear cuenta de estudiante
