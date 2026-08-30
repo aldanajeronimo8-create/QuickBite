@@ -72,7 +72,8 @@ function applyReportLayout(sheet: XLSX.WorkSheet, title: string, headers: string
   }
 }
 
-export function buildActiveSalesWorkbook(orders: Order[], _redemptions: SalesRedemptionExport[] = [], options: SalesWorkbookOptions = {}) {
+export function buildActiveSalesWorkbook(orders: Order[], redemptions: SalesRedemptionExport[] = [], options: SalesWorkbookOptions = {}) {
+  void redemptions;
   const sales = options.includeHidden ? orders : activeOrders(orders);
   if (!sales.length) throw new Error('No hay ventas activas para descargar.');
   const salesRows = sales.map((order) => { const purchase = purchaseDateAndTime(order.created_at); const totalUnits = order.order_items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0; return [order.order_number, purchase.date, purchase.time, order.user?.full_name ?? 'Sin cliente', order.user?.email ?? '', order.user?.ti ?? '', orderStatusLabel[order.status], paymentStatusLabel[order.payment_status], paymentMethodLabel[order.payment_method], order.pickup_code ?? '', order.payment_reference ?? '', Number(order.total), Number(order.order_items?.length ?? 0), Number(totalUnits), Number(order.estimated_minutes ?? 0)]; });
