@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Bell, Heart, History, Package, RefreshCcw, Star, UtensilsCrossed } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Bell, Heart, History, Package, RefreshCcw, ShoppingCart, Star, UtensilsCrossed } from 'lucide-react';
 import { requireSupabaseClient, type Product } from '../../../lib/supabase';
 import { toast } from 'sonner';
 
 export function StudentFeatureCenter() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,10 +19,9 @@ export function StudentFeatureCenter() {
     const id = session.session?.user.id;
     if (!id) return;
     setUserId(id);
-
     const [{ data: favoriteRows, error: favoritesError }, { data: productRows, error: productsError }] = await Promise.all([
       supabase.from('favorites').select('product_id').eq('user_id', id),
-      supabase.from('products').select('id,name,description,price,image_url,category_id,stock,available,created_at').eq('available', true).order('name'),
+      supabase.from('products').select('id,name,description,price,image_url,category_id,stock,available,created_at').order('name'),
     ]);
     if (favoritesError) throw favoritesError;
     if (productsError) throw productsError;
@@ -30,9 +30,7 @@ export function StudentFeatureCenter() {
   }, []);
 
   useEffect(() => {
-    void loadFavorites().catch((error) => {
-      toast.error(error instanceof Error ? error.message : 'No se pudieron cargar los favoritos.');
-    }).finally(() => setLoading(false));
+    void loadFavorites().catch((error) => toast.error(error instanceof Error ? error.message : 'No se pudieron cargar los favoritos.')).finally(() => setLoading(false));
   }, [loadFavorites]);
 
   const favorites = useMemo(() => products.filter((product) => favoriteIds.includes(product.id)), [products, favoriteIds]);
@@ -43,18 +41,23 @@ export function StudentFeatureCenter() {
     try {
       const supabase = requireSupabaseClient();
       const exists = favoriteIds.includes(productId);
-      const operation = exists
-        ? supabase.from('favorites').delete().eq('user_id', userId).eq('product_id', productId)
-        : supabase.from('favorites').insert({ user_id: userId, product_id: productId });
-      const { error } = await operation;
+      const { error } = exists
+        ? await supabase.from('favorites').delete().eq('user_id', userId).eq('product_id', productId)
+        : await supabase.from('favorites').insert({ user_id: userId, product_id: productId });
       if (error) throw error;
       setFavoriteIds((ids) => exists ? ids.filter((id) => id !== productId) : [...ids, productId]);
       toast.success(exists ? 'Quitado de favoritos.' : 'Agregado a favoritos.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo actualizar favoritos.');
-    } finally {
-      setSaving(null);
+    } finally { setSaving(null); }
+  };
+
+  const addFavoriteToCart = (product: Product) => {
+    if (!product.available || product.stock <= 0) {
+      toast.info(`${product.name} no tiene stock disponible en este momento.`);
+      return;
     }
+    navigate(`/menu?addProduct=${encodeURIComponent(product.id)}`);
   };
 
   return <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(22,163,106,.14),_transparent_38%),radial-gradient(circle_at_top_right,_rgba(37,99,235,.12),_transparent_34%),#f5f8f7] p-5 text-slate-900 sm:p-8">
@@ -68,10 +71,8 @@ export function StudentFeatureCenter() {
       </div>
 
       <section className="rounded-[2rem] border border-white/60 bg-white/70 p-6 shadow-xl backdrop-blur-2xl">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Heart className="h-6 w-6 text-rose-500"/><div><h2 className="font-black">Favoritos</h2><p className="text-sm text-slate-600">Agrega y quita productos directamente desde aquí.</p></div></div><span className="rounded-full bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">{favorites.length} guardados</span></div>
-        {loading ? <p className="mt-5 text-sm text-slate-500">Cargando favoritos…</p> : <div className="mt-5 space-y-6">
-          {products.length === 0 ? <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No hay productos disponibles.</p> : <div className="grid gap-4 sm:grid-cols-2">{products.map((product) => { const isFavorite = favoriteIds.includes(product.id); return <article key={product.id} className="flex gap-3 rounded-2xl border border-white/60 bg-white/60 p-3"><img src={product.image_url} alt={product.name} className="h-20 w-20 rounded-xl object-cover"/><div className="min-w-0 flex-1"><p className="font-black">{product.name}</p><p className="text-sm text-emerald-700">${product.price.toLocaleString('es-CO')}</p><button type="button" onClick={() => void toggleFavorite(product.id)} disabled={saving === product.id} className={`mt-2 inline-flex items-center gap-1 rounded-full px-3 py-2 text-xs font-bold ${isFavorite ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}><Heart className={`h-3.5 w-3.5 ${isFavorite ? 'fill-current' : ''}`}/>{saving === product.id ? 'Guardando…' : isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}</button></div></article>; })}</div>}
-        </div>}
+        <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><Heart className="h-6 w-6 text-rose-500"/><div><h2 className="font-black">Favoritos</h2><p className="text-sm text-slate-600">Guarda tus productos y agrégalos al carrito con un toque.</p></div></div><span className="rounded-full bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">{favorites.length} guardados</span></div>
+        {loading ? <p className="mt-5 text-sm text-slate-500">Cargando favoritos…</p> : favorites.length === 0 ? <p className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Aún no tienes favoritos. Guarda productos desde aquí para encontrarlos y comprarlos rápidamente.</p> : <div className="mt-5 grid gap-4 sm:grid-cols-2">{favorites.map((product) => <article key={product.id} className="flex gap-3 rounded-2xl border border-white/60 bg-white/60 p-3"><img src={product.image_url} alt={product.name} className="h-20 w-20 rounded-xl object-cover"/><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div><p className="font-black">{product.name}</p><p className="text-sm text-emerald-700">${product.price.toLocaleString('es-CO')}</p></div><button type="button" onClick={() => void toggleFavorite(product.id)} disabled={saving === product.id} aria-label={`Quitar ${product.name} de favoritos`} className="rounded-full p-2 text-rose-600 hover:bg-rose-50"><Heart className="h-4 w-4 fill-current"/></button></div><p className="mt-1 text-xs text-slate-500">{product.stock > 0 && product.available ? `Disponible · ${product.stock} en stock` : 'No disponible ahora'}</p><button type="button" onClick={() => addFavoriteToCart(product)} disabled={!product.available || product.stock <= 0} className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-2 text-xs font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"><ShoppingCart className="h-3.5 w-3.5"/>Agregar al carrito</button></div></article>)}</div>}
       </section>
 
       <div className="flex flex-wrap gap-3"><Link to="/menu?tab=menu" className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-sm font-bold"><Package className="h-4 w-4"/>Comprar</Link><Link to="/student/history" className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-sm font-bold"><RefreshCcw className="h-4 w-4"/>Recompra</Link></div>
