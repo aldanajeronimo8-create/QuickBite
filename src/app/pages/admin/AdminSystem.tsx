@@ -21,6 +21,9 @@ export function AdminSystem() {
     setLoading(true); setError(null);
     try {
       const supabase = requireSupabaseClient();
+      const { error: healthError } = await supabase.rpc('run_admin_health_check');
+      if (healthError) throw healthError;
+
       const { data, error: snapshotError } = await supabase.rpc('get_system_operational_snapshot');
       if (snapshotError) throw snapshotError;
 
