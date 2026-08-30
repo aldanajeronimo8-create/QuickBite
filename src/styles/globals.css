@@ -34,7 +34,22 @@
   [data-slot="textarea"],
   [data-slot="select-trigger"] {
     border-color: rgba(79, 144, 168, 0.24);
+    border-radius: 1rem !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  }
+
+  button:not([data-slot="button"]) {
+    border-radius: 1rem;
+  }
+
+  button:not([data-slot="button"]):has(> svg:only-child) {
+    border-radius: 999px;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    border-radius: 1rem;
   }
 
   [data-slot="input"]:focus-visible,
@@ -81,14 +96,14 @@
 
   .qb-auth-switch {
     border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 8px;
+    border-radius: 999px;
     background: rgba(255, 255, 255, 0.12) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
     backdrop-filter: blur(12px);
   }
 
   .qb-auth-switch > button {
-    border-radius: 6px !important;
+    border-radius: 999px !important;
   }
 
   .qb-auth-card {
@@ -117,7 +132,7 @@
   }
 
   .qb-auth-card [data-slot="button"] {
-    border-radius: 8px !important;
+    border-radius: 999px !important;
   }
 
   .qb-auth-card [data-slot="button"].bg-green-600 {
@@ -156,7 +171,7 @@
   .student-tabs,
   div:has(> header[class*="bg-[#166534]"]) > nav {
     border: 1px solid rgba(79, 144, 168, 0.2);
-    border-radius: 8px !important;
+    border-radius: 999px !important;
     background: rgba(255, 255, 255, 0.72) !important;
     box-shadow: 0 12px 28px rgba(24, 66, 87, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(16px);
@@ -164,7 +179,7 @@
 
   .student-tabs button,
   div:has(> header[class*="bg-[#166534]"]) > nav button {
-    border-radius: 6px !important;
+    border-radius: 999px !important;
   }
 
   .student-app input:not([data-slot="input"]),
@@ -172,6 +187,7 @@
   div:has(> header[class*="bg-[#166534]"]) input:not([data-slot="input"]),
   div:has(> header[class*="bg-[#166534]"]) textarea {
     border-color: rgba(79, 144, 168, 0.24) !important;
+    border-radius: 1rem !important;
     background: rgba(255, 255, 255, 0.74) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
   }
@@ -237,7 +253,7 @@
 
   .admin-sidebar nav a {
     border: 1px solid transparent;
-    border-radius: 8px !important;
+    border-radius: 1rem !important;
   }
 
   .admin-sidebar nav a:hover {
