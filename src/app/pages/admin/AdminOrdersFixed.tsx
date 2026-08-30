@@ -65,7 +65,7 @@ export function AdminOrdersFixed() {
     if (closingPeriod || !orders.length) return;
     setClosingPeriod(true);
     try {
-      const result = downloadActiveSalesExcel(orders);
+      const result = await downloadActiveSalesExcel(orders);
       const count = await resetOrdersForNewPeriod();
       setConfirmingExport(false); setSelectedOrder(null); setShowHidden(false);
       toast.success(`Excel descargado (${result.count} ventas) y ${count} pedidos reiniciados.`);
