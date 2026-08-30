@@ -10,8 +10,8 @@ import { canAccessStudent } from '../../lib/access';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 import { ResetTestDataButton } from '../components/admin/ResetTestDataButton';
 
-const primaryColor = '#1E3A8A';
-const navigationAccent = '#DBEAFE';
+const primaryColor = '#1747B8';
+const navigationAccent = '#E0ECFF';
 type NavItemProps = { path: string; label: string; icon: LucideIcon; active: boolean; badge?: number; collapsed?: boolean };
 function NavItem({ path, label, icon: Icon, active, badge, collapsed = false }: NavItemProps) {
   return <Link to={path} title={collapsed ? label : undefined} className={`admin-nav-link mb-0.5 flex items-center rounded-2xl py-2.5 text-sm font-medium transition-all ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'}`} style={active ? { background: 'rgba(255,255,255,0.13)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : { color: '#BFDBFE' }}><Icon className="h-4 w-4 shrink-0" />{!collapsed && <span className="flex-1">{label}</span>}{!collapsed && badge != null && badge > 0 && <span className="rounded-full px-1.5 py-0.5 text-xs font-bold" style={{ background: navigationAccent, color: primaryColor }}>{badge}</span>}{collapsed && badge != null && badge > 0 && <span className="absolute ml-6 mt-[-18px] h-2.5 w-2.5 rounded-full" style={{ background: navigationAccent }} aria-label={`${badge} pendientes`} />}</Link>;
@@ -55,7 +55,7 @@ export function AdminLayout() {
       </div>
     </aside>
     <header className="admin-mobile-header sticky top-0 z-20 flex h-14 items-center border-b border-slate-200 bg-white/95 px-4 shadow-sm backdrop-blur lg:hidden"><button type="button" onClick={() => setMobileSidebarOpen(true)} className="rounded-full p-2 text-blue-900 hover:bg-blue-50" aria-label="Abrir menú lateral"><Menu className="h-6 w-6" /></button><div className="ml-3 flex items-center gap-2"><QuickBiteLogo className="h-8 w-8 rounded-lg" alt="QuickBite" /><span className="font-black text-blue-900">QuickBite Admin</span></div></header>
-    <button type="button" onClick={() => setSidebarCollapsed((value) => !value)} className="fixed bottom-5 left-4 z-50 hidden h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-blue-900/90 text-white shadow-[0_10px_28px_rgba(30,58,138,0.32)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-800 active:translate-y-0 lg:flex" title={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'} aria-label={sidebarCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}>{sidebarCollapsed ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}</button>
+    <button type="button" onClick={() => setSidebarCollapsed((value) => !value)} className="fixed bottom-5 left-4 z-50 hidden h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-[#1747B8]/90 text-white shadow-[0_10px_28px_rgba(23,71,184,0.32)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#2563EB] active:translate-y-0 lg:flex" title={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú lateral'} aria-label={sidebarCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}>{sidebarCollapsed ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}</button>
     {location.pathname === '/admin/reports' && <div className="fixed bottom-5 right-5 z-40"><ResetTestDataButton /></div>}
     <main className={`admin-main ${mainMargin} min-h-screen transition-all duration-200`}><div className="p-4 sm:p-6 lg:p-8"><Outlet /></div></main><Toaster position="top-center" />
   </div>;
