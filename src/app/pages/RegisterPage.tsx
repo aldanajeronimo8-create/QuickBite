@@ -168,23 +168,18 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
+    <div className="qb-auth qb-auth--admin min-h-screen flex items-center justify-center p-4">
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo & Header */}
-        <div className="text-center mb-8">
+        <div className="qb-auth-brand text-center mb-8">
           <QuickBiteLogo className="mb-4 h-16 w-16 rounded-2xl" />
           <h1 className="text-4xl font-bold text-white mb-2">QuickBite Admin</h1>
           <p className="text-blue-200">Registro de Administrador</p>
         </div>
 
         {/* Register Card */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8">
+        <div className="qb-auth-card bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8">
           <div className="flex items-center gap-2 mb-6">
             <Shield className="w-6 h-6 text-yellow-400" />
             <h2 className="text-2xl font-bold text-white">Crear Cuenta</h2>

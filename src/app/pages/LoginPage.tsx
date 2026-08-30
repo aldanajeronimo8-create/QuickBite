@@ -86,13 +86,9 @@ export function LoginPage() {
   const isStudent = mode === 'student';
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-5 transition-all duration-500 ${
-      isStudent
-        ? 'bg-gradient-to-br from-green-700 via-green-600 to-emerald-500'
-        : 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800'
-    }`}>
+    <div className={`qb-auth qb-auth--${isStudent ? 'student' : 'admin'} min-h-screen flex flex-col items-center justify-center p-5 transition-all duration-500`}>
       <div className="w-full max-w-sm relative z-10">
-        <div className="text-center mb-7">
+        <div className="qb-auth-brand text-center mb-7">
           <QuickBiteLogo className="mb-3 h-[4.5rem] w-[4.5rem] rounded-3xl" />
           <h1 className="text-3xl font-bold text-white tracking-tight">QuickBite</h1>
           <p className={`text-sm mt-1 ${isStudent ? 'text-green-100' : 'text-blue-300'}`}>
@@ -100,7 +96,7 @@ export function LoginPage() {
           </p>
         </div>
 
-        <div className={`flex rounded-2xl p-1 mb-5 ${isStudent ? 'bg-white/25' : 'bg-white/10'}`}>
+        <div className={`qb-auth-switch flex rounded-2xl p-1 mb-5 ${isStudent ? 'bg-white/25' : 'bg-white/10'}`}>
           <button
             type="button"
             onClick={() => { setMode('student'); setErrors({}); }}
@@ -123,7 +119,7 @@ export function LoginPage() {
           </button>
         </div>
 
-        <div className={`rounded-3xl shadow-2xl p-7 ${isStudent ? 'bg-white' : 'bg-white/10 backdrop-blur-xl border border-white/20'}`}>
+        <div className={`qb-auth-card rounded-3xl shadow-2xl p-7 ${isStudent ? 'bg-white' : 'bg-white/10 backdrop-blur-xl border border-white/20'}`}>
           {isStudent ? (
             <form onSubmit={handleStudentLogin} className="space-y-4">
               <div>

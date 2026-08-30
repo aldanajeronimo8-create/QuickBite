@@ -116,15 +116,15 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
+    <div className="qb-auth qb-auth--admin flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
+        <div className="qb-auth-brand mb-8 text-center">
           <QuickBiteLogo className="mb-4 h-16 w-16 rounded-2xl" />
           <h1 className="mb-2 text-4xl font-bold text-white">QuickBite</h1>
           <p className="text-blue-200">Recuperar contraseña de estudiante</p>
         </div>
 
-        <div className="rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
+        <div className="qb-auth-card rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
           <div className="mb-8 flex items-center gap-2">
             {Array.from({ length: totalSteps }, (_, i) => i + 1).map((n, i) => (
               <div key={n} className="contents">

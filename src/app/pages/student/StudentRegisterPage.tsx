@@ -102,11 +102,10 @@ export function StudentRegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-700 via-green-600 to-emerald-500 flex flex-col items-center justify-center p-5">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute -top-32 -right-32 w-72 h-72 bg-yellow-300/30 rounded-full blur-3xl" /><div className="absolute -bottom-32 -left-32 w-72 h-72 bg-red-400/20 rounded-full blur-3xl" /></div>
+    <div className="qb-auth qb-auth--student min-h-screen flex flex-col items-center justify-center p-5">
       <div className="w-full max-w-lg relative z-10">
-        <div className="text-center mb-6"><QuickBiteLogo className="mx-auto mb-3 h-16 w-16 rounded-3xl" /><h1 className="text-3xl font-bold text-white tracking-tight">QuickBite</h1><p className="text-green-100 text-sm mt-1">Crear cuenta de estudiante</p></div>
-        <div className="bg-white rounded-3xl shadow-2xl p-7 space-y-5">
+        <div className="qb-auth-brand text-center mb-6"><QuickBiteLogo className="mx-auto mb-3 h-16 w-16 rounded-3xl" /><h1 className="text-3xl font-bold text-white tracking-tight">QuickBite</h1><p className="text-green-100 text-sm mt-1">Crear cuenta de estudiante</p></div>
+        <div className="student-register-card bg-white rounded-3xl shadow-2xl p-7 space-y-5">
           <div><h2 className="text-xl font-bold text-gray-800">Registro y autorización de datos</h2><p className="text-gray-500 text-sm mt-1">Completa tus datos y registra la autorización de tu representante legal o tutor.</p></div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <section className="space-y-3 rounded-2xl border border-slate-200 p-4"><h3 className="font-black text-slate-800">1. Datos del estudiante</h3>

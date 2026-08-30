@@ -3,6 +3,16 @@ import { ChevronDown, Gift } from 'lucide-react';
 import { requireSupabaseClient } from '../../../lib/supabase';
 import { Badge } from '../ui/badge';
 
+type RedemptionRow = {
+  id: string;
+  redemption_code: string;
+  points_spent?: number | string | null;
+  status?: string | null;
+  created_at: string;
+  reward?: { title?: string | null } | Array<{ title?: string | null }> | null;
+  user?: { full_name?: string | null } | Array<{ full_name?: string | null }> | null;
+};
+
 export function AdminRedemptionsSection() {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Array<{ id: string; redemption_code: string; points_spent: number; status: string; created_at: string; student: string; reward: string }>>([]);
@@ -12,15 +22,16 @@ export function AdminRedemptionsSection() {
     if (!open) return;
     let active = true;
     setLoading(true);
-    void requireSupabaseClient()
-      .from('loyalty_redemptions')
-      .select('id,redemption_code,points_spent,status,created_at,reward:loyalty_rewards(title),user:profiles!loyalty_redemptions_user_id_fkey(full_name)')
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data, error }) => {
+    void (async () => {
+      try {
+        const { data, error } = await requireSupabaseClient()
+          .from('loyalty_redemptions')
+          .select('id,redemption_code,points_spent,status,created_at,reward:loyalty_rewards(title),user:profiles!loyalty_redemptions_user_id_fkey(full_name)')
+          .order('created_at', { ascending: false })
+          .limit(50);
         if (error) throw error;
         if (!active) return;
-        setRows((data ?? []).map((row: any) => ({
+        setRows(((data ?? []) as RedemptionRow[]).map((row) => ({
           id: row.id,
           redemption_code: row.redemption_code,
           points_spent: Number(row.points_spent ?? 0),
@@ -29,9 +40,12 @@ export function AdminRedemptionsSection() {
           student: Array.isArray(row.user) ? row.user[0]?.full_name ?? 'Estudiante' : row.user?.full_name ?? 'Estudiante',
           reward: Array.isArray(row.reward) ? row.reward[0]?.title ?? 'Recompensa' : row.reward?.title ?? 'Recompensa',
         })));
-      })
-      .catch(() => { if (active) setRows([]); })
-      .finally(() => { if (active) setLoading(false); });
+      } catch {
+        if (active) setRows([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
     return () => { active = false; };
   }, [open]);
 

@@ -2,18 +2,18 @@
 
 :root {
   --font-size: 16px;
-  --qb-green: #16a34a;
-  --qb-green-dark: #166534;
-  --qb-green-light: #dcfce7;
-  --qb-blue: #2563eb;
-  --qb-blue-dark: #1e3a8a;
-  --qb-blue-light: #dbeafe;
-  --qb-background: #f8fafc;
-  --qb-surface: #ffffff;
-  --qb-text: #172033;
-  --qb-text-secondary: #64748b;
-  --qb-border: #e2e8f0;
-  --qb-success: #22c55e;
+  --qb-green: #079657;
+  --qb-green-dark: #08714a;
+  --qb-green-light: #ddf5e8;
+  --qb-blue: #0c78b7;
+  --qb-blue-dark: #0d3158;
+  --qb-blue-light: #ddeef9;
+  --qb-background: #f4faf9;
+  --qb-surface: rgba(255, 255, 255, 0.78);
+  --qb-text: #10243a;
+  --qb-text-secondary: #5a7080;
+  --qb-border: rgba(79, 144, 168, 0.2);
+  --qb-success: #079657;
   --qb-warning: #f59e0b;
   --qb-error: #dc2626;
   --background: var(--qb-background);
@@ -44,7 +44,7 @@
   --chart-3: #0f766e;
   --chart-4: var(--qb-warning);
   --chart-5: var(--qb-error);
-  --radius: 0.875rem;
+  --radius: 0.5rem;
   --sidebar: var(--qb-blue-dark);
   --sidebar-foreground: #ffffff;
   --sidebar-primary: var(--qb-blue);

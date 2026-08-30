@@ -1,6 +1,7 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+@import './globals.css';
 
 /* Student navigation: collapse the green header while scrolling down and bring the tab bar to the top. */
 @supports (animation-timeline: scroll()) {

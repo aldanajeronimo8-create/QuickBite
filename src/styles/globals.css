@@ -1,0 +1,372 @@
+@layer base {
+  html {
+    min-width: 320px;
+    background: #eef6f5;
+  }
+
+  body {
+    min-width: 320px;
+    background:
+      linear-gradient(135deg, rgba(220, 244, 235, 0.76), transparent 44%),
+      linear-gradient(315deg, rgba(220, 237, 250, 0.78), transparent 48%),
+      #f5faf9;
+    color: #10243a;
+  }
+
+  ::selection {
+    background: rgba(7, 150, 87, 0.2);
+    color: #0b2b20;
+  }
+
+  :focus-visible {
+    outline: 3px solid rgba(12, 120, 183, 0.44);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  [data-slot="card"] {
+    border-color: rgba(79, 144, 168, 0.2);
+    box-shadow: 0 14px 34px rgba(24, 66, 87, 0.08);
+  }
+
+  [data-slot="input"],
+  [data-slot="textarea"],
+  [data-slot="select-trigger"] {
+    border-color: rgba(79, 144, 168, 0.24);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  }
+
+  [data-slot="input"]:focus-visible,
+  [data-slot="textarea"]:focus-visible,
+  [data-slot="select-trigger"]:focus-visible {
+    border-color: #0c78b7;
+    box-shadow: 0 0 0 3px rgba(12, 120, 183, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  [data-slot="select-content"] {
+    border-color: rgba(79, 144, 168, 0.24);
+    box-shadow: 0 16px 36px rgba(19, 57, 77, 0.16);
+    backdrop-filter: blur(18px);
+  }
+
+  .qb-auth {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  .qb-auth::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    content: "";
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+      linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
+
+  .qb-auth--student {
+    background: linear-gradient(132deg, #0a5a50 0%, #08714a 56%, #0c78b7 100%) !important;
+  }
+
+  .qb-auth--admin {
+    background: linear-gradient(132deg, #0b3458 0%, #0d3158 54%, #08714a 100%) !important;
+  }
+
+  .qb-auth-brand {
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.14);
+  }
+
+  .qb-auth-switch {
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.12) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(12px);
+  }
+
+  .qb-auth-switch > button {
+    border-radius: 6px !important;
+  }
+
+  .qb-auth-card {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.86) !important;
+    box-shadow: 0 24px 60px rgba(0, 24, 38, 0.27), inset 0 1px 0 rgba(255, 255, 255, 0.62);
+    backdrop-filter: blur(20px);
+  }
+
+  .qb-auth--admin .qb-auth-card {
+    background: rgba(7, 38, 59, 0.59) !important;
+    box-shadow: 0 24px 60px rgba(0, 15, 30, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .qb-auth-card [data-slot="input"] {
+    min-height: 2.85rem;
+    border-color: rgba(79, 144, 168, 0.28);
+    background: rgba(255, 255, 255, 0.64);
+  }
+
+  .qb-auth--admin .qb-auth-card [data-slot="input"] {
+    border-color: rgba(192, 226, 241, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: none;
+  }
+
+  .qb-auth-card [data-slot="button"] {
+    border-radius: 8px !important;
+  }
+
+  .qb-auth-card [data-slot="button"].bg-green-600 {
+    background: #079657 !important;
+    box-shadow: 0 10px 24px rgba(5, 150, 87, 0.23);
+  }
+
+  .qb-auth-card [data-slot="button"].bg-gradient-to-r {
+    background: linear-gradient(90deg, #0c78b7, #0d3158) !important;
+  }
+
+  .student-app,
+  div:has(> header[class*="bg-[#166534]"]) {
+    min-height: 100vh;
+    background:
+      linear-gradient(135deg, rgba(220, 244, 235, 0.8), transparent 38%),
+      linear-gradient(315deg, rgba(220, 237, 250, 0.84), transparent 42%),
+      #f5faf9 !important;
+  }
+
+  .student-header,
+  div:has(> header[class*="bg-[#166534]"]) > header {
+    background: linear-gradient(120deg, rgba(8, 113, 74, 0.96), rgba(10, 90, 80, 0.94), rgba(12, 120, 183, 0.9)) !important;
+    box-shadow: 0 10px 30px rgba(10, 72, 76, 0.18) !important;
+    backdrop-filter: blur(16px);
+  }
+
+  .student-header > div > div:last-child,
+  div:has(> header[class*="bg-[#166534]"]) > header > div > div:last-child {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+
+  .student-tabs,
+  div:has(> header[class*="bg-[#166534]"]) > nav {
+    border: 1px solid rgba(79, 144, 168, 0.2);
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    box-shadow: 0 12px 28px rgba(24, 66, 87, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(16px);
+  }
+
+  .student-tabs button,
+  div:has(> header[class*="bg-[#166534]"]) > nav button {
+    border-radius: 6px !important;
+  }
+
+  .student-app input:not([data-slot="input"]),
+  .student-app textarea,
+  div:has(> header[class*="bg-[#166534]"]) input:not([data-slot="input"]),
+  div:has(> header[class*="bg-[#166534]"]) textarea {
+    border-color: rgba(79, 144, 168, 0.24) !important;
+    background: rgba(255, 255, 255, 0.74) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  }
+
+  .student-app article,
+  div:has(> header[class*="bg-[#166534]"]) article {
+    border-color: rgba(79, 144, 168, 0.19) !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    box-shadow: 0 12px 28px rgba(24, 66, 87, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.66);
+    backdrop-filter: blur(12px);
+  }
+
+  .student-app article:hover,
+  div:has(> header[class*="bg-[#166534]"]) article:hover {
+    border-color: rgba(12, 120, 183, 0.28) !important;
+    box-shadow: 0 18px 36px rgba(24, 66, 87, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
+
+  .student-app article button[class*="bg-green-600"],
+  .student-app > div > button[class*="bg-green-600"],
+  div:has(> header[class*="bg-[#166534]"]) article button[class*="bg-green-600"],
+  div:has(> header[class*="bg-[#166534]"]) > div > button[class*="bg-green-600"] {
+    background: #079657 !important;
+  }
+
+  .student-cart-sheet,
+  div[class*="fixed"][class*="justify-end"][class*="bg-slate-950/50"] {
+    background: rgba(8, 35, 52, 0.48) !important;
+    backdrop-filter: blur(6px);
+  }
+
+  .student-cart-panel,
+  div[class*="fixed"][class*="justify-end"][class*="bg-slate-950/50"] > section {
+    border: 1px solid rgba(255, 255, 255, 0.66);
+    border-radius: 8px 8px 0 0 !important;
+    background: rgba(250, 253, 255, 0.94) !important;
+    box-shadow: 0 -20px 50px rgba(7, 38, 59, 0.2);
+    backdrop-filter: blur(20px);
+  }
+
+  .student-register-card {
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.88) !important;
+    box-shadow: 0 24px 60px rgba(0, 37, 50, 0.24);
+    backdrop-filter: blur(18px);
+  }
+
+  .admin-shell {
+    min-height: 100vh;
+    background:
+      linear-gradient(135deg, rgba(220, 244, 235, 0.76), transparent 39%),
+      linear-gradient(315deg, rgba(220, 237, 250, 0.8), transparent 44%),
+      #f5faf9 !important;
+  }
+
+  .admin-sidebar {
+    border-right: 1px solid rgba(208, 239, 255, 0.2);
+    background: linear-gradient(180deg, rgba(13, 49, 88, 0.98), rgba(10, 90, 80, 0.98)) !important;
+    box-shadow: 16px 0 36px rgba(17, 55, 79, 0.13) !important;
+  }
+
+  .admin-sidebar nav a {
+    border: 1px solid transparent;
+    border-radius: 8px !important;
+  }
+
+  .admin-sidebar nav a:hover {
+    border-color: rgba(208, 239, 255, 0.17);
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff !important;
+  }
+
+  .admin-mobile-header {
+    border-color: rgba(79, 144, 168, 0.16) !important;
+    background: rgba(250, 253, 255, 0.82) !important;
+    box-shadow: 0 8px 20px rgba(24, 66, 87, 0.06);
+  }
+
+  .admin-main {
+    min-height: 100vh;
+  }
+
+  .admin-main > div {
+    width: min(100%, 92rem);
+    margin: 0 auto;
+  }
+
+  .admin-main [data-slot="card"] {
+    border-color: rgba(79, 144, 168, 0.19) !important;
+    background: rgba(255, 255, 255, 0.7) !important;
+    box-shadow: 0 14px 32px rgba(29, 69, 88, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.68) !important;
+    backdrop-filter: blur(14px);
+  }
+
+  .admin-main [data-slot="card"]:hover {
+    border-color: rgba(12, 120, 183, 0.28) !important;
+    box-shadow: 0 20px 40px rgba(29, 69, 88, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+  }
+
+  .admin-main h1 {
+    color: #0d3158 !important;
+    letter-spacing: 0;
+  }
+
+  .admin-main h2,
+  .admin-main h3 {
+    color: #123d63;
+    letter-spacing: 0;
+  }
+
+  .admin-main .bg-slate-50,
+  .admin-main .bg-gray-50 {
+    background: rgba(237, 246, 247, 0.74) !important;
+  }
+
+  .admin-main .bg-blue-50 {
+    background: rgba(219, 240, 251, 0.74) !important;
+  }
+
+  .admin-main .bg-green-50 {
+    background: rgba(220, 245, 230, 0.74) !important;
+  }
+
+  .admin-main table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .admin-main table thead {
+    background: rgba(222, 239, 249, 0.72);
+  }
+
+  .admin-main table thead th {
+    color: #31536c;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .admin-main table tbody tr {
+    transition: background-color 160ms ease;
+  }
+
+  .admin-main table tbody tr:hover {
+    background: rgba(220, 241, 233, 0.66);
+  }
+
+  .admin-main [data-slot="badge"] {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .student-register-card [data-slot="input"],
+  .student-register-card [data-slot="textarea"] {
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  @media (max-width: 640px) {
+    .qb-auth {
+      align-items: flex-start;
+      padding-top: 2.2rem;
+      padding-bottom: 2.2rem;
+    }
+
+    .qb-auth-card,
+    .student-register-card {
+      padding: 1.5rem !important;
+    }
+
+    .student-tabs,
+    div:has(> header[class*="bg-[#166534]"]) > nav {
+      margin-right: 1rem !important;
+      margin-left: 1rem !important;
+    }
+
+    .admin-main > div {
+      padding: 1.15rem !important;
+    }
+
+    .admin-main h1 {
+      font-size: 2rem !important;
+      line-height: 1.18;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+}
