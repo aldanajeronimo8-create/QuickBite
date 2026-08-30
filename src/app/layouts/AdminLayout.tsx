@@ -9,9 +9,6 @@ import { Toaster } from '../components/ui/sonner';
 import { canAccessStudent } from '../../lib/access';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
-const primaryColor = '#0D0F12';
-const navigationAccent = '#FF5A36';
-
 type NavItemProps = { path: string; label: string; icon: LucideIcon; active: boolean; badge?: number };
 
 function NavItem({ path, label, icon: Icon, active, badge }: NavItemProps) {
