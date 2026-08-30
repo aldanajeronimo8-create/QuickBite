@@ -10,64 +10,58 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch
-        shell: python
+      - name: Apply focused fixes
         run: |
+          python - <<'PY'
           from pathlib import Path
-          orders_path=Path('src/app/pages/admin/AdminOrdersFixed.tsx'); orders=orders_path.read_text()
-          orders=orders.replace("import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Gift, ShoppingBag } from 'lucide-react';","import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Gift, ShoppingBag, ShieldCheck } from 'lucide-react';")
-          orders=orders.replace("  const [redemptions, setRedemptions] = useState<Redemption[]>([]);","  const [redemptions, setRedemptions] = useState<Redemption[]>([]);\n  const [pendingStatusChange, setPendingStatusChange] = useState<{ order: Order; status: Order['status'] } | null>(null);")
-          old_fn="  const changeStatus = async (orderId: string, status: Order['status']) => {\n    try { await updateOrder(orderId, { status }); toast.success('Estado del pedido actualizado'); }\n    catch (error) { toast.error(getErrorMessage(error, 'No se pudo actualizar el pedido.')); }\n  };"
-          new_fn="  const requestStatusChange = (order: Order, status: Order['status']) => {\n    if (status === order.status) return;\n    if (status !== 'pending' && order.payment_status !== 'confirmed') { toast.warning('Primero debes verificar y confirmar el pago.'); return; }\n    setPendingStatusChange({ order, status });\n  };\n\n  const changeStatus = async () => {\n    if (!pendingStatusChange) return;\n    try { await updateOrder(pendingStatusChange.order.id, { status: pendingStatusChange.status }); toast.success('Estado del pedido actualizado'); setPendingStatusChange(null); }\n    catch (error) { toast.error(getErrorMessage(error, 'No se pudo actualizar el pedido.')); }\n  };"
-          if old_fn not in orders: raise SystemExit('changeStatus block not found')
-          orders=orders.replace(old_fn,new_fn,1)
-          old_buttons="{(['pending','preparing','ready','delivered'] as const).map((status) => status !== order.status ? <Button key={status} size=\"sm\" onClick={() => void changeStatus(order.id, status)}>{statusLabels[status]}</Button> : null)}"
-          new_buttons="{(['pending','preparing','ready','delivered'] as const).map((status) => status !== order.status ? <Button key={status} size=\"sm\" variant={status === 'preparing' ? 'default' : 'outline'} onClick={() => requestStatusChange(order, status)}>{statusLabels[status]}</Button> : null)}"
-          if old_buttons not in orders: raise SystemExit('status buttons not found')
-          orders=orders.replace(old_buttons,new_buttons,1)
-          marker="    <Dialog open={confirmingExport}"
-          dialog="    <Dialog open={!!pendingStatusChange} onOpenChange={(open) => !open && setPendingStatusChange(null)}><DialogContent><DialogHeader><DialogTitle>Confirmar cambio de estado</DialogTitle></DialogHeader>{pendingStatusChange && <div className=\"space-y-4\"><div className=\"rounded-xl bg-slate-50 p-4 text-sm\"><p><strong>Pedido:</strong> {pendingStatusChange.order.order_number}</p><p><strong>Nuevo estado:</strong> {statusLabels[pendingStatusChange.status]}</p><p><strong>Pago:</strong> {paymentLabels[pendingStatusChange.order.payment_status]}</p></div><p className=\"text-sm text-slate-600\">Confirma que quieres aplicar este cambio.</p><div className=\"flex justify-end gap-2\"><Button variant=\"outline\" onClick={() => setPendingStatusChange(null)}>Cancelar</Button><Button onClick={() => void changeStatus()} className=\"bg-blue-700 text-white\"><ShieldCheck className=\"mr-2 h-4 w-4\" />Confirmar</Button></div></div>}</DialogContent></Dialog>\n"
-          if marker not in orders: raise SystemExit('export dialog marker not found')
-          orders=orders.replace(marker,dialog+marker,1); orders_path.write_text(orders)
+          import re
 
-          student_path=Path('src/app/pages/student/StudentMenuPage.tsx'); student=student_path.read_text()
-          old_copy="{paymentMethod === 'cash' ? 'El pedido quedara pendiente hasta que el admin confirme el efectivo.' : 'El pedido quedara confirmado y sincronizado en Supabase.'}"
-          if old_copy in student: student=student.replace(old_copy,"{paymentMethod === 'cash' ? 'El pedido quedara pendiente hasta que el admin confirme el pago en efectivo.' : 'El pedido quedara pendiente hasta que el admin verifique y confirme el pago.'}",1)
-          old_slot="{pickupSlots.length ? <div className=\"grid gap-2 sm:grid-cols-2\">{pickupSlots.map((slot) => <button key={slot.id} type=\"button\" onClick={() => onPickupSlotChange(slot.id)} className={`rounded-2xl border p-3 text-left ${selectedPickupSlotId === slot.id ? 'border-green-600 bg-green-50' : 'border-slate-200'}`}><span className=\"flex items-center gap-2 text-sm font-black\"><Clock3 className=\"h-4 w-4 text-green-700\" />{slot.name}</span><span className=\"mt-1 block text-xs text-slate-600\">{slotTimeLabel(slot.starts_at)} - {slotTimeLabel(slot.ends_at)} · máximo {slot.max_orders} pedidos</span></button>)}</div> :"
-          if old_slot in student:
-            new_slot="{pickupSlots.length ? <div className=\"grid gap-2 sm:grid-cols-2\">{pickupSlots.map((slot) => { const slotLabel = /primer/i.test(slot.name) ? 'Primer Descanso' : /segundo/i.test(slot.name) ? 'Segundo Descanso' : slot.name; return <button key={slot.id} type=\"button\" onClick={() => onPickupSlotChange(slot.id)} className={`rounded-2xl border p-3 text-left ${selectedPickupSlotId === slot.id ? 'border-green-600 bg-green-50' : 'border-slate-200'}`}><span className=\"flex items-center gap-2 text-sm font-black\"><Clock3 className=\"h-4 w-4 text-green-700\" />{slotLabel}</span><span className=\"mt-1 block text-xs text-slate-600\">{slotTimeLabel(slot.starts_at)} - {slotTimeLabel(slot.ends_at)} · máximo {slot.max_orders} pedidos</span></button>; })}</div> :"
-            student=student.replace(old_slot,new_slot,1)
-          student_path.write_text(student)
+          # Admin: add confirmation before changing order status.
+          p = Path('src/app/pages/admin/AdminOrdersFixed.tsx')
+          s = p.read_text()
+          s = s.replace("import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Gift, ShoppingBag } from 'lucide-react';", "import { ChevronDown, ChevronUp, Download, Eye, EyeOff, Gift, ShoppingBag, ShieldCheck } from 'lucide-react';", 1)
+          if 'pendingStatusChange' not in s:
+              s = s.replace("  const [redemptions, setRedemptions] = useState<Redemption[]>([]);", "  const [redemptions, setRedemptions] = useState<Redemption[]>([]);\n  const [pendingStatusChange, setPendingStatusChange] = useState<{ order: Order; status: Order['status'] } | null>(null);", 1)
+          s = re.sub(r"  const changeStatus = async \(orderId: string, status: Order\['status'\]\) => \{.*?\n  \};", "  const requestStatusChange = (order: Order, status: Order['status']) => {\n    if (status === order.status) return;\n    if (status !== 'pending' && order.payment_status !== 'confirmed') { toast.warning('Primero debes verificar y confirmar el pago.'); return; }\n    setPendingStatusChange({ order, status });\n  };\n\n  const changeStatus = async () => {\n    if (!pendingStatusChange) return;\n    try { await updateOrder(pendingStatusChange.order.id, { status: pendingStatusChange.status }); toast.success('Estado del pedido actualizado'); setPendingStatusChange(null); }\n    catch (error) { toast.error(getErrorMessage(error, 'No se pudo actualizar el pedido.')); }\n  };", s, count=1, flags=re.S)
+          s = s.replace("onClick={() => void changeStatus(order.id, status)}", "onClick={() => requestStatusChange(order, status)}", 1)
+          if 'Confirmar cambio de estado' not in s:
+              marker = '    <Dialog open={confirmingExport}'
+              dialog = "    <Dialog open={!!pendingStatusChange} onOpenChange={(open) => !open && setPendingStatusChange(null)}><DialogContent><DialogHeader><DialogTitle>Confirmar cambio de estado</DialogTitle></DialogHeader>{pendingStatusChange && <div className=\"space-y-4\"><div className=\"rounded-xl bg-slate-50 p-4 text-sm\"><p><strong>Pedido:</strong> {pendingStatusChange.order.order_number}</p><p><strong>Nuevo estado:</strong> {statusLabels[pendingStatusChange.status]}</p><p><strong>Pago:</strong> {paymentLabels[pendingStatusChange.order.payment_status]}</p></div><p className=\"text-sm text-slate-600\">Confirma que quieres aplicar este cambio.</p><div className=\"flex justify-end gap-2\"><Button variant=\"outline\" onClick={() => setPendingStatusChange(null)}>Cancelar</Button><Button onClick={() => void changeStatus()} className=\"bg-blue-700 text-white\"><ShieldCheck className=\"mr-2 h-4 w-4\" />Confirmar</Button></div></div>}</DialogContent></Dialog>\n"
+              if marker in s: s = s.replace(marker, dialog + marker, 1)
+          p.write_text(s)
 
-          migration_path=Path('supabase/migrations/20260830004000_seed_pickup_breaks_and_lock_payment_methods.sql'); migration_path.parent.mkdir(parents=True,exist_ok=True)
-          migration_path.write_text("""create or replace function public.admin_update_order_payment(p_order_id uuid, p_payment_status text)
-returns uuid language plpgsql security definer set search_path=public as $$
-declare v_order public.orders%rowtype; v_item record;
-begin
-  if auth.uid() is null or not public.is_admin() then raise exception 'not_authorized'; end if;
-  if p_payment_status not in ('confirmed','rejected') then raise exception 'invalid_payment_status'; end if;
-  select * into v_order from public.orders where id=p_order_id for update;
-  if not found then raise exception 'order_not_found'; end if;
-  if v_order.payment_status <> 'pending' then raise exception 'payment_already_processed'; end if;
-  update public.orders set payment_status=p_payment_status,status=case when p_payment_status='confirmed' then 'preparing' else 'pending' end,pickup_code=case when p_payment_status='rejected' then null else pickup_code end where id=p_order_id;
-  if p_payment_status='rejected' then
-    for v_item in select product_id,quantity from public.order_items where order_id=p_order_id loop update public.products set stock=stock+v_item.quantity where id=v_item.product_id; end loop;
-  end if;
-  return p_order_id;
-end; $$;
-alter table public.orders drop constraint if exists orders_payment_method_check;
-alter table public.orders add constraint orders_payment_method_check check (payment_method in ('nequi','cash','bre-b'));
-insert into public.pickup_slots(name,starts_at,ends_at,enabled,max_orders) select 'Primer Descanso',time '09:20',time '09:35',true,40 where not exists(select 1 from public.pickup_slots where lower(name)=lower('Primer Descanso'));
-insert into public.pickup_slots(name,starts_at,ends_at,enabled,max_orders) select 'Segundo Descanso',time '11:20',time '11:35',true,40 where not exists(select 1 from public.pickup_slots where lower(name)=lower('Segundo Descanso'));
-revoke all on function public.admin_update_order_payment(uuid,text) from public;
-grant execute on function public.admin_update_order_payment(uuid,text) to authenticated;
-""")
-          layout_path=Path('src/app/layouts/AdminLayoutFixed.tsx'); layout=layout_path.read_text(); layout=layout.replace('<nav className="space-y-1">','<nav className="space-y-1.5">',1).replace('rounded-lg px-3 py-2.5 text-sm font-semibold','rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',1); layout_path.write_text(layout)
-          Path('.github/workflows/admin-student-stability.yml').unlink()
-      - name: Commit patch
+          # Student: normalize break names and explanatory payment text.
+          p = Path('src/app/pages/student/StudentMenuPage.tsx')
+          s = p.read_text()
+          old = "{paymentMethod === 'cash' ? 'El pedido quedara pendiente hasta que el admin confirme el efectivo.' : 'El pedido quedara confirmado y sincronizado en Supabase.'}"
+          if old in s: s = s.replace(old, "{paymentMethod === 'cash' ? 'El pedido quedara pendiente hasta que el admin confirme el pago en efectivo.' : 'El pedido quedara pendiente hasta que el admin verifique y confirme el pago.'}", 1)
+          s = s.replace('<span>{slot.name}</span>', "<span>{/primer/i.test(slot.name) ? 'Primer Descanso' : /segundo/i.test(slot.name) ? 'Segundo Descanso' : slot.name}</span>", 1)
+          p.write_text(s)
+
+          # Admin sidebar: improve grouping rhythm without altering navigation.
+          p = Path('src/app/layouts/AdminLayoutFixed.tsx')
+          s = p.read_text().replace('space-y-1"', 'space-y-1.5"', 1).replace('rounded-lg px-3 py-2.5 text-sm font-semibold', 'rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors', 1)
+          p.write_text(s)
+
+          # Excel: append the canonical Canjes sheet to the existing professional workbook.
+          p = Path('src/services/orderExportService.ts')
+          s = p.read_text()
+          if 'export async function downloadActiveSalesExcel' not in s:
+              old = "export function downloadActiveSalesExcel(orders: Order[]): ExcelSalesExportResult {"
+              new = "export async function downloadActiveSalesExcel(orders: Order[]): Promise<ExcelSalesExportResult> {"
+              s = s.replace(old, new, 1)
+              s = s.replace("  const sales = reportOrders(orders);\n  const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`;\n  XLSX.writeFile(buildActiveSalesWorkbook(orders), fileName, { compression: true });", "  const sales = reportOrders(orders);\n  const fileName = `quickbite-reporte-ventas-${new Date().toISOString().slice(0, 10)}.xlsx`;\n  const workbook = buildActiveSalesWorkbook(orders);\n  const { data } = await requireSupabaseClient().from('loyalty_redemptions').select('redemption_code,created_at,points_spent,status,user:profiles!loyalty_redemptions_user_id_fkey(full_name),reward:loyalty_rewards(title)');\n  const rows = (data ?? []).map((r: any) => [r.redemption_code ?? '', new Date(r.created_at).toLocaleString('es-CO'), Array.isArray(r.user) ? (r.user[0]?.full_name ?? '') : (r.user?.full_name ?? ''), Array.isArray(r.reward) ? (r.reward[0]?.title ?? '') : (r.reward?.title ?? ''), Number(r.points_spent ?? 0), r.status ?? '']);\n  const canjes = XLSX.utils.aoa_to_sheet([['Código','Fecha','Estudiante','Recompensa','Puntos','Estado'], ...rows]);\n  canjes['!cols'] = [{wch:18},{wch:22},{wch:28},{wch:28},{wch:12},{wch:16}];\n  XLSX.utils.book_append_sheet(workbook, canjes, 'Canjes');\n  XLSX.writeFile(workbook, fileName, { compression: true });", 1)
+              p.write_text(s)
+
+          # Remove this temporary workflow before committing the actual changes.
+          wf = Path('.github/workflows/admin-student-stability.yml')
+          if wf.exists(): wf.unlink()
+          PY
+      - name: Commit focused changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/app/pages/admin/AdminOrdersFixed.tsx src/app/pages/student/StudentMenuPage.tsx src/app/layouts/AdminLayoutFixed.tsx supabase/migrations/20260830004000_seed_pickup_breaks_and_lock_payment_methods.sql .github/workflows/admin-student-stability.yml
-          git commit -m "fix: restore admin confirmations and pickup breaks"
+          git add src/app/pages/admin/AdminOrdersFixed.tsx src/app/pages/student/StudentMenuPage.tsx src/app/layouts/AdminLayoutFixed.tsx src/services/orderExportService.ts supabase/migrations/20260830004000_seed_pickup_breaks_and_lock_payment_methods.sql .github/workflows/admin-student-stability.yml
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix: stabilize admin reports orders and pickup"
           git push
