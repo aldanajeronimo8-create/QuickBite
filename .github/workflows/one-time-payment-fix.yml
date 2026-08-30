@@ -15,60 +15,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Patch payment flow
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          student = Path('src/app/pages/student/StudentMenuPage.tsx')
-          s = student.read_text()
-          old_options = '''const paymentOptions = [
-  { value: 'nequi', label: 'Nequi', hint: 'Referencia digital', accent: 'bg-fuchsia-500' },
-  { value: 'bancolombia', label: 'Bancolombia', hint: 'Transferencia escolar', accent: 'bg-yellow-500' },
-  { value: 'daviplata', label: 'Daviplata', hint: 'Pago digital', accent: 'bg-red-500' },
-  { value: 'cash', label: 'Efectivo', hint: 'Pago al recoger', accent: 'bg-emerald-500' },
-] as const;'''
-          new_options = '''const paymentOptions = [
-  { value: 'nequi', label: 'Nequi', hint: 'Referencia digital', accent: 'bg-fuchsia-500' },
-  { value: 'bre-b', label: 'Bre-B', hint: 'Transferencia digital', accent: 'bg-blue-500' },
-  { value: 'cash', label: 'Efectivo', hint: 'Pago al recoger', accent: 'bg-emerald-500' },
-] as const;'''
-          if old_options not in s:
-              raise SystemExit('Expected Student payment options block was not found')
-          s = s.replace(old_options, new_options, 1)
-          s = s.replace("status: paymentMethod === 'cash' ? 'pending' : 'preparing',", "status: 'pending',", 1)
-          s = s.replace("payment_status: paymentMethod === 'cash' ? 'pending' : 'confirmed',", "payment_status: 'pending',", 1)
-          student.write_text(s)
-
-          payments = Path('src/app/pages/admin/AdminPaymentsFixed.tsx')
-          p = payments.read_text()
-          p = p.replace("import type { Order } from '../../../lib/supabase';", "import { requireSupabaseClient, type Order } from '../../../lib/supabase';", 1)
-          p = p.replace("const { orders, updateOrder } = useDataStore();", "const { orders, loadData } = useDataStore();", 1)
-          old_verify = "try { await updateOrder(verificationOrder.id, { payment_status: status }); toast.success(status === 'confirmed' ? 'Pago verificado y confirmado.' : 'Pago verificado y rechazado.'); setVerificationOrder(null); }"
-          new_verify = "try { const { error } = await requireSupabaseClient().rpc('admin_update_order_payment', { p_order_id: verificationOrder.id, p_payment_status: status }); if (error) throw error; await loadData({ silent: true }); toast.success(status === 'confirmed' ? 'Pago verificado y confirmado.' : 'Pago verificado y rechazado.'); setVerificationOrder(null); }"
-          if old_verify not in p:
-              raise SystemExit('Expected Admin verify handler was not found')
-          p = p.replace(old_verify, new_verify, 1)
-          old_label = "const paymentLabel = (method: string) => method === 'cash' ? 'Efectivo' : method === 'bre-b' ? 'Bre-B' : method;"
-          new_label = "const paymentLabel = (method: string) => { if (method === 'cash') return 'Efectivo'; if (method === 'nequi') return 'Nequi'; if (method === 'bre-b' || method === 'bancolombia' || method === 'daviplata' || method === 'bank_keys') return 'Bre-B'; return method; };"
-          if old_label not in p:
-              raise SystemExit('Expected Admin payment label helper was not found')
-          p = p.replace(old_label, new_label, 1)
-          payments.write_text(p)
-
-          migration = Path('supabase/migrations/20260830002000_fix_payment_verification_flow_and_breb.sql')
-          migration.parent.mkdir(parents=True, exist_ok=True)
-          migration.write_text('''create or replace function public.admin_update_order_payment(p_order_id uuid, p_payment_status text)\nreturns uuid\nlanguage plpgsql\nsecurity definer\nset search_path = public\nas $$\ndeclare\n  v_order public.orders%rowtype;\n  v_item record;\nbegin\n  if auth.uid() is null or not public.is_admin() then raise exception 'not_authorized'; end if;\n  if p_payment_status not in ('confirmed','rejected') then raise exception 'invalid_payment_status'; end if;\n  select * into v_order from public.orders where id=p_order_id for update;\n  if not found then raise exception 'order_not_found'; end if;\n  if v_order.payment_status <> 'pending' then raise exception 'payment_already_processed'; end if;\n  update public.orders\n     set payment_status=p_payment_status,\n         status=case when p_payment_status='confirmed' then 'preparing' else 'pending' end,\n         pickup_code=case when p_payment_status='rejected' then null else pickup_code end\n   where id=p_order_id;\n  if p_payment_status='rejected' then\n    for v_item in select product_id, quantity from public.order_items where order_id=p_order_id loop\n      update public.products set stock=stock+v_item.quantity where id=v_item.product_id;\n    end loop;\n  end if;\n  return p_order_id;\nend;\n$$;\nrevoke all on function public.admin_update_order_payment(uuid,text) from public;\ngrant execute on function public.admin_update_order_payment(uuid,text) to authenticated;\n''')
-
-          wf = Path('.github/workflows/one-time-payment-fix.yml')
-          wf.unlink()
-          PY
+          python -c "from pathlib import Path; p=Path('src/app/pages/student/StudentMenuPage.tsx'); s=p.read_text(); old=\"const paymentOptions = [\\n  { value: 'nequi', label: 'Nequi', hint: 'Referencia digital', accent: 'bg-fuchsia-500' },\\n  { value: 'bancolombia', label: 'Bancolombia', hint: 'Transferencia escolar', accent: 'bg-yellow-500' },\\n  { value: 'daviplata', label: 'Daviplata', hint: 'Pago digital', accent: 'bg-red-500' },\\n  { value: 'cash', label: 'Efectivo', hint: 'Pago al recoger', accent: 'bg-emerald-500' },\\n] as const;\"; new=\"const paymentOptions = [\\n  { value: 'nequi', label: 'Nequi', hint: 'Referencia digital', accent: 'bg-fuchsia-500' },\\n  { value: 'bre-b', label: 'Bre-B', hint: 'Transferencia digital', accent: 'bg-blue-500' },\\n  { value: 'cash', label: 'Efectivo', hint: 'Pago al recoger', accent: 'bg-emerald-500' },\\n] as const;\"; assert old in s; s=s.replace(old,new,1); s=s.replace(\"status: paymentMethod === 'cash' ? 'pending' : 'preparing',\",\"status: 'pending',\",1); s=s.replace(\"payment_status: paymentMethod === 'cash' ? 'pending' : 'confirmed',\",\"payment_status: 'pending',\",1); p.write_text(s); q=Path('src/app/pages/admin/AdminPaymentsFixed.tsx'); t=q.read_text(); t=t.replace(\"import type { Order } from '../../../lib/supabase';\",\"import { requireSupabaseClient, type Order } from '../../../lib/supabase';\",1); t=t.replace(\"const { orders, updateOrder } = useDataStore();\",\"const { orders, loadData } = useDataStore();\",1); oldv=\"try { await updateOrder(verificationOrder.id, { payment_status: status }); toast.success(status === 'confirmed' ? 'Pago verificado y confirmado.' : 'Pago verificado y rechazado.'); setVerificationOrder(null); }\"; newv=\"try { const { error } = await requireSupabaseClient().rpc('admin_update_order_payment', { p_order_id: verificationOrder.id, p_payment_status: status }); if (error) throw error; await loadData({ silent: true }); toast.success(status === 'confirmed' ? 'Pago verificado y confirmado.' : 'Pago verificado y rechazado.'); setVerificationOrder(null); }\"; assert oldv in t; t=t.replace(oldv,newv,1); oldl=\"const paymentLabel = (method: string) => method === 'cash' ? 'Efectivo' : method === 'bre-b' ? 'Bre-B' : method;\"; newl=\"const paymentLabel = (method: string) => { if (method === 'cash') return 'Efectivo'; if (method === 'nequi') return 'Nequi'; if (method === 'bre-b' || method === 'bancolombia' || method === 'daviplata' || method === 'bank_keys') return 'Bre-B'; return method; };\"; assert oldl in t; t=t.replace(oldl,newl,1); q.write_text(t); m=Path('supabase/migrations/20260830002000_fix_payment_verification_flow_and_breb.sql'); m.parent.mkdir(parents=True,exist_ok=True); m.write_text(\"create or replace function public.admin_update_order_payment(p_order_id uuid, p_payment_status text) returns uuid language plpgsql security definer set search_path = public as $$ declare v_order public.orders%rowtype; v_item record; begin if auth.uid() is null or not public.is_admin() then raise exception 'not_authorized'; end if; if p_payment_status not in ('confirmed','rejected') then raise exception 'invalid_payment_status'; end if; select * into v_order from public.orders where id=p_order_id for update; if not found then raise exception 'order_not_found'; end if; if v_order.payment_status <> 'pending' then raise exception 'payment_already_processed'; end if; update public.orders set payment_status=p_payment_status, status=case when p_payment_status='confirmed' then 'preparing' else 'pending' end, pickup_code=case when p_payment_status='rejected' then null else pickup_code end where id=p_order_id; if p_payment_status='rejected' then for v_item in select product_id, quantity from public.order_items where order_id=p_order_id loop update public.products set stock=stock+v_item.quantity where id=v_item.product_id; end loop; end if; return p_order_id; end; $$; revoke all on function public.admin_update_order_payment(uuid,text) from public; grant execute on function public.admin_update_order_payment(uuid,text) to authenticated;\"); Path('.github/workflows/one-time-payment-fix.yml').unlink()"
       - name: Commit normalized payment flow
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/app/pages/student/StudentMenuPage.tsx src/app/pages/admin/AdminPaymentsFixed.tsx supabase/migrations/20260830002000_fix_payment_verification_flow_and_breb.sql .github/workflows/one-time-payment-fix.yml
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m "fix: restore Bre-B and payment verification flow"
           git push
