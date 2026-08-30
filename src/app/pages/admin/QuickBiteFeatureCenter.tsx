@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
-import { BarChart3, Bell, Boxes, CreditCard, FileSpreadsheet, Gift, Heart, History, LayoutDashboard, Package, QrCode, RefreshCcw, ShieldCheck, ShoppingBag, Tags, Users, Wifi, Wrench, Zap } from 'lucide-react';
+import { BarChart3, Bell, Boxes, CreditCard, FileSpreadsheet, Gift, Heart, History, LayoutDashboard, LockKeyhole, Package, QrCode, RefreshCcw, ShieldCheck, ShoppingBag, Tags, Users, Wifi, Wrench, Zap } from 'lucide-react';
 
 const items = [
   ['Pedidos', 'Gestiona, filtra y cambia estados.', '/admin/orders', ShoppingBag],
   ['Carrito y checkout', 'Selecciona productos y confirma la compra.', '/menu', Package],
   ['Menú y categorías', 'Catálogo y clasificación de productos.', '/admin/menu', Tags],
   ['Inventario', 'Stock, disponibilidad y control.', '/admin/inventory', Boxes],
-  ['Favoritos', 'Acceso rápido a productos guardados.', '/menu', Heart],
+  ['Favoritos', 'Acceso rápido a productos guardados.', '/student/features', Heart],
   ['Recompra e historial', 'Revisa compras anteriores y vuelve a pedir.', '/menu', RefreshCcw],
   ['Realtime', 'Sincronización de pedidos y catálogo.', '/admin/orders', Wifi],
   ['Notificaciones', 'Avisos de cambios de pedido y canjes.', '/menu', Bell],
@@ -19,6 +19,7 @@ const items = [
   ['Productos Admin', 'Crear, editar y eliminar productos.', '/admin/menu', Package],
   ['Categorías Admin', 'Gestionar categorías del catálogo.', '/admin/menu', Tags],
   ['Usuarios y roles', 'Administrar accesos y perfiles.', '/admin/users', Users],
+  ['Autenticación y seguridad', 'Sesiones, protección y control de acceso.', '/admin/users', LockKeyhole],
   ['Estadísticas', 'Métricas de ventas y operación.', '/admin', BarChart3],
   ['Reportes', 'Informes para gestión.', '/admin/reports', BarChart3],
   ['Excel', 'Exportación de datos del sistema.', '/admin/reports', FileSpreadsheet],
