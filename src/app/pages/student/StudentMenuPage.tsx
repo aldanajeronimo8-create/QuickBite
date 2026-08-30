@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -41,6 +41,7 @@ export function StudentMenuPage() {
   const [tip, setTip] = useState('');
   const [lastReceipt, setLastReceipt] = useState<{ orderNumber: string; reference: string; pickup: string } | null>(null);
   const [redeemingRewardId, setRedeemingRewardId] = useState<string | null>(null);
+  const processedCartAction = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -105,6 +106,65 @@ export function StudentMenuPage() {
       ? prev.map((i) => (i.id === product.id ? { ...i, qty: i.qty + 1 } : i))
       : [...prev, { ...product, qty: 1 }]);
   };
+
+  useEffect(() => {
+    if (!student || products.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const addProductId = params.get('addProduct');
+    const reorderPayload = params.get('reorder');
+    const actionKey = addProductId ? `add:${addProductId}` : reorderPayload ? `reorder:${reorderPayload}` : null;
+    if (!actionKey || processedCartAction.current === actionKey) return;
+    processedCartAction.current = actionKey;
+
+    if (addProductId) {
+      const product = products.find((item) => item.id === addProductId);
+      if (!product || !product.available || product.stock <= 0) {
+        toast.info('Este producto ya no está disponible.');
+      } else {
+        setCart((current) => {
+          const existing = current.find((item) => item.id === product.id);
+          if (existing && existing.qty >= product.stock) return current;
+          return existing
+            ? current.map((item) => item.id === product.id ? { ...item, qty: item.qty + 1 } : item)
+            : [...current, { ...product, qty: 1 }];
+        });
+        setShowCart(true);
+        setPayStep('cart');
+        toast.success(`${product.name} fue agregado al carrito.`);
+      }
+    }
+
+    if (reorderPayload) {
+      const requested = reorderPayload.split(',').map((entry) => {
+        const [id, rawQty] = entry.split(':');
+        return { id, qty: Math.max(1, Number(rawQty) || 1) };
+      }).filter((entry) => entry.id);
+      let added = 0;
+      let unavailable = 0;
+      setCart((current) => {
+        const next = [...current];
+        for (const request of requested) {
+          const product = products.find((item) => item.id === request.id);
+          if (!product || !product.available || product.stock <= 0) { unavailable += 1; continue; }
+          const index = next.findIndex((item) => item.id === product.id);
+          const currentQty = index >= 0 ? next[index].qty : 0;
+          const quantity = Math.min(request.qty, product.stock - currentQty);
+          if (quantity <= 0) { unavailable += 1; continue; }
+          if (index >= 0) next[index] = { ...next[index], qty: currentQty + quantity };
+          else next.push({ ...product, qty: quantity });
+          added += quantity;
+        }
+        return next;
+      });
+      setShowCart(true);
+      setPayStep('cart');
+      if (added > 0) toast.success('Recompra preparada en tu carrito con precios y stock actuales.');
+      if (unavailable > 0) toast.info(`${unavailable} producto(s) no estaban disponibles y se omitieron.`);
+    }
+
+    navigate('/menu', { replace: true });
+  }, [student, products, navigate]);
+
   const removeFromCart = (id: string) => setCart((prev) => {
     const existing = prev.find((i) => i.id === id);
     if (!existing) return prev;
@@ -119,17 +179,7 @@ export function StudentMenuPage() {
     setPlacing(true);
     const note = tip.trim();
     try {
-      const orderNumber = await addOrder({
-        user_id: student.id,
-        total: cartGrandTotal,
-        status: 'pending',
-        payment_method: paymentMethod,
-        payment_status: 'pending',
-        pickup_code: pickup,
-        estimated_minutes: 8 + cart.length * 3,
-        payment_reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : reference,
-        order_items: cart.map((i) => ({ product_id: i.id, quantity: i.qty, price: i.price })),
-      });
+      const orderNumber = await addOrder({ user_id: student.id, total: cartGrandTotal, status: 'pending', payment_method: paymentMethod, payment_status: 'pending', pickup_code: pickup, estimated_minutes: 8 + cart.length * 3, payment_reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : reference, order_items: cart.map((i) => ({ product_id: i.id, quantity: i.qty, price: i.price })) });
       setLastReceipt({ orderNumber, reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : reference, pickup });
       setCart([]); setTip(''); setPayStep('receipt');
       toast.success(`Pedido ${orderNumber} creado y enviado para aprobación`);
@@ -138,19 +188,16 @@ export function StudentMenuPage() {
         const createdOrder = useDataStore.getState().orders.find((order) => order.order_number === orderNumber);
         if (createdOrder) await updateOrder(createdOrder.id, { notes: note });
       }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Error al enviar el pedido');
-    } finally { setPlacing(false); }
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Error al enviar el pedido'); }
+    finally { setPlacing(false); }
   };
 
   const handleLogout = async () => { await requireSupabaseClient().auth.signOut(); navigate('/'); };
   const handleRewardRedemption = async (reward: LoyaltyReward) => {
     if (redeemingRewardId) return;
     setRedeemingRewardId(reward.id);
-    try {
-      await loyalty.redeem(reward.id);
-      toast.success(`Canje solicitado. El codigo estara disponible cuando Admin lo apruebe.`);
-    } catch (error) { toast.error(getErrorMessage(error, 'No se pudo completar el canje.')); }
+    try { await loyalty.redeem(reward.id); toast.success('Canje solicitado. El codigo estara disponible cuando Admin lo apruebe.'); }
+    catch (error) { toast.error(getErrorMessage(error, 'No se pudo completar el canje.')); }
     finally { setRedeemingRewardId(null); }
   };
   if (!student) return null;
@@ -159,12 +206,7 @@ export function StudentMenuPage() {
     <header className="sticky top-0 z-20 bg-[#166534] text-white shadow-xl shadow-green-950/10"><div className="mx-auto max-w-6xl px-5 pb-5 pt-5 lg:px-8"><div className="flex items-center justify-between"><div className="flex items-center gap-3"><QuickBiteLogo className="h-11 w-11 rounded-2xl" /><div><p className="text-lg font-black leading-none">QuickBite</p><p className="text-xs text-green-100">{student.name}{student.grade ? ` - ${student.grade}` : ''}</p></div></div><div className="flex items-center gap-2"><UserNotificationBell userId={student.id} /><button onClick={() => setShowCart(true)} className="relative rounded-full bg-white/10 p-2" aria-label="Abrir carrito"><ShoppingCart className="h-5 w-5" />{cartCount > 0 && <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-green-500 text-xs font-black">{cartCount}</span>}</button><button onClick={handleLogout} className="rounded-full bg-white/10 p-2" aria-label="Cerrar sesión"><LogOut className="h-5 w-5" /></button></div></div><div className="mt-5 rounded-[2rem] bg-gradient-to-r from-green-600 to-green-700 p-4 text-white shadow-lg shadow-green-950/10"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-green-100">Recreo inteligente</p><h1 className="mt-1 text-2xl font-black">Pide ahora, recoge sin fila</h1></div>{rewardsEnabled && <Badge className="bg-white text-green-800">{loyalty.availablePoints} pts</Badge>}</div><div className="mt-4 flex gap-2 overflow-x-auto"><span className="rounded-full bg-white/20 px-3 py-1 text-xs">Inventario en vivo</span><span className="rounded-full bg-white/20 px-3 py-1 text-xs">Tiempo promedio: 12 min</span></div></div></div></header>
     <nav className={`sticky top-[190px] z-10 mx-5 mt-5 grid ${rewardsEnabled ? 'grid-cols-3' : 'grid-cols-2'} rounded-3xl bg-white p-1.5 shadow-lg ring-1 ring-slate-200`}>{navigationTabs.map(([id, Icon, label]) => <button key={id} onClick={() => setTab(id)} className={`flex items-center justify-center gap-1 rounded-xl py-2 text-sm font-bold transition ${activeTab === id ? 'bg-green-600 text-white shadow-sm' : 'text-slate-600 hover:bg-green-50'}`}><Icon className="h-4 w-4" />{label}</button>)}</nav>
     {activeTab === 'menu' && <main className="mx-auto max-w-6xl px-5 pt-6 lg:px-8"><div className="relative mb-3"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar empanadas, jugos, almuerzos..." className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 outline-none focus:ring-2 focus:ring-green-200" /></div><div className="mb-4 flex gap-2 overflow-x-auto pb-1"><button onClick={() => setSelectedCat(null)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${!selectedCat ? 'bg-[#DCFCE7] text-green-800' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>Todo</button>{categories.map((cat) => <button key={cat.id} onClick={() => setSelectedCat(cat.id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${selectedCat === cat.id ? 'bg-[#DCFCE7] text-green-800' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{cat.name}</button>)}</div><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{availableProducts.map((product) => { const qty = cartQty(product.id); return <article key={product.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"><div className="relative"><img src={product.image_url} alt={product.name} className="h-44 w-full object-cover" /><span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[11px] font-bold text-slate-700">Stock {product.stock}</span></div><div className="p-4"><p className="min-h-10 text-sm font-black leading-tight">{product.name}</p><p className="line-clamp-1 text-xs text-slate-600">{product.description}</p><p className="mt-2 text-lg font-black text-green-800">${fmt(product.price)}</p>{qty === 0 ? <button onClick={() => addToCart(product)} className="mt-2 flex w-full items-center justify-center gap-1 rounded-2xl bg-green-600 py-2 text-sm font-bold text-white hover:bg-green-700"><Plus className="h-4 w-4" />Agregar</button> : <div className="mt-2 flex items-center justify-between rounded-2xl bg-green-50 p-1"><button onClick={() => removeFromCart(product.id)} className="grid h-8 w-8 place-items-center rounded-full bg-white text-green-700"><Minus className="h-4 w-4" /></button><span className="font-black">{qty}</span><button onClick={() => addToCart(product)} className="grid h-8 w-8 place-items-center rounded-full bg-green-600 text-white hover:bg-green-700"><Plus className="h-4 w-4" /></button></div>}</div></article>; })}</div></main>}
-    {activeTab === 'orders' && <main className="mx-auto max-w-3xl space-y-4 px-5 pt-6 lg:px-8">
-      {myOrders.length === 0 && loyalty.redemptions.length === 0 ? <Empty icon={ReceiptText} title="Aun no tienes actividad" text="Tus compras y canjes apareceran aqui." /> : <>
-        {myOrders.map((o) => <OrderCard key={o.id} order={o} />)}
-        {loyalty.redemptions.map((redemption) => <RedemptionCard key={redemption.id} redemption={redemption} />)}
-      </>}
-    </main>}
+    {activeTab === 'orders' && <main className="mx-auto max-w-3xl space-y-4 px-5 pt-6 lg:px-8">{myOrders.length === 0 && loyalty.redemptions.length === 0 ? <Empty icon={ReceiptText} title="Aun no tienes actividad" text="Tus compras y canjes apareceran aqui." /> : <>{myOrders.map((o) => <OrderCard key={o.id} order={o} />)}{loyalty.redemptions.map((redemption) => <RedemptionCard key={redemption.id} redemption={redemption} />)}</>}</main>}
     {activeTab === 'rewards' && rewardsEnabled && <StudentRewardsPanel availablePoints={loyalty.availablePoints} error={loyalty.error} loading={loyalty.loading} onRedeem={handleRewardRedemption} redeemingRewardId={redeemingRewardId} redemptions={loyalty.redemptions} rewards={loyalty.rewards} />}
     {cartCount > 0 && !showCart && <div className="fixed bottom-4 left-4 right-4 z-30"><button onClick={() => { setShowCart(true); setPayStep('cart'); }} className="flex w-full items-center justify-between rounded-3xl bg-green-600 px-5 py-4 font-black text-white shadow-2xl shadow-green-950/20 hover:bg-green-700"><span>{cartCount} items</span><span>Ver pedido</span><span>${fmt(cartGrandTotal)}</span></button></div>}
     {showCart && <CartSheet cart={cart} cartTotal={cartTotal} total={cartGrandTotal} lastReceipt={lastReceipt} payStep={payStep} paymentMethod={paymentMethod} placing={placing} reference={reference} tip={tip} onAdd={addToCart} onClose={() => { setShowCart(false); setPayStep('cart'); }} onPay={handlePlaceOrder} onRemove={removeFromCart} onSelectPayment={setPaymentMethod} onSetPayStep={setPayStep} onSetTab={setTab} onTip={setTip} />}
