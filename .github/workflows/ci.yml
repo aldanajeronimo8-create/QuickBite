@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
       PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
@@ -86,7 +86,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${VITE_SUPABASE_URL}" || { echo "VITE_SUPABASE_URL is missing"; exit 1; }
           test -n "${VITE_SUPABASE_ANON_KEY}" || { echo "VITE_SUPABASE_ANON_KEY is missing"; exit 1; }
           test -n "${PLAYWRIGHT_E2E_EMAIL}" || { echo "PLAYWRIGHT_E2E_EMAIL is missing"; exit 1; }
           test -n "${PLAYWRIGHT_E2E_PASSWORD}" || { echo "PLAYWRIGHT_E2E_PASSWORD is missing"; exit 1; }
