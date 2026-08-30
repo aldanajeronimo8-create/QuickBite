@@ -5,7 +5,7 @@ import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useDataStore } from '../../../store/dataStore';
 import { getErrorMessage } from '../../../lib/errorMessage';
-import type { Order } from '../../../lib/supabase';
+import { requireSupabaseClient, type Order } from '../../../lib/supabase';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../componen
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 
 export function AdminPaymentsFixed() {
-  const { orders, updateOrder } = useDataStore();
+  const { orders, loadData } = useDataStore();
   const [filterStatus, setFilterStatus] = useState('all');
   const [verificationOrder, setVerificationOrder] = useState<Order | null>(null);
   const [busy, setBusy] = useState(false);
@@ -24,12 +24,12 @@ export function AdminPaymentsFixed() {
   const verify = async (status: 'confirmed' | 'rejected') => {
     if (!verificationOrder || busy) return;
     setBusy(true);
-    try { await updateOrder(verificationOrder.id, { payment_status: status }); toast.success(status === 'confirmed' ? 'Pago verificado y confirmado.' : 'Pago verificado y rechazado.'); setVerificationOrder(null); }
+    try { const { error } = await requireSupabaseClient().rpc('admin_update_order_payment', { p_order_id: verificationOrder.id, p_payment_status: status }); if (error) throw error; await loadData({ silent: true }); toast.success(status === 'confirmed' ? 'Pago verificado y confirmado.' : 'Pago verificado y rechazado.'); setVerificationOrder(null); }
     catch (error) { toast.error(getErrorMessage(error, 'No se pudo actualizar el pago.')); }
     finally { setBusy(false); }
   };
 
-  const paymentLabel = (method: string) => method === 'cash' ? 'Efectivo' : method === 'bre-b' ? 'Bre-B' : method;
+  const paymentLabel = (method: string) => { if (method === 'cash') return 'Efectivo'; if (method === 'nequi') return 'Nequi'; if (method === 'bre-b' || method === 'bancolombia' || method === 'daviplata' || method === 'bank_keys') return 'Bre-B'; return method; };
   return <div className="space-y-6">
     <div><h1 className="text-4xl font-bold text-blue-900">Gestión de pagos</h1><p className="mt-2 text-lg text-slate-600">Verifica primero cada pago pendiente antes de confirmarlo o rechazarlo.</p></div>
     <div className="grid gap-4 md:grid-cols-4"><Card className="p-5"><Clock className="mb-2 h-7 w-7 text-amber-500" /><p className="text-3xl font-bold">{stats.pending}</p><p className="text-sm text-slate-500">Pendientes</p></Card><Card className="p-5"><CheckCircle className="mb-2 h-7 w-7 text-green-600" /><p className="text-3xl font-bold">{stats.confirmed}</p><p className="text-sm text-slate-500">Confirmados</p></Card><Card className="p-5"><XCircle className="mb-2 h-7 w-7 text-red-600" /><p className="text-3xl font-bold">{stats.rejected}</p><p className="text-sm text-slate-500">Rechazados</p></Card><Card className="p-5"><CreditCard className="mb-2 h-7 w-7 text-blue-600" /><p className="text-2xl font-bold">${stats.total.toLocaleString('es-CO')}</p><p className="text-sm text-slate-500">Total confirmado</p></Card></div>

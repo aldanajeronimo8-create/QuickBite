@@ -23,8 +23,7 @@ interface Student { id: string; name: string; grade: string; email?: string; }
 const fmt = (n: number) => n.toLocaleString('es-CO');
 const paymentOptions = [
   { value: 'nequi', label: 'Nequi', hint: 'Referencia digital', accent: 'bg-fuchsia-500' },
-  { value: 'bancolombia', label: 'Bancolombia', hint: 'Transferencia escolar', accent: 'bg-yellow-500' },
-  { value: 'daviplata', label: 'Daviplata', hint: 'Pago digital', accent: 'bg-red-500' },
+  { value: 'bre-b', label: 'Bre-B', hint: 'Transferencia digital', accent: 'bg-blue-500' },
   { value: 'cash', label: 'Efectivo', hint: 'Pago al recoger', accent: 'bg-emerald-500' },
 ] as const;
 function scheduledIsoForToday(time: string) {
@@ -179,9 +178,9 @@ export function StudentMenuPage() {
       const orderNumber = await addOrder({
         user_id: student.id,
         total: cartGrandTotal,
-        status: paymentMethod === 'cash' ? 'pending' : 'preparing',
+        status: 'pending',
         payment_method: paymentMethod,
-        payment_status: paymentMethod === 'cash' ? 'pending' : 'confirmed',
+        payment_status: 'pending',
         pickup_code: pickup,
         estimated_minutes: 8 + cart.length * 3,
         payment_reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : reference,
