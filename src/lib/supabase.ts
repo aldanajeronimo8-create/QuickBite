@@ -44,11 +44,7 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
                   ...result.data.session.user,
                   id: acting.id,
                   email: acting.email,
-                  user_metadata: {
-                    ...result.data.session.user.user_metadata,
-                    full_name: acting.full_name,
-                    acting_as_student: true,
-                  },
+                  user_metadata: { ...result.data.session.user.user_metadata, full_name: acting.full_name, acting_as_student: true },
                 },
               },
             },
@@ -68,11 +64,7 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
                 ...result.data.user,
                 id: acting.id,
                 email: acting.email,
-                user_metadata: {
-                  ...result.data.user.user_metadata,
-                  full_name: acting.full_name,
-                  acting_as_student: true,
-                },
+                user_metadata: { ...result.data.user.user_metadata, full_name: acting.full_name, acting_as_student: true },
               },
             },
           };
@@ -92,6 +84,17 @@ export function requireSupabaseClient() {
     proxiedClient = new Proxy(supabase, {
       get(target, property, receiver) {
         if (property === 'auth') return actingAuthProxy(target.auth);
+        if (property === 'rpc') {
+          return (functionName: string, args?: Record<string, unknown>, options?: unknown) => {
+            const acting = getActiveStudent();
+            const nextArgs = { ...(args ?? {}) };
+            if (acting && functionName === 'request_wallet_topup') nextArgs.p_user_id = acting.id;
+            if (acting && functionName === 'redeem_loyalty_reward') nextArgs.p_user_id = acting.id;
+            if (acting && functionName === 'get_or_create_student_code') nextArgs.p_student_user_id = acting.id;
+            if (acting && functionName === 'mark_notifications_read') nextArgs.p_user_id = acting.id;
+            return target.rpc(functionName, nextArgs, options as never);
+          };
+        }
         const value = Reflect.get(target, property, receiver);
         return typeof value === 'function' ? value.bind(target) : value;
       },
@@ -115,19 +118,9 @@ export interface Order {
 export interface OrderItem { id: string; order_id: string; product_id: string; quantity: number; price: number; product?: Product; }
 export interface UserNotification { id: string; user_id: string; order_id?: string | null; type: 'order_status' | 'reward_redemption'; title: string; body: string; read_at?: string | null; created_at: string; }
 export interface LoyaltySettings { id: boolean; enabled: boolean; points_per_currency_unit: number; updated_at: string; }
-export interface LoyaltyReward {
-  id: string; product_id: string; title: string; description?: string | null;
-  points_required: number; points_cost?: number | null; active: boolean;
-  created_at: string; updated_at: string; product?: Product;
-}
+export interface LoyaltyReward { id: string; product_id: string; title: string; description?: string | null; points_required: number; points_cost?: number | null; active: boolean; created_at: string; updated_at: string; product?: Product; }
 export type LoyaltyRedemptionStatus = 'pending' | 'reserved' | 'approved' | 'fulfilled' | 'delivered' | 'cancelled';
 export interface LoyaltyRedemption { id: string; user_id: string; reward_id: string; product_id: string; points_spent: number; redemption_code: string; status: LoyaltyRedemptionStatus; created_at: string; admin_hidden?: boolean; fulfilled_at?: string | null; reward?: Pick<LoyaltyReward, 'id' | 'title'> & { product?: Pick<Product, 'name'> }; }
 export interface AdminLoyaltyRedemption extends LoyaltyRedemption { user?: Pick<Profile, 'id' | 'full_name' | 'email'>; }
 
-export interface SystemHealthCheck {
-  service: string;
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  latency_ms: number | null;
-  checked_at: string;
-  details: Record<string, unknown>;
-}
+export interface SystemHealthCheck { service: string; status: 'healthy' | 'degraded' | 'unhealthy'; latency_ms: number | null; checked_at: string; details: Record<string, unknown>; }
