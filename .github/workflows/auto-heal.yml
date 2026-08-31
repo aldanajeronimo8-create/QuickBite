@@ -2,9 +2,8 @@ name: QuickBite Auto-Heal
 
 on:
   schedule:
-    # Vercel recommends rollback as an incident-recovery mechanism. Five-minute
-    # polling is used here because GitHub scheduled workflows do not provide
-    # event-level Vercel runtime hooks by themselves.
+    # Five-minute production watchdog. GitHub scheduled workflows are periodic;
+    # CI failures are handled immediately through workflow_run below.
     - cron: '*/5 * * * *'
   workflow_run:
     workflows: [CI]
@@ -31,6 +30,11 @@ jobs:
     timeout-minutes: 8
     permissions:
       contents: read
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      QUICKBITE_HEALTH_URL: ${{ secrets.QUICKBITE_HEALTH_URL }}
+      QUICKBITE_HEALTH_TOKEN: ${{ secrets.QUICKBITE_HEALTH_TOKEN }}
+      QUICKBITE_ALERT_WEBHOOK_URL: ${{ secrets.QUICKBITE_ALERT_WEBHOOK_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,16 +46,10 @@ jobs:
 
       - name: Run production smoke checks
         id: smoke
-        env:
-          QUICKBITE_HEALTH_URL: ${{ secrets.QUICKBITE_HEALTH_URL }}
-          QUICKBITE_HEALTH_TOKEN: ${{ secrets.QUICKBITE_HEALTH_TOKEN }}
         run: node scripts/auto-heal-smoke.mjs
 
       - name: Recheck after transient failure
         if: failure() && steps.smoke.outcome == 'failure'
-        env:
-          QUICKBITE_HEALTH_URL: ${{ secrets.QUICKBITE_HEALTH_URL }}
-          QUICKBITE_HEALTH_TOKEN: ${{ secrets.QUICKBITE_HEALTH_TOKEN }}
         run: |
           set -euo pipefail
           for attempt in 1 2; do
@@ -64,27 +62,23 @@ jobs:
           exit 1
 
       - name: Prepare Vercel project context
-        if: failure() && secrets.VERCEL_TOKEN != ''
-        env:
-          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        if: failure()
         run: |
           set -euo pipefail
+          if [[ -z "${VERCEL_TOKEN}" ]]; then
+            echo "::error::Production smoke check failed and VERCEL_TOKEN is not configured. Automatic rollback is unavailable."
+            exit 1
+          fi
           mkdir -p .vercel
           printf '{"projectId":"%s","orgId":"%s"}\n' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" > .vercel/project.json
           chmod 600 .vercel/project.json
-          test -n "$TOKEN"
 
       - name: Roll back immediately to previous production deployment
-        if: failure() && secrets.VERCEL_TOKEN != ''
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        if: failure()
         run: npx --yes vercel@latest rollback --yes --token "$VERCEL_TOKEN"
 
       - name: Verify service after rollback
-        if: failure() && secrets.VERCEL_TOKEN != ''
-        env:
-          QUICKBITE_HEALTH_URL: ${{ secrets.QUICKBITE_HEALTH_URL }}
-          QUICKBITE_HEALTH_TOKEN: ${{ secrets.QUICKBITE_HEALTH_TOKEN }}
+        if: failure()
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
@@ -97,16 +91,8 @@ jobs:
           echo "Rollback did not restore service." >&2
           exit 1
 
-      - name: Explain missing rollback credentials
-        if: failure() && secrets.VERCEL_TOKEN == ''
-        run: |
-          echo "::error::Production smoke checks failed, but automatic rollback is disabled because VERCEL_TOKEN is not configured."
-          exit 1
-
       - name: Alert on unresolved production incident
         if: failure()
-        env:
-          QUICKBITE_ALERT_WEBHOOK_URL: ${{ secrets.QUICKBITE_ALERT_WEBHOOK_URL }}
         run: |
           if [[ -z "${QUICKBITE_ALERT_WEBHOOK_URL}" ]]; then exit 0; fi
           curl --fail --silent --show-error --max-time 15 --retry 2 \
@@ -122,6 +108,15 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+      PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      CI: true
     steps:
       - name: Checkout failed commit
         uses: actions/checkout@v5
@@ -159,11 +154,10 @@ jobs:
           test -s .github/auto-heal/ci-failure.log || printf 'No failed log output was returned. Inspect the workflow run metadata and repository state.\n' > .github/auto-heal/ci-failure.log
 
       - name: Run Codex repair agent
-        id: codex
-        if: secrets.OPENAI_API_KEY != ''
+        if: env.OPENAI_API_KEY != ''
         uses: openai/codex-action@v1
         with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          openai-api-key: ${{ env.OPENAI_API_KEY }}
           permission-profile: ':workspace'
           prompt: |
             You are the primary QuickBite production repair engineer.
@@ -175,13 +169,12 @@ jobs:
             Preserve existing order, stock, payment, auth, RLS, backup, and Auto-Heal behavior unless the failure directly requires a safe fix.
             Run pnpm typecheck, pnpm lint, pnpm test, and pnpm build after the change.
             Run pnpm test:e2e too when the required E2E secrets are available.
-            Do not finish until the repository is internally consistent.
 
       - name: Run Gemini independent review
-        if: secrets.GEMINI_API_KEY != ''
+        if: env.GEMINI_API_KEY != ''
         uses: google-github-actions/run-gemini-cli@v0
         with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_api_key: ${{ env.GEMINI_API_KEY }}
           prompt: |
             Act as an independent second reviewer for a QuickBite emergency repair.
             Inspect the current working tree and git diff after another AI attempted a fix.
@@ -190,14 +183,13 @@ jobs:
             Do not weaken tests, disable CI, change secrets, or deploy.
             Run pnpm typecheck, pnpm lint, pnpm test, and pnpm build before finishing.
 
+      - name: Stop if no AI repair provider is configured
+        if: env.OPENAI_API_KEY == '' && env.GEMINI_API_KEY == ''
+        run: |
+          echo "::warning::No AI provider secret is configured. Automatic code repair is disabled; the failure remains isolated for manual repair."
+          exit 1
+
       - name: Re-run quality checks after AI repair
-        env:
-          VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
-          PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          CI: true
         run: |
           set -euo pipefail
           pnpm typecheck
@@ -208,7 +200,7 @@ jobs:
             node scripts/ensure-e2e-user.mjs
             pnpm test:e2e
           else
-            echo "E2E secrets unavailable in auto-repair workflow; PR will be blocked by normal CI if needed."
+            echo "E2E secrets unavailable in auto-repair workflow; normal CI remains the final gate."
           fi
 
       - name: Commit and push repair branch
@@ -239,9 +231,4 @@ jobs:
             --base main \
             --head "$HEAD_BRANCH" \
             --title "fix(auto-heal): repair CI failure #${{ github.event.workflow_run.run_number }}" \
-            --body "Automated repair proposal generated after CI run $RUN_ID failed.\n\nThe repair was independently validated with the repository quality checks available to the workflow. Production deployment is not performed by this workflow; normal branch protection/CI must approve the PR before merge."
-
-      - name: Report missing AI credential
-        if: secrets.OPENAI_API_KEY == ''
-        run: |
-          echo "::warning::OPENAI_API_KEY is not configured, so automatic code repair is disabled. Rollback/diagnostics remain available when their credentials are configured."
+            --body "Automated repair proposal generated after CI run $RUN_ID failed. The repair was validated with the available quality/E2E checks. Production deployment is not performed by this workflow; the PR must pass normal CI before merge."
