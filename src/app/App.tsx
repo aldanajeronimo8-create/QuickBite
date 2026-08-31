@@ -15,15 +15,16 @@ function SessionRestorer() {
   const location = useLocation();
 
   useEffect(() => {
-    if (!supabase) return;
+    const supabaseClient = supabase;
+    if (!supabaseClient) return;
 
     let cancelled = false;
 
     const restore = async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await supabaseClient.auth.getSession();
       if (cancelled || !data.session?.user) return;
 
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseClient
         .from('profiles')
         .select('id,role')
         .eq('id', data.session.user.id)
@@ -59,8 +60,8 @@ function App() {
   }, [checkSession, hasSupabase]);
 
   useEffect(() => {
-    if (!hasSupabase || !supabase) return;
     const supabaseClient = supabase;
+    if (!hasSupabase || !supabaseClient) return;
     let cleanupRealtime = subscribeRealtime();
     const { data } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       cleanupRealtime();
