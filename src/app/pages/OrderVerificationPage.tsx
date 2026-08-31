@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Clock3, PackageCheck, XCircle } from 'lucide-react';
-import { requireSupabaseClient } from '../lib/supabase';
+import { requireSupabaseClient } from '../../lib/supabase';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
 interface VerifiedOrder {
