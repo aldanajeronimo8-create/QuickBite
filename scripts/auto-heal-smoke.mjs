@@ -5,10 +5,10 @@ const healthToken = process.env.QUICKBITE_HEALTH_TOKEN;
 if (!productionUrl) throw new Error('QUICKBITE_PRODUCTION_URL is required.');
 
 async function checkUrl(url, headers = {}) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
+  const controller = new globalThis.AbortController();
+  const timer = globalThis.setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(url, {
+    const response = await globalThis.fetch(url, {
       method: 'GET',
       redirect: 'follow',
       headers,
@@ -17,7 +17,7 @@ async function checkUrl(url, headers = {}) {
     const body = await response.text();
     return { status: response.status, body };
   } finally {
-    clearTimeout(timer);
+    globalThis.clearTimeout(timer);
   }
 }
 
