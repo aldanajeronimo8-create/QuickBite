@@ -11,7 +11,10 @@ import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
+const AccountTypeChoicePage = lazy(() => import('./pages/AccountTypeChoicePage').then((m) => ({ default: m.AccountTypeChoicePage })));
 const StudentRegisterPage = lazy(() => import('./pages/student/StudentRegisterPage').then((m) => ({ default: m.StudentRegisterPage })));
+const ParentRegisterPage = lazy(() => import('./pages/ParentRegisterPage').then((m) => ({ default: m.ParentRegisterPage })));
+const ParentFamilyPage = lazy(() => import('./pages/ParentFamilyPage').then((m) => ({ default: m.ParentFamilyPage })));
 const StudentFeatureCenter = lazy(() => import('./pages/student/StudentFeatureCenter').then((m) => ({ default: m.StudentFeatureCenter })));
 const StudentAccountFeaturesPage = lazy(() => import('./pages/student/StudentAccountFeaturesPage').then((m) => ({ default: m.StudentAccountFeaturesPage })));
 const StudentHistoryPage = lazy(() => import('./pages/student/StudentHistoryPage').then((m) => ({ default: m.StudentHistoryPage })));
@@ -35,10 +38,26 @@ const QuickBiteFeatureCenter = lazy(() => import('./pages/admin/QuickBiteFeature
 function PageLoader() { return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600"><div className="flex flex-col items-center gap-3"><QuickBiteLogo className="h-16 w-16 rounded-2xl" /><span>Cargando...</span></div></div>; }
 function lazyPage(Component: ComponentType) { return <Suspense fallback={<PageLoader />}><Component /></Suspense>; }
 export const router = createBrowserRouter([
-  { path: '/', element: <LoginPage /> }, { path: '/login', element: <LoginPage /> }, { path: '/register-student', element: lazyPage(StudentRegisterPage) }, { path: '/menu', element: <StudentExperienceLayout /> },
-  { path: '/student/features', element: lazyPage(StudentFeatureCenter) }, { path: '/student/account', element: lazyPage(StudentAccountFeaturesPage) }, { path: '/student/history', element: lazyPage(StudentHistoryPage) }, { path: '/student/rewards', element: lazyPage(StudentRewardsPage) }, { path: '/student/favorites', element: lazyPage(StudentFavoritesPage) }, { path: '/student/link-code', element: lazyPage(StudentLinkCodePage) }, { path: '/student/notifications', element: lazyPage(StudentNotificationsPage) },
-  { path: '/register', element: <AuthRedirect><Suspense fallback={<PageLoader />}><RegisterPage /></Suspense></AuthRedirect> }, { path: '/forgot-password', element: lazyPage(ForgotPasswordPage) }, { path: '/reset-password', element: lazyPage(ResetPasswordPage) }, { path: '/setup', element: <SetupWizardPage /> },
+  { path: '/', element: <LoginPage /> },
+  { path: '/login', element: <LoginPage /> },
+  { path: '/register-student', element: lazyPage(AccountTypeChoicePage) },
+  { path: '/register-student/form', element: lazyPage(StudentRegisterPage) },
+  { path: '/register-parent', element: lazyPage(ParentRegisterPage) },
+  { path: '/parent/family', element: lazyPage(ParentFamilyPage) },
+  { path: '/menu', element: <StudentExperienceLayout /> },
+  { path: '/student/features', element: lazyPage(StudentFeatureCenter) },
+  { path: '/student/account', element: lazyPage(StudentAccountFeaturesPage) },
+  { path: '/student/history', element: lazyPage(StudentHistoryPage) },
+  { path: '/student/rewards', element: lazyPage(StudentRewardsPage) },
+  { path: '/student/favorites', element: lazyPage(StudentFavoritesPage) },
+  { path: '/student/link-code', element: lazyPage(StudentLinkCodePage) },
+  { path: '/student/notifications', element: lazyPage(StudentNotificationsPage) },
+  { path: '/register', element: <AuthRedirect><Suspense fallback={<PageLoader />}><RegisterPage /></Suspense></AuthRedirect> },
+  { path: '/forgot-password', element: lazyPage(ForgotPasswordPage) },
+  { path: '/reset-password', element: lazyPage(ResetPasswordPage) },
+  { path: '/setup', element: <SetupWizardPage /> },
   { path: '/admin', element: <ProtectedRoute><AdminExperienceLayout /></ProtectedRoute>, children: [
     { index: true, element: lazyPage(AdminDashboard) }, { path: 'features', element: lazyPage(QuickBiteFeatureCenter) }, { path: 'orders', element: lazyPage(AdminOrders) }, { path: 'payments', element: lazyPage(AdminPayments) }, { path: 'wallet', element: lazyPage(AdminWalletTopups) }, { path: 'inventory', element: lazyPage(AdminInventory) }, { path: 'menu', element: lazyPage(AdminMenu) }, { path: 'verification', element: lazyPage(AdminVerification) }, { path: 'users', element: lazyPage(AdminUsers) }, { path: 'loyalty', element: lazyPage(AdminLoyalty) }, { path: 'reports', element: lazyPage(AdminReports) }, { path: 'history', element: lazyPage(AdminHistory) }, { path: 'system', element: lazyPage(AdminSystem) },
-  ] }, { path: '*', element: <Navigate to="/" replace /> },
+  ] },
+  { path: '*', element: <Navigate to="/" replace /> },
 ]);
