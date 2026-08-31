@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { appConfig, hasSupabaseConfig } from '../config/appConfig';
 import type { UserRole } from './access';
 
@@ -9,9 +9,95 @@ export const supabase = hasSupabaseConfig()
   })
   : null;
 
+const ACTIVE_STUDENT_STORAGE_KEY = 'quickbite.parent.activeStudent';
+
+type StoredActingStudent = { id: string; full_name: string; email: string; grade: string | null; ti: string | null };
+
+function getActiveStudent(): StoredActingStudent | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_STUDENT_STORAGE_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<StoredActingStudent>;
+    if (!value.id || !value.full_name || !value.email) return null;
+    return { id: value.id, full_name: value.full_name, email: value.email, grade: value.grade ?? null, ti: value.ti ?? null };
+  } catch {
+    return null;
+  }
+}
+
+function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
+  return new Proxy(auth, {
+    get(target, property, receiver) {
+      if (property === 'getSession') {
+        return async () => {
+          const result = await target.getSession();
+          const acting = getActiveStudent();
+          if (!acting || !result.data.session) return result;
+          return {
+            ...result,
+            data: {
+              ...result.data,
+              session: {
+                ...result.data.session,
+                user: {
+                  ...result.data.session.user,
+                  id: acting.id,
+                  email: acting.email,
+                  user_metadata: {
+                    ...result.data.session.user.user_metadata,
+                    full_name: acting.full_name,
+                    acting_as_student: true,
+                  },
+                },
+              },
+            },
+          };
+        };
+      }
+      if (property === 'getUser') {
+        return async () => {
+          const result = await target.getUser();
+          const acting = getActiveStudent();
+          if (!acting || !result.data.user) return result;
+          return {
+            ...result,
+            data: {
+              ...result.data,
+              user: {
+                ...result.data.user,
+                id: acting.id,
+                email: acting.email,
+                user_metadata: {
+                  ...result.data.user.user_metadata,
+                  full_name: acting.full_name,
+                  acting_as_student: true,
+                },
+              },
+            },
+          };
+        };
+      }
+      const value = Reflect.get(target, property, receiver);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  }) as T;
+}
+
+let proxiedClient: SupabaseClient | null = null;
+
 export function requireSupabaseClient() {
   if (!supabase) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
-  return supabase;
+  if (!proxiedClient) {
+    proxiedClient = new Proxy(supabase, {
+      get(target, property, receiver) {
+        if (property === 'auth') return actingAuthProxy(target.auth);
+        const value = Reflect.get(target, property, receiver);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+  }
+  return proxiedClient;
 }
 
 export interface Profile { id: string; email: string; full_name: string; role: UserRole; ti?: string | null; created_at: string; }
@@ -19,8 +105,6 @@ export interface Category { id: string; name: string; description?: string; crea
 export interface Product { id: string; name: string; description?: string; price: number; image_url?: string; category_id: string; stock: number; available: boolean; created_at: string; category?: Category; }
 export interface Order {
   id: string; user_id: string | null; total: number;
-  // `cancelled` is retained only as a legacy client-side value for compatibility with old records/tests.
-  // New rejected orders use `rejected`, which is the canonical database status.
   status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'rejected' | 'cancelled';
   payment_method: 'nequi' | 'cash' | 'bre-b';
   payment_status: 'pending' | 'confirmed' | 'rejected';
