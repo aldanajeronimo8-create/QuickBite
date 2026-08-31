@@ -17,35 +17,28 @@ function SessionRestorer() {
   useEffect(() => {
     const supabaseClient = supabase;
     if (!supabaseClient) return;
-
     let cancelled = false;
-
     const restore = async () => {
-      const { data } = await supabaseClient.auth.getSession();
-      if (cancelled || !data.session?.user) return;
-
-      const { data: profile } = await supabaseClient
-        .from('profiles')
-        .select('id,role')
-        .eq('id', data.session.user.id)
-        .maybeSingle();
-
-      if (cancelled || !profile) return;
-
-      const isAuthPage = location.pathname === '/' || location.pathname === '/login';
-      if (!isAuthPage) return;
-
-      if (canAccessAdmin(profile.role)) {
-        navigate('/admin', { replace: true });
-      } else if (canAccessStudent(profile.role)) {
-        navigate('/menu', { replace: true });
+      try {
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) throw error;
+        if (cancelled || !data.session?.user) return;
+        const { data: profile, error: profileError } = await supabaseClient
+          .from('profiles').select('id,role').eq('id', data.session.user.id).maybeSingle();
+        if (profileError) throw profileError;
+        if (cancelled || !profile) return;
+        if (location.pathname !== '/' && location.pathname !== '/login') return;
+        if (canAccessAdmin(profile.role)) navigate('/admin', { replace: true });
+        else if (canAccessStudent(profile.role)) navigate('/menu', { replace: true });
+      } catch (error) {
+        // A stale/corrupt persisted session must not crash the whole React tree.
+        // Supabase will emit SIGNED_OUT/TOKEN_REFRESHED when it can recover the session.
+        console.warn('[QuickBite] No se pudo restaurar la sesión automáticamente.', error);
       }
     };
-
     void restore();
     return () => { cancelled = true; };
   }, [location.pathname, navigate]);
-
   return null;
 }
 
@@ -65,26 +58,13 @@ function App() {
     let cleanupRealtime = subscribeRealtime();
     const { data } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       cleanupRealtime();
-      if (session?.access_token) {
-        supabaseClient.realtime.setAuth(session.access_token);
-      }
+      if (session?.access_token) supabaseClient.realtime.setAuth(session.access_token);
       cleanupRealtime = subscribeRealtime();
     });
-
-    return () => {
-      cleanupRealtime();
-      data.subscription?.unsubscribe();
-    };
+    return () => { cleanupRealtime(); data.subscription?.unsubscribe(); };
   }, [hasSupabase, subscribeRealtime]);
 
-  return (
-    <>
-      <ErrorBoundary>
-        {needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><SessionRestorer /></>}
-      </ErrorBoundary>
-      <Toaster position="top-center" />
-    </>
-  );
+  return <><ErrorBoundary>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><SessionRestorer /></>}</ErrorBoundary><Toaster position="top-center" /></>;
 }
 
 export default App;
