@@ -16,7 +16,7 @@ function NavItem({ path, label, icon: Icon, active, badge, collapsed = false }: 
 
 export function AdminLayout() {
   const navigate = useNavigate(); const location = useLocation(); const { user, signOut } = useAuthStore(); const { loadData, orders } = useDataStore();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const sidebarCollapsed = false; const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   useEffect(() => { void loadData(); }, [loadData]);
   useEffect(() => { setMobileSidebarOpen(false); }, [location.pathname]);
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
