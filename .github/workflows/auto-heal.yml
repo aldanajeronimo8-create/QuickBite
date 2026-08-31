@@ -2,8 +2,6 @@ name: QuickBite Auto-Heal
 
 on:
   schedule:
-    # Five-minute production watchdog. GitHub scheduled workflows are periodic;
-    # CI failures are handled immediately through workflow_run below.
     - cron: '*/5 * * * *'
   workflow_run:
     workflows: [CI]
@@ -46,10 +44,13 @@ jobs:
 
       - name: Run production smoke checks
         id: smoke
+        continue-on-error: true
         run: node scripts/auto-heal-smoke.mjs
 
       - name: Recheck after transient failure
-        if: failure() && steps.smoke.outcome == 'failure'
+        id: retry
+        if: steps.smoke.outcome == 'failure'
+        continue-on-error: true
         run: |
           set -euo pipefail
           for attempt in 1 2; do
@@ -62,23 +63,30 @@ jobs:
           exit 1
 
       - name: Prepare Vercel project context
-        if: failure()
+        id: prepare
+        if: steps.smoke.outcome == 'failure' && steps.retry.outcome == 'failure'
+        continue-on-error: true
         run: |
           set -euo pipefail
           if [[ -z "${VERCEL_TOKEN}" ]]; then
-            echo "::error::Production smoke check failed and VERCEL_TOKEN is not configured. Automatic rollback is unavailable."
-            exit 1
+            echo "::warning::Production smoke checks failed, but VERCEL_TOKEN is not configured. Automatic rollback is unavailable."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           mkdir -p .vercel
           printf '{"projectId":"%s","orgId":"%s"}\n' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" > .vercel/project.json
           chmod 600 .vercel/project.json
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
 
       - name: Roll back immediately to previous production deployment
-        if: failure()
+        id: rollback
+        if: steps.prepare.outputs.enabled == 'true'
+        continue-on-error: true
         run: npx --yes vercel@latest rollback --yes --token "$VERCEL_TOKEN"
 
       - name: Verify service after rollback
-        if: failure()
+        id: rollback_verify
+        if: steps.prepare.outputs.enabled == 'true'
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
@@ -90,6 +98,10 @@ jobs:
           done
           echo "Rollback did not restore service." >&2
           exit 1
+
+      - name: Fail only on unresolved production incident
+        if: steps.smoke.outcome == 'failure' && steps.retry.outcome == 'failure' && (steps.prepare.outputs.enabled != 'true' || steps.rollback.outcome == 'failure' || steps.rollback_verify.outcome == 'failure')
+        run: exit 1
 
       - name: Alert on unresolved production incident
         if: failure()
@@ -161,14 +173,10 @@ jobs:
           permission-profile: ':workspace'
           prompt: |
             You are the primary QuickBite production repair engineer.
-            Work only on this trusted main-branch checkout created from a failed CI push.
-            Read .github/auto-heal/ci-failure.log first and inspect the repository to find the root cause.
-            Make the smallest safe code/configuration changes necessary to fix the failure.
-            Never change or weaken tests to hide a defect. Never expose, print, commit, or modify secrets.
-            Never deploy to Vercel and never modify production environment variables.
-            Preserve existing order, stock, payment, auth, RLS, backup, and Auto-Heal behavior unless the failure directly requires a safe fix.
-            Run pnpm typecheck, pnpm lint, pnpm test, and pnpm build after the change.
-            Run pnpm test:e2e too when the required E2E secrets are available.
+            Read .github/auto-heal/ci-failure.log, identify the root cause, and make the smallest safe repair.
+            Never weaken tests, expose or modify secrets, disable CI, or deploy.
+            Preserve order, stock, payment, auth, RLS, backups, and Auto-Heal behavior.
+            Run pnpm typecheck, pnpm lint, pnpm test, and pnpm build; run E2E when its secrets are available.
 
       - name: Run Gemini independent review
         if: env.GEMINI_API_KEY != ''
@@ -177,16 +185,15 @@ jobs:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           prompt: |
             Act as an independent second reviewer for a QuickBite emergency repair.
-            Inspect the current working tree and git diff after another AI attempted a fix.
-            Read .github/auto-heal/ci-failure.log and verify that the proposed fix addresses the root cause.
-            Correct any remaining defect you find, but keep changes minimal and safe.
+            Inspect the current git diff and .github/auto-heal/ci-failure.log.
+            Verify the root-cause fix, correct remaining defects if necessary, and keep the patch minimal.
             Do not weaken tests, disable CI, change secrets, or deploy.
             Run pnpm typecheck, pnpm lint, pnpm test, and pnpm build before finishing.
 
       - name: Stop if no AI repair provider is configured
         if: env.OPENAI_API_KEY == '' && env.GEMINI_API_KEY == ''
         run: |
-          echo "::warning::No AI provider secret is configured. Automatic code repair is disabled; the failure remains isolated for manual repair."
+          echo "::warning::No AI provider secret is configured. Automatic code repair is disabled; the CI failure remains isolated."
           exit 1
 
       - name: Re-run quality checks after AI repair
