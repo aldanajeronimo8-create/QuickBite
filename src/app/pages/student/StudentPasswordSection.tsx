@@ -29,14 +29,12 @@ export function StudentPasswordSection({ userId }: { userId: string }) {
       if (userError) throw userError;
       if (userData.user?.id !== userId) throw new Error('La sesión no corresponde al estudiante actual.');
 
-      const { data, error } = await client
-        .from('profiles')
-        .select('ti')
-        .eq('id', userId)
-        .maybeSingle();
+      const { data, error } = await client.rpc('verify_student_identity', {
+        p_user_id: userId,
+        p_ti: normalizedTi,
+      });
       if (error) throw error;
-
-      if (!data?.ti || data.ti.trim() !== normalizedTi) {
+      if (data !== true) {
         toast.error('La tarjeta de identidad no coincide con la registrada en esta cuenta.');
         return;
       }
@@ -52,6 +50,10 @@ export function StudentPasswordSection({ userId }: { userId: string }) {
 
   const changePassword = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!verified) {
+      toast.error('Primero verifica tu tarjeta de identidad.');
+      return;
+    }
     if (password.length < 6) {
       toast.error('La contraseña debe tener al menos 6 caracteres.');
       return;
@@ -72,7 +74,7 @@ export function StudentPasswordSection({ userId }: { userId: string }) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo actualizar la contraseña.';
       if (/reauth|recent login|nonce/i.test(message)) {
-        toast.error('Supabase requiere una reautenticación reciente para cambiar la contraseña. Usa “Reestablecer contraseña” para recibir un enlace seguro por correo.');
+        toast.error('Supabase requiere una reautenticación reciente. Usa “Reestablecer contraseña” para recibir un enlace seguro por correo.');
       } else {
         toast.error(message);
       }
@@ -103,7 +105,7 @@ export function StudentPasswordSection({ userId }: { userId: string }) {
               <Label htmlFor="student-ti-password">Tarjeta de identidad</Label>
               <Input id="student-ti-password" value={ti} onChange={(event) => setTi(event.target.value)} inputMode="numeric" autoComplete="off" placeholder="Número de T.I." />
             </div>
-            <Button onClick={() => void verifyTi()} disabled={verifying} className="self-end bg-blue-700 text-white hover:bg-blue-800">
+            <Button type="button" onClick={() => void verifyTi()} disabled={verifying} className="self-end bg-blue-700 text-white hover:bg-blue-800">
               {verifying ? 'Verificando…' : 'Verificar T.I.'}
             </Button>
           </div>
