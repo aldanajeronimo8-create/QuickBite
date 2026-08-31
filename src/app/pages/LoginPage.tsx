@@ -32,6 +32,12 @@ export function LoginPage() {
       const client = requireSupabaseClient();
       const { data, error: signInError } = await client.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
       if (signInError || !data.user) throw new Error('Correo o contraseña incorrectos.');
+
+      if (mode === 'parent') {
+        const { error: completeError } = await client.rpc('complete_pending_parent_registration');
+        if (completeError && !/not_authorized|invalid_parent_registration/i.test(completeError.message)) throw completeError;
+      }
+
       const { data: profile, error: profileError } = await client.from('profiles').select('id,role').eq('id', data.user.id).maybeSingle();
       if (profileError) throw profileError;
       if (!profile) { await client.auth.signOut(); throw new Error('Tu cuenta no tiene un perfil de QuickBite.'); }
