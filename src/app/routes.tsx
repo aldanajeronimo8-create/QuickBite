@@ -15,6 +15,7 @@ const AccountTypeChoicePage = lazy(() => import('./pages/AccountTypeChoicePage')
 const StudentRegisterPage = lazy(() => import('./pages/student/StudentRegisterPage').then((m) => ({ default: m.StudentRegisterPage })));
 const ParentRegisterPage = lazy(() => import('./pages/ParentRegisterPage').then((m) => ({ default: m.ParentRegisterPage })));
 const ParentFamilyPage = lazy(() => import('./pages/ParentFamilyPage').then((m) => ({ default: m.ParentFamilyPage })));
+const OrderVerificationPage = lazy(() => import('./pages/OrderVerificationPage').then((m) => ({ default: m.OrderVerificationPage })));
 const StudentFeatureCenter = lazy(() => import('./pages/student/StudentFeatureCenter').then((m) => ({ default: m.StudentFeatureCenter })));
 const StudentAccountFeaturesPage = lazy(() => import('./pages/student/StudentAccountFeaturesPage').then((m) => ({ default: m.StudentAccountFeaturesPage })));
 const StudentHistoryPage = lazy(() => import('./pages/student/StudentHistoryPage').then((m) => ({ default: m.StudentHistoryPage })));
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
   { path: '/register-student/form', element: lazyPage(StudentRegisterPage) },
   { path: '/register-parent', element: lazyPage(ParentRegisterPage) },
   { path: '/parent/family', element: lazyPage(ParentFamilyPage) },
+  { path: '/verify-order', element: lazyPage(OrderVerificationPage) },
   { path: '/menu', element: <StudentExperienceLayout /> },
   { path: '/student/features', element: lazyPage(StudentFeatureCenter) },
   { path: '/student/account', element: lazyPage(StudentAccountFeaturesPage) },
