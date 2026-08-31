@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { RouterProvider, useLocation, useNavigate } from 'react-router-dom';
+import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 import { Toaster } from './components/ui/sonner';
 import { useAuthStore } from '../store/authStore';
@@ -11,9 +11,6 @@ import { supabase } from '../lib/supabase';
 import { canAccessAdmin, canAccessStudent } from '../lib/access';
 
 function SessionRestorer() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
   useEffect(() => {
     const supabaseClient = supabase;
     if (!supabaseClient) return;
@@ -27,18 +24,20 @@ function SessionRestorer() {
           .from('profiles').select('id,role').eq('id', data.session.user.id).maybeSingle();
         if (profileError) throw profileError;
         if (cancelled || !profile) return;
-        if (location.pathname !== '/' && location.pathname !== '/login') return;
-        if (canAccessAdmin(profile.role)) navigate('/admin', { replace: true });
-        else if (canAccessStudent(profile.role)) navigate('/menu', { replace: true });
+        const pathname = window.location.pathname;
+        if (pathname !== '/' && pathname !== '/login') return;
+        if (canAccessAdmin(profile.role)) {
+          await router.navigate('/admin', { replace: true });
+        } else if (canAccessStudent(profile.role)) {
+          await router.navigate('/menu', { replace: true });
+        }
       } catch (error) {
-        // A stale/corrupt persisted session must not crash the whole React tree.
-        // Supabase will emit SIGNED_OUT/TOKEN_REFRESHED when it can recover the session.
         console.warn('[QuickBite] No se pudo restaurar la sesión automáticamente.', error);
       }
     };
     void restore();
     return () => { cancelled = true; };
-  }, [location.pathname, navigate]);
+  }, []);
   return null;
 }
 
