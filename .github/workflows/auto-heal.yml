@@ -32,21 +32,18 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       QUICKBITE_HEALTH_URL: ${{ secrets.QUICKBITE_HEALTH_URL }}
       QUICKBITE_HEALTH_TOKEN: ${{ secrets.QUICKBITE_HEALTH_TOKEN }}
-      QUICKBITE_ALERT_WEBHOOK_URL: ${{ secrets.QUICKBITE_ALERT_WEBHOOK_URL }}
+      QUICKBITE_ALERT_WEBHOOK_URL: ${{ secrets.QUICKBITE_ALERT_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
-
       - name: Run production smoke checks
         id: smoke
         continue-on-error: true
         run: node scripts/auto-heal-smoke.mjs
-
       - name: Recheck after transient failure
         id: retry
         if: steps.smoke.outcome == 'failure'
@@ -55,13 +52,9 @@ jobs:
           set -euo pipefail
           for attempt in 1 2; do
             sleep 15
-            if node scripts/auto-heal-smoke.mjs; then
-              echo "Recovered without rollback on retry ${attempt}."
-              exit 0
-            fi
+            if node scripts/auto-heal-smoke.mjs; then exit 0; fi
           done
           exit 1
-
       - name: Prepare Vercel project context
         id: prepare
         if: steps.smoke.outcome == 'failure' && steps.retry.outcome == 'failure'
@@ -69,48 +62,45 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${VERCEL_TOKEN}" ]]; then
-            echo "::warning::Production smoke checks failed, but VERCEL_TOKEN is not configured. Automatic rollback is unavailable."
             echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::VERCEL_TOKEN is missing; automatic rollback is unavailable."
             exit 0
           fi
           mkdir -p .vercel
           printf '{"projectId":"%s","orgId":"%s"}\n' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" > .vercel/project.json
           chmod 600 .vercel/project.json
           echo "enabled=true" >> "$GITHUB_OUTPUT"
-
       - name: Roll back immediately to previous production deployment
         id: rollback
         if: steps.prepare.outputs.enabled == 'true'
         continue-on-error: true
         run: npx --yes vercel@latest rollback --yes --token "$VERCEL_TOKEN"
-
       - name: Verify service after rollback
         id: rollback_verify
         if: steps.prepare.outputs.enabled == 'true'
+        continue-on-error: true
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
             sleep 10
-            if node scripts/auto-heal-smoke.mjs; then
-              echo "Rollback restored service."
-              exit 0
-            fi
+            if node scripts/auto-heal-smoke.mjs; then exit 0; fi
           done
-          echo "Rollback did not restore service." >&2
           exit 1
-
       - name: Fail only on unresolved production incident
         if: steps.smoke.outcome == 'failure' && steps.retry.outcome == 'failure' && (steps.prepare.outputs.enabled != 'true' || steps.rollback.outcome == 'failure' || steps.rollback_verify.outcome == 'failure')
         run: exit 1
-
       - name: Alert on unresolved production incident
-        if: failure()
+        if: steps.smoke.outcome == 'failure' && steps.retry.outcome == 'failure' && (steps.prepare.outputs.enabled != 'true' || steps.rollback.outcome == 'failure' || steps.rollback_verify.outcome == 'failure')
         run: |
-          if [[ -z "${QUICKBITE_ALERT_WEBHOOK_URL}" ]]; then exit 0; fi
-          curl --fail --silent --show-error --max-time 15 --retry 2 \
+          set -euo pipefail
+          if [[ -z "${QUICKBITE_ALERT_WEBHOOK_URL}" ]]; then
+            echo "::error::No Discord webhook configured. Set QUICKBITE_ALERT_WEBHOOK_URL (or DISCORD_WEBHOOK_URL) in GitHub Actions secrets."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 15 --retry 3 --retry-all-errors \
             -H 'Content-Type: application/json' \
-            --data '{"text":"QuickBite Auto-Heal: incidente de producción. Se intentó recuperación automática/rollback; revisar Vercel y GitHub."}' \
-            "${QUICKBITE_ALERT_WEBHOOK_URL}" || true
+            --data '{"content":"🚨 QuickBite Auto-Heal: incidente de producción no resuelto. Se intentó recuperación/rollback. Revisar GitHub y Vercel."}' \
+            "${QUICKBITE_ALERT_WEBHOOK_URL}"
 
   ai-repair:
     name: AI diagnosis and repair PR
@@ -128,6 +118,7 @@ jobs:
       PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
       PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      QUICKBITE_ALERT_WEBHOOK_URL: ${{ secrets.QUICKBITE_ALERT_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_URL }}
       CI: true
     steps:
       - name: Checkout failed commit
@@ -136,25 +127,20 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           persist-credentials: true
-
       - name: Create repair branch
         run: git switch -c "auto-heal/ci-${{ github.event.workflow_run.id }}"
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
           run_install: false
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: pnpm
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
-
       - name: Capture failed CI logs
         env:
           GH_TOKEN: ${{ github.token }}
@@ -163,39 +149,37 @@ jobs:
           set -euo pipefail
           mkdir -p .github/auto-heal
           gh run view "$RUN_ID" --log-failed > .github/auto-heal/ci-failure.log || true
-          test -s .github/auto-heal/ci-failure.log || printf 'No failed log output was returned. Inspect the workflow run metadata and repository state.\n' > .github/auto-heal/ci-failure.log
-
+          test -s .github/auto-heal/ci-failure.log || printf 'No failed log output was returned.\n' > .github/auto-heal/ci-failure.log
       - name: Run Codex repair agent
+        id: codex
         if: env.OPENAI_API_KEY != ''
+        continue-on-error: true
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ env.OPENAI_API_KEY }}
           permission-profile: ':workspace'
           prompt: |
-            You are the primary QuickBite production repair engineer.
-            Read .github/auto-heal/ci-failure.log, identify the root cause, and make the smallest safe repair.
-            Never weaken tests, expose or modify secrets, disable CI, or deploy.
-            Preserve order, stock, payment, auth, RLS, backups, and Auto-Heal behavior.
-            Run pnpm typecheck, pnpm lint, pnpm test, and pnpm build; run E2E when its secrets are available.
-
-      - name: Run Gemini independent review
+            Diagnose .github/auto-heal/ci-failure.log and make the smallest safe repair.
+            Never weaken tests, modify secrets, disable CI, or deploy.
+            Preserve order, stock, payment, auth, RLS, backups and Auto-Heal.
+            Run typecheck, lint, test and build; run E2E when secrets are available.
+      - name: Run Gemini independent repair/review
+        id: gemini
         if: env.GEMINI_API_KEY != ''
+        continue-on-error: true
         uses: google-github-actions/run-gemini-cli@v0
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           prompt: |
-            Act as an independent second reviewer for a QuickBite emergency repair.
-            Inspect the current git diff and .github/auto-heal/ci-failure.log.
-            Verify the root-cause fix, correct remaining defects if necessary, and keep the patch minimal.
-            Do not weaken tests, disable CI, change secrets, or deploy.
-            Run pnpm typecheck, pnpm lint, pnpm test, and pnpm build before finishing.
-
+            Independently inspect .github/auto-heal/ci-failure.log and the current git diff.
+            If Codex failed, diagnose and repair the root cause yourself.
+            Make only safe minimal changes. Never weaken tests, change secrets, disable CI or deploy.
+            Run typecheck, lint, test and build before finishing.
       - name: Stop if no AI repair provider is configured
         if: env.OPENAI_API_KEY == '' && env.GEMINI_API_KEY == ''
         run: |
-          echo "::warning::No AI provider secret is configured. Automatic code repair is disabled; the CI failure remains isolated."
+          echo "::error::No AI repair provider is configured."
           exit 1
-
       - name: Re-run quality checks after AI repair
         run: |
           set -euo pipefail
@@ -207,9 +191,8 @@ jobs:
             node scripts/ensure-e2e-user.mjs
             pnpm test:e2e
           else
-            echo "E2E secrets unavailable in auto-repair workflow; normal CI remains the final gate."
+            echo "E2E secrets unavailable; normal CI remains the final gate."
           fi
-
       - name: Commit and push repair branch
         id: push
         run: |
@@ -225,7 +208,6 @@ jobs:
           git commit -m "fix(auto-heal): repair failed CI run ${{ github.event.workflow_run.run_number }}"
           git push --set-upstream origin HEAD
           echo 'changed=true' >> "$GITHUB_OUTPUT"
-
       - name: Open repair pull request
         if: steps.push.outputs.changed == 'true'
         env:
@@ -234,8 +216,16 @@ jobs:
           HEAD_BRANCH: auto-heal/ci-${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          gh pr create \
-            --base main \
-            --head "$HEAD_BRANCH" \
-            --title "fix(auto-heal): repair CI failure #${{ github.event.workflow_run.run_number }}" \
-            --body "Automated repair proposal generated after CI run $RUN_ID failed. The repair was validated with the available quality/E2E checks. Production deployment is not performed by this workflow; the PR must pass normal CI before merge."
+          gh pr create --base main --head "$HEAD_BRANCH" --title "fix(auto-heal): repair CI failure #${{ github.event.workflow_run.run_number }}" --body "Automated repair proposal for failed CI run $RUN_ID. Production deployment is not performed by Auto-Heal."
+      - name: Alert if AI repair failed
+        if: failure()
+        run: |
+          set -euo pipefail
+          if [[ -z "${QUICKBITE_ALERT_WEBHOOK_URL}" ]]; then
+            echo "::error::AI repair failed and no Discord webhook is configured."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 15 --retry 3 --retry-all-errors \
+            -H 'Content-Type: application/json' \
+            --data '{"content":"⚠️ QuickBite Auto-Heal: la reparación automática de CI falló. Revisar la ejecución de GitHub Actions."}' \
+            "${QUICKBITE_ALERT_WEBHOOK_URL}"
