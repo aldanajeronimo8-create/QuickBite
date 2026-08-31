@@ -14,10 +14,11 @@ const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((m
 const StudentRegisterPage = lazy(() => import('./pages/student/StudentRegisterPage').then((m) => ({ default: m.StudentRegisterPage })));
 const StudentFeatureCenter = lazy(() => import('./pages/student/StudentFeatureCenter').then((m) => ({ default: m.StudentFeatureCenter })));
 const StudentAccountFeaturesPage = lazy(() => import('./pages/student/StudentAccountFeaturesPage').then((m) => ({ default: m.StudentAccountFeaturesPage })));
-const StudentLinkCodePage = lazy(() => import('./pages/student/StudentLinkCodePage').then((m) => ({ default: m.StudentLinkCodePage })));
 const StudentHistoryPage = lazy(() => import('./pages/student/StudentHistoryPage').then((m) => ({ default: m.StudentHistoryPage })));
 const StudentRewardsPage = lazy(() => import('./pages/student/StudentRewardsPage').then((m) => ({ default: m.StudentRewardsPage })));
 const StudentNotificationsPage = lazy(() => import('./pages/student/StudentNotificationsPage').then((m) => ({ default: m.StudentNotificationsPage })));
+const StudentFavoritesPage = lazy(() => import('./pages/student/StudentFavoritesPage').then((m) => ({ default: m.StudentFavoritesPage })));
+const StudentLinkCodePage = lazy(() => import('./pages/student/StudentLinkCodePage').then((m) => ({ default: m.StudentLinkCodePage })));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders').then((m) => ({ default: m.AdminOrders })));
 const AdminPayments = lazy(() => import('./pages/admin/AdminPayments').then((m) => ({ default: m.AdminPayments })));
@@ -35,7 +36,7 @@ function PageLoader() { return <div className="grid min-h-screen place-items-cen
 function lazyPage(Component: ComponentType) { return <Suspense fallback={<PageLoader />}><Component /></Suspense>; }
 export const router = createBrowserRouter([
   { path: '/', element: <LoginPage /> }, { path: '/login', element: <LoginPage /> }, { path: '/register-student', element: lazyPage(StudentRegisterPage) }, { path: '/menu', element: <StudentExperienceLayout /> },
-  { path: '/student/features', element: lazyPage(StudentFeatureCenter) }, { path: '/student/account', element: lazyPage(StudentAccountFeaturesPage) }, { path: '/student/link-code', element: lazyPage(StudentLinkCodePage) }, { path: '/student/history', element: lazyPage(StudentHistoryPage) }, { path: '/student/rewards', element: lazyPage(StudentRewardsPage) }, { path: '/student/notifications', element: lazyPage(StudentNotificationsPage) },
+  { path: '/student/features', element: lazyPage(StudentFeatureCenter) }, { path: '/student/account', element: lazyPage(StudentAccountFeaturesPage) }, { path: '/student/history', element: lazyPage(StudentHistoryPage) }, { path: '/student/rewards', element: lazyPage(StudentRewardsPage) }, { path: '/student/favorites', element: lazyPage(StudentFavoritesPage) }, { path: '/student/link-code', element: lazyPage(StudentLinkCodePage) }, { path: '/student/notifications', element: lazyPage(StudentNotificationsPage) },
   { path: '/register', element: <AuthRedirect><Suspense fallback={<PageLoader />}><RegisterPage /></Suspense></AuthRedirect> }, { path: '/forgot-password', element: lazyPage(ForgotPasswordPage) }, { path: '/reset-password', element: lazyPage(ResetPasswordPage) }, { path: '/setup', element: <SetupWizardPage /> },
   { path: '/admin', element: <ProtectedRoute><AdminExperienceLayout /></ProtectedRoute>, children: [
     { index: true, element: lazyPage(AdminDashboard) }, { path: 'features', element: lazyPage(QuickBiteFeatureCenter) }, { path: 'orders', element: lazyPage(AdminOrders) }, { path: 'payments', element: lazyPage(AdminPayments) }, { path: 'wallet', element: lazyPage(AdminWalletTopups) }, { path: 'inventory', element: lazyPage(AdminInventory) }, { path: 'menu', element: lazyPage(AdminMenu) }, { path: 'verification', element: lazyPage(AdminVerification) }, { path: 'users', element: lazyPage(AdminUsers) }, { path: 'loyalty', element: lazyPage(AdminLoyalty) }, { path: 'reports', element: lazyPage(AdminReports) }, { path: 'history', element: lazyPage(AdminHistory) }, { path: 'system', element: lazyPage(AdminSystem) },
