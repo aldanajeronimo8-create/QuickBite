@@ -4,9 +4,10 @@ export interface ParentStudentContext {
   studentName: string;
   studentEmail: string;
   studentGrade?: string | null;
+  studentTi?: string | null;
 }
 
-const STORAGE_KEY = 'quickbite_parent_student_context';
+const STORAGE_KEY = 'quickbite.parent.activeStudent';
 
 export function getParentStudentContext(): ParentStudentContext | null {
   if (typeof window === 'undefined') return null;
@@ -24,11 +25,21 @@ export function getParentStudentContext(): ParentStudentContext | null {
 export function setParentStudentContext(context: ParentStudentContext) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(context));
-  window.dispatchEvent(new CustomEvent('quickbite-parent-student-context', { detail: context }));
+  window.dispatchEvent(new Event('quickbite-parent-student-context'));
 }
 
 export function clearParentStudentContext() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(STORAGE_KEY);
   window.dispatchEvent(new Event('quickbite-parent-student-context'));
+}
+
+export async function clearParentStudentContextServer() {
+  const { requireSupabaseClient } = await import('./supabase');
+  try {
+    const { error } = await requireSupabaseClient().rpc('clear_parent_active_student');
+    if (error) throw error;
+  } finally {
+    clearParentStudentContext();
+  }
 }
