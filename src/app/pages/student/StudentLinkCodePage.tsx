@@ -16,16 +16,29 @@ export function StudentLinkCodePage() {
     if (forceNew) setGenerating(true); else setLoading(true);
     try {
       const supabase = requireSupabaseClient();
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!userData.user) throw new Error('Tu sesión no está activa. Inicia sesión nuevamente.');
+
       const { data, error: rpcError } = await supabase.rpc('get_or_create_student_code', {
         p_force_new: forceNew,
       });
       if (rpcError) throw rpcError;
-      const result = (data && typeof data === 'object' ? data : {}) as { code?: string; expires_at?: string };
+
+      const result = typeof data === 'string'
+        ? { code: data, expires_at: null }
+        : (data && typeof data === 'object' ? data : {}) as { code?: string; expires_at?: string | null };
+
       if (!result.code) throw new Error('Supabase no devolvió un código de vinculación válido.');
       setCode(result.code);
       setExpiresAt(result.expires_at ?? null);
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'No se pudo generar el código de vinculación.';
+      const raw = e instanceof Error ? e.message : String(e);
+      const message = raw === 'student_only'
+        ? 'Esta función solo está disponible para cuentas de estudiante.'
+        : raw === 'unauthorized'
+          ? 'Tu sesión no está activa. Inicia sesión nuevamente.'
+          : raw || 'No se pudo generar el código de vinculación.';
       setError(message);
       toast.error(message);
     } finally {
