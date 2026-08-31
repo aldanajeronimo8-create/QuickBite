@@ -7,6 +7,13 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
+function getStableRecoveryOrigin() {
+  const origin = window.location.origin;
+  const hostname = window.location.hostname;
+  const isVercelDeploymentUrl = /^(quick-bite)-[a-z0-9]+-(quick-bite5)\.vercel\.app$/i.test(hostname);
+  return isVercelDeploymentUrl ? 'https://quick-bite-git-main-quick-bite5.vercel.app' : origin;
+}
+
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +32,7 @@ export function ForgotPasswordPage() {
     setLoading(true);
     try {
       const client = requireSupabaseClient();
-      const redirectTo = `${window.location.origin}/reset-password`;
+      const redirectTo = `${getStableRecoveryOrigin()}/reset-password`;
       const { error: resetError } = await client.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
       if (resetError) throw resetError;
       setSent(true);
@@ -50,9 +57,7 @@ export function ForgotPasswordPage() {
             <div className="space-y-5 text-center">
               <CheckCircle2 className="mx-auto h-12 w-12 text-green-300" />
               <h2 className="text-2xl font-bold text-white">Revisa tu correo</h2>
-              <p className="text-sm leading-6 text-blue-100">
-                Si existe una cuenta asociada a ese correo, Supabase enviará un enlace para restablecer la contraseña. Abre el enlace en este mismo dispositivo.
-              </p>
+              <p className="text-sm leading-6 text-blue-100">Si existe una cuenta asociada a ese correo, Supabase enviará un enlace para restablecer la contraseña. Abre el enlace en el mismo dispositivo donde solicitaste la recuperación.</p>
               <Button onClick={() => { setSent(false); setEmail(''); }} className="w-full bg-blue-600 py-6 text-white hover:bg-blue-700">Usar otro correo</Button>
             </div>
           ) : (
