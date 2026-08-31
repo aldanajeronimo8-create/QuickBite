@@ -24,6 +24,16 @@ function totalUnits(orders: Order[]) { return confirmed(orders).reduce((sum, ord
 function orderItems(orders: Order[]) { return orders.flatMap((order) => order.order_items ?? []); }
 function detailRows(orders: Order[]) { return orders.flatMap((order) => (order.order_items ?? []).map((item) => [order.order_number, purchaseDate(order.created_at), purchaseTime(order.created_at), item.product?.name ?? 'Producto no disponible', item.product?.category?.name ?? 'Sin categoría', Number(item.price), Number(item.quantity), Number(item.price) * Number(item.quantity), Number(item.product?.stock ?? 0), order.user?.full_name ?? 'Sin cliente'])); }
 function salesRows(orders: Order[]) { return orders.map((order) => [order.order_number, purchaseDate(order.created_at), purchaseTime(order.created_at), order.user?.full_name ?? 'Sin cliente', order.user?.email ?? '', order.user?.ti ?? '', statusLabel(order.status), statusLabel(order.payment_status), paymentLabel(order.payment_method), order.pickup_code ?? '', order.payment_reference ?? '', Number(order.total), Number(order.order_items?.length ?? 0), Number(order.order_items?.reduce((sum, item) => sum + Number(item.quantity), 0) ?? 0), Number(order.estimated_minutes ?? 0)]); }
+function extendSheetRange(sheet: XLSX.WorkSheet, startRow: number, startColumn: number, endRow: number, endColumn: number) {
+  const nextRange = { s: { r: startRow, c: startColumn }, e: { r: endRow, c: endColumn } };
+  if (!sheet['!ref']) { sheet['!ref'] = XLSX.utils.encode_range(nextRange); return; }
+  const currentRange = XLSX.utils.decode_range(sheet['!ref']);
+  currentRange.s.r = Math.min(currentRange.s.r, nextRange.s.r);
+  currentRange.s.c = Math.min(currentRange.s.c, nextRange.s.c);
+  currentRange.e.r = Math.max(currentRange.e.r, nextRange.e.r);
+  currentRange.e.c = Math.max(currentRange.e.c, nextRange.e.c);
+  sheet['!ref'] = XLSX.utils.encode_range(currentRange);
+}
 function writeTable(sheet: XLSX.WorkSheet, startRow: number, headers: string[], rows: unknown[][], widths: number[], currencyColumns: number[] = [], integerColumns: number[] = []) {
   headers.forEach((header, column) => { sheet[sheetCell(startRow, column)] = { v: header, t: 's', s: headerStyle }; });
   rows.forEach((row, rowIndex) => row.forEach((value, column) => {
@@ -32,6 +42,7 @@ function writeTable(sheet: XLSX.WorkSheet, startRow: number, headers: string[], 
     sheet[cell].z = currencyColumns.includes(column) ? currencyFormat : integerColumns.includes(column) ? numberFormat : 'General';
   }));
   const endRow = Math.max(startRow + rows.length, startRow + 1);
+  extendSheetRange(sheet, startRow, 0, endRow, headers.length - 1);
   sheet['!cols'] = widths.map((wch) => ({ wch }));
   sheet['!autofilter'] = { ref: `A${startRow + 1}:${sheetCell(endRow, headers.length - 1)}` };
   sheet['!freeze'] = { xSplit: 0, ySplit: startRow + 1, state: 'frozen' };
