@@ -1,0 +1,247 @@
+name: QuickBite Auto-Heal
+
+on:
+  schedule:
+    # Vercel recommends rollback as an incident-recovery mechanism. Five-minute
+    # polling is used here because GitHub scheduled workflows do not provide
+    # event-level Vercel runtime hooks by themselves.
+    - cron: '*/5 * * * *'
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quickbite-auto-heal
+  cancel-in-progress: true
+
+env:
+  QUICKBITE_PRODUCTION_URL: https://quick-bite-snowy-ten.vercel.app/
+  VERCEL_ORG_ID: team_RO7iBCvGd2vw4GbiV9vthNdh
+  VERCEL_PROJECT_ID: prj_Udwcqe1402DfGaXdIFOIO3pTFf5f
+
+jobs:
+  production-watchdog:
+    name: Production watchdog and rollback
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run production smoke checks
+        id: smoke
+        env:
+          QUICKBITE_HEALTH_URL: ${{ secrets.QUICKBITE_HEALTH_URL }}
+          QUICKBITE_HEALTH_TOKEN: ${{ secrets.QUICKBITE_HEALTH_TOKEN }}
+        run: node scripts/auto-heal-smoke.mjs
+
+      - name: Recheck after transient failure
+        if: failure() && steps.smoke.outcome == 'failure'
+        env:
+          QUICKBITE_HEALTH_URL: ${{ secrets.QUICKBITE_HEALTH_URL }}
+          QUICKBITE_HEALTH_TOKEN: ${{ secrets.QUICKBITE_HEALTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            sleep 15
+            if node scripts/auto-heal-smoke.mjs; then
+              echo "Recovered without rollback on retry ${attempt}."
+              exit 0
+            fi
+          done
+          exit 1
+
+      - name: Prepare Vercel project context
+        if: failure() && secrets.VERCEL_TOKEN != ''
+        env:
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          printf '{"projectId":"%s","orgId":"%s"}\n' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" > .vercel/project.json
+          chmod 600 .vercel/project.json
+          test -n "$TOKEN"
+
+      - name: Roll back immediately to previous production deployment
+        if: failure() && secrets.VERCEL_TOKEN != ''
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@latest rollback --yes --token "$VERCEL_TOKEN"
+
+      - name: Verify service after rollback
+        if: failure() && secrets.VERCEL_TOKEN != ''
+        env:
+          QUICKBITE_HEALTH_URL: ${{ secrets.QUICKBITE_HEALTH_URL }}
+          QUICKBITE_HEALTH_TOKEN: ${{ secrets.QUICKBITE_HEALTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            sleep 10
+            if node scripts/auto-heal-smoke.mjs; then
+              echo "Rollback restored service."
+              exit 0
+            fi
+          done
+          echo "Rollback did not restore service." >&2
+          exit 1
+
+      - name: Explain missing rollback credentials
+        if: failure() && secrets.VERCEL_TOKEN == ''
+        run: |
+          echo "::error::Production smoke checks failed, but automatic rollback is disabled because VERCEL_TOKEN is not configured."
+          exit 1
+
+      - name: Alert on unresolved production incident
+        if: failure()
+        env:
+          QUICKBITE_ALERT_WEBHOOK_URL: ${{ secrets.QUICKBITE_ALERT_WEBHOOK_URL }}
+        run: |
+          if [[ -z "${QUICKBITE_ALERT_WEBHOOK_URL}" ]]; then exit 0; fi
+          curl --fail --silent --show-error --max-time 15 --retry 2 \
+            -H 'Content-Type: application/json' \
+            --data '{"text":"QuickBite Auto-Heal: incidente de producción. Se intentó recuperación automática/rollback; revisar Vercel y GitHub."}' \
+            "${QUICKBITE_ALERT_WEBHOOK_URL}" || true
+
+  ai-repair:
+    name: AI diagnosis and repair PR
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout failed commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Create repair branch
+        run: git switch -c "auto-heal/ci-${{ github.event.workflow_run.id }}"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Capture failed CI logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          mkdir -p .github/auto-heal
+          gh run view "$RUN_ID" --log-failed > .github/auto-heal/ci-failure.log || true
+          test -s .github/auto-heal/ci-failure.log || printf 'No failed log output was returned. Inspect the workflow run metadata and repository state.\n' > .github/auto-heal/ci-failure.log
+
+      - name: Run Codex repair agent
+        id: codex
+        if: secrets.OPENAI_API_KEY != ''
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ':workspace'
+          prompt: |
+            You are the primary QuickBite production repair engineer.
+            Work only on this trusted main-branch checkout created from a failed CI push.
+            Read .github/auto-heal/ci-failure.log first and inspect the repository to find the root cause.
+            Make the smallest safe code/configuration changes necessary to fix the failure.
+            Never change or weaken tests to hide a defect. Never expose, print, commit, or modify secrets.
+            Never deploy to Vercel and never modify production environment variables.
+            Preserve existing order, stock, payment, auth, RLS, backup, and Auto-Heal behavior unless the failure directly requires a safe fix.
+            Run pnpm typecheck, pnpm lint, pnpm test, and pnpm build after the change.
+            Run pnpm test:e2e too when the required E2E secrets are available.
+            Do not finish until the repository is internally consistent.
+
+      - name: Run Gemini independent review
+        if: secrets.GEMINI_API_KEY != ''
+        uses: google-github-actions/run-gemini-cli@v0
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: |
+            Act as an independent second reviewer for a QuickBite emergency repair.
+            Inspect the current working tree and git diff after another AI attempted a fix.
+            Read .github/auto-heal/ci-failure.log and verify that the proposed fix addresses the root cause.
+            Correct any remaining defect you find, but keep changes minimal and safe.
+            Do not weaken tests, disable CI, change secrets, or deploy.
+            Run pnpm typecheck, pnpm lint, pnpm test, and pnpm build before finishing.
+
+      - name: Re-run quality checks after AI repair
+        env:
+          VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+          PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CI: true
+        run: |
+          set -euo pipefail
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm build
+          if [[ -n "${PLAYWRIGHT_E2E_EMAIL}" && -n "${PLAYWRIGHT_E2E_PASSWORD}" && -n "${SUPABASE_SERVICE_ROLE_KEY}" && -n "${VITE_SUPABASE_ANON_KEY}" ]]; then
+            node scripts/ensure-e2e-user.mjs
+            pnpm test:e2e
+          else
+            echo "E2E secrets unavailable in auto-repair workflow; PR will be blocked by normal CI if needed."
+          fi
+
+      - name: Commit and push repair branch
+        id: push
+        run: |
+          set -euo pipefail
+          git config user.name 'quickbite-auto-heal[bot]'
+          git config user.email 'quickbite-auto-heal[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No repair changes were produced.'
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "fix(auto-heal): repair failed CI run ${{ github.event.workflow_run.run_number }}"
+          git push --set-upstream origin HEAD
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Open repair pull request
+        if: steps.push.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_BRANCH: auto-heal/ci-${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          gh pr create \
+            --base main \
+            --head "$HEAD_BRANCH" \
+            --title "fix(auto-heal): repair CI failure #${{ github.event.workflow_run.run_number }}" \
+            --body "Automated repair proposal generated after CI run $RUN_ID failed.\n\nThe repair was independently validated with the repository quality checks available to the workflow. Production deployment is not performed by this workflow; normal branch protection/CI must approve the PR before merge."
+
+      - name: Report missing AI credential
+        if: secrets.OPENAI_API_KEY == ''
+        run: |
+          echo "::warning::OPENAI_API_KEY is not configured, so automatic code repair is disabled. Rollback/diagnostics remain available when their credentials are configured."
