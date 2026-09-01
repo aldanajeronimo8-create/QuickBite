@@ -45,3 +45,5 @@ jobs:
 
           curl --fail --silent --show-error --location --request POST --url "$VERCEL_DEPLOY_HOOK_URL"
           echo "Vercel production deployment triggered successfully."
+
+          # Force-hook trigger marker: CI success on main is the only deployment gate.
