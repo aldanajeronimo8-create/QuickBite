@@ -205,7 +205,9 @@ export function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <Label htmlFor="login-password" className={`text-sm ${isStudent || isParent ? 'text-gray-700' : 'text-white/80'}`}>Contraseña</Label>
-                <Link to="/forgot-password" className={`text-xs underline underline-offset-2 ${isStudent || isParent ? 'text-green-700' : 'text-blue-200'}`}>Recuperar</Link>
+                {(isStudent || isParent) && (
+                  <Link to="/forgot-password" className={`text-xs underline underline-offset-2 ${isStudent || isParent ? 'text-green-700' : 'text-blue-200'}`}>Recuperar</Link>
+                )}
               </div>
               <div className="relative">
                 <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isStudent || isParent ? 'text-gray-400' : 'text-blue-300'}`} />
