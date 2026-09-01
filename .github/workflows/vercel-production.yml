@@ -19,12 +19,29 @@ jobs:
       - name: Trigger Vercel production deployment
         shell: bash
         env:
-          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+          RAW_VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
           set -euo pipefail
-          test -n "$VERCEL_DEPLOY_HOOK_URL" || {
+
+          test -n "$RAW_VERCEL_DEPLOY_HOOK_URL" || {
             echo "VERCEL_DEPLOY_HOOK_URL is missing in GitHub repository secrets."
             exit 1
           }
-          curl --fail --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK_URL"
+
+          # GitHub secrets are sometimes pasted with surrounding quotes or line breaks.
+          VERCEL_DEPLOY_HOOK_URL="${RAW_VERCEL_DEPLOY_HOOK_URL//$'\r'/}"
+          VERCEL_DEPLOY_HOOK_URL="${VERCEL_DEPLOY_HOOK_URL//$'\n'/}"
+          VERCEL_DEPLOY_HOOK_URL="${VERCEL_DEPLOY_HOOK_URL//\"/}"
+          VERCEL_DEPLOY_HOOK_URL="${VERCEL_DEPLOY_HOOK_URL//\'/}"
+          VERCEL_DEPLOY_HOOK_URL="$(printf '%s' "$VERCEL_DEPLOY_HOOK_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+          case "$VERCEL_DEPLOY_HOOK_URL" in
+            https://*) ;;
+            *)
+              echo "VERCEL_DEPLOY_HOOK_URL must be an HTTPS URL."
+              exit 1
+              ;;
+          esac
+
+          curl --fail --silent --show-error --location --request POST --url "$VERCEL_DEPLOY_HOOK_URL"
           echo "Vercel production deployment triggered successfully."
