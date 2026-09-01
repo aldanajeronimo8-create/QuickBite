@@ -112,3 +112,5 @@ The Supabase `quickbite-health` Edge Function records database availability and 
 Before enterprise production, run a staging deployment against a separate Supabase project and execute the E2E suite with real credentials. Keep RLS as the final authorization boundary even when server APIs are added.
 
 Backup and disaster recovery procedures are documented in `BACKUP_RECOVERY_RUNBOOK.md`.
+
+<!-- Vercel production redeploy trigger: keep this marker when main changes are intended to reach Production. -->
