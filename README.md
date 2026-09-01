@@ -83,8 +83,7 @@ If `SUPABASE_DB_URL` is configured in `.env`, you can apply every migration in o
 npm run supabase:migrate
 ```
 
-See `DATABASE_CONNECTION_GUIDE.md` for the full connection and first-admin bootstrap process.
-Realtime setup and validation are documented in `REALTIME_GUIDE.md`.
+See `DATABASE_CONNECTION_GUIDE.md` for the full connection and first-admin bootstrap process. Realtime setup and validation are documented in `REALTIME_GUIDE.md`.
 
 The migration includes:
 
@@ -114,4 +113,4 @@ Before enterprise production, run a staging deployment against a separate Supaba
 
 Backup and disaster recovery procedures are documented in `BACKUP_RECOVERY_RUNBOOK.md`.
 
-<!-- Vercel production redeploy trigger: publish latest order flow changes. -->
+<!-- Vercel production redeploy trigger: synchronize latest main. -->
