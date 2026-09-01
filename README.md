@@ -114,3 +114,4 @@ Before enterprise production, run a staging deployment against a separate Supaba
 Backup and disaster recovery procedures are documented in `BACKUP_RECOVERY_RUNBOOK.md`.
 
 <!-- Vercel production redeploy trigger: synchronize latest main. -->
+<!-- Vercel redeploy trigger: refresh Git integration after wallet/preview fixes. -->
