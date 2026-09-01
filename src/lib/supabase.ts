@@ -84,7 +84,7 @@ export interface Product { id: string; name: string; description?: string; price
 export interface Order {
   id: string; user_id: string | null; total: number;
   status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'rejected' | 'cancelled';
-  payment_method: 'nequi' | 'cash' | 'bre-b';
+  payment_method: 'nequi' | 'cash' | 'bre-b' | 'credits';
   payment_status: 'pending' | 'confirmed' | 'rejected';
   order_number: string; created_at: string; admin_hidden?: boolean;
   pickup_code?: string; estimated_minutes?: number; payment_reference?: string;
