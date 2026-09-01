@@ -14,36 +14,30 @@ jobs:
     name: Deploy Production
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Trigger Vercel production deployment
+      - name: Checkout exact CI commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Deploy to Vercel
         shell: bash
         env:
-          RAW_VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_RO7iBCvGd2vw4GbiV9vthNdh
+          VERCEL_PROJECT_ID: prj_Udwcqe1402DfGaXdIFOIO3pTFf5f
         run: |
           set -euo pipefail
 
-          test -n "$RAW_VERCEL_DEPLOY_HOOK_URL" || {
-            echo "VERCEL_DEPLOY_HOOK_URL is missing in GitHub repository secrets."
+          test -n "$VERCEL_TOKEN" || {
+            echo "VERCEL_TOKEN is missing in GitHub repository secrets."
+            echo "The deployment cannot be created without a Vercel API token."
             exit 1
           }
 
-          # Normalize the secret in case it was pasted with quotes or line breaks.
-          VERCEL_DEPLOY_HOOK_URL="${RAW_VERCEL_DEPLOY_HOOK_URL//$'\r'/}"
-          VERCEL_DEPLOY_HOOK_URL="${VERCEL_DEPLOY_HOOK_URL//$'\n'/}"
-          VERCEL_DEPLOY_HOOK_URL="${VERCEL_DEPLOY_HOOK_URL//\"/}"
-          VERCEL_DEPLOY_HOOK_URL="${VERCEL_DEPLOY_HOOK_URL//\'/}"
-          VERCEL_DEPLOY_HOOK_URL="$(printf '%s' "$VERCEL_DEPLOY_HOOK_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-
-          case "$VERCEL_DEPLOY_HOOK_URL" in
-            https://*) ;;
-            *)
-              echo "VERCEL_DEPLOY_HOOK_URL must be an HTTPS URL."
-              exit 1
-              ;;
-          esac
-
-          curl --fail --silent --show-error --location --request POST --url "$VERCEL_DEPLOY_HOOK_URL"
-          echo "Vercel production deployment triggered successfully."
-
-          # CI success on main is the only deployment gate.
+          npx --yes vercel@latest deploy --prod --yes \
+            --token "$VERCEL_TOKEN" \
+            --scope "$VERCEL_ORG_ID" \
+            --project "$VERCEL_PROJECT_ID"
