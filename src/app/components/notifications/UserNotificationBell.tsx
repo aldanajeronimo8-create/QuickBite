@@ -15,6 +15,10 @@ function formatNotificationTime(value: string) {
   }).format(new Date(value));
 }
 
+function isWalletTopUpNotification(notification: UserNotification) {
+  return notification.title.trim().toLocaleLowerCase('es-CO') === 'recarga de billetera';
+}
+
 export function UserNotificationBell({ userId }: { userId: string }) {
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -60,6 +64,7 @@ export function UserNotificationBell({ userId }: { userId: string }) {
           const incoming = payload.new as Partial<UserNotification>;
           if (payload.eventType === 'INSERT' && incoming.id && incoming.title && incoming.body) {
             const notification = incoming as UserNotification;
+            if (isWalletTopUpNotification(notification)) return;
             setNotifications((current) => [notification, ...current.filter((item) => item.id !== notification.id)]);
             toast.info(notification.title, { description: notification.body });
             return;
@@ -75,18 +80,22 @@ export function UserNotificationBell({ userId }: { userId: string }) {
     };
   }, [userId]);
 
-  const unreadIds = useMemo(
-    () => notifications.filter((notification) => !notification.read_at).map((notification) => notification.id),
+  const bellNotifications = useMemo(
+    () => notifications.filter((notification) => !notification.read_at && !isWalletTopUpNotification(notification)),
     [notifications],
+  );
+
+  const unreadIds = useMemo(
+    () => bellNotifications.map((notification) => notification.id),
+    [bellNotifications],
   );
 
   const markRead = async (notificationIds?: string[]) => {
     const ids = notificationIds ?? unreadIds;
     if (ids.length === 0 || isMarkingRead) return;
 
-    const readAt = new Date().toISOString();
     setIsMarkingRead(true);
-    setNotifications((current) => current.map((item) => (ids.includes(item.id) ? { ...item, read_at: readAt } : item)));
+    setNotifications((current) => current.filter((item) => !ids.includes(item.id)));
     try {
       await markUserNotificationsRead(ids);
     } catch (error) {
@@ -144,26 +153,22 @@ export function UserNotificationBell({ userId }: { userId: string }) {
               <div className="grid min-h-32 place-items-center text-slate-500">
                 <LoaderCircle className="h-5 w-5 animate-spin" aria-label="Cargando notificaciones" />
               </div>
-            ) : notifications.length === 0 ? (
+            ) : bellNotifications.length === 0 ? (
               <div className="grid min-h-32 place-items-center gap-2 px-6 py-8 text-center text-sm text-slate-500">
                 <Inbox className="h-7 w-7 text-slate-300" />
-                <p>No tienes notificaciones aun.</p>
+                <p>No tienes notificaciones pendientes.</p>
               </div>
             ) : (
-              notifications.map((notification) => (
+              bellNotifications.map((notification) => (
                 <button
                   key={notification.id}
                   type="button"
-                  onClick={() => {
-                    if (!notification.read_at) void markRead([notification.id]);
-                  }}
-                  className={`block w-full border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-slate-50 ${
-                    notification.read_at ? 'bg-white' : 'bg-green-50/70'
-                  }`}
+                  onClick={() => void markRead([notification.id])}
+                  className="block w-full border-b border-slate-100 bg-green-50/70 px-4 py-3 text-left transition last:border-b-0 hover:bg-slate-50"
                 >
                   <div className="flex gap-3">
-                    {!notification.read_at && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-green-500" aria-hidden="true" />}
-                    <div className={notification.read_at ? 'pl-5' : ''}>
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-green-500" aria-hidden="true" />
+                    <div>
                       <p className="text-sm font-bold">{notification.title}</p>
                       <p className="mt-1 text-sm leading-5 text-slate-600">{notification.body}</p>
                       <p className="mt-1.5 text-xs text-slate-400">{formatNotificationTime(notification.created_at)}</p>
