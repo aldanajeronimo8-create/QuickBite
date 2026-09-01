@@ -195,7 +195,16 @@ export const useDataStore = create<DataState>((set, get) => ({
     await remoteAudit({
       action: 'order.update',
       entity: 'order',
-      metadata: { action: 'period_reset', hidden_orders: resetCount, inventory_changed: false },
+      metadata: {
+        action: 'full_operational_reset',
+        orders_reset: resetCount,
+        sales_reset: true,
+        stock_restored: true,
+        loyalty_reset: true,
+        wallet_reset: true,
+        notifications_reset: true,
+        reports_and_analytics_reset: true,
+      },
     });
     set({ orders: [] });
     return resetCount;
