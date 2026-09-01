@@ -9,7 +9,7 @@ export function useLoyaltyProgram() {
 
   useEffect(() => {
     let active = true;
-    let refreshInterval: ReturnType<typeof setInterval> | undefined;
+    let refreshInterval: number | undefined;
     let removeRealtime: (() => void) | undefined;
 
     const refresh = async () => {
@@ -37,7 +37,7 @@ export function useLoyaltyProgram() {
 
     return () => {
       active = false;
-      if (refreshInterval) window.clearInterval(refreshInterval);
+      if (refreshInterval !== undefined) window.clearInterval(refreshInterval);
       removeRealtime?.();
     };
   }, []);
