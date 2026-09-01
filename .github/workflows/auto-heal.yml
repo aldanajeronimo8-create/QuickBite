@@ -155,6 +155,7 @@ jobs:
         id: codex
         if: env.OPENAI_API_KEY != ''
         continue-on-error: true
+        timeout-minutes: 8
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ env.OPENAI_API_KEY }}
@@ -168,14 +169,16 @@ jobs:
         id: gemini
         if: env.GEMINI_API_KEY != ''
         continue-on-error: true
+        timeout-minutes: 8
         uses: google-github-actions/run-gemini-cli@v0
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           prompt: |
             Independently inspect .github/auto-heal/ci-failure.log and the current git diff.
-            If Codex failed, diagnose and repair the root cause yourself.
+            Review Codex's changes if any. Only change files when you identify a concrete root cause or build/lint/test issue.
             Make only safe minimal changes. Never weaken tests, change secrets, disable CI or deploy.
-            Run typecheck, lint, test and build before finishing.
+            Do not run long-lived or repeated commands. Prefer a focused review and targeted fixes.
+            Validate the changed area with the smallest relevant check available and finish promptly.
       - name: Stop if no AI repair provider is configured
         if: env.OPENAI_API_KEY == '' && env.GEMINI_API_KEY == ''
         run: |
