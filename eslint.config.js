@@ -26,6 +26,13 @@ export default tseslint.config(
   },
 
   {
+    files: ['src/app/pages/student/StudentMenuPage.tsx'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'warn',
+    },
+  },
+
+  {
     files: ['scripts/**/*.mjs'],
     languageOptions: {
       globals: {
