@@ -8,6 +8,7 @@ import { AuthRedirect } from './components/AuthRedirect';
 import { LoginPage } from './pages/LoginPage';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
+import { StudentFeatureCenter } from './pages/student/StudentFeatureCenter';
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
@@ -16,7 +17,6 @@ const StudentRegisterPage = lazy(() => import('./pages/student/StudentRegisterPa
 const ParentRegisterPage = lazy(() => import('./pages/ParentRegisterPage').then((m) => ({ default: m.ParentRegisterPage })));
 const ParentFamilyPage = lazy(() => import('./pages/ParentFamilyPage').then((m) => ({ default: m.ParentFamilyPage })));
 const OrderVerificationPage = lazy(() => import('./pages/OrderVerificationPage').then((m) => ({ default: m.OrderVerificationPage })));
-const StudentFeatureCenter = lazy(() => import('./pages/student/StudentFeatureCenter').then((m) => ({ default: m.StudentFeatureCenter })));
 const StudentAccountFeaturesPage = lazy(() => import('./pages/student/StudentAccountFeaturesPage').then((m) => ({ default: m.StudentAccountFeaturesPage })));
 const StudentWalletPage = lazy(() => import('./pages/student/StudentWalletPage').then((m) => ({ default: m.StudentWalletPage })));
 const StudentHistoryPage = lazy(() => import('./pages/student/StudentHistoryPage').then((m) => ({ default: m.StudentHistoryPage })));
@@ -49,7 +49,7 @@ export const router = createBrowserRouter([
   { path: '/parent/family', element: lazyPage(ParentFamilyPage) },
   { path: '/verify-order', element: lazyPage(OrderVerificationPage) },
   { path: '/menu', element: <StudentExperienceLayout /> },
-  { path: '/student/features', element: lazyPage(StudentFeatureCenter) },
+  { path: '/student/features', element: <StudentFeatureCenter /> },
   { path: '/student/account', element: lazyPage(StudentAccountFeaturesPage) },
   { path: '/student/wallet', element: lazyPage(StudentWalletPage) },
   { path: '/student/history', element: lazyPage(StudentHistoryPage) },
