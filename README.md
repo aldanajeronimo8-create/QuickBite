@@ -65,7 +65,8 @@ On Windows, `npm install`, `npm run dev` and `npm run build` automatically execu
 
 ```bash
 cp .env.example .env
-docker compose up --build
+npm install
+npm run dev
 ```
 
 The app is served by Nginx with SPA routing, health check and baseline security headers.
@@ -113,4 +114,4 @@ Before enterprise production, run a staging deployment against a separate Supaba
 
 Backup and disaster recovery procedures are documented in `BACKUP_RECOVERY_RUNBOOK.md`.
 
-<!-- Vercel production redeploy trigger: keep this marker when main changes are intended to reach Production. -->
+<!-- Vercel production redeploy trigger: publish latest order flow changes. -->
