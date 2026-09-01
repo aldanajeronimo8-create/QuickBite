@@ -30,7 +30,8 @@ export function LoginPage() {
     setLoading(true);
     try {
       const client = requireSupabaseClient();
-      const { data, error: signInError } = await client.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      const normalizedEmail = email.trim().toLowerCase();
+      const { data, error: signInError } = await client.auth.signInWithPassword({ email: normalizedEmail, password });
       if (signInError || !data.user) throw new Error('Correo o contraseña incorrectos.');
 
       if (mode === 'parent') {
@@ -41,6 +42,32 @@ export function LoginPage() {
       const { data: profile, error: profileError } = await client.from('profiles').select('id,role').eq('id', data.user.id).maybeSingle();
       if (profileError) throw profileError;
       if (!profile) { await client.auth.signOut(); throw new Error('Tu cuenta no tiene un perfil de QuickBite.'); }
+
+      // El rol real de Supabase es la fuente de verdad. Así una cuenta de padre
+      // puede entrar desde la pestaña Estudiante y será dirigida automáticamente
+      // a su entorno de Padre de Familia. Admin conserva su flujo independiente.
+      if (canAccessAdmin(profile.role)) {
+        if (mode === 'admin') {
+          await signIn(normalizedEmail, password);
+          navigate('/admin');
+          toast.success('Bienvenido a Administración.');
+          return;
+        }
+        // `both` puede tener acceso administrativo, pero desde los modos
+        // Student/Parent no se eleva automáticamente al panel Admin.
+      }
+
+      if (profile.role === 'parent') {
+        navigate('/parent/family');
+        toast.success('Bienvenido a QuickBite Family.');
+        return;
+      }
+
+      if (profile.role === 'both' && mode === 'parent') {
+        navigate('/parent/family');
+        toast.success('Bienvenido a QuickBite Family.');
+        return;
+      }
 
       if (mode === 'student') {
         const boundUserId = getBoundStudentUserId();
@@ -56,10 +83,10 @@ export function LoginPage() {
         navigate('/parent/family');
       } else {
         if (!canAccessAdmin(profile.role)) { await client.auth.signOut(); throw new Error('Esta cuenta no tiene acceso administrativo.'); }
-        await signIn(email, password);
+        await signIn(normalizedEmail, password);
         navigate('/admin');
       }
-      toast.success(mode === 'parent' ? 'Bienvenido a QuickBite Family.' : 'Bienvenido.');
+      toast.success('Bienvenido.');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo iniciar sesión.';
       setError(message); toast.error(message);
