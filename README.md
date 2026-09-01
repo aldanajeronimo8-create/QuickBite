@@ -116,3 +116,4 @@ Backup and disaster recovery procedures are documented in `BACKUP_RECOVERY_RUNBO
 <!-- Vercel production redeploy trigger: synchronize latest main. -->
 <!-- Vercel redeploy trigger: refresh Git integration after wallet/preview fixes. -->
 <!-- Vercel redeploy trigger: publish split admin/student preview. -->
+<!-- Vercel redeploy trigger: publish split admin/student preview v2. -->
