@@ -34,21 +34,7 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
           const result = await target.getSession();
           const acting = getActiveStudent();
           if (!acting || !result.data.session) return result;
-          return {
-            ...result,
-            data: {
-              ...result.data,
-              session: {
-                ...result.data.session,
-                user: {
-                  ...result.data.session.user,
-                  id: acting.id,
-                  email: acting.email,
-                  user_metadata: { ...result.data.session.user.user_metadata, full_name: acting.full_name, acting_as_student: true },
-                },
-              },
-            },
-          };
+          return { ...result, data: { ...result.data, session: { ...result.data.session, user: { ...result.data.session.user, id: acting.id, email: acting.email, user_metadata: { ...result.data.session.user.user_metadata, full_name: acting.full_name, acting_as_student: true } } } } };
         };
       }
       if (property === 'getUser') {
@@ -56,18 +42,7 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
           const result = await target.getUser();
           const acting = getActiveStudent();
           if (!acting || !result.data.user) return result;
-          return {
-            ...result,
-            data: {
-              ...result.data,
-              user: {
-                ...result.data.user,
-                id: acting.id,
-                email: acting.email,
-                user_metadata: { ...result.data.user.user_metadata, full_name: acting.full_name, acting_as_student: true },
-              },
-            },
-          };
+          return { ...result, data: { ...result.data, user: { ...result.data.user, id: acting.id, email: acting.email, user_metadata: { ...result.data.user.user_metadata, full_name: acting.full_name, acting_as_student: true } } } };
         };
       }
       const value = Reflect.get(target, property, receiver);
@@ -113,7 +88,7 @@ export interface Order {
   payment_status: 'pending' | 'confirmed' | 'rejected';
   order_number: string; created_at: string; admin_hidden?: boolean;
   pickup_code?: string; estimated_minutes?: number; payment_reference?: string;
-  notes?: string | null; user?: Profile; order_items?: OrderItem[];
+  notes?: string | null; student_comment?: string | null; user?: Profile; order_items?: OrderItem[];
 }
 export interface OrderItem { id: string; order_id: string; product_id: string; quantity: number; price: number; product?: Product; }
 export interface UserNotification { id: string; user_id: string; order_id?: string | null; type: 'order_status' | 'reward_redemption'; title: string; body: string; read_at?: string | null; created_at: string; }
