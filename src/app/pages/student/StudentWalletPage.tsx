@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowLeft, ArrowUpRight, Clock3, History, RefreshCw, Wallet, XCircle, CheckCircle2, AlertCircle, PlusCircle } from 'lucide-react';
+import { AlertCircle, ArrowDownLeft, ArrowLeft, ArrowUpRight, CheckCircle2, Clock3, History, PlusCircle, RefreshCw, Wallet, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { requireSupabaseClient } from '../../../lib/supabase';
@@ -12,12 +12,28 @@ const money = (value: number) => Number(value).toLocaleString('es-CO');
 const dateTime = (value: string) => new Date(value).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
 const methodLabel = (value: string) => ({ manual: 'Recarga manual', nequi: 'Nequi', 'bre-b': 'Bre-B' } as Record<string, string>)[value] ?? value;
 
+function topupErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (/function .*request_wallet_topup.*does not exist|could not find the function/i.test(message)) {
+    return 'El servicio de recargas no está disponible en este momento. Actualiza la página e inténtalo nuevamente.';
+  }
+  if (/duplicate|already exists|pending/i.test(message) && /topup|recarga/i.test(message)) {
+    return 'Ya tienes una solicitud de recarga pendiente. Espera a que administración la revise.';
+  }
+  return message || 'No se pudo solicitar la recarga.';
+}
+
 export function StudentWalletPage() {
   const [wallet, setWallet] = useState<WalletRow>({ balance: 0 });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [topups, setTopups] = useState<Topup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [requestingTopup, setRequestingTopup] = useState(false);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupMethod, setTopupMethod] = useState('manual');
+  const [topupReference, setTopupReference] = useState('');
+  const [topupComment, setTopupComment] = useState('');
 
   const load = useCallback(async () => {
     const client = requireSupabaseClient();
@@ -47,6 +63,42 @@ export function StudentWalletPage() {
     finally { setRefreshing(false); }
   };
 
+  const requestTopup = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const amount = Number(topupAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 500000) {
+      toast.error('Escribe un monto entre $1 y $500.000.');
+      return;
+    }
+    const { data: session } = await requireSupabaseClient().auth.getSession();
+    const userId = session.session?.user.id;
+    if (!userId) {
+      toast.error('Tu sesión no está disponible. Inicia sesión nuevamente.');
+      return;
+    }
+    setRequestingTopup(true);
+    try {
+      const client = requireSupabaseClient();
+      const { error } = await client.rpc('request_wallet_topup', {
+        p_amount: amount,
+        p_method: topupMethod,
+        p_reference: topupReference.trim() || null,
+        p_user_id: userId,
+        p_comment: topupComment.trim() || null,
+      });
+      if (error) throw error;
+      setTopupAmount('');
+      setTopupReference('');
+      setTopupComment('');
+      toast.success('Solicitud de recarga enviada. Quedará pendiente hasta ser confirmada por administración.');
+      await load();
+    } catch (error) {
+      toast.error(topupErrorMessage(error));
+    } finally {
+      setRequestingTopup(false);
+    }
+  };
+
   const approvedTotal = useMemo(() => topups.filter((t) => t.status === 'approved').reduce((sum, t) => sum + Number(t.amount), 0), [topups]);
   const pendingTotal = useMemo(() => topups.filter((t) => t.status === 'pending').reduce((sum, t) => sum + Number(t.amount), 0), [topups]);
   const rejectedCount = topups.filter((t) => t.status === 'rejected').length;
@@ -63,10 +115,10 @@ export function StudentWalletPage() {
 
       <section className="overflow-hidden rounded-[2rem] bg-slate-900 p-6 text-white shadow-xl sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-5">
-          <div><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-300">QuickBite Student</p><h1 className="mt-2 text-3xl font-black sm:text-4xl">Saldos y recargas</h1><p className="mt-2 max-w-xl text-sm text-slate-300">Consulta cuánto tienes disponible, qué ha pasado con tus recargas y el detalle de cada movimiento de tu billetera.</p></div>
+          <div><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-300">QuickBite Student</p><h1 className="mt-2 text-3xl font-black sm:text-4xl">Saldos y recargas</h1><p className="mt-2 max-w-xl text-sm text-slate-300">Consulta tu saldo, solicita una recarga y revisa todo el historial sin salir de esta sección.</p></div>
           <div className="rounded-3xl bg-white/10 p-5 ring-1 ring-white/10"><Wallet className="h-6 w-6 text-emerald-300"/><p className="mt-4 text-xs font-black uppercase tracking-wide text-slate-300">Saldo disponible</p><p className="mt-1 text-4xl font-black">${money(Number(wallet.balance))}</p></div>
         </div>
-        <Link to="/student/account" className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-black text-white hover:bg-emerald-400"><PlusCircle className="h-4 w-4"/>Solicitar una recarga</Link>
+        <a href="#solicitar-recarga" className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-black text-white hover:bg-emerald-400"><PlusCircle className="h-4 w-4"/>Solicitar una recarga</a>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -76,8 +128,19 @@ export function StudentWalletPage() {
         <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-sm"><p className="text-xs font-black uppercase tracking-wide text-slate-400">Última aprobada</p><p className="mt-2 text-sm font-black text-slate-800">{lastApproved ? `$${money(Number(lastApproved.amount))}` : 'Sin recargas'}</p><p className="mt-1 text-xs text-slate-500">{lastApproved ? dateTime(lastApproved.reviewed_at ?? lastApproved.created_at) : '—'}</p></div>
       </section>
 
+      <section id="solicitar-recarga" className="rounded-[2rem] border border-emerald-200 bg-white/90 p-6 shadow-xl backdrop-blur-xl sm:p-8">
+        <div className="flex items-start gap-3"><PlusCircle className="mt-1 h-6 w-6 shrink-0 text-emerald-700"/><div><h2 className="text-xl font-black">Solicitar una recarga</h2><p className="mt-1 text-sm text-slate-500">Envía los datos del pago para que administración pueda revisar y aprobar la recarga. Tu saldo no cambia hasta la aprobación.</p></div></div>
+        <form onSubmit={requestTopup} className="mt-6 grid gap-4 md:grid-cols-2">
+          <label className="text-sm font-bold text-slate-700">Monto<input type="number" min="1" max="500000" step="1" required value={topupAmount} onChange={(event) => setTopupAmount(event.target.value)} placeholder="Ej. 20000" className="mt-2 w-full rounded-2xl border border-slate-200 bg-white p-3 font-normal outline-none ring-0 focus:border-emerald-500" /></label>
+          <label className="text-sm font-bold text-slate-700">Método<select value={topupMethod} onChange={(event) => setTopupMethod(event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white p-3 font-normal outline-none focus:border-emerald-500"><option value="manual">Recarga manual</option><option value="nequi">Nequi</option><option value="bre-b">Bre-B</option></select></label>
+          <label className="text-sm font-bold text-slate-700">Referencia del pago <span className="font-normal text-slate-400">(opcional)</span><input value={topupReference} onChange={(event) => setTopupReference(event.target.value)} maxLength={120} placeholder="Número de referencia o comprobante" className="mt-2 w-full rounded-2xl border border-slate-200 bg-white p-3 font-normal outline-none focus:border-emerald-500" /></label>
+          <label className="text-sm font-bold text-slate-700">Comentario para administración <span className="font-normal text-slate-400">(opcional)</span><textarea value={topupComment} onChange={(event) => setTopupComment(event.target.value)} maxLength={500} rows={3} placeholder="Información adicional sobre tu recarga" className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white p-3 font-normal outline-none focus:border-emerald-500" /></label>
+          <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Monto máximo por solicitud: <b>$500.000</b>. La recarga queda pendiente hasta la revisión de administración.</p><button type="submit" disabled={requestingTopup} className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">{requestingTopup ? 'Enviando…' : 'Enviar solicitud'}</button></div>
+        </form>
+      </section>
+
       <section className="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl">
-        <div className="flex items-center gap-3"><History className="h-6 w-6 text-blue-700"/><div><h2 className="text-xl font-black">Historial de recargas</h2><p className="text-sm text-slate-500">Cada solicitud conserva su hora, estado, referencia y respuesta de administración.</p></div></div>
+        <div className="flex items-center gap-3"><History className="h-6 w-6 text-blue-700"/><div><h2 className="text-xl font-black">Historial de recargas</h2><p className="text-sm text-slate-500">Cada solicitud conserva su hora, estado, referencia, comentario y respuesta de administración.</p></div></div>
         {topups.length === 0 ? <p className="mt-5 rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">Todavía no tienes solicitudes de recarga.</p> : <div className="mt-5 space-y-3">{topups.map((t) => <article key={t.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2">{t.status === 'approved' ? <CheckCircle2 className="h-5 w-5 text-emerald-600"/> : t.status === 'rejected' ? <XCircle className="h-5 w-5 text-rose-600"/> : <Clock3 className="h-5 w-5 text-amber-600"/>}<p className="font-black">${money(Number(t.amount))} · {methodLabel(t.method)}</p></div><p className="mt-1 text-xs text-slate-500">Solicitada: {dateTime(t.created_at)}{t.reviewed_at ? ` · Revisada: ${dateTime(t.reviewed_at)}` : ''}</p></div><span className={`rounded-full px-3 py-1 text-xs font-black ${t.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : t.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>{t.status === 'approved' ? 'Aprobada' : t.status === 'rejected' ? 'Rechazada' : 'Pendiente'}</span></div>{t.reference && <p className="mt-3 text-sm"><b>Referencia:</b> {t.reference}</p>}{t.comment && <p className="mt-2 rounded-xl bg-white p-3 text-sm text-slate-700"><b>Tu comentario:</b> {t.comment}</p>}{t.rejection_reason && <p className="mt-2 flex gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0"/><span><b>Motivo de rechazo:</b> {t.rejection_reason}</span></p>}{t.status === 'approved' && <p className="mt-2 text-xs font-bold text-emerald-700">La recarga fue aplicada a tu saldo.</p>}</article>)}</div>}
       </section>
 
