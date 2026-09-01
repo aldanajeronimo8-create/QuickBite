@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, CreditCard, Gift, GraduationCap, LayoutDashboard, LogOut, Menu, Package, ScanLine, ShoppingBag, Users, UtensilsCrossed, WalletCards, X } from 'lucide-react';
+import { BarChart3, CreditCard, Gift, GraduationCap, LayoutDashboard, LogOut, Menu, Package, RotateCcw, ScanLine, ShoppingBag, Users, UtensilsCrossed, WalletCards, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
@@ -45,6 +45,7 @@ export function AdminLayout() {
         <NavItem path="/admin/users" label="Usuarios" icon={Users} active={isCurrentPath('/admin/users')} collapsed={sidebarContentCollapsed} />
         <NavItem path="/admin/loyalty" label="Puntos y premios" icon={Gift} active={isCurrentPath('/admin/loyalty')} collapsed={sidebarContentCollapsed} />
         <NavItem path="/admin/reports" label="Informes" icon={BarChart3} active={isCurrentPath('/admin/reports')} collapsed={sidebarContentCollapsed} />
+        {user.role === 'admin' && <NavItem path="/admin/reset" label="Reiniciar flujo" icon={RotateCcw} active={isCurrentPath('/admin/reset')} collapsed={sidebarContentCollapsed} />}
       </nav>
       <div className={`px-4 pb-5 pt-3 ${sidebarContentCollapsed ? 'lg:px-2' : ''}`} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         {!sidebarContentCollapsed && <div className="mb-3 flex items-center gap-2.5"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: 'rgba(255,255,255,0.12)' }}>{user.full_name?.[0]?.toUpperCase() ?? 'A'}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-white">{user.full_name}</p><p className="truncate text-xs" style={{ color: '#93C5FD' }}>{user.role === 'both' ? 'Administrador y estudiante' : 'Administrador'}</p></div></div>}
