@@ -9,7 +9,6 @@ export function useLoyaltyProgram() {
 
   useEffect(() => {
     let active = true;
-    const refreshInterval = window.setInterval(() => void refresh(), Math.max(appConfig.dataRefreshIntervalMs, 15_000));
     let removeRealtime: (() => void) | undefined;
 
     const refresh = async () => {
@@ -24,6 +23,7 @@ export function useLoyaltyProgram() {
     };
 
     void refresh();
+    const refreshInterval = window.setInterval(() => void refresh(), Math.max(appConfig.dataRefreshIntervalMs, 15_000));
 
     if (appConfig.supabaseRealtimeEnabled) {
       const supabase = requireSupabaseClient();
