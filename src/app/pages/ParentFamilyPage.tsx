@@ -33,14 +33,13 @@ export function ParentFamilyPage() {
 
   const load = useCallback(async () => {
     const client = requireSupabaseClient();
-    clearActiveStudent();
     const { data: session, error: sessionError } = await client.auth.getSession();
     if (sessionError) throw sessionError;
     if (!session.session?.user) { navigate('/'); return; }
     const { data, error } = await client.from('parent_student_links').select('id,student_user_id,relationship,active,created_at,student:profiles!parent_student_links_student_user_id_fkey(id,full_name,email,grade,ti)').eq('parent_user_id', session.session.user.id).eq('active', true).order('created_at', { ascending: false });
     if (error) throw error;
     setStudents((data ?? []) as unknown as LinkedStudent[]);
-  }, [clearActiveStudent, navigate]);
+  }, [navigate]);
 
   useEffect(() => { void load().catch((error) => toast.error(getLinkErrorMessage(error))).finally(() => setLoading(false)); }, [load]);
 
