@@ -18,6 +18,7 @@ const ParentFamilyPage = lazy(() => import('./pages/ParentFamilyPage').then((m) 
 const OrderVerificationPage = lazy(() => import('./pages/OrderVerificationPage').then((m) => ({ default: m.OrderVerificationPage })));
 const StudentFeatureCenter = lazy(() => import('./pages/student/StudentFeatureCenter').then((m) => ({ default: m.StudentFeatureCenter })));
 const StudentAccountFeaturesPage = lazy(() => import('./pages/student/StudentAccountFeaturesPage').then((m) => ({ default: m.StudentAccountFeaturesPage })));
+const StudentWalletPage = lazy(() => import('./pages/student/StudentWalletPage').then((m) => ({ default: m.StudentWalletPage })));
 const StudentHistoryPage = lazy(() => import('./pages/student/StudentHistoryPage').then((m) => ({ default: m.StudentHistoryPage })));
 const StudentRewardsPage = lazy(() => import('./pages/student/StudentRewardsPage').then((m) => ({ default: m.StudentRewardsPage })));
 const StudentNotificationsPage = lazy(() => import('./pages/student/StudentNotificationsPage').then((m) => ({ default: m.StudentNotificationsPage })));
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
   { path: '/menu', element: <StudentExperienceLayout /> },
   { path: '/student/features', element: lazyPage(StudentFeatureCenter) },
   { path: '/student/account', element: lazyPage(StudentAccountFeaturesPage) },
+  { path: '/student/wallet', element: lazyPage(StudentWalletPage) },
   { path: '/student/history', element: lazyPage(StudentHistoryPage) },
   { path: '/student/rewards', element: lazyPage(StudentRewardsPage) },
   { path: '/student/favorites', element: lazyPage(StudentFavoritesPage) },
