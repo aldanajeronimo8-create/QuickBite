@@ -48,7 +48,6 @@ while (true) {
 }
 
 const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString();
-const generatedPassword = `E2e-${runId}-${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}!`;
 const configured = [
   ['student', process.env.PLAYWRIGHT_E2E_EMAIL?.trim().toLowerCase(), process.env.PLAYWRIGHT_E2E_PASSWORD],
   ['parent', process.env.PLAYWRIGHT_PARENT_EMAIL?.trim().toLowerCase(), process.env.PLAYWRIGHT_PARENT_PASSWORD],
@@ -58,8 +57,11 @@ const configured = [
 const accounts = configured.map(([role, email, password]) => ({
   role,
   email: email || `quickbite-e2e-${role}-${runId}@example.invalid`,
-  password: password || generatedPassword,
+  password: password || `E2e-${runId}-${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}!`,
 }));
+
+const githubEnvPath = process.env.GITHUB_ENV;
+const workflowEnv = [];
 
 for (const account of accounts) {
   let user = users.find((candidate) => candidate.email?.toLowerCase() === account.email);
@@ -109,5 +111,11 @@ for (const account of accounts) {
     throw new Error(`E2E ${account.role} login validation failed (${signInResponse.status}): ${await signInResponse.text()}`);
   }
 
-  process.stdout.write(`E2E ${account.role} account ready: ${account.email}\n`);
+  workflowEnv.push(`PLAYWRIGHT_${account.role.toUpperCase()}_EMAIL=${account.email}`);
+  workflowEnv.push(`PLAYWRIGHT_${account.role.toUpperCase()}_PASSWORD=${account.password}`);
+  console.log(`E2E ${account.role} account provisioned and login verified.`);
+}
+
+if (githubEnvPath) {
+  await import('node:fs/promises').then(({ appendFile }) => appendFile(githubEnvPath, `${workflowEnv.join('\n')}\n`));
 }
