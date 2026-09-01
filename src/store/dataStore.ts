@@ -185,9 +185,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       metadata: { action: 'period_closed', archived_orders: archivedCount },
     });
     set({
-      orders: get().orders.map((order) => (
-        archivedIds.has(order.id) ? { ...order, admin_hidden: true } : order
-      )),
+      orders: get().orders.filter((order) => !archivedIds.has(order.id)),
     });
     return archivedCount;
   },
@@ -197,7 +195,7 @@ export const useDataStore = create<DataState>((set, get) => ({
     await remoteAudit({
       action: 'order.update',
       entity: 'order',
-      metadata: { action: 'period_reset', deleted_orders: resetCount, inventory_changed: false },
+      metadata: { action: 'period_reset', hidden_orders: resetCount, inventory_changed: false },
     });
     set({ orders: [] });
     return resetCount;
