@@ -32,6 +32,16 @@ const monthYearFormatter = new Intl.DateTimeFormat('es-CO', {
   month: 'long',
   year: 'numeric',
 });
+const inputDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Bogota',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+function isValidDate(date: Date) {
+  return !Number.isNaN(date.getTime());
+}
 
 function calendarDate(year: number, monthIndex: number, day: number) {
   return new Date(Date.UTC(year, monthIndex, day, 12, 0, 0));
@@ -70,50 +80,68 @@ function bogotaBoundary(date: Date, end = false) {
 
 function dateRangeDays(start: Date, end: Date) {
   const days: Date[] = [];
+  if (!isValidDate(start) || !isValidDate(end)) return days;
   for (let cursor = start; cursor.getTime() <= end.getTime(); cursor = addDays(cursor, 1)) days.push(cursor);
   return days;
 }
 
 export function dateKeyInBogota(value: Date | string) {
   const date = typeof value === 'string' ? new Date(value) : value;
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Bogota',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  return formatter.format(date);
+  if (!isValidDate(date)) return '';
+  return inputDateFormatter.format(date);
+}
+
+function fallbackReportInputDate() {
+  const today = inputDateFormatter.format(new Date());
+  return parseReportInputDate(today);
 }
 
 export function parseReportInputDate(value: string) {
-  const [year, month, day] = value.split('-').map(Number);
-  return calendarDate(year, month - 1, day);
+  const trimmed = value.trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!match) return fallbackReportInputDate();
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day) || month < 1 || month > 12 || day < 1 || day > 31) {
+    return fallbackReportInputDate();
+  }
+
+  const parsed = calendarDate(year, month - 1, day);
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day || !isValidDate(parsed)) {
+    return fallbackReportInputDate();
+  }
+
+  return parsed;
 }
 
 export function formatReportDay(date: Date) {
+  if (!isValidDate(date)) return 'Fecha no válida';
   return `${weekdayFormatter.format(date)}, ${shortDateFormatter.format(date)}`;
 }
 
 export function buildReportPeriod(mode: ReportMode, selected: Date): ReportPeriod {
+  const safeSelected = isValidDate(selected) ? selected : fallbackReportInputDate();
   let start: Date;
   let end: Date;
 
   if (mode === 'daily') {
-    start = calendarDate(selected.getUTCFullYear(), selected.getUTCMonth(), selected.getUTCDate());
+    start = calendarDate(safeSelected.getUTCFullYear(), safeSelected.getUTCMonth(), safeSelected.getUTCDate());
     end = start;
   } else if (mode === 'weekly') {
-    start = startOfMondayWeek(selected);
+    start = startOfMondayWeek(safeSelected);
     end = addDays(start, 6);
   } else {
-    start = calendarDate(selected.getUTCFullYear(), selected.getUTCMonth(), 1);
+    start = calendarDate(safeSelected.getUTCFullYear(), safeSelected.getUTCMonth(), 1);
     end = endOfMonth(start);
   }
 
   const days = dateRangeDays(start, end);
   const startBogota = bogotaBoundary(start);
   const endBogota = bogotaBoundary(end, true);
-  const year = selected.getUTCFullYear();
-  const month = selected.getUTCMonth();
+  const year = safeSelected.getUTCFullYear();
+  const month = safeSelected.getUTCMonth();
   const weekNumber = mode === 'weekly' ? isoWeekNumber(start) : undefined;
 
   const label = mode === 'daily'
@@ -145,6 +173,7 @@ export function buildReportPeriod(mode: ReportMode, selected: Date): ReportPerio
 }
 
 export function formatPeriodDateRange(period: ReportPeriod) {
+  if (!isValidDate(period.start) || !isValidDate(period.end)) return 'Fecha no disponible';
   return `${shortDateFormatter.format(period.start)} — ${shortDateFormatter.format(period.end)}`;
 }
 
@@ -152,6 +181,7 @@ export function getMonthWeekGroups(period: ReportPeriod) {
   if (period.mode !== 'monthly') return [];
   const groups = new Map<number, Date[]>();
   for (const day of period.days) {
+    if (!isValidDate(day)) continue;
     const weekStart = startOfMondayWeek(day);
     const week = isoWeekNumber(weekStart);
     const existing = groups.get(week) ?? [];
