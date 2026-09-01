@@ -45,6 +45,8 @@ export function AdminLayout() {
         <NavItem path="/admin/users" label="Usuarios" icon={Users} active={isCurrentPath('/admin/users')} collapsed={sidebarContentCollapsed} />
         <NavItem path="/admin/loyalty" label="Puntos y premios" icon={Gift} active={isCurrentPath('/admin/loyalty')} collapsed={sidebarContentCollapsed} />
         <NavItem path="/admin/reports" label="Informes" icon={BarChart3} active={isCurrentPath('/admin/reports')} collapsed={sidebarContentCollapsed} />
+        {!sidebarContentCollapsed && user.role === 'admin' && <p className="mb-2 mt-5 px-3 text-xs font-semibold uppercase tracking-widest" style={{ color: '#FCA5A5' }}>Mantenimiento</p>}
+        {sidebarContentCollapsed && user.role === 'admin' && <div className="my-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }} />}
         {user.role === 'admin' && <NavItem path="/admin/reset" label="Reiniciar flujo" icon={RotateCcw} active={isCurrentPath('/admin/reset')} collapsed={sidebarContentCollapsed} />}
       </nav>
       <div className={`px-4 pb-5 pt-3 ${sidebarContentCollapsed ? 'lg:px-2' : ''}`} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
