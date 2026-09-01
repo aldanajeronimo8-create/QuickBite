@@ -17,7 +17,7 @@ const purchaseDateFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'Amer
 const purchaseTimeFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const orderStatusLabel: Record<Order['status'], string> = { pending: 'Pendiente', preparing: 'En preparación', ready: 'Listo para recoger', delivered: 'Entregado', rejected: 'Rechazado', cancelled: 'Cancelado' };
 const paymentStatusLabel: Record<Order['payment_status'], string> = { pending: 'Pendiente', confirmed: 'Confirmado', rejected: 'Rechazado' };
-const paymentMethodLabel: Record<Order['payment_method'], string> = { nequi: 'Nequi', 'bre-b': 'Bre-B', cash: 'Efectivo' };
+const paymentMethodLabel: Record<Order['payment_method'], string> = { nequi: 'Nequi', 'bre-b': 'Bre-B', cash: 'Efectivo', credits: 'Créditos' };
 function purchaseDateAndTime(createdAt: string) { const value = new Date(createdAt); return { date: purchaseDateFormatter.format(value), time: purchaseTimeFormatter.format(value) }; }
 function sheetCell(row: number, column: number) { return XLSX.utils.encode_cell({ r: row, c: column }); }
 const thinBorder = { style: 'thin', color: { rgb: 'D9E2F3' } };
