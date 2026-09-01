@@ -9,8 +9,8 @@ export function useLoyaltyProgram() {
 
   useEffect(() => {
     let active = true;
-    let channel: ReturnType<ReturnType<typeof requireSupabaseClient>['channel']> | null = null;
-    let interval: ReturnType<typeof window.setInterval> | null = null;
+    let refreshInterval: ReturnType<typeof setInterval> | undefined;
+    let removeRealtime: (() => void) | undefined;
 
     const refresh = async () => {
       try {
@@ -24,20 +24,21 @@ export function useLoyaltyProgram() {
     };
 
     void refresh();
-    interval = window.setInterval(() => void refresh(), Math.max(appConfig.dataRefreshIntervalMs, 15_000));
+    refreshInterval = window.setInterval(() => void refresh(), Math.max(appConfig.dataRefreshIntervalMs, 15_000));
 
     if (appConfig.supabaseRealtimeEnabled) {
       const supabase = requireSupabaseClient();
-      channel = supabase
+      const channel = supabase
         .channel('quickbite-loyalty-program-status')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'loyalty_settings' }, () => void refresh())
         .subscribe();
+      removeRealtime = () => { void supabase.removeChannel(channel); };
     }
 
     return () => {
       active = false;
-      if (interval) window.clearInterval(interval);
-      if (channel) void requireSupabaseClient().removeChannel(channel);
+      if (refreshInterval) window.clearInterval(refreshInterval);
+      removeRealtime?.();
     };
   }, []);
 
