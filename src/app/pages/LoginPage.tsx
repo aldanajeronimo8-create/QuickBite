@@ -34,36 +34,23 @@ export function LoginPage() {
       const { data, error: signInError } = await client.auth.signInWithPassword({ email: normalizedEmail, password });
       if (signInError || !data.user) throw new Error('Correo o contraseña incorrectos.');
 
-      if (mode === 'parent') {
-        const { error: completeError } = await client.rpc('complete_pending_parent_registration');
-        if (completeError && !/not_authorized|invalid_parent_registration/i.test(completeError.message)) throw completeError;
-      }
-
       const { data: profile, error: profileError } = await client.from('profiles').select('id,role').eq('id', data.user.id).maybeSingle();
       if (profileError) throw profileError;
       if (!profile) { await client.auth.signOut(); throw new Error('Tu cuenta no tiene un perfil de QuickBite.'); }
 
-      // El rol real de Supabase es la fuente de verdad. Así una cuenta de padre
-      // puede entrar desde la pestaña Estudiante y será dirigida automáticamente
-      // a su entorno de Padre de Familia. Admin conserva su flujo independiente.
-      if (canAccessAdmin(profile.role)) {
-        if (mode === 'admin') {
-          await signIn(normalizedEmail, password);
-          navigate('/admin');
-          toast.success('Bienvenido a Administración.');
+      // El rol real de Supabase es la fuente de verdad. Admin mantiene su flujo propio.
+      if (profile.role === 'parent') {
+        if (!canAccessParent(profile.role)) throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');
+        // Aunque la pestaña seleccionada sea Estudiante, una cuenta padre entra a Family.
+        if (mode === 'parent' || mode === 'student') {
+          navigate('/parent/family');
+          toast.success('Bienvenido a QuickBite Family.');
           return;
         }
-        // `both` puede tener acceso administrativo, pero desde los modos
-        // Student/Parent no se eleva automáticamente al panel Admin.
-      }
-
-      if (profile.role === 'parent') {
-        navigate('/parent/family');
-        toast.success('Bienvenido a QuickBite Family.');
-        return;
       }
 
       if (profile.role === 'both' && mode === 'parent') {
+        if (!canAccessParent(profile.role)) throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');
         navigate('/parent/family');
         toast.success('Bienvenido a QuickBite Family.');
         return;
