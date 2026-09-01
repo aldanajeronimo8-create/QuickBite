@@ -40,7 +40,9 @@ export function ResetPasswordPage() {
         setExpired(true);
         return;
       }
-      if (!profile || !['student', 'both'].includes(profile.role)) {
+      // Administrative accounts (admin/both) may never use email recovery.
+      // Only student/parent accounts can complete this self-service flow.
+      if (!profile || !['student', 'parent'].includes(profile.role)) {
         await client.auth.signOut();
         setAdministratorRecoveryBlocked(true);
         return;
@@ -56,7 +58,6 @@ export function ResetPasswordPage() {
       }
     });
 
-    // Also inspect the current URL/session in case the recovery event happened during initial page load.
     void client.auth.getSession().then(({ data }) => {
       const url = new URL(window.location.href);
       const hasRecoveryMarker = url.hash.includes('type=recovery') || url.searchParams.has('code');
@@ -124,7 +125,7 @@ export function ResetPasswordPage() {
             <div className="text-center py-6">
               <AlertTriangle className="w-10 h-10 text-yellow-400 mx-auto mb-4" />
               <h2 className="text-xl font-bold text-white mb-2">Cambio administrado</h2>
-              <p className="text-blue-200 text-sm mb-6">La recuperación por correo desde esta pantalla está disponible para estudiantes. Las cuentas administrativas se gestionan desde el panel autorizado.</p>
+              <p className="text-blue-200 text-sm mb-6">Las cuentas administrativas no pueden restablecer ni cambiar su contraseña mediante recuperación por correo. Otro administrador autorizado debe cambiarla desde el panel de Usuarios.</p>
               <Button onClick={() => navigate('/')} className="w-full rounded-xl bg-blue-600 py-6 font-medium text-white hover:bg-blue-700">Volver al inicio</Button>
             </div>
           )}
@@ -159,7 +160,7 @@ export function ResetPasswordPage() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-300" />
                   <Input id="rp-confirm" type={showConfirm ? 'text' : 'password'} placeholder="Repite tu contraseña" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setPasswordError(''); }} className="pl-11 pr-11 bg-white/5 border-white/20 text-white placeholder:text-white/40 focus:border-blue-400" autoComplete="new-password" />
-                  <button type="button" onClick={() => setShowConfirm((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 hover:text-blue-200" aria-label={showConfirm ? 'Ocultar confirmación' : 'Mostrar confirmación'}>{showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
+                  <button type="button" onClick={() => setShowConfirm((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 hover:text-blue-200" aria-label={showConfirm ? 'Ocultar confirmación' : 'Mostrar confirmación'}>{showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 w-5" />}</button>
                 </div>
                 {password && confirmPassword && password === confirmPassword && <p className="text-green-300 text-sm mt-1 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" />Las contraseñas coinciden</p>}
                 {passwordError && <p className="text-red-300 text-sm mt-1">{passwordError}</p>}
