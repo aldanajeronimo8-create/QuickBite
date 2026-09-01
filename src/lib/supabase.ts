@@ -2,6 +2,12 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { appConfig, hasSupabaseConfig } from '../config/appConfig';
 import type { UserRole } from './access';
 
+export type AuthContext = 'admin' | 'user';
+
+const AUTH_CONTEXT_STORAGE_KEY = 'quickbite.auth.context';
+const ADMIN_AUTH_STORAGE_KEY = 'quickbite.admin.auth';
+const ACTIVE_STUDENT_STORAGE_KEY = 'quickbite.parent.activeStudent';
+
 export const supabase = hasSupabaseConfig()
   ? createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
@@ -9,7 +15,31 @@ export const supabase = hasSupabaseConfig()
   })
   : null;
 
-const ACTIVE_STUDENT_STORAGE_KEY = 'quickbite.parent.activeStudent';
+export const adminSupabase = hasSupabaseConfig()
+  ? createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: ADMIN_AUTH_STORAGE_KEY,
+    },
+    realtime: { params: { eventsPerSecond: 10 } },
+  })
+  : null;
+
+export function setAuthContext(context: AuthContext) {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem(AUTH_CONTEXT_STORAGE_KEY, context);
+}
+
+function getAuthContext(): AuthContext {
+  if (typeof window === 'undefined') return 'user';
+  if (window.location.pathname.startsWith('/admin')) return 'admin';
+  if (window.location.pathname === '/login') {
+    return window.sessionStorage.getItem(AUTH_CONTEXT_STORAGE_KEY) === 'admin' ? 'admin' : 'user';
+  }
+  return 'user';
+}
 
 type StoredActingStudent = { id: string; full_name: string; email: string; grade: string | null; ti: string | null };
 
@@ -34,7 +64,21 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
           const result = await target.getSession();
           const acting = getActiveStudent();
           if (!acting || !result.data.session) return result;
-          return { ...result, data: { ...result.data, session: { ...result.data.session, user: { ...result.data.session.user, id: acting.id, email: acting.email, user_metadata: { ...result.data.session.user.user_metadata, full_name: acting.full_name, acting_as_student: true } } } } };
+          return {
+            ...result,
+            data: {
+              ...result.data,
+              session: {
+                ...result.data.session,
+                user: {
+                  ...result.data.session.user,
+                  id: acting.id,
+                  email: acting.email,
+                  user_metadata: { ...result.data.session.user.user_metadata, full_name: acting.full_name, acting_as_student: true },
+                },
+              },
+            },
+          };
         };
       }
       if (property === 'getUser') {
@@ -42,7 +86,18 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
           const result = await target.getUser();
           const acting = getActiveStudent();
           if (!acting || !result.data.user) return result;
-          return { ...result, data: { ...result.data, user: { ...result.data.user, id: acting.id, email: acting.email, user_metadata: { ...result.data.user.user_metadata, full_name: acting.full_name, acting_as_student: true } } } };
+          return {
+            ...result,
+            data: {
+              ...result.data,
+              user: {
+                ...result.data.user,
+                id: acting.id,
+                email: acting.email,
+                user_metadata: { ...result.data.user.user_metadata, full_name: acting.full_name, acting_as_student: true },
+              },
+            },
+          };
         };
       }
       const value = Reflect.get(target, property, receiver);
@@ -51,31 +106,40 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
   }) as T;
 }
 
-let proxiedClient: SupabaseClient | null = null;
+function createUserProxy(client: SupabaseClient): SupabaseClient {
+  return new Proxy(client, {
+    get(target, property, receiver) {
+      if (property === 'auth') return actingAuthProxy(target.auth);
+      if (property === 'rpc') {
+        return (functionName: string, args?: Record<string, unknown>, options?: unknown) => {
+          const acting = getActiveStudent();
+          const nextArgs = { ...(args ?? {}) };
+          if (acting && functionName === 'request_wallet_topup') nextArgs.p_user_id = acting.id;
+          if (acting && functionName === 'redeem_loyalty_reward') nextArgs.p_user_id = acting.id;
+          if (acting && functionName === 'get_or_create_student_code') nextArgs.p_student_user_id = acting.id;
+          if (acting && functionName === 'mark_notifications_read') nextArgs.p_user_id = acting.id;
+          return target.rpc(functionName, nextArgs, options as never);
+        };
+      }
+      const value = Reflect.get(target, property, receiver);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
+let proxiedUserClient: SupabaseClient | null = null;
 
 export function requireSupabaseClient() {
-  if (!supabase) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
-  if (!proxiedClient) {
-    proxiedClient = new Proxy(supabase, {
-      get(target, property, receiver) {
-        if (property === 'auth') return actingAuthProxy(target.auth);
-        if (property === 'rpc') {
-          return (functionName: string, args?: Record<string, unknown>, options?: unknown) => {
-            const acting = getActiveStudent();
-            const nextArgs = { ...(args ?? {}) };
-            if (acting && functionName === 'request_wallet_topup') nextArgs.p_user_id = acting.id;
-            if (acting && functionName === 'redeem_loyalty_reward') nextArgs.p_user_id = acting.id;
-            if (acting && functionName === 'get_or_create_student_code') nextArgs.p_student_user_id = acting.id;
-            if (acting && functionName === 'mark_notifications_read') nextArgs.p_user_id = acting.id;
-            return target.rpc(functionName, nextArgs, options as never);
-          };
-        }
-        const value = Reflect.get(target, property, receiver);
-        return typeof value === 'function' ? value.bind(target) : value;
-      },
-    });
+  const context = getAuthContext();
+
+  if (context === 'admin') {
+    if (!adminSupabase) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
+    return adminSupabase;
   }
-  return proxiedClient;
+
+  if (!supabase) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
+  if (!proxiedUserClient) proxiedUserClient = createUserProxy(supabase);
+  return proxiedUserClient;
 }
 
 export interface Profile { id: string; email: string; full_name: string; role: UserRole; ti?: string | null; created_at: string; }
