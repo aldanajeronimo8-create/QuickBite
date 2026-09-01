@@ -1,3 +1,6 @@
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
+ALTER TABLE public.orders ADD CONSTRAINT orders_payment_method_check CHECK (payment_method IN ('nequi','cash','bre-b','credits'));
+
 CREATE OR REPLACE FUNCTION public.create_order_tx(
   p_user_id UUID,
   p_payment_method TEXT,
@@ -39,7 +42,7 @@ BEGIN
     RETURN v_existing_order_number;
   END IF;
 
-  IF p_payment_method NOT IN ('nequi','cash','bre-b','wallet','credits') THEN
+  IF p_payment_method NOT IN ('nequi','cash','bre-b','credits') THEN
     RAISE EXCEPTION 'invalid_payment_method';
   END IF;
 
@@ -48,7 +51,7 @@ BEGIN
     estimated_minutes,payment_reference,notes,student_comment,client_request_id
   ) VALUES (
     v_order_id,p_user_id,0,p_status,p_payment_method,
-    CASE WHEN p_payment_method IN ('wallet','credits') THEN 'confirmed' ELSE p_payment_status END,
+    CASE WHEN p_payment_method='credits' THEN 'confirmed' ELSE p_payment_status END,
     v_order_number,p_pickup_code,p_estimated_minutes,p_payment_reference,
     nullif(trim(p_notes),''),nullif(trim(p_notes),''),p_request_id
   );
@@ -74,7 +77,7 @@ BEGIN
 
   UPDATE public.orders SET total=v_total WHERE id=v_order_id;
 
-  IF p_payment_method IN ('wallet','credits') THEN
+  IF p_payment_method='credits' THEN
     INSERT INTO public.wallet_accounts(user_id,balance)
     VALUES(p_user_id,0)
     ON CONFLICT(user_id) DO NOTHING;
@@ -98,7 +101,7 @@ BEGIN
     );
 
     UPDATE public.orders
-    SET payment_status='confirmed'
+    SET payment_status='confirmed', payment_reference='PAGO-CON-CREDITOS'
     WHERE id=v_order_id;
   END IF;
 
@@ -106,9 +109,11 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.create_order_tx(UUID, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB, TEXT, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_order_tx(UUID, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB, TEXT, UUID) TO authenticated;
+
 DROP FUNCTION IF EXISTS public.create_order_tx(UUID, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB);
 DROP FUNCTION IF EXISTS public.create_order_tx(UUID, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB, TEXT);
-GRANT EXECUTE ON FUNCTION public.create_order_tx(UUID, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB, TEXT, UUID) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.create_order_tx(
   p_user_id UUID,
