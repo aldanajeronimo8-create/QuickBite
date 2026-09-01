@@ -8,7 +8,7 @@ import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { supabase } from '../lib/supabase';
-import { canAccessAdmin, canAccessStudent } from '../lib/access';
+import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
 
 function SessionRestorer() {
   useEffect(() => {
@@ -28,6 +28,8 @@ function SessionRestorer() {
         if (pathname !== '/' && pathname !== '/login') return;
         if (canAccessAdmin(profile.role)) {
           await router.navigate('/admin', { replace: true });
+        } else if (canAccessParent(profile.role)) {
+          await router.navigate('/parent/family', { replace: true });
         } else if (canAccessStudent(profile.role)) {
           await router.navigate('/menu', { replace: true });
         }
