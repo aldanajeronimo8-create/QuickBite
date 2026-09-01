@@ -74,6 +74,12 @@ export function AdminUsers() {
   }, []);
 
   const isProtected = (user: Profile) => protectedEmails.has(user.email.trim().toLowerCase());
+  const isAdministrativeRole = (role: Profile['role']) => role === 'admin' || role === 'both';
+  const canCurrentAdminChangeAdministrativeUser = (user: Profile) => {
+    if (!currentUser || !isAdministrativeRole(currentUser.role) || !isAdministrativeRole(user.role)) return false;
+    return currentUser.id !== user.id;
+  };
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return users;
@@ -86,11 +92,11 @@ export function AdminUsers() {
   const beginCreate = () => { setForm(emptyForm); setCredentialOnly(false); setProtectedOriginalEmail(null); setOpen(true); };
 
   const beginEdit = (user: Profile) => {
-    const protectedAccount = isProtected(user);
-    if (protectedAccount && user.id === currentUser?.id) {
-      toast.error('Por seguridad, otro administrador debe cambiar las credenciales de su propia cuenta protegida.');
+    if (isAdministrativeRole(user.role) && user.id === currentUser?.id) {
+      toast.error('Un administrador no puede cambiar ni restablecer su propia contraseña. Otro administrador debe hacerlo.');
       return;
     }
+    const protectedAccount = isProtected(user);
     setForm({ id: user.id, email: user.email, password: '', full_name: user.full_name, role: user.role, ti: user.ti ?? '' });
     setCredentialOnly(protectedAccount);
     setProtectedOriginalEmail(protectedAccount ? user.email.trim().toLowerCase() : null);
@@ -102,6 +108,20 @@ export function AdminUsers() {
     if (!form.full_name.trim() || !form.email.trim()) { toast.error('Nombre y correo son obligatorios'); return; }
     if (!form.id && form.password.length < 6) { toast.error('La contraseña temporal debe tener al menos 6 caracteres'); return; }
     if (form.id && form.password.trim() && form.password.length < 6) { toast.error('La nueva contraseña debe tener al menos 6 caracteres'); return; }
+
+    const existingUser = form.id ? users.find((user) => user.id === form.id) : null;
+    const effectiveRole = existingUser?.role ?? form.role;
+    if (form.id && isAdministrativeRole(effectiveRole)) {
+      if (!canCurrentAdminChangeAdministrativeUser(existingUser)) {
+        toast.error('Solo otro administrador puede cambiar la contraseña de una cuenta administrativa.');
+        return;
+      }
+      if (!form.password.trim()) {
+        toast.error('Para una cuenta administrativa, el cambio debe incluir una nueva contraseña.');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (form.id && credentialOnly) {
@@ -155,7 +175,7 @@ export function AdminUsers() {
                 <td className="px-4 py-3 text-gray-600">{consent?.guardian_email || '-'}</td>
                 <td className="px-4 py-3">{consent ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />Autorizada · {consent.privacy_policy_version}</span> : <span className="text-xs text-slate-400">Sin registro</span>}</td>
                 <td className="px-4 py-3"><div className="flex justify-end gap-2">
-                  {isProtected(user) ? <><Button variant="outline" size="sm" onClick={() => beginEdit(user)} aria-label={`Editar credenciales de ${user.full_name}`} className="border-amber-200 text-amber-800 hover:bg-amber-50"><KeyRound className="h-4 w-4" /></Button><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">Protegida</span></> : <><Button variant="outline" size="sm" onClick={() => beginEdit(user)} aria-label={`Editar ${user.full_name}`}><Edit2 className="h-4 w-4" /></Button><Button variant="outline" size="sm" onClick={() => removeUser(user)} className="border-red-200 text-red-600 hover:bg-red-50" aria-label={`Eliminar ${user.full_name}`}><Trash2 className="h-4 w-4" /></Button></>}
+                  {isProtected(user) ? <><Button variant="outline" size="sm" onClick={() => beginEdit(user)} aria-label={`Editar credenciales de ${user.full_name}`} className="border-amber-200 text-amber-800 hover:bg-amber-50"><KeyRound className="h-4 w-4" /></Button><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">Protegida</span></> : user.id === currentUser?.id && isAdministrativeRole(user.role) ? <span className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700">Contraseña gestionada por otro admin</span> : <><Button variant="outline" size="sm" onClick={() => beginEdit(user)} aria-label={`Editar ${user.full_name}`}><Edit2 className="h-4 w-4" /></Button><Button variant="outline" size="sm" onClick={() => removeUser(user)} className="border-red-200 text-red-600 hover:bg-red-50" aria-label={`Eliminar ${user.full_name}`}><Trash2 className="h-4 w-4" /></Button></>}
                 </div></td>
               </tr>;
             })}
