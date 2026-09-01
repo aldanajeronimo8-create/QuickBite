@@ -20,6 +20,10 @@ export function AdminLayout() {
   useEffect(() => { void loadData(); }, [loadData]);
   useEffect(() => { setMobileSidebarOpen(false); }, [location.pathname]);
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
+  const openStudentPreview = () => {
+    if (typeof window !== 'undefined') window.sessionStorage.setItem('quickbite_admin_student_preview', '1');
+    navigate('/menu?from=admin');
+  };
   if (!user) return null;
   const pendingCount = orders.filter((order) => !order.admin_hidden && order.status === 'pending').length;
   const isCurrentPath = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -51,7 +55,7 @@ export function AdminLayout() {
       </nav>
       <div className={`px-4 pb-5 pt-3 ${sidebarContentCollapsed ? 'lg:px-2' : ''}`} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         {!sidebarContentCollapsed && <div className="mb-3 flex items-center gap-2.5"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: 'rgba(255,255,255,0.12)' }}>{user.full_name?.[0]?.toUpperCase() ?? 'A'}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-white">{user.full_name}</p><p className="truncate text-xs" style={{ color: '#93C5FD' }}>{user.role === 'both' ? 'Administrador y estudiante' : 'Administrador'}</p></div></div>}
-        {canAccessStudent(user.role) && <Link to="/menu" title={sidebarContentCollapsed ? 'Ver como estudiante' : undefined} className={`mb-2 flex w-full items-center rounded-2xl border py-2 text-xs font-semibold transition hover:bg-white/10 ${sidebarContentCollapsed ? 'justify-center px-2' : 'justify-center px-3'}`} style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#DBEAFE' }}><GraduationCap className={sidebarContentCollapsed ? 'h-4 w-4' : 'mr-2 h-3.5 w-3.5'} />{!sidebarContentCollapsed && 'Ver como estudiante'}</Link>}
+        {canAccessStudent(user.role) && <button type="button" onClick={openStudentPreview} title={sidebarContentCollapsed ? 'Ver como estudiante' : undefined} className={`mb-2 flex w-full items-center rounded-2xl border py-2 text-xs font-semibold transition hover:bg-white/10 ${sidebarContentCollapsed ? 'justify-center px-2' : 'justify-center px-3'}`} style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#DBEAFE' }}><GraduationCap className={sidebarContentCollapsed ? 'h-4 w-4' : 'mr-2 h-3.5 w-3.5'} />{!sidebarContentCollapsed && 'Ver como estudiante'}</button>}
         <Button onClick={handleSignOut} variant="outline" size="sm" title={sidebarContentCollapsed ? 'Cerrar sesión' : undefined} className="w-full text-xs" style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.2)', color: '#BFDBFE' }}><LogOut className={sidebarContentCollapsed ? 'h-4 w-4' : 'mr-2 h-3.5 w-3.5'} />{!sidebarContentCollapsed && 'Cerrar sesión'}</Button>
       </div>
     </aside>
