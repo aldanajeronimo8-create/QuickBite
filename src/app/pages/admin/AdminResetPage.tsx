@@ -13,7 +13,8 @@ export function AdminResetPage() {
   const [resetting, setResetting] = useState(false);
 
   const activeOrders = useMemo(() => orders.filter((order) => !order.admin_hidden), [orders]);
-  const canReset = user?.role === 'admin' && confirmation.trim().toUpperCase() === 'REINICIAR';
+  const isSystemAdmin = user?.role === 'admin' || user?.role === 'both';
+  const canReset = isSystemAdmin && confirmation.trim().toUpperCase() === 'REINICIAR';
 
   const handleReset = async () => {
     if (!canReset || resetting) return;
@@ -29,8 +30,8 @@ export function AdminResetPage() {
     }
   };
 
-  if (user?.role !== 'admin') {
-    return <Card className="border border-red-200 bg-red-50 p-8"><div className="flex items-start gap-4"><ShieldAlert className="mt-1 h-7 w-7 text-red-600" /><div><h1 className="text-2xl font-black text-red-900">Acceso restringido</h1><p className="mt-2 text-sm text-red-800">El reinicio completo solo está disponible para una cuenta administrativa principal.</p></div></div></Card>;
+  if (!isSystemAdmin) {
+    return <Card className="border border-red-200 bg-red-50 p-8"><div className="flex items-start gap-4"><ShieldAlert className="mt-1 h-7 w-7 text-red-600" /><div><h1 className="text-2xl font-black text-red-900">Acceso restringido</h1><p className="mt-2 text-sm text-red-800">El reinicio global requiere permisos administrativos porque modifica el estado compartido de QuickBite.</p></div></div></Card>;
   }
 
   return <div className="mx-auto max-w-3xl space-y-6">
