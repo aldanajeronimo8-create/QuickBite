@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, GraduationCap, Loader2, Lock, Mail, ShieldCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
-import { requireSupabaseClient } from '../../lib/supabase';
+import { requireSupabaseClient, setAuthContext } from '../../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -34,6 +34,7 @@ export function LoginPage() {
     }
     setLoading(true);
     try {
+      setAuthContext(intent === 'admin' ? 'admin' : 'user');
       const client = requireSupabaseClient();
       const normalizedEmail = email.trim().toLowerCase();
       const { data, error: signInError } = await client.auth.signInWithPassword({ email: normalizedEmail, password });
@@ -109,6 +110,7 @@ export function LoginPage() {
   };
 
   const changeStudentOnDevice = async () => {
+    setAuthContext('user');
     const supabase = requireSupabaseClient();
     await supabase.auth.signOut();
     clearBoundStudentUser();
@@ -141,7 +143,7 @@ export function LoginPage() {
               <div className="grid grid-cols-2 gap-2 rounded-2xl bg-green-50 p-1">
                 <button
                   type="button"
-                  onClick={() => { setMode('student'); setError(''); }}
+                  onClick={() => { setMode('student'); setAuthContext('user'); setError(''); }}
                   className="flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-green-700 shadow-sm"
                 >
                   <GraduationCap className="w-4 h-4" />
@@ -149,7 +151,7 @@ export function LoginPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setMode('parent'); setError(''); }}
+                  onClick={() => { setMode('parent'); setAuthContext('user'); setError(''); }}
                   className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-slate-500 hover:text-blue-700"
                 >
                   <Users className="w-4 h-4" />
@@ -167,7 +169,7 @@ export function LoginPage() {
               </div>
               <button
                 type="button"
-                onClick={() => { setMode('student'); setError(''); }}
+                onClick={() => { setMode('student'); setAuthContext('user'); setError(''); }}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700"
               >
                 <GraduationCap className="w-4 h-4" />
@@ -206,7 +208,7 @@ export function LoginPage() {
               <div className="flex items-center justify-between mb-1">
                 <Label htmlFor="login-password" className={`text-sm ${isStudent || isParent ? 'text-gray-700' : 'text-white/80'}`}>Contraseña</Label>
                 {(isStudent || isParent) && (
-                  <Link to="/forgot-password" className={`text-xs underline underline-offset-2 ${isStudent || isParent ? 'text-green-700' : 'text-blue-200'}`}>Recuperar</Link>
+                  <Link to="/forgot-password" className="text-xs underline underline-offset-2 text-green-700">Recuperar</Link>
                 )}
               </div>
               <div className="relative">
@@ -250,17 +252,17 @@ export function LoginPage() {
             )}
 
             {isStudent && (
-              <Button type="button" variant="outline" onClick={() => { setMode('admin'); setError(''); }} className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 py-5 rounded-xl text-sm">
+              <Button type="button" variant="outline" onClick={() => { setMode('admin'); setAuthContext('admin'); setError(''); }} className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 py-5 rounded-xl text-sm">
                 Acceso de administración
               </Button>
             )}
             {isParent && (
-              <Button type="button" variant="outline" onClick={() => { setMode('admin'); setError(''); }} className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 py-5 rounded-xl text-sm">
+              <Button type="button" variant="outline" onClick={() => { setMode('admin'); setAuthContext('admin'); setError(''); }} className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 py-5 rounded-xl text-sm">
                 Acceso de administración
               </Button>
             )}
             {mode === 'admin' && (
-              <Button type="button" variant="outline" onClick={() => { setMode('student'); setError(''); }} className="w-full border-white/20 text-white hover:bg-white/10 py-5 rounded-xl text-sm">
+              <Button type="button" variant="outline" onClick={() => { setMode('student'); setAuthContext('user'); setError(''); }} className="w-full border-white/20 text-white hover:bg-white/10 py-5 rounded-xl text-sm">
                 Volver a Estudiante
               </Button>
             )}
