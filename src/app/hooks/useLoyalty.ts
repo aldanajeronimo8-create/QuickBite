@@ -17,13 +17,20 @@ export function useLoyalty(userId: string | undefined, _orders?: unknown) {
     if (!userId) return;
     try {
       setError(null);
-      const [nextSettings, nextRewards, nextRedemptions, nextEarnedPoints] = await Promise.all([
-        getLoyaltySettings(),
+      const nextSettings = await getLoyaltySettings();
+      setSettings(nextSettings);
+      if (!nextSettings.enabled) {
+        setRewards([]);
+        setRedemptions([]);
+        setEarnedPoints(0);
+        return;
+      }
+
+      const [nextRewards, nextRedemptions, nextEarnedPoints] = await Promise.all([
         listLoyaltyRewards(),
         listUserLoyaltyRedemptions(userId),
         getUserLoyaltyPoints(userId),
       ]);
-      setSettings(nextSettings);
       setRewards(nextRewards);
       setRedemptions(nextRedemptions);
       setEarnedPoints(nextEarnedPoints);
@@ -86,7 +93,7 @@ export function useLoyalty(userId: string | undefined, _orders?: unknown) {
   }, [refresh]);
 
   return {
-    availablePoints: Math.max(earnedPoints - spentPoints, 0),
+    availablePoints: settings?.enabled ? Math.max(earnedPoints - spentPoints, 0) : 0,
     enabled: settings?.enabled === true,
     error,
     loading,
