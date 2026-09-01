@@ -28,7 +28,7 @@ jobs:
             exit 1
           }
 
-          # GitHub secrets are sometimes pasted with surrounding quotes or line breaks.
+          # Normalize the secret in case it was pasted with quotes or line breaks.
           VERCEL_DEPLOY_HOOK_URL="${RAW_VERCEL_DEPLOY_HOOK_URL//$'\r'/}"
           VERCEL_DEPLOY_HOOK_URL="${VERCEL_DEPLOY_HOOK_URL//$'\n'/}"
           VERCEL_DEPLOY_HOOK_URL="${VERCEL_DEPLOY_HOOK_URL//\"/}"
@@ -46,4 +46,4 @@ jobs:
           curl --fail --silent --show-error --location --request POST --url "$VERCEL_DEPLOY_HOOK_URL"
           echo "Vercel production deployment triggered successfully."
 
-          # Force-hook trigger marker: CI success on main is the only deployment gate.
+          # CI success on main is the only deployment gate.
