@@ -165,20 +165,20 @@ jobs:
             Never weaken tests, modify secrets, disable CI, or deploy.
             Preserve order, stock, payment, auth, RLS, backups and Auto-Heal.
             Run typecheck, lint, test and build; run E2E when secrets are available.
-      - name: Run Gemini independent repair/review
+      - name: Run Gemini fallback repair/review
         id: gemini
-        if: env.GEMINI_API_KEY != ''
+        if: env.GEMINI_API_KEY != '' && (steps.codex.outcome != 'success' || env.OPENAI_API_KEY == '')
         continue-on-error: true
         timeout-minutes: 8
         uses: google-github-actions/run-gemini-cli@v0
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           prompt: |
-            Independently inspect .github/auto-heal/ci-failure.log and the current git diff.
-            Review Codex's changes if any. Only change files when you identify a concrete root cause or build/lint/test issue.
-            Make only safe minimal changes. Never weaken tests, change secrets, disable CI or deploy.
-            Do not run long-lived or repeated commands. Prefer a focused review and targeted fixes.
-            Validate the changed area with the smallest relevant check available and finish promptly.
+            Codex did not complete successfully or is unavailable, so you are the fallback repair agent.
+            Inspect .github/auto-heal/ci-failure.log and the current git diff.
+            Diagnose and repair the root cause with the smallest safe change.
+            Never weaken tests, change secrets, disable CI or deploy.
+            Run typecheck, lint, test and build before finishing when practical.
       - name: Stop if no AI repair provider is configured
         if: env.OPENAI_API_KEY == '' && env.GEMINI_API_KEY == ''
         run: |
