@@ -3,6 +3,7 @@ import { Check, History, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { requireSupabaseClient } from '../../../lib/supabase';
 import { useDataStore } from '../../../store/dataStore';
+import { useAuthStore } from '../../../store/authStore';
 
 type AuditRow = { source: string; id: string; created_at: string; actor_id: string | null; action: string; module: string; operation: string; entity_type: string | null; entity_id: string | null; status: string; metadata: Record<string, unknown> };
 type CancellationRow = { id: string; order_id: string; order_number: string; full_name: string; email: string; reason: string; status: 'pending'|'approved'|'rejected'; refund_amount: number; refund_method: string | null; review_note: string | null; created_at: string };
@@ -12,29 +13,49 @@ const date = (s: string) => new Date(s).toLocaleString('es-CO', { dateStyle: 'me
 
 export function AdminHistory() {
   const localHistory = useDataStore((state) => state.history);
+  const authLoading = useAuthStore((state) => state.loading);
+  const currentUser = useAuthStore((state) => state.user);
   const [audits, setAudits] = useState<AuditRow[]>([]);
   const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [cancellationError, setCancellationError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (authLoading || !currentUser) return;
     setLoading(true);
-    try {
-      const client = requireSupabaseClient();
-      const [{ data: auditData, error: auditError }, { data: cancelData, error: cancelError }] = await Promise.all([
-        client.rpc('admin_list_audit_events', { p_limit: 300 }),
-        client.rpc('admin_list_order_cancellation_requests'),
-      ]);
-      if (auditError) throw auditError;
-      if (cancelError) throw cancelError;
-      setAudits((auditData ?? []) as AuditRow[]);
-      setCancellations((cancelData ?? []) as CancellationRow[]);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo cargar la auditoría.');
-    } finally { setLoading(false); }
-  }, []);
+    setAuditError(null);
+    setCancellationError(null);
+    const client = requireSupabaseClient();
 
-  useEffect(() => { void load(); }, [load]);
+    const [auditResult, cancellationResult] = await Promise.allSettled([
+      client.rpc('admin_list_audit_events', { p_limit: 300 }),
+      client.rpc('admin_list_order_cancellation_requests'),
+    ]);
+
+    if (auditResult.status === 'fulfilled') {
+      const { data, error } = auditResult.value;
+      if (error) setAuditError(error.message);
+      else setAudits((data ?? []) as AuditRow[]);
+    } else {
+      setAuditError(auditResult.reason instanceof Error ? auditResult.reason.message : 'No se pudo cargar la auditoría remota.');
+    }
+
+    if (cancellationResult.status === 'fulfilled') {
+      const { data, error } = cancellationResult.value;
+      if (error) setCancellationError(error.message);
+      else setCancellations((data ?? []) as CancellationRow[]);
+    } else {
+      setCancellationError(cancellationResult.reason instanceof Error ? cancellationResult.reason.message : 'No se pudieron cargar las cancelaciones.');
+    }
+
+    setLoading(false);
+  }, [authLoading, currentUser]);
+
+  useEffect(() => {
+    if (!authLoading && currentUser) void load();
+  }, [authLoading, currentUser, load]);
 
   const reviewCancellation = async (id: string, approve: boolean) => {
     setBusy(id);
@@ -43,14 +64,20 @@ export function AdminHistory() {
       if (error) throw error;
       toast.success(approve ? 'Cancelación aprobada.' : 'Cancelación rechazada.');
       await load();
-    } catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo revisar la solicitud.'); }
-    finally { setBusy(null); }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo revisar la solicitud.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   return <div className="space-y-7">
     <header className="rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-6 shadow-xl sm:p-8">
-      <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-700">Trazabilidad</p><h1 className="mt-2 flex items-center gap-3 text-3xl font-black text-slate-950"><History className="h-7 w-7 text-blue-700"/>Auditoría y cancelaciones</h1><p className="mt-2 text-sm text-slate-600">Registro remoto de operaciones, solicitudes de cancelación y decisiones administrativas.</p></div><button type="button" onClick={() => void load()} disabled={loading} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}/>Actualizar</button></div>
+      <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-700">Trazabilidad</p><h1 className="mt-2 flex items-center gap-3 text-3xl font-black text-slate-950"><History className="h-7 w-7 text-blue-700"/>Auditoría y cancelaciones</h1><p className="mt-2 text-sm text-slate-600">Registro remoto de operaciones, solicitudes de cancelación y decisiones administrativas.</p></div><button type="button" onClick={() => void load()} disabled={loading || authLoading || !currentUser} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}/>Actualizar</button></div>
     </header>
+
+    {auditError && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">No se pudo cargar el registro remoto de auditoría: {auditError}</div>}
+    {cancellationError && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">No se pudieron cargar las solicitudes de cancelación: {cancellationError}</div>}
 
     <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50/60 p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black text-slate-900">Solicitudes de cancelación</h2><p className="text-sm text-slate-600">Las cancelaciones se revisan antes de cambiar el pedido y registrar el reembolso.</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-black text-amber-800">{cancellations.filter((r) => r.status === 'pending').length} pendientes</span></div>
