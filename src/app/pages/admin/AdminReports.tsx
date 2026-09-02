@@ -6,6 +6,7 @@ import { buildPeriodReportWorkbook } from '../../../services/reportExportService
 import { buildReportPeriod, dateKeyInBogota, formatPeriodDateRange, getMonthWeekGroups, parseReportInputDate, type ReportMode } from '../../../lib/reportPeriods';
 import * as XLSX from '@redoper1/xlsx-js-style';
 import { Button } from '../../components/ui/button';
+import { useAuthStore } from '../../../store/authStore';
 
 const salesHeaders = ['N.º pedido', 'Fecha de compra', 'Hora de compra', 'Cliente', 'Correo', 'Documento', 'Estado pedido', 'Estado pago', 'Método de pago', 'Código recogida', 'Referencia de pago', 'Total pedido', 'Productos', 'Unidades', 'Tiempo estimado (min)'];
 const detailHeaders = ['N.º pedido', 'Fecha de compra', 'Hora de compra', 'Producto', 'Categoría', 'Precio unitario', 'Cantidad', 'Subtotal', 'Stock actual', 'Cliente'];
@@ -21,6 +22,8 @@ function toDetailRows(orders: Order[]) { return orders.flatMap((order) => (order
 function ordersForDay(orders: Order[], day: Date) { return orders.filter((order) => dateKeyInBogota(order.created_at) === day.toISOString().slice(0, 10)); }
 
 export function AdminReports() {
+  const authLoading = useAuthStore((state) => state.loading);
+  const currentUser = useAuthStore((state) => state.user);
   const [mode, setMode] = useState<ReportMode>('daily');
   const [selectedDate, setSelectedDate] = useState(() => inputDateFormatter.format(new Date()));
   const [orders, setOrders] = useState<Order[]>([]);
@@ -28,8 +31,25 @@ export function AdminReports() {
   const [exporting, setExporting] = useState(false);
   const selected = useMemo(() => parseReportInputDate(selectedDate), [selectedDate]);
   const period = useMemo(() => buildReportPeriod(mode, selected), [mode, selected]);
-  const load = useCallback(async () => { setLoading(true); try { const client = requireSupabaseClient(); const { data, error } = await client.from('orders').select('*, order_items(*, product:products(*, category:categories(*))), user:profiles(*)').gte('created_at', period.startIso).lte('created_at', period.endIso).order('created_at', { ascending: true }); if (error) throw error; setOrders((data ?? []) as unknown as Order[]); } catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo cargar el informe.'); setOrders([]); } finally { setLoading(false); } }, [period]);
-  useEffect(() => { void load(); }, [load]);
+  const load = useCallback(async () => {
+    if (!currentUser || authLoading) return;
+    setLoading(true);
+    try {
+      const client = requireSupabaseClient();
+      const { data, error } = await client.from('orders').select('*, order_items(*, product:products(*, category:categories(*))), user:profiles(*)').gte('created_at', period.startIso).lte('created_at', period.endIso).order('created_at', { ascending: true });
+      if (error) throw error;
+      setOrders((data ?? []) as unknown as Order[]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo cargar el informe.');
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [authLoading, currentUser, period]);
+  useEffect(() => {
+    if (authLoading || !currentUser) return;
+    void load();
+  }, [authLoading, currentUser?.id, load]);
   const confirmedOrders = useMemo(() => orders.filter((order) => order.payment_status === 'confirmed'), [orders]);
   const totalSales = useMemo(() => confirmedOrders.reduce((sum, order) => sum + Number(order.total), 0), [confirmedOrders]);
   const totalUnits = useMemo(() => confirmedOrders.reduce((sum, order) => sum + Number(order.order_items?.reduce((units, item) => units + Number(item.quantity), 0) ?? 0), 0), [confirmedOrders]);
