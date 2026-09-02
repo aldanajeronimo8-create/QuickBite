@@ -64,6 +64,16 @@ async function assertHealthyInterface(
   page: Page,
   errors: { consoleErrors: string[]; pageErrors: string[]; failedResponses: string[] },
 ) {
+  await page.waitForTimeout(500);
+  if (errors.failedResponses.length > 0) {
+    console.log('E2E_SUPABASE_FAILURES', JSON.stringify(errors.failedResponses, null, 2));
+  }
+  if (errors.consoleErrors.length > 0) {
+    console.log('E2E_CONSOLE_ERRORS', JSON.stringify(errors.consoleErrors, null, 2));
+  }
+  if (errors.pageErrors.length > 0) {
+    console.log('E2E_PAGE_ERRORS', JSON.stringify(errors.pageErrors, null, 2));
+  }
   await expect(page.locator('body')).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/application error|uncaught|chunkloaderror|algo sali[oó] mal/i);
   expect(errors.pageErrors).toEqual([]);
