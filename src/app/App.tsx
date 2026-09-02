@@ -6,7 +6,6 @@ import { useAuthStore } from '../store/authStore';
 import { useDataStore } from '../store/dataStore';
 import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
-import { SetupWizardPage } from './pages/SetupWizardPage';
 import { supabase } from '../lib/supabase';
 import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
 
@@ -47,12 +46,18 @@ function App() {
   const checkSession = useAuthStore((s) => s.checkSession);
   const user = useAuthStore((s) => s.user);
   const subscribeRealtime = useDataStore((s) => s.subscribeRealtime);
+  const loadData = useDataStore((s) => s.loadData);
   const needsSetup = needsFirstRunSetup();
   const hasSupabase = hasSupabaseConfig();
 
   useEffect(() => {
     if (hasSupabase) void checkSession();
   }, [checkSession, hasSupabase]);
+
+  useEffect(() => {
+    if (!hasSupabase || !user) return;
+    void loadData({ silent: true });
+  }, [hasSupabase, loadData, user]);
 
   useEffect(() => {
     const supabaseClient = supabase;
