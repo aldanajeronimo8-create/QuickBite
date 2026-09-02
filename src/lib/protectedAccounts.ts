@@ -8,6 +8,7 @@ export const protectedAdminEmails = new Set([
   'jeronimoaldana901@gmail.com',
   'fernandez.gabriel@maximino.edu.co',
   'useche.diego@maximino.edu.co',
+  'quickbitejgf@gmail.com',
 ]);
 
 export function isProtectedAdminEmail(email: string) {
