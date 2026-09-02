@@ -10,6 +10,7 @@ import { LoginPage } from './pages/LoginPage';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
 import { StudentFeatureCenter } from './pages/student/StudentFeatureCenter';
+import { AdminWalletTopups } from './pages/admin/AdminWalletTopups';
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
