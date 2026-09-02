@@ -5,7 +5,6 @@ import type { UserRole } from './access';
 export type AuthContext = 'admin' | 'user';
 
 const AUTH_CONTEXT_STORAGE_KEY = 'quickbite.auth.context';
-const ADMIN_AUTH_STORAGE_KEY = 'quickbite.admin.auth';
 const ACTIVE_STUDENT_STORAGE_KEY = 'quickbite.parent.activeStudent';
 
 export const supabase = hasSupabaseConfig()
@@ -15,17 +14,11 @@ export const supabase = hasSupabaseConfig()
   })
   : null;
 
-export const adminSupabase = hasSupabaseConfig()
-  ? createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storageKey: ADMIN_AUTH_STORAGE_KEY,
-    },
-    realtime: { params: { eventsPerSecond: 10 } },
-  })
-  : null;
+// Admin and user flows intentionally share the same Supabase Auth session.
+// Keeping separate GoTrue storage keys can make a successful admin login
+// invisible to another client instance during navigation/hydration.
+// Authorization is still enforced by canAccessAdmin() and Supabase RLS.
+export const adminSupabase = supabase;
 
 export function setAuthContext(context: AuthContext) {
   if (typeof window === 'undefined') return;
@@ -132,12 +125,12 @@ let proxiedUserClient: SupabaseClient | null = null;
 export function requireSupabaseClient() {
   const context = getAuthContext();
 
-  if (context === 'admin') {
-    if (!adminSupabase) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
-    return adminSupabase;
-  }
-
   if (!supabase) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
+
+  // Admin routes use the raw shared client so their session is the same
+  // session created by the login flow and by the app-level session restorer.
+  if (context === 'admin') return adminSupabase as SupabaseClient;
+
   if (!proxiedUserClient) proxiedUserClient = createUserProxy(supabase);
   return proxiedUserClient;
 }
