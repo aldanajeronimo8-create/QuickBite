@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Wallet, Check, X, RefreshCw, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { requireSupabaseClient } from '../../../lib/supabase';
+import { useAuthStore } from '../../../store/authStore';
 
 type RequestRow = {
   id: string;
@@ -23,6 +24,8 @@ const money = (n: number) => Number(n).toLocaleString('es-CO');
 const dateTime = (value: string) => new Date(value).toLocaleString('es-CO');
 
 export function AdminWalletTopups() {
+  const currentUser = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.loading);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,6 +33,7 @@ export function AdminWalletTopups() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (showSpinner = false) => {
+    if (!currentUser || authLoading) return;
     if (showSpinner) setRefreshing(true);
     setError(null);
     try {
@@ -44,9 +48,10 @@ export function AdminWalletTopups() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [authLoading, currentUser]);
 
   useEffect(() => {
+    if (authLoading || !currentUser) return undefined;
     void load();
     const interval = window.setInterval(() => void load(), 15000);
     const client = requireSupabaseClient();
@@ -58,7 +63,7 @@ export function AdminWalletTopups() {
       window.clearInterval(interval);
       void client.removeChannel(channel);
     };
-  }, [load]);
+  }, [authLoading, currentUser?.id, load]);
 
   const approve = async (id: string) => {
     setBusy(id);
