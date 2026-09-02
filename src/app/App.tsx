@@ -45,6 +45,7 @@ function SessionRestorer() {
 
 function App() {
   const checkSession = useAuthStore((s) => s.checkSession);
+  const user = useAuthStore((s) => s.user);
   const subscribeRealtime = useDataStore((s) => s.subscribeRealtime);
   const needsSetup = needsFirstRunSetup();
   const hasSupabase = hasSupabaseConfig();
@@ -55,15 +56,12 @@ function App() {
 
   useEffect(() => {
     const supabaseClient = supabase;
-    if (!hasSupabase || !supabaseClient) return;
-    let cleanupRealtime = subscribeRealtime();
-    const { data } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      cleanupRealtime();
-      if (session?.access_token) supabaseClient.realtime.setAuth(session.access_token);
-      cleanupRealtime = subscribeRealtime();
-    });
-    return () => { cleanupRealtime(); data.subscription?.unsubscribe(); };
-  }, [hasSupabase, subscribeRealtime]);
+    if (!hasSupabase || !supabaseClient || !user) return;
+
+    supabaseClient.realtime.setAuth(supabaseClient.auth.getSession ? '' : '');
+    const cleanupRealtime = subscribeRealtime();
+    return () => cleanupRealtime();
+  }, [hasSupabase, subscribeRealtime, user]);
 
   return <><ErrorBoundary>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><SessionRestorer /></>}</ErrorBoundary><Toaster position="top-center" /></>;
 }
