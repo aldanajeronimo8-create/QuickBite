@@ -80,6 +80,7 @@ export const useDataStore = create<DataState>((set, get) => ({
   loadData: async (options) => {
     if (!options?.silent) set({ loading: true });
     try {
+      const isAdminContext = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
       const [categories, products, allOrders] = await Promise.all([
         repo.listCategories(),
         repo.listProducts(),
@@ -87,13 +88,16 @@ export const useDataStore = create<DataState>((set, get) => ({
       ]);
 
       let users: Profile[] = [];
-      try {
-        users = await repo.listProfiles();
-      } catch {
-        users = [];
+      // The profile list is an administrator-only RPC. Never call it from
+      // student/parent routes, where it correctly returns unauthorized.
+      if (isAdminContext) {
+        try {
+          users = await repo.listProfiles();
+        } catch {
+          users = [];
+        }
       }
 
-      const isAdminContext = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
       const orders = isAdminContext
         ? allOrders
         : allOrders.filter((order) => order.payment_status === 'confirmed' || order.payment_status === 'rejected');
