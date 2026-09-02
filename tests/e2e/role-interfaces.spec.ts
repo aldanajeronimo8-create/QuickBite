@@ -18,13 +18,26 @@ const credentials = {
 async function collectBrowserErrors(page: Page) {
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
+  const failedResponses: string[] = [];
 
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('response', async (response) => {
+    if (response.status() < 400) return;
+    const url = response.url();
+    if (!url.includes('/rest/') && !url.includes('/auth/') && !url.includes('/functions/')) return;
+    let body = '';
+    try {
+      body = (await response.text()).slice(0, 500);
+    } catch {
+      body = '<unreadable response body>';
+    }
+    failedResponses.push(`${response.status()} ${response.request().method()} ${url} ${body}`);
+  });
 
-  return { consoleErrors, pageErrors };
+  return { consoleErrors, pageErrors, failedResponses };
 }
 
 async function loginAs(page: Page, role: 'student' | 'parent' | 'admin') {
@@ -47,11 +60,15 @@ async function loginAs(page: Page, role: 'student' | 'parent' | 'admin') {
   await page.waitForURL(destination, { timeout: 30_000 });
 }
 
-async function assertHealthyInterface(page: Page, errors: { consoleErrors: string[]; pageErrors: string[] }) {
+async function assertHealthyInterface(
+  page: Page,
+  errors: { consoleErrors: string[]; pageErrors: string[]; failedResponses: string[] },
+) {
   await expect(page.locator('body')).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/application error|uncaught|chunkloaderror|algo sali[oó] mal/i);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.consoleErrors).toEqual([]);
+  expect(errors.failedResponses).toEqual([]);
 }
 
 test.describe('student interface', () => {
