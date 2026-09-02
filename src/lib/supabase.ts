@@ -6,32 +6,44 @@ export type AuthContext = 'admin' | 'user';
 
 const AUTH_CONTEXT_STORAGE_KEY = 'quickbite.auth.context';
 const ACTIVE_STUDENT_STORAGE_KEY = 'quickbite.parent.activeStudent';
+const USER_AUTH_STORAGE_KEY = 'quickbite.user.auth';
+const ADMIN_AUTH_STORAGE_KEY = 'quickbite.admin.auth';
 
-export const supabase = hasSupabaseConfig()
-  ? createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+function createAuthClient(storageKey: string) {
+  if (!hasSupabaseConfig()) return null;
+  return createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey,
+    },
     realtime: { params: { eventsPerSecond: 10 } },
-  })
-  : null;
+  });
+}
 
-// Admin and user flows intentionally share the same Supabase Auth session.
-// Keeping separate GoTrue storage keys can make a successful admin login
-// invisible to another client instance during navigation/hydration.
-// Authorization is still enforced by canAccessAdmin() and Supabase RLS.
-export const adminSupabase = supabase;
+// Keep administrator and user sessions physically separate in the same browser.
+// A student/parent login must never replace the currently authenticated admin
+// session, and signing out one context must never invalidate the other.
+export const supabase = createAuthClient(USER_AUTH_STORAGE_KEY);
+export const adminSupabase = createAuthClient(ADMIN_AUTH_STORAGE_KEY);
 
 export function setAuthContext(context: AuthContext) {
   if (typeof window === 'undefined') return;
   window.sessionStorage.setItem(AUTH_CONTEXT_STORAGE_KEY, context);
 }
 
-function getAuthContext(): AuthContext {
+export function getAuthContext(): AuthContext {
   if (typeof window === 'undefined') return 'user';
   if (window.location.pathname.startsWith('/admin')) return 'admin';
   if (window.location.pathname === '/login') {
     return window.sessionStorage.getItem(AUTH_CONTEXT_STORAGE_KEY) === 'admin' ? 'admin' : 'user';
   }
   return 'user';
+}
+
+export function getSupabaseClientForContext(context: AuthContext): SupabaseClient | null {
+  return context === 'admin' ? adminSupabase : supabase;
 }
 
 type StoredActingStudent = { id: string; full_name: string; email: string; grade: string | null; ti: string | null };
@@ -43,7 +55,13 @@ function getActiveStudent(): StoredActingStudent | null {
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<StoredActingStudent>;
     if (!value.id || !value.full_name || !value.email) return null;
-    return { id: value.id, full_name: value.full_name, email: value.email, grade: value.grade ?? null, ti: value.ti ?? null };
+    return {
+      id: value.id,
+      full_name: value.full_name,
+      email: value.email,
+      grade: value.grade ?? null,
+      ti: value.ti ?? null,
+    };
   } catch {
     return null;
   }
@@ -67,7 +85,11 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
                   ...result.data.session.user,
                   id: acting.id,
                   email: acting.email,
-                  user_metadata: { ...result.data.session.user.user_metadata, full_name: acting.full_name, acting_as_student: true },
+                  user_metadata: {
+                    ...result.data.session.user.user_metadata,
+                    full_name: acting.full_name,
+                    acting_as_student: true,
+                  },
                 },
               },
             },
@@ -87,7 +109,11 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
                 ...result.data.user,
                 id: acting.id,
                 email: acting.email,
-                user_metadata: { ...result.data.user.user_metadata, full_name: acting.full_name, acting_as_student: true },
+                user_metadata: {
+                  ...result.data.user.user_metadata,
+                  full_name: acting.full_name,
+                  acting_as_student: true,
+                },
               },
             },
           };
@@ -124,14 +150,12 @@ let proxiedUserClient: SupabaseClient | null = null;
 
 export function requireSupabaseClient() {
   const context = getAuthContext();
+  const client = getSupabaseClientForContext(context);
 
-  if (!supabase) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
+  if (!client) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
+  if (context === 'admin') return client;
 
-  // Admin routes use the raw shared client so their session is the same
-  // session created by the login flow and by the app-level session restorer.
-  if (context === 'admin') return adminSupabase as SupabaseClient;
-
-  if (!proxiedUserClient) proxiedUserClient = createUserProxy(supabase);
+  if (!proxiedUserClient) proxiedUserClient = createUserProxy(client);
   return proxiedUserClient;
 }
 
@@ -150,7 +174,7 @@ export interface Order {
 export interface OrderItem { id: string; order_id: string; product_id: string; quantity: number; price: number; product?: Product; }
 export interface UserNotification { id: string; user_id: string; order_id?: string | null; type: 'order_status' | 'reward_redemption'; title: string; body: string; read_at?: string | null; created_at: string; }
 export interface LoyaltySettings { id: boolean; enabled: boolean; points_per_currency_unit: number; updated_at: string; }
-export interface LoyaltyReward { id: string; product_id: string; title: string; description?: string | null; points_required: number; points_cost?: number | null; active: boolean; created_at: string; updated_at: string; product?: Product; }
+export interface LoyaltyReward { id: string; product_id: string; title: string; description?: string | null; points_required: number; points_cost?: number | null; active: boolean; created_at: string; updated_at: string; }
 export type LoyaltyRedemptionStatus = 'pending' | 'reserved' | 'approved' | 'fulfilled' | 'delivered' | 'cancelled';
 export interface LoyaltyRedemption { id: string; user_id: string; reward_id: string; product_id: string; points_spent: number; redemption_code: string; status: LoyaltyRedemptionStatus; created_at: string; admin_hidden?: boolean; fulfilled_at?: string | null; reward?: Pick<LoyaltyReward, 'id' | 'title'> & { product?: Pick<Product, 'name'> }; }
 export interface AdminLoyaltyRedemption extends LoyaltyRedemption { user?: Pick<Profile, 'id' | 'full_name' | 'email'>; }
