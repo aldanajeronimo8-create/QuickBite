@@ -12,15 +12,21 @@ export function AdminProtectedDataGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const prepare = useCallback(async () => {
-    if (authLoading || !user) return;
+    if (authLoading) return;
+
     setLoading(true);
     setError(null);
     try {
       const client = requireSupabaseClient();
       const { data, error: sessionError } = await client.auth.getSession();
       if (sessionError) throw sessionError;
-      if (!data.session?.user) throw new Error('La sesión administrativa no está disponible.');
-      if (data.session.user.id !== user.id) throw new Error('La sesión administrativa no coincide con el usuario activo.');
+
+      const sessionUser = data.session?.user;
+      if (!sessionUser) throw new Error('La sesión administrativa no está disponible.');
+      if (user && sessionUser.id !== user.id) {
+        throw new Error('La sesión administrativa no coincide con el usuario activo.');
+      }
+
       await loadData({ silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron preparar los datos administrativos.');
