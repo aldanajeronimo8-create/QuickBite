@@ -11,6 +11,13 @@ import { LoginPage } from './pages/LoginPage';
 import { SetupWizardPage } from './pages/SetupWizardPage';
 import { QuickBiteLogo } from './components/brand/QuickBiteLogo';
 import { StudentFeatureCenter } from './pages/student/StudentFeatureCenter';
+import { StudentAccountFeaturesPage } from './pages/student/StudentAccountFeaturesPage';
+import { StudentWalletPage } from './pages/student/StudentWalletPage';
+import { StudentHistoryPage } from './pages/student/StudentHistoryPage';
+import { StudentRewardsPage } from './pages/student/StudentRewardsPage';
+import { StudentNotificationsPage } from './pages/student/StudentNotificationsPage';
+import { StudentFavoritesPage } from './pages/student/StudentFavoritesPage';
+import { StudentLinkCodePage } from './pages/student/StudentLinkCodePage';
 import { AdminWalletTopups } from './pages/admin/AdminWalletTopups';
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
@@ -20,13 +27,6 @@ const StudentRegisterPage = lazy(() => import('./pages/student/StudentRegisterPa
 const ParentRegisterPage = lazy(() => import('./pages/ParentRegisterPage').then((m) => ({ default: m.ParentRegisterPage })));
 const ParentFamilyPage = lazy(() => import('./pages/ParentFamilyPage').then((m) => ({ default: m.ParentFamilyPage })));
 const OrderVerificationPage = lazy(() => import('./pages/OrderVerificationPage').then((m) => ({ default: m.OrderVerificationPage })));
-const StudentAccountFeaturesPage = lazy(() => import('./pages/student/StudentAccountFeaturesPage').then((m) => ({ default: m.StudentAccountFeaturesPage })));
-const StudentWalletPage = lazy(() => import('./pages/student/StudentWalletPage').then((m) => ({ default: m.StudentWalletPage })));
-const StudentHistoryPage = lazy(() => import('./pages/student/StudentHistoryPage').then((m) => ({ default: m.StudentHistoryPage })));
-const StudentRewardsPage = lazy(() => import('./pages/student/StudentRewardsPage').then((m) => ({ default: m.StudentRewardsPage })));
-const StudentNotificationsPage = lazy(() => import('./pages/student/StudentNotificationsPage').then((m) => ({ default: m.StudentNotificationsPage })));
-const StudentFavoritesPage = lazy(() => import('./pages/student/StudentFavoritesPage').then((m) => ({ default: m.StudentFavoritesPage })));
-const StudentLinkCodePage = lazy(() => import('./pages/student/StudentLinkCodePage').then((m) => ({ default: m.StudentLinkCodePage })));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders').then((m) => ({ default: m.AdminOrders })));
 const AdminPayments = lazy(() => import('./pages/admin/AdminPayments').then((m) => ({ default: m.AdminPayments })));
@@ -45,7 +45,7 @@ function PageLoader() { return <div className="grid min-h-screen place-items-cen
 function lazyPage(Component: ComponentType) { return <Suspense fallback={<PageLoader />}><Component /></Suspense>; }
 export const router = createBrowserRouter([
   { path: '/', element: <LoginPage /> }, { path: '/login', element: <LoginPage /> }, { path: '/register-student', element: lazyPage(AccountTypeChoicePage) }, { path: '/register-student/form', element: lazyPage(StudentRegisterPage) }, { path: '/register-parent', element: lazyPage(ParentRegisterPage) }, { path: '/parent/family', element: <RoleProtectedRoute role="parent">{lazyPage(ParentFamilyPage)}</RoleProtectedRoute> }, { path: '/verify-order', element: lazyPage(OrderVerificationPage) },
-  { path: '/menu', element: <RoleProtectedRoute role="student"><StudentExperienceLayout /></RoleProtectedRoute> }, { path: '/student/features', element: <RoleProtectedRoute role="student"><StudentFeatureCenter /></RoleProtectedRoute> }, { path: '/student/account', element: <RoleProtectedRoute role="student">{lazyPage(StudentAccountFeaturesPage)}</RoleProtectedRoute> }, { path: '/student/wallet', element: <RoleProtectedRoute role="student">{lazyPage(StudentWalletPage)}</RoleProtectedRoute> }, { path: '/student/history', element: <RoleProtectedRoute role="student">{lazyPage(StudentHistoryPage)}</RoleProtectedRoute> }, { path: '/student/rewards', element: <RoleProtectedRoute role="student">{lazyPage(StudentRewardsPage)}</RoleProtectedRoute> }, { path: '/student/favorites', element: <RoleProtectedRoute role="student">{lazyPage(StudentFavoritesPage)}</RoleProtectedRoute> }, { path: '/student/link-code', element: <RoleProtectedRoute role="student">{lazyPage(StudentLinkCodePage)}</RoleProtectedRoute> }, { path: '/student/notifications', element: <RoleProtectedRoute role="student">{lazyPage(StudentNotificationsPage)}</RoleProtectedRoute> },
+  { path: '/menu', element: <RoleProtectedRoute role="student"><StudentExperienceLayout /></RoleProtectedRoute> }, { path: '/student/features', element: <RoleProtectedRoute role="student"><StudentFeatureCenter /></RoleProtectedRoute> }, { path: '/student/account', element: <RoleProtectedRoute role="student"><StudentAccountFeaturesPage /></RoleProtectedRoute> }, { path: '/student/wallet', element: <RoleProtectedRoute role="student"><StudentWalletPage /></RoleProtectedRoute> }, { path: '/student/history', element: <RoleProtectedRoute role="student"><StudentHistoryPage /></RoleProtectedRoute> }, { path: '/student/rewards', element: <RoleProtectedRoute role="student"><StudentRewardsPage /></RoleProtectedRoute> }, { path: '/student/favorites', element: <RoleProtectedRoute role="student"><StudentFavoritesPage /></RoleProtectedRoute> }, { path: '/student/link-code', element: <RoleProtectedRoute role="student"><StudentLinkCodePage /></RoleProtectedRoute> }, { path: '/student/notifications', element: <RoleProtectedRoute role="student"><StudentNotificationsPage /></RoleProtectedRoute> },
   { path: '/register', element: <AuthRedirect><Suspense fallback={<PageLoader />}><RegisterPage /></Suspense></AuthRedirect> }, { path: '/forgot-password', element: lazyPage(ForgotPasswordPage) }, { path: '/reset-password', element: lazyPage(ResetPasswordPage) }, { path: '/setup', element: <SetupWizardPage /> },
   { path: '/admin', element: <ProtectedRoute><AdminProtectedDataGate><AdminExperienceLayout /></AdminProtectedDataGate></ProtectedRoute>, children: [ { index: true, element: lazyPage(AdminDashboard) }, { path: 'features', element: lazyPage(QuickBiteFeatureCenter) }, { path: 'operations', element: lazyPage(AdminOperations) }, { path: 'rankings', element: lazyPage(AdminOperations) }, { path: 'orders', element: lazyPage(AdminOrders) }, { path: 'payments', element: lazyPage(AdminPayments) }, { path: 'wallet', element: lazyPage(AdminWalletTopups) }, { path: 'inventory', element: lazyPage(AdminInventory) }, { path: 'menu', element: lazyPage(AdminMenu) }, { path: 'verification', element: lazyPage(AdminVerification) }, { path: 'users', element: lazyPage(AdminUsers) }, { path: 'loyalty', element: lazyPage(AdminLoyalty) }, { path: 'reports', element: lazyPage(AdminReports) }, { path: 'history', element: lazyPage(AdminHistory) }, { path: 'system', element: lazyPage(AdminSystem) }, { path: 'reset', element: lazyPage(AdminResetPage) } ] },
   { path: '*', element: <Navigate to="/" replace /> },
