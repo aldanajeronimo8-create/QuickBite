@@ -13,12 +13,11 @@ import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 import { bindStudentUser, clearBoundStudentUser, getBoundStudentUserId } from '../../lib/studentDeviceSession';
 
 type Mode = 'student' | 'parent' | 'admin';
-
 type LoginIntent = 'student' | 'parent' | 'admin';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { signIn, setUser } = useAuthStore();
+  const { setUser } = useAuthStore();
   const [mode, setMode] = useState<Mode>('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,19 +56,23 @@ export function LoginPage() {
         throw new Error('Tu cuenta no tiene un perfil de QuickBite.');
       }
 
-      if (canAccessAdmin(profile.role) && intent === 'admin') {
-        await signIn(normalizedEmail, password);
-        navigate('/admin');
-        toast.success('Bienvenido a Administración.');
-        return;
-      }
-
       const fullProfile = await getProfile(data.user.id);
       if (!fullProfile) {
         await client.auth.signOut();
         throw new Error('Tu cuenta no tiene un perfil de QuickBite.');
       }
       setUser(fullProfile);
+
+      if (intent === 'admin') {
+        if (!canAccessAdmin(profile.role)) {
+          await client.auth.signOut();
+          setUser(null);
+          throw new Error('Esta cuenta no tiene acceso administrativo.');
+        }
+        navigate('/admin');
+        toast.success('Bienvenido a Administración.');
+        return;
+      }
 
       if (profile.role === 'parent') {
         if (!canAccessParent(profile.role)) throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');
