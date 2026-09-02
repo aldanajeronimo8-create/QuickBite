@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, Bell, CreditCard, Gift, GraduationCap, LayoutDashboard, LogOut, Menu, Package, RotateCcw, ScanLine, ShoppingBag, Users, UtensilsCrossed, WalletCards, X } from 'lucide-react';
+import { BarChart3, Bell, CheckCheck, CreditCard, Gift, GraduationCap, LayoutDashboard, LogOut, Menu, Package, RotateCcw, ScanLine, ShoppingBag, Users, UtensilsCrossed, WalletCards, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -77,6 +77,7 @@ export function AdminLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [isClearingNotifications, setIsClearingNotifications] = useState(false);
   const notificationInitialized = useRef(false);
   const latestNotificationAt = useRef<string | null>(null);
 
@@ -91,6 +92,7 @@ export function AdminLayout() {
       .from('admin_notifications')
       .select('id,section,title,body,entity_type,entity_id,created_at,read_at')
       .eq('admin_user_id', user.id)
+      .is('read_at', null)
       .order('created_at', { ascending: false })
       .limit(80);
     if (error) return;
@@ -115,11 +117,28 @@ export function AdminLayout() {
     if (!user) return;
     try {
       await requireSupabaseClient().rpc('mark_admin_notifications_read', { p_section: section });
-      setNotifications((current) => current.map((item) => item.section === section ? { ...item, read_at: item.read_at ?? new Date().toISOString() } : item));
+      setNotifications((current) => current.filter((item) => item.section !== section));
     } catch {
       // The section remains usable even when read-state persistence is temporarily unavailable.
     }
   }, [user]);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    if (!user || isClearingNotifications || notifications.length === 0) return;
+    setIsClearingNotifications(true);
+    try {
+      const { error } = await requireSupabaseClient().rpc('mark_admin_notifications_read', { p_section: null });
+      if (error) throw error;
+      setNotifications([]);
+      setNotificationOpen(true);
+      toast.success('Notificaciones marcadas como leídas');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron marcar las notificaciones como leídas.');
+      await loadNotifications();
+    } finally {
+      setIsClearingNotifications(false);
+    }
+  }, [isClearingNotifications, loadNotifications, notifications.length, user]);
 
   useEffect(() => {
     if (user) void markSectionRead(sectionForPath(location.pathname));
@@ -133,15 +152,14 @@ export function AdminLayout() {
   };
   if (!user) return null;
 
-  const currentSection = sectionForPath(location.pathname);
   const unreadBySection = useMemo(() => {
     const counts = {} as Record<AdminSection, number>;
     notifications.forEach((item) => {
-      if (!item.read_at) counts[item.section] = (counts[item.section] ?? 0) + 1;
+      counts[item.section] = (counts[item.section] ?? 0) + 1;
     });
     return counts;
   }, [notifications]);
-  const unreadTotal = notifications.reduce((count, item) => count + (item.read_at ? 0 : 1), 0);
+  const unreadTotal = notifications.length;
   const pendingCount = orders.filter((order) => !order.admin_hidden && order.status === 'pending').length;
   const isCurrentPath = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
   const sidebarContentCollapsed = sidebarCollapsed && !mobileSidebarOpen;
@@ -195,13 +213,13 @@ export function AdminLayout() {
             {unreadTotal > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[11px] font-black text-white">{unreadTotal > 99 ? '99+' : unreadTotal}</span>}
           </button>
           {notificationOpen && <div className="absolute right-0 mt-2 w-[min(92vw,420px)] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="font-black text-slate-900">Actividad administrativa</p><p className="text-xs text-slate-500">Las alertas permanecen hasta abrir la sección afectada.</p></div><span className="text-xs font-black text-slate-400">{unreadTotal} nuevas</span></div>
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="font-black text-slate-900">Actividad administrativa</p><p className="text-xs text-slate-500">Las alertas nuevas permanecen hasta que las marques como leídas.</p></div><span className="text-xs font-black text-slate-400">{unreadTotal} nuevas</span></div>
             <div className="max-h-[60vh] overflow-y-auto p-2">
-              {notifications.length === 0 ? <p className="p-6 text-center text-sm text-slate-500">No hay actividad nueva.</p> : notifications.slice(0, 20).map((item) => <button key={item.id} type="button" onClick={() => { setNotificationOpen(false); navigate(sectionPath[item.section]); }} className={`block w-full rounded-2xl p-3 text-left transition hover:bg-slate-50 ${item.read_at ? '' : 'bg-blue-50/70'}`}>
-                <div className="flex items-start gap-3"><span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.read_at ? 'bg-slate-200' : 'bg-red-500'}`} /><div className="min-w-0"><p className="font-black text-slate-900">{item.title}</p><p className="mt-0.5 text-xs leading-5 text-slate-600">{item.body}</p><time className="mt-1 block text-[11px] text-slate-400">{new Date(item.created_at).toLocaleString('es-CO')}</time></div></div>
+              {notifications.length === 0 ? <div className="p-6 text-center"><CheckCheck className="mx-auto mb-2 h-7 w-7 text-emerald-500" /><p className="text-sm font-bold text-slate-700">No tienes notificaciones nuevas.</p><p className="mt-1 text-xs text-slate-400">Todo está al día.</p></div> : notifications.slice(0, 20).map((item) => <button key={item.id} type="button" onClick={() => { setNotificationOpen(false); navigate(sectionPath[item.section]); }} className="block w-full rounded-2xl bg-blue-50/70 p-3 text-left transition hover:bg-slate-50">
+                <div className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" /><div className="min-w-0"><p className="font-black text-slate-900">{item.title}</p><p className="mt-0.5 text-xs leading-5 text-slate-600">{item.body}</p><time className="mt-1 block text-[11px] text-slate-400">{new Date(item.created_at).toLocaleString('es-CO')}</time></div></div>
               </button>)}
             </div>
-            <div className="border-t border-slate-100 p-2"><button type="button" onClick={() => { void markSectionRead(currentSection); setNotificationOpen(false); }} className="w-full rounded-2xl px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-50">Marcar esta sección como revisada</button></div>
+            {unreadTotal > 0 && <div className="border-t border-slate-100 p-2"><button type="button" onClick={() => void markAllNotificationsRead()} disabled={isClearingNotifications} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-50 px-3 py-2.5 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"><CheckCheck className="h-4 w-4" />{isClearingNotifications ? 'Marcando como leídas...' : 'Marcar todas como leídas'}</button></div>}
           </div>}
         </div>
       </div>
