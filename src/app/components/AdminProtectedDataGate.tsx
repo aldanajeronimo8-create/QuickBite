@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { requireSupabaseClient } from '../../lib/supabase';
+import { canAccessAdmin } from '../../lib/access';
+import { getProfile } from '../../repositories/quickbiteRepository';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 
 export function AdminProtectedDataGate({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
+  const setUser = useAuthStore((state) => state.setUser);
   const loadData = useDataStore((state) => state.loadData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,9 +25,19 @@ export function AdminProtectedDataGate({ children }: { children: ReactNode }) {
       if (sessionError) throw sessionError;
 
       const sessionUser = data.session?.user;
-      if (!sessionUser) throw new Error('La sesión administrativa no está disponible.');
-      if (user && sessionUser.id !== user.id) {
-        throw new Error('La sesión administrativa no coincide con el usuario activo.');
+      if (!sessionUser) throw new Error('La sesión administrativa no está disponible. Inicia sesión nuevamente.');
+
+      const profile = await getProfile(sessionUser.id);
+      if (!profile || !canAccessAdmin(profile.role)) {
+        setUser(null);
+        await client.auth.signOut();
+        throw new Error('La sesión no tiene permisos administrativos. Inicia sesión con una cuenta Admin.');
+      }
+
+      // Reconcile Zustand with the authenticated Supabase user. This avoids
+      // rejecting a valid admin session because the store is still hydrating.
+      if (!user || user.id !== profile.id || user.role !== profile.role) {
+        setUser(profile);
       }
 
       await loadData({ silent: true });
@@ -33,7 +46,7 @@ export function AdminProtectedDataGate({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, loadData, user]);
+  }, [authLoading, loadData, setUser, user]);
 
   useEffect(() => { void prepare(); }, [prepare]);
 
