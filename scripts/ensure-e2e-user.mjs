@@ -111,6 +111,11 @@ for (const account of accounts) {
     throw new Error(`E2E ${account.role} login validation failed (${signInResponse.status}): ${await signInResponse.text()}`);
   }
 
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.log(`::add-mask::${account.email}`);
+    console.log(`::add-mask::${account.password}`);
+  }
+
   workflowEnv.push(`PLAYWRIGHT_${account.role.toUpperCase()}_EMAIL=${account.email}`);
   workflowEnv.push(`PLAYWRIGHT_${account.role.toUpperCase()}_PASSWORD=${account.password}`);
   console.log(`E2E ${account.role} account provisioned and login verified.`);
