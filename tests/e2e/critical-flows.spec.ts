@@ -59,22 +59,16 @@ test.describe('critical functional flows', () => {
     const state = await monitor(page);
     await login(page, 'student');
     await healthy(page, state);
-
     const search = page.locator('input[type="search"], input[placeholder*="Buscar" i], input[placeholder*="buscar" i]').first();
-    if (await search.count()) {
-      await search.fill('zzzz-no-match');
-      await page.waitForTimeout(250);
-      await search.fill('');
-    }
-
+    if (await search.count()) { await search.fill('zzzz-no-match'); await page.waitForTimeout(250); await search.fill(''); }
     const categoryControls = page.getByRole('button').filter({ hasText: /^(Todas|Todo|Menú|Bebidas|Comidas|Snacks)$/i });
     if (await categoryControls.count()) await categoryControls.first().click();
-
     const addButtons = page.getByRole('button', { name: /agregar|añadir|sumar al carrito|comprar/i });
     if (await addButtons.count()) {
       await addButtons.first().click();
       await page.getByRole('button', { name: /abrir carrito/i }).click();
-      await expect(page.locator('body')).toContainText(/carrito/i);
+      await expect(page.locator('body')).toContainText(/tu pedido/i);
+      await expect(page.locator('body')).toContainText(/método de pago/i);
       const minus = page.getByRole('button', { name: /disminuir|quitar|restar/i }).first();
       if (await minus.count()) await minus.click();
     }
@@ -84,15 +78,9 @@ test.describe('critical functional flows', () => {
   test('student account surfaces and logout work', async ({ page }) => {
     const state = await monitor(page);
     await login(page, 'student');
-    for (const path of ['/student/features', '/student/account', '/student/wallet', '/student/history', '/student/favorites', '/student/link-code', '/student/notifications']) {
-      await page.goto(path);
-      await healthy(page, state);
-    }
+    for (const path of ['/student/features', '/student/account', '/student/wallet', '/student/history', '/student/favorites', '/student/link-code', '/student/notifications']) { await page.goto(path); await healthy(page, state); }
     const logout = page.getByRole('button', { name: /cerrar sesi[oó]n/i }).first();
-    if (await logout.count()) {
-      await logout.click();
-      await page.waitForURL(/\/(?:login)?$/);
-    }
+    if (await logout.count()) { await logout.click(); await page.waitForURL(/\/(?:login)?$/); }
     await healthy(page, state);
   });
 
@@ -111,15 +99,12 @@ test.describe('critical functional flows', () => {
     await login(page, 'admin');
     await page.goto('/admin/features');
     await healthy(page, state);
-    const links = page.locator('a[href^="/admin/"]');
-    const hrefs = await links.evaluateAll((nodes) => nodes.map((n) => (n as HTMLAnchorElement).getAttribute('href')).filter(Boolean));
+    const center = page.getByTestId('admin-feature-center');
+    const links = center.locator('a[href^="/admin/"]');
+    const hrefs = await links.evaluateAll((nodes) => nodes.map((n) => (n as HTMLAnchorElement).getAttribute('href')).filter(Boolean) as string[]);
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    expect(hrefs.length).toBeGreaterThanOrEqual(10);
-    for (const href of hrefs) {
-      await page.goto(href!);
-      await healthy(page, state);
-      await expect(page).toHaveURL(new RegExp(`${href!.replaceAll('/', '\\/')}$`));
-    }
+    expect(hrefs.length).toBe(10);
+    for (const href of hrefs) { await page.goto(href); await healthy(page, state); await expect(page).toHaveURL(new RegExp(`${href.replaceAll('/', '\\/')}$`)); }
   });
 
   test('admin orders supports detail/filter controls when data exists', async ({ page }) => {
@@ -128,35 +113,22 @@ test.describe('critical functional flows', () => {
     await page.goto('/admin/orders');
     await healthy(page, state);
     const filter = page.getByRole('combobox').first();
-    if (await filter.count()) {
-      await filter.click();
-      const preparing = page.getByRole('option', { name: /en preparación/i });
-      if (await preparing.count()) await preparing.click();
-    }
+    if (await filter.count()) { await filter.click(); const preparing = page.getByRole('option', { name: /en preparación/i }); if (await preparing.count()) await preparing.click(); }
     const detail = page.getByRole('button', { name: /ver detalles/i }).first();
-    if (await detail.count()) {
-      await detail.click();
-      await expect(page.getByRole('dialog')).toBeVisible();
-      const close = page.getByRole('button', { name: /cerrar/i }).first();
-      if (await close.count()) await close.click();
-    }
+    if (await detail.count()) { await detail.click(); await expect(page.getByRole('dialog')).toBeVisible(); const close = page.getByRole('button', { name: /cerrar/i }).first(); if (await close.count()) await close.click(); }
     await healthy(page, state);
   });
 
   test('admin system and reset pages expose operational controls without runtime errors', async ({ page }) => {
     const state = await monitor(page);
     await login(page, 'admin');
-    for (const path of ['/admin/system', '/admin/reset', '/admin/payments', '/admin/wallet', '/admin/inventory', '/admin/menu', '/admin/verification', '/admin/users', '/admin/loyalty', '/admin/reports', '/admin/history']) {
-      await page.goto(path);
-      await healthy(page, state);
-    }
+    for (const path of ['/admin/system', '/admin/reset', '/admin/payments', '/admin/wallet', '/admin/inventory', '/admin/menu', '/admin/verification', '/admin/users', '/admin/loyalty', '/admin/reports', '/admin/history']) { await page.goto(path); await healthy(page, state); }
   });
 
-  test('unauthenticated users cannot enter protected student and admin surfaces', async ({ page }) => {
+  test('unauthenticated users cannot enter protected student, parent and admin surfaces', async ({ page }) => {
     const state = await monitor(page);
-    for (const path of ['/menu', '/student/wallet', '/student/history', '/admin', '/admin/features', '/admin/users']) {
+    for (const path of ['/menu', '/student/wallet', '/student/history', '/student/features', '/parent/family', '/admin', '/admin/features', '/admin/users']) {
       await page.goto(path);
-      await page.waitForTimeout(500);
       await expect(page).not.toHaveURL(new RegExp(`${path.replaceAll('/', '\\/')}$`));
     }
     await healthy(page, state);
