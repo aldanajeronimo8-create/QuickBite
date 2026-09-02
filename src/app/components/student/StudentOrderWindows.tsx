@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Clock3, RefreshCw } from 'lucide-react';
 import { requireSupabaseClient } from '../../../lib/supabase';
-import { appConfig } from '../../../config/appConfig';
 
 type OrderWindow = {
   slot_id: string;
