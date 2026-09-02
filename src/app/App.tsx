@@ -7,30 +7,37 @@ import { useAuthStore } from '../store/authStore';
 import { useDataStore } from '../store/dataStore';
 import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
-import { supabase } from '../lib/supabase';
+import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
 import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
 
 function SessionRestorer() {
   useEffect(() => {
-    const supabaseClient = supabase;
-    if (!supabaseClient) return;
     let cancelled = false;
     const restore = async () => {
       try {
+        const context = getAuthContext();
+        const supabaseClient = getSupabaseClientForContext(context);
+        if (!supabaseClient) return;
+
         const { data, error } = await supabaseClient.auth.getSession();
         if (error) throw error;
         if (cancelled || !data.session?.user) return;
+
         const { data: profile, error: profileError } = await supabaseClient
-          .from('profiles').select('id,role').eq('id', data.session.user.id).maybeSingle();
+          .from('profiles')
+          .select('id,role')
+          .eq('id', data.session.user.id)
+          .maybeSingle();
         if (profileError) throw profileError;
         if (cancelled || !profile) return;
+
         const pathname = window.location.pathname;
         if (pathname !== '/' && pathname !== '/login') return;
-        if (canAccessAdmin(profile.role)) {
+        if (context === 'admin' && canAccessAdmin(profile.role)) {
           await router.navigate('/admin', { replace: true });
-        } else if (canAccessParent(profile.role)) {
+        } else if (context === 'user' && canAccessParent(profile.role)) {
           await router.navigate('/parent/family', { replace: true });
-        } else if (canAccessStudent(profile.role)) {
+        } else if (context === 'user' && canAccessStudent(profile.role)) {
           await router.navigate('/menu', { replace: true });
         }
       } catch (error) {
@@ -61,9 +68,7 @@ function App() {
   }, [hasSupabase, loadData, user]);
 
   useEffect(() => {
-    const supabaseClient = supabase;
-    if (!hasSupabase || !supabaseClient || !user) return;
-
+    if (!hasSupabase || !user) return;
     const cleanupRealtime = subscribeRealtime();
     return () => cleanupRealtime();
   }, [hasSupabase, subscribeRealtime, user]);
