@@ -58,7 +58,6 @@ function App() {
     const supabaseClient = supabase;
     if (!hasSupabase || !supabaseClient || !user) return;
 
-    supabaseClient.realtime.setAuth(supabaseClient.auth.getSession ? '' : '');
     const cleanupRealtime = subscribeRealtime();
     return () => cleanupRealtime();
   }, [hasSupabase, subscribeRealtime, user]);
