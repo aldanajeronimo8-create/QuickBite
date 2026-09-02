@@ -12,13 +12,18 @@ import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 const primaryColor = '#1747B8';
 const navigationAccent = '#E0ECFF';
 type NavItemProps = { path: string; label: string; icon: LucideIcon; active: boolean; badge?: number; collapsed?: boolean };
-function NavItem({ path, label, icon: Icon, active, badge, collapsed = false }: NavItemProps) { return <Link to={path} title={collapsed ? label : undefined} className={`admin-nav-link relative mb-0.5 flex items-center rounded-2xl py-2.5 text-sm font-medium transition-all ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'}`} style={active ? { background: 'rgba(255,255,255,0.13)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : { color: '#BFDBFE' }}><Icon className="h-4 w-4 shrink-0" />{!collapsed && <span className="flex-1">{label}</span>}{!collapsed && badge != null && badge > 0 && <span className="rounded-full px-1.5 py-0.5 text-xs font-bold" style={{ background: navigationAccent, color: primaryColor }}>{badge}</span>}{collapsed && badge != null && badge > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full" style={{ background: navigationAccent }} aria-label={`${badge} pendientes`} />}</Link>; }
+function NavItem({ path, label, icon: Icon, active, badge, collapsed = false }: NavItemProps) { return <Link to={path} title={collapsed ? label : undefined} className={`admin-nav-link relative mb-0.5 flex items-center rounded-2xl py-2.5 text-sm font-medium transition-all ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'}`} style={active ? { background: 'rgba(255,255,255,0.13)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : { color: '#BFDBFE' }}>{<Icon className="h-4 w-4 shrink-0" />}{!collapsed && <span className="flex-1">{label}</span>}{!collapsed && badge != null && badge > 0 && <span className="rounded-full px-1.5 py-0.5 text-xs font-bold" style={{ background: navigationAccent, color: primaryColor }}>{badge}</span>}{collapsed && badge != null && badge > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full" style={{ background: navigationAccent }} aria-label={`${badge} pendientes`} />}</Link>; }
 
 export function AdminLayout() {
   const navigate = useNavigate(); const location = useLocation(); const { user, signOut } = useAuthStore(); const { loadData, orders } = useDataStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  useEffect(() => { void loadData(); }, [loadData]);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadData();
+  }, [loadData, user]);
+
   useEffect(() => { setMobileSidebarOpen(false); }, [location.pathname]);
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
   const openStudentPreview = () => {
@@ -48,7 +53,7 @@ export function AdminLayout() {
         <NavItem path="/admin/menu" label="Menú" icon={UtensilsCrossed} active={isCurrentPath('/admin/menu')} collapsed={sidebarContentCollapsed} />
         <NavItem path="/admin/verification" label="Verificación" icon={ScanLine} active={isCurrentPath('/admin/verification')} collapsed={sidebarContentCollapsed} />
         <NavItem path="/admin/users" label="Usuarios" icon={Users} active={isCurrentPath('/admin/users')} collapsed={sidebarContentCollapsed} />
-        <NavItem path="/admin/loyalty" label="Puntos y premios" icon={Gift} active={isCurrentPath('/admin/loyalty')} collapsed={sidebarContentCollapsed} />
+        <NavItem path="/admin/loyalty" label="Puntos y premios" icon={Gift} active={isCurrentPath('/admin/loyalty')} badge={undefined} collapsed={sidebarContentCollapsed} />
         <NavItem path="/admin/reports" label="Informes" icon={BarChart3} active={isCurrentPath('/admin/reports')} collapsed={sidebarContentCollapsed} />
         {!sidebarContentCollapsed && user.role === 'admin' && <p className="mb-2 mt-5 px-3 text-xs font-semibold uppercase tracking-widest" style={{ color: '#FCA5A5' }}>Mantenimiento</p>}
         {sidebarContentCollapsed && user.role === 'admin' && <div className="my-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }} />}
