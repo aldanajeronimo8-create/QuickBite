@@ -81,20 +81,36 @@ export const useDataStore = create<DataState>((set, get) => ({
     if (!options?.silent) set({ loading: true });
     try {
       const isAdminContext = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
-      const [categories, products, allOrders] = await Promise.all([
+      const client = requireSupabaseClient();
+      const { data: sessionData } = await client.auth.getSession();
+      const isAuthenticated = Boolean(sessionData.session?.user);
+
+      const [categories, products] = await Promise.all([
         repo.listCategories(),
         repo.listProducts(),
-        repo.listOrders(),
       ]);
 
+      let allOrders: Order[] = [];
+      if (isAuthenticated) {
+        try {
+          allOrders = await repo.listOrders();
+        } catch (error) {
+          writeAuditLog({
+            action: 'app.error',
+            metadata: { source: 'data_load.orders', message: String(error) },
+          });
+        }
+      }
+
       let users: Profile[] = [];
-      // The profile list is an administrator-only RPC. Never call it from
-      // student/parent routes, where it correctly returns unauthorized.
-      if (isAdminContext) {
+      if (isAdminContext && isAuthenticated) {
         try {
           users = await repo.listProfiles();
-        } catch {
-          users = [];
+        } catch (error) {
+          writeAuditLog({
+            action: 'app.error',
+            metadata: { source: 'data_load.profiles', message: String(error) },
+          });
         }
       }
 
