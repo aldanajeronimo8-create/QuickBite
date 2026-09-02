@@ -103,7 +103,7 @@ test.describe('critical functional flows', () => {
     const links = center.locator('a[href^="/admin/"]');
     const hrefs = await links.evaluateAll((nodes) => nodes.map((n) => (n as HTMLAnchorElement).getAttribute('href')).filter(Boolean) as string[]);
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    expect(hrefs.length).toBe(10);
+    expect(hrefs.length).toBe(12);
     for (const href of hrefs) { await page.goto(href); await healthy(page, state); await expect(page).toHaveURL(new RegExp(`${href.replaceAll('/', '\\/')}$`)); }
   });
 
