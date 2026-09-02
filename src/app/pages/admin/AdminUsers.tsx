@@ -18,6 +18,7 @@ const emptyForm: UserForm = { email: '', password: '', full_name: '', role: 'stu
 export function AdminUsers() {
   const { users, addUser, updateUser, updateProtectedCredentials, deleteUser } = useDataStore();
   const currentUser = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.loading);
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [open, setOpen] = useState(false);
@@ -35,15 +36,18 @@ export function AdminUsers() {
       const next: Record<string, StudentConsent> = {};
       for (const row of (data ?? []) as StudentConsent[]) if (!next[row.user_id]) next[row.user_id] = row;
       setConsents(next);
-    } catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudieron cargar las autorizaciones de datos'); }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron cargar las autorizaciones de datos');
+    }
   };
 
   useEffect(() => {
+    if (authLoading || !currentUser) return undefined;
     let active = true;
     void listProtectedAdminEmails().then((emails) => { if (active) setProtectedEmails(new Set(emails)); }).catch(() => undefined);
     void loadConsents();
     return () => { active = false; };
-  }, []);
+  }, [authLoading, currentUser?.id]);
 
   const isProtected = (user: Profile) => protectedEmails.has(user.email.trim().toLowerCase());
   const isAdministrativeRole = (role: Profile['role']) => role === 'admin' || role === 'both';
