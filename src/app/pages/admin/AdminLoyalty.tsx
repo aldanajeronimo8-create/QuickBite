@@ -67,7 +67,6 @@ export function AdminLoyalty() {
 
   const load = useCallback(async () => {
     if (!currentUser || authLoading) return;
-    setLoading(true);
     try {
       const [nextSettings, nextRewards, nextRedemptions] = await Promise.all([
         getLoyaltySettings(),
@@ -194,37 +193,17 @@ export function AdminLoyalty() {
             <p className="text-sm font-bold text-slate-900">Programa {settings?.enabled ? 'activo' : 'inactivo'}</p>
             <p className="text-xs text-slate-500">1 punto por cada ${settings?.points_per_currency_unit.toLocaleString('es-CO') ?? '1.000'} pagados</p>
           </div>
-          <Switch
-            checked={settings?.enabled ?? false}
-            onCheckedChange={handleEnabledChange}
-            disabled={updatingSettings}
-            aria-label="Activar o desactivar programa de puntos"
-          />
+          <Switch checked={settings?.enabled ?? false} onCheckedChange={handleEnabledChange} disabled={updatingSettings} aria-label="Activar o desactivar programa de puntos" />
         </div>
       </div>
 
       <section className="mb-8 border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">{editingRewardId ? 'Editar recompensa' : 'Nueva recompensa'}</h2>
-            <p className="mt-1 text-sm text-slate-600">Cada canje reserva una unidad del inventario seleccionado.</p>
-          </div>
-          {editingRewardId && (
-            <Button type="button" variant="outline" onClick={resetForm} title="Cancelar edicion">
-              <RotateCcw className="h-4 w-4" />
-              Cancelar
-            </Button>
-          )}
+          <div><h2 className="text-xl font-bold text-slate-900">{editingRewardId ? 'Editar recompensa' : 'Nueva recompensa'}</h2><p className="mt-1 text-sm text-slate-600">Cada canje reserva una unidad del inventario seleccionado.</p></div>
+          {editingRewardId && <Button type="button" variant="outline" onClick={resetForm} title="Cancelar edicion"><RotateCcw className="h-4 w-4" />Cancelar</Button>}
         </div>
-
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="reward-product">Alimento</Label>
-            <select id="reward-product" value={form.productId} onChange={(event) => handleProductChange(event.target.value)} className="h-10 w-full border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue-300">
-              <option value="">Selecciona un alimento</option>
-              {sortedProducts.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.stock} disponibles)</option>)}
-            </select>
-          </div>
+          <div className="space-y-2"><Label htmlFor="reward-product">Alimento</Label><select id="reward-product" value={form.productId} onChange={(event) => handleProductChange(event.target.value)} className="h-10 w-full border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue-300"><option value="">Selecciona un alimento</option>{sortedProducts.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.stock} disponibles)</option>)}</select></div>
           <div className="space-y-2"><Label htmlFor="reward-points">Puntos requeridos</Label><Input id="reward-points" type="number" min="1" value={form.pointsRequired} onChange={(event) => setForm({ ...form, pointsRequired: event.target.value })} /></div>
           <div className="space-y-2"><Label htmlFor="reward-title">Nombre visible</Label><Input id="reward-title" value={form.title} maxLength={120} onChange={(event) => setForm({ ...form, title: event.target.value })} /></div>
           <div className="flex items-end justify-between border border-slate-100 px-3 py-2"><div><Label htmlFor="reward-active">Disponible para estudiantes</Label><p className="mt-1 text-xs text-slate-500">Puedes desactivarla sin borrar su historial.</p></div><Switch id="reward-active" checked={form.active} onCheckedChange={(active) => setForm({ ...form, active })} /></div>
