@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AdminExperienceLayout } from './layouts/AdminExperienceLayout';
 import { StudentExperienceLayout } from './layouts/StudentExperienceLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminProtectedDataGate } from './components/AdminProtectedDataGate';
 import { RoleProtectedRoute } from './components/RoleProtectedRoute';
 import { AuthRedirect } from './components/AuthRedirect';
 import { LoginPage } from './pages/LoginPage';
@@ -62,7 +63,7 @@ export const router = createBrowserRouter([
   { path: '/forgot-password', element: lazyPage(ForgotPasswordPage) },
   { path: '/reset-password', element: lazyPage(ResetPasswordPage) },
   { path: '/setup', element: <SetupWizardPage /> },
-  { path: '/admin', element: <ProtectedRoute><AdminExperienceLayout /></ProtectedRoute>, children: [
+  { path: '/admin', element: <ProtectedRoute><AdminProtectedDataGate><AdminExperienceLayout /></AdminProtectedDataGate></ProtectedRoute>, children: [
     { index: true, element: lazyPage(AdminDashboard) },
     { path: 'features', element: lazyPage(QuickBiteFeatureCenter) },
     { path: 'orders', element: lazyPage(AdminOrders) },
