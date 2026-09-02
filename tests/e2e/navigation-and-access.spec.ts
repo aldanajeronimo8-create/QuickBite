@@ -44,9 +44,10 @@ test('admin feature center smoke test when admin E2E credentials are configured'
   });
 
   await page.goto('/login');
+  await page.getByRole('button', { name: /acceso de administraci[oó]n/i }).click();
   await page.getByLabel(/correo|email/i).fill(process.env.PLAYWRIGHT_ADMIN_EMAIL!);
   await page.getByLabel(/contrase[nñ]a|password/i).fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD!);
-  await page.getByRole('button', { name: /iniciar sesi[oó]n|entrar|acceder/i }).click();
+  await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
 
   await page.waitForURL(/\/admin(?:\/)?/);
   await page.goto('/admin/features');
