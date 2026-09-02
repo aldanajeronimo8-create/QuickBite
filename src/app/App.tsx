@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 import { Toaster } from './components/ui/sonner';
+import { SetupWizardPage } from './pages/SetupWizardPage';
 import { useAuthStore } from '../store/authStore';
 import { useDataStore } from '../store/dataStore';
 import { ErrorBoundary } from './components/system/ErrorBoundary';
