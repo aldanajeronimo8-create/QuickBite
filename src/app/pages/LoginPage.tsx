@@ -4,6 +4,7 @@ import { Eye, EyeOff, GraduationCap, Loader2, Lock, Mail, ShieldCheck, Users } f
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
 import { requireSupabaseClient, setAuthContext } from '../../lib/supabase';
+import { getProfile } from '../../repositories/quickbiteRepository';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -17,7 +18,7 @@ type LoginIntent = 'student' | 'parent' | 'admin';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { signIn } = useAuthStore();
+  const { signIn, setUser } = useAuthStore();
   const [mode, setMode] = useState<Mode>('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -63,6 +64,13 @@ export function LoginPage() {
         return;
       }
 
+      const fullProfile = await getProfile(data.user.id);
+      if (!fullProfile) {
+        await client.auth.signOut();
+        throw new Error('Tu cuenta no tiene un perfil de QuickBite.');
+      }
+      setUser(fullProfile);
+
       if (profile.role === 'parent') {
         if (!canAccessParent(profile.role)) throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');
         navigate('/parent/family');
@@ -81,10 +89,12 @@ export function LoginPage() {
         const boundUserId = getBoundStudentUserId();
         if (boundUserId && boundUserId !== data.user.id) {
           await client.auth.signOut();
+          setUser(null);
           throw new Error('Este dispositivo ya está asociado a otra cuenta de estudiante. Usa “Cambiar estudiante en este dispositivo”.');
         }
         if (!canAccessStudent(profile.role)) {
           await client.auth.signOut();
+          setUser(null);
           throw new Error('Esta cuenta no tiene acceso de estudiante.');
         }
         bindStudentUser(data.user.id);
@@ -92,11 +102,13 @@ export function LoginPage() {
       } else if (intent === 'parent') {
         if (!canAccessParent(profile.role)) {
           await client.auth.signOut();
+          setUser(null);
           throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');
         }
         navigate('/parent/family');
       } else {
         await client.auth.signOut();
+        setUser(null);
         throw new Error('Esta cuenta no tiene acceso administrativo.');
       }
       toast.success('Bienvenido.');
@@ -114,6 +126,7 @@ export function LoginPage() {
     const supabase = requireSupabaseClient();
     await supabase.auth.signOut();
     clearBoundStudentUser();
+    setUser(null);
     setEmail('');
     setPassword('');
     setError('');
@@ -141,19 +154,11 @@ export function LoginPage() {
                 <h2 className="text-lg font-bold text-gray-800">Estudiante</h2>
               </div>
               <div className="grid grid-cols-2 gap-2 rounded-2xl bg-green-50 p-1">
-                <button
-                  type="button"
-                  onClick={() => { setMode('student'); setAuthContext('user'); setError(''); }}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-green-700 shadow-sm"
-                >
+                <button type="button" onClick={() => { setMode('student'); setAuthContext('user'); setError(''); }} className="flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-green-700 shadow-sm">
                   <GraduationCap className="w-4 h-4" />
                   Iniciar sesión como estudiante
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setMode('parent'); setAuthContext('user'); setError(''); }}
-                  className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-slate-500 hover:text-blue-700"
-                >
+                <button type="button" onClick={() => { setMode('parent'); setAuthContext('user'); setError(''); }} className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-slate-500 hover:text-blue-700">
                   <Users className="w-4 h-4" />
                   Iniciar sesión como padre
                 </button>
@@ -167,17 +172,11 @@ export function LoginPage() {
                 <Users className="w-5 h-5 text-blue-700" />
                 <h2 className="text-lg font-bold text-gray-800">Estudiante</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => { setMode('student'); setAuthContext('user'); setError(''); }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700"
-              >
+              <button type="button" onClick={() => { setMode('student'); setAuthContext('user'); setError(''); }} className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700">
                 <GraduationCap className="w-4 h-4" />
                 Iniciar sesión como estudiante
               </button>
-              <div className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-700">
-                Iniciar sesión como padre
-              </div>
+              <div className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-700">Iniciar sesión como padre</div>
             </div>
           )}
 
@@ -207,9 +206,7 @@ export function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <Label htmlFor="login-password" className={`text-sm ${isStudent || isParent ? 'text-gray-700' : 'text-white/80'}`}>Contraseña</Label>
-                {(isStudent || isParent) && (
-                  <Link to="/forgot-password" className="text-xs underline underline-offset-2 text-green-700">Recuperar</Link>
-                )}
+                {(isStudent || isParent) && <Link to="/forgot-password" className="text-xs underline underline-offset-2 text-green-700">Recuperar</Link>}
               </div>
               <div className="relative">
                 <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isStudent || isParent ? 'text-gray-400' : 'text-blue-300'}`} />
@@ -221,51 +218,16 @@ export function LoginPage() {
               {error && <p className={`text-xs mt-1 ${isStudent || isParent ? 'text-red-500' : 'text-red-300'}`}>{error}</p>}
             </div>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className={`w-full font-semibold py-6 rounded-xl text-white ${isStudent ? 'bg-green-600 hover:bg-green-700' : isParent ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gradient-to-r from-blue-500 to-blue-700'}`}
-            >
+            <Button type="submit" disabled={loading} className={`w-full font-semibold py-6 rounded-xl text-white ${isStudent ? 'bg-green-600 hover:bg-green-700' : isParent ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gradient-to-r from-blue-500 to-blue-700'}`}>
               {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Entrando...</> : 'Iniciar sesión'}
             </Button>
 
-            {isStudent && studentIsBound && (
-              <Button type="button" variant="ghost" onClick={() => void changeStudentOnDevice()} disabled={loading} className="w-full text-xs text-slate-500 hover:bg-slate-50 hover:text-green-700">
-                Cambiar estudiante en este dispositivo
-              </Button>
-            )}
-
-            {isStudent && (
-              <Link to="/register-student">
-                <Button type="button" variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50 py-5 rounded-xl text-sm">
-                  Crear cuenta de estudiante
-                </Button>
-              </Link>
-            )}
-
-            {isParent && (
-              <Link to="/register-parent">
-                <Button type="button" variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50 py-5 rounded-xl text-sm">
-                  Crear cuenta de Padre de Familia
-                </Button>
-              </Link>
-            )}
-
-            {isStudent && (
-              <Button type="button" variant="outline" onClick={() => { setMode('admin'); setAuthContext('admin'); setError(''); }} className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 py-5 rounded-xl text-sm">
-                Acceso de administración
-              </Button>
-            )}
-            {isParent && (
-              <Button type="button" variant="outline" onClick={() => { setMode('admin'); setAuthContext('admin'); setError(''); }} className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 py-5 rounded-xl text-sm">
-                Acceso de administración
-              </Button>
-            )}
-            {mode === 'admin' && (
-              <Button type="button" variant="outline" onClick={() => { setMode('student'); setAuthContext('user'); setError(''); }} className="w-full border-white/20 text-white hover:bg-white/10 py-5 rounded-xl text-sm">
-                Volver a Estudiante
-              </Button>
-            )}
+            {isStudent && studentIsBound && <Button type="button" variant="ghost" onClick={() => void changeStudentOnDevice()} disabled={loading} className="w-full text-xs text-slate-500 hover:bg-slate-50 hover:text-green-700">Cambiar estudiante en este dispositivo</Button>}
+            {isStudent && <Link to="/register-student"><Button type="button" variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50 py-5 rounded-xl text-sm">Crear cuenta de estudiante</Button></Link>}
+            {isParent && <Link to="/register-parent"><Button type="button" variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50 py-5 rounded-xl text-sm">Crear cuenta de Padre de Familia</Button></Link>}
+            {isStudent && <Button type="button" variant="outline" onClick={() => { setMode('admin'); setAuthContext('admin'); setError(''); }} className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 py-5 rounded-xl text-sm">Acceso de administración</Button>}
+            {isParent && <Button type="button" variant="outline" onClick={() => { setMode('admin'); setAuthContext('admin'); setError(''); }} className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 py-5 rounded-xl text-sm">Acceso de administración</Button>}
+            {mode === 'admin' && <Button type="button" variant="outline" onClick={() => { setMode('student'); setAuthContext('user'); setError(''); }} className="w-full border-white/20 text-white hover:bg-white/10 py-5 rounded-xl text-sm">Volver a Estudiante</Button>}
           </form>
         </div>
       </div>
