@@ -1,182 +1,64 @@
-import { useState } from 'react';
-import { useDataStore, HistoryEntry } from '../../../store/dataStore';
-import { History, Trash2, Package, ShoppingBag, Tag, Plus, Pencil, X, RefreshCw, ChevronDown, ChevronUp, User } from 'lucide-react';
-import { Button } from '../../components/ui/button';
+import { useCallback, useEffect, useState } from 'react';
+import { Check, History, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { requireSupabaseClient } from '../../../lib/supabase';
+import { useDataStore } from '../../../store/dataStore';
 
-const ACTION_LABELS: Record<HistoryEntry['action'], { label: string; color: string }> = {
-  create: { label: 'Creado', color: 'bg-green-100 text-green-800' },
-  update: { label: 'Actualizado', color: 'bg-blue-100 text-blue-800' },
-  delete: { label: 'Eliminado', color: 'bg-red-100 text-red-800' },
-  status_change: { label: 'Estado', color: 'bg-amber-100 text-amber-800' },
-};
+type AuditRow = { source: string; id: string; created_at: string; actor_id: string | null; action: string; module: string; operation: string; entity_type: string | null; entity_id: string | null; status: string; metadata: Record<string, unknown> };
+type CancellationRow = { id: string; order_id: string; order_number: string; full_name: string; email: string; reason: string; status: 'pending'|'approved'|'rejected'; refund_amount: number; refund_method: string | null; review_note: string | null; created_at: string };
 
-const ENTITY_ICONS: Record<HistoryEntry['entity'], React.ElementType> = {
-  product: Package,
-  order: ShoppingBag,
-  category: Tag,
-  user: User,
-};
-
-const ACTION_ICONS: Record<HistoryEntry['action'], React.ElementType> = {
-  create: Plus,
-  update: Pencil,
-  delete: X,
-  status_change: RefreshCw,
-};
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('es-CO', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function DetailRow({ label, value }: { label: string; value: unknown }) {
-  if (value === undefined || value === null) return null;
-  return (
-    <div className="flex gap-2 text-xs">
-      <span className="text-gray-500 min-w-24">{label}:</span>
-      <span className="text-gray-800 font-medium">{String(value)}</span>
-    </div>
-  );
-}
-
-function HistoryCard({ entry }: { entry: HistoryEntry }) {
-  const [expanded, setExpanded] = useState(false);
-  const EntityIcon = ENTITY_ICONS[entry.entity];
-  const ActionIcon = ACTION_ICONS[entry.action];
-  const { label, color } = ACTION_LABELS[entry.action];
-
-  const hasDiff = entry.before || entry.after;
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="flex items-start gap-4 p-4">
-        <div className="flex-shrink-0 w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-          <EntityIcon className="w-5 h-5 text-blue-600" />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
-              <ActionIcon className="w-3 h-3" />
-              {label}
-            </span>
-            <span className="text-xs text-gray-400 capitalize">{entry.entity}</span>
-          </div>
-          <p className="text-sm text-gray-800">{entry.description}</p>
-          <p className="text-xs text-gray-400 mt-1">{formatDate(entry.timestamp)}</p>
-        </div>
-
-        {hasDiff && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-        )}
-      </div>
-
-      {expanded && hasDiff && (
-        <div className="border-t border-gray-100 bg-gray-50 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {entry.before && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Antes</p>
-              <div className="space-y-1">
-                {Object.entries(entry.before).map(([k, v]) => (
-                  <DetailRow key={k} label={k} value={v} />
-                ))}
-              </div>
-            </div>
-          )}
-          {entry.after && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Después</p>
-              <div className="space-y-1">
-                {Object.entries(entry.after).map(([k, v]) => (
-                  <DetailRow key={k} label={k} value={v} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+const money = (n: number) => Number(n).toLocaleString('es-CO');
+const date = (s: string) => new Date(s).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
 
 export function AdminHistory() {
-  const { history, clearHistory } = useDataStore();
-  const [filter, setFilter] = useState<'all' | HistoryEntry['action'] | HistoryEntry['entity']>('all');
+  const localHistory = useDataStore((state) => state.history);
+  const [audits, setAudits] = useState<AuditRow[]>([]);
+  const [cancellations, setCancellations] = useState<CancellationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const filtered = filter === 'all'
-    ? history
-    : history.filter((e) => e.action === filter || e.entity === filter);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const client = requireSupabaseClient();
+      const [{ data: auditData, error: auditError }, { data: cancelData, error: cancelError }] = await Promise.all([
+        client.rpc('admin_list_audit_events', { p_limit: 300 }),
+        client.rpc('admin_list_order_cancellation_requests'),
+      ]);
+      if (auditError) throw auditError;
+      if (cancelError) throw cancelError;
+      setAudits((auditData ?? []) as AuditRow[]);
+      setCancellations((cancelData ?? []) as CancellationRow[]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo cargar la auditoría.');
+    } finally { setLoading(false); }
+  }, []);
 
-  const handleClear = () => {
-    clearHistory();
-    toast.success('Historial limpiado');
+  useEffect(() => { void load(); }, [load]);
+
+  const reviewCancellation = async (id: string, approve: boolean) => {
+    setBusy(id);
+    try {
+      const { error } = await requireSupabaseClient().rpc('review_order_cancellation', { p_request_id: id, p_approve: approve, p_note: approve ? 'Revisado desde el centro administrativo.' : 'Solicitud rechazada tras revisión administrativa.' });
+      if (error) throw error;
+      toast.success(approve ? 'Cancelación aprobada.' : 'Cancelación rechazada.');
+      await load();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo revisar la solicitud.'); }
+    finally { setBusy(null); }
   };
 
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <History className="w-8 h-8 text-blue-600" />
-            Historial de Cambios
-          </h1>
-          <p className="text-gray-500 mt-1">{history.length} modificaciones registradas</p>
-        </div>
-        {history.length > 0 && (
-          <Button variant="outline" onClick={handleClear} className="text-red-600 border-red-200 hover:bg-red-50">
-            <Trash2 className="w-4 h-4 mr-2" />
-            Limpiar historial
-          </Button>
-        )}
-      </div>
+  return <div className="space-y-7">
+    <header className="rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-6 shadow-xl sm:p-8">
+      <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-700">Trazabilidad</p><h1 className="mt-2 flex items-center gap-3 text-3xl font-black text-slate-950"><History className="h-7 w-7 text-blue-700"/>Auditoría y cancelaciones</h1><p className="mt-2 text-sm text-slate-600">Registro remoto de operaciones, solicitudes de cancelación y decisiones administrativas.</p></div><button type="button" onClick={() => void load()} disabled={loading} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}/>Actualizar</button></div>
+    </header>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {([
-          { value: 'all', label: 'Todos' },
-          { value: 'create', label: 'Creaciones' },
-          { value: 'update', label: 'Actualizaciones' },
-          { value: 'delete', label: 'Eliminaciones' },
-          { value: 'status_change', label: 'Cambios de estado' },
-          { value: 'product', label: 'Productos' },
-          { value: 'order', label: 'Pedidos' },
-        ] as { value: typeof filter; label: string }[]).map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFilter(f.value)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              filter === f.value
-                ? 'bg-blue-600 text-white'
-                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+    <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50/60 p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black text-slate-900">Solicitudes de cancelación</h2><p className="text-sm text-slate-600">Las cancelaciones se revisan antes de cambiar el pedido y registrar el reembolso.</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-black text-amber-800">{cancellations.filter((r) => r.status === 'pending').length} pendientes</span></div>
+      <div className="mt-4 space-y-3">
+        {cancellations.length === 0 ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">No hay solicitudes.</p> : cancellations.map((r) => <article key={r.id} className="rounded-2xl border border-white bg-white p-4 shadow-sm"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black text-slate-400">#{r.order_number} · {date(r.created_at)}</p><p className="mt-1 font-black text-slate-900">{r.full_name} <span className="font-medium text-slate-500">({r.email})</span></p><p className="mt-1 text-sm text-slate-700">Motivo: {r.reason}</p><p className="mt-1 text-sm font-bold text-slate-700">Reembolso: ${money(Number(r.refund_amount))} · {r.refund_method ?? 'Pendiente de revisión'}</p></div>{r.status === 'pending' ? <div className="flex shrink-0 gap-2"><button type="button" disabled={busy===r.id} onClick={() => void reviewCancellation(r.id,true)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-black text-white disabled:opacity-50"><Check className="h-4 w-4"/>Aprobar</button><button type="button" disabled={busy===r.id} onClick={() => void reviewCancellation(r.id,false)} className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-black text-red-700 disabled:opacity-50"><X className="h-4 w-4"/>Rechazar</button></div> : <span className={`rounded-full px-3 py-1 text-xs font-black ${r.status==='approved'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'}`}>{r.status==='approved'?'Aprobada':'Rechazada'}</span>}</div></article>)}
       </div>
+    </section>
 
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-          <History className="w-16 h-16 mb-4 opacity-30" />
-          <p className="text-lg">No hay registros en el historial</p>
-          <p className="text-sm mt-1">Las modificaciones que hagas aparecerán aquí</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((entry) => (
-            <HistoryCard key={entry.id} entry={entry} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+    <section><div className="mb-4 flex items-end justify-between"><div><h2 className="text-xl font-black text-slate-900">Registro remoto</h2><p className="text-sm text-slate-600">{audits.length} eventos persistidos en Supabase.</p></div></div><div className="space-y-2">{audits.map((row) => <article key={`${row.source}-${row.id}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700">{row.module}</span><span className="font-black text-slate-900">{row.action}</span><span className="text-xs text-slate-400">{row.source}</span></div><p className="mt-1 text-xs text-slate-500">{row.entity_type ?? 'sistema'}{row.entity_id ? ` · ${row.entity_id}` : ''}</p></div><time className="text-xs text-slate-400">{date(row.created_at)}</time></div>{Object.keys(row.metadata ?? {}).length > 0 && <pre className="mt-3 overflow-auto rounded-xl bg-slate-50 p-3 text-[11px] text-slate-600">{JSON.stringify(row.metadata, null, 2)}</pre>}</article>)}{!loading && audits.length===0 && <p className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No hay eventos remotos todavía. El historial local contiene {localHistory.length} eventos de esta sesión.</p>}</div></section>
+  </div>;
 }
