@@ -66,10 +66,14 @@ test.describe('critical functional flows', () => {
     const addButtons = page.getByRole('button', { name: /agregar|añadir|sumar al carrito|comprar/i });
     if (await addButtons.count()) {
       await addButtons.first().click();
-      await page.getByRole('button', { name: /abrir carrito/i }).click();
-      await expect(page.locator('body')).toContainText(/tu pedido/i);
-      await expect(page.locator('body')).toContainText(/método de pago/i);
-      const minus = page.getByRole('button', { name: /disminuir|quitar|restar/i }).first();
+      const cartButton = page.getByRole('button', { name: /abrir carrito/i });
+      await expect(cartButton).toBeVisible();
+      await cartButton.click();
+      const cartSheet = page.locator('div.fixed.inset-0.z-40').filter({ hasText: /tu pedido/i }).last();
+      await expect(cartSheet).toBeVisible();
+      await expect(cartSheet).toContainText(/tu pedido/i);
+      await expect(cartSheet).toContainText(/método de pago/i);
+      const minus = cartSheet.getByRole('button', { name: /disminuir|restar/i }).first();
       if (await minus.count()) await minus.click();
     }
     await healthy(page, state);
