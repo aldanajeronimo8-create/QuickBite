@@ -114,9 +114,12 @@ export const useDataStore = create<DataState>((set, get) => ({
         }
       }
 
+      // Students need to retain pending orders in memory. Besides showing the current
+      // order state consistently, this allows the order comment entered at checkout
+      // to be attached to the just-created order without waiting for payment approval.
       const orders = isAdminContext
         ? allOrders
-        : allOrders.filter((order) => order.payment_status === 'confirmed' || order.payment_status === 'rejected');
+        : allOrders;
 
       set({ categories, products, orders, users });
     } finally {
