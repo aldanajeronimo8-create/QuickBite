@@ -35,11 +35,9 @@ export function setAuthContext(context: AuthContext) {
 
 export function getAuthContext(): AuthContext {
   if (typeof window === 'undefined') return 'user';
+  const stored = window.sessionStorage.getItem(AUTH_CONTEXT_STORAGE_KEY) === 'admin' ? 'admin' : 'user';
   if (window.location.pathname.startsWith('/admin')) return 'admin';
-  if (window.location.pathname === '/login') {
-    return window.sessionStorage.getItem(AUTH_CONTEXT_STORAGE_KEY) === 'admin' ? 'admin' : 'user';
-  }
-  return 'user';
+  return stored;
 }
 
 export function getSupabaseClientForContext(context: AuthContext): SupabaseClient | null {
