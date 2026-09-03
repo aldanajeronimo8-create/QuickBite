@@ -9,14 +9,24 @@ const ACTIVE_STUDENT_STORAGE_KEY = 'quickbite.parent.activeStudent';
 const USER_AUTH_STORAGE_KEY = 'quickbite.user.auth';
 const ADMIN_AUTH_STORAGE_KEY = 'quickbite.admin.auth';
 
+function getTabStorage(): Storage | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return window.sessionStorage;
+}
+
 function createAuthClient(storageKey: string) {
   if (!hasSupabaseConfig()) return null;
   return createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
     auth: {
+      // Keep the session persistent across reloads in the same tab, but do not
+      // synchronize auth state through shared localStorage across other tabs.
+      // This allows admin/student/parent accounts to stay signed in separately
+      // when the same browser has multiple QuickBite sessions open.
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
       storageKey,
+      storage: getTabStorage(),
     },
     realtime: { params: { eventsPerSecond: 10 } },
   });
@@ -46,7 +56,9 @@ type StoredActingStudent = { id: string; full_name: string; email: string; grade
 function getActiveStudent(): StoredActingStudent | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(ACTIVE_STUDENT_STORAGE_KEY);
+    // The active delegated student must also be tab-scoped; localStorage would
+    // make switching a parent session in one tab change another tab's student.
+    const raw = window.sessionStorage.getItem(ACTIVE_STUDENT_STORAGE_KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<StoredActingStudent>;
     if (!value.id || !value.full_name || !value.email) return null;
