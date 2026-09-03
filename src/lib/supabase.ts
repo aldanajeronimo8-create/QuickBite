@@ -22,9 +22,6 @@ function createAuthClient(storageKey: string) {
   });
 }
 
-// Keep administrator and user sessions physically separate in the same browser.
-// A student/parent login must never replace the currently authenticated admin
-// session, and signing out one context must never invalidate the other.
 export const supabase = createAuthClient(USER_AUTH_STORAGE_KEY);
 export const adminSupabase = createAuthClient(ADMIN_AUTH_STORAGE_KEY);
 
@@ -53,13 +50,7 @@ function getActiveStudent(): StoredActingStudent | null {
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<StoredActingStudent>;
     if (!value.id || !value.full_name || !value.email) return null;
-    return {
-      id: value.id,
-      full_name: value.full_name,
-      email: value.email,
-      grade: value.grade ?? null,
-      ti: value.ti ?? null,
-    };
+    return { id: value.id, full_name: value.full_name, email: value.email, grade: value.grade ?? null, ti: value.ti ?? null };
   } catch {
     return null;
   }
@@ -73,25 +64,7 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
           const result = await target.getSession();
           const acting = getActiveStudent();
           if (!acting || !result.data.session) return result;
-          return {
-            ...result,
-            data: {
-              ...result.data,
-              session: {
-                ...result.data.session,
-                user: {
-                  ...result.data.session.user,
-                  id: acting.id,
-                  email: acting.email,
-                  user_metadata: {
-                    ...result.data.session.user.user_metadata,
-                    full_name: acting.full_name,
-                    acting_as_student: true,
-                  },
-                },
-              },
-            },
-          };
+          return { ...result, data: { ...result.data, session: { ...result.data.session, user: { ...result.data.session.user, id: acting.id, email: acting.email, user_metadata: { ...result.data.session.user.user_metadata, full_name: acting.full_name, acting_as_student: true } } } } };
         };
       }
       if (property === 'getUser') {
@@ -99,22 +72,7 @@ function actingAuthProxy<T extends SupabaseClient['auth']>(auth: T): T {
           const result = await target.getUser();
           const acting = getActiveStudent();
           if (!acting || !result.data.user) return result;
-          return {
-            ...result,
-            data: {
-              ...result.data,
-              user: {
-                ...result.data.user,
-                id: acting.id,
-                email: acting.email,
-                user_metadata: {
-                  ...result.data.user.user_metadata,
-                  full_name: acting.full_name,
-                  acting_as_student: true,
-                },
-              },
-            },
-          };
+          return { ...result, data: { ...result.data, user: { ...result.data.user, id: acting.id, email: acting.email, user_metadata: { ...result.data.user.user_metadata, full_name: acting.full_name, acting_as_student: true } } } };
         };
       }
       const value = Reflect.get(target, property, receiver);
@@ -149,10 +107,8 @@ let proxiedUserClient: SupabaseClient | null = null;
 export function requireSupabaseClient() {
   const context = getAuthContext();
   const client = getSupabaseClientForContext(context);
-
   if (!client) throw new Error('Supabase no esta configurado. Completa el asistente de primer inicio.');
   if (context === 'admin') return client;
-
   if (!proxiedUserClient) proxiedUserClient = createUserProxy(client);
   return proxiedUserClient;
 }
@@ -160,19 +116,11 @@ export function requireSupabaseClient() {
 export interface Profile { id: string; email: string; full_name: string; role: UserRole; ti?: string | null; created_at: string; }
 export interface Category { id: string; name: string; description?: string; created_at: string; }
 export interface Product { id: string; name: string; description?: string; price: number; image_url?: string; category_id: string; stock: number; available: boolean; created_at: string; category?: Category; }
-export interface Order {
-  id: string; user_id: string | null; total: number;
-  status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'rejected' | 'cancelled';
-  payment_method: 'nequi' | 'cash' | 'bre-b' | 'credits';
-  payment_status: 'pending' | 'confirmed' | 'rejected';
-  order_number: string; created_at: string; admin_hidden?: boolean;
-  pickup_code?: string; estimated_minutes?: number; payment_reference?: string;
-  notes?: string | null; student_comment?: string | null; user?: Profile; order_items?: OrderItem[];
-}
+export interface Order { id: string; user_id: string | null; total: number; status: 'pending' | 'preparing' | 'ready' | 'delivered' | 'rejected' | 'cancelled'; payment_method: 'nequi' | 'cash' | 'bre-b' | 'credits'; payment_status: 'pending' | 'confirmed' | 'rejected'; order_number: string; created_at: string; admin_hidden?: boolean; pickup_code?: string; estimated_minutes?: number; payment_reference?: string; notes?: string | null; student_comment?: string | null; user?: Profile; order_items?: OrderItem[]; }
 export interface OrderItem { id: string; order_id: string; product_id: string; quantity: number; price: number; product?: Product; }
 export interface UserNotification { id: string; user_id: string; order_id?: string | null; type: 'order_status' | 'reward_redemption'; title: string; body: string; read_at?: string | null; created_at: string; }
 export interface LoyaltySettings { id: boolean; enabled: boolean; points_per_currency_unit: number; updated_at: string; }
-export interface LoyaltyReward { id: string; product_id: string; title: string; description?: string | null; points_required: number; points_cost?: number | null; active: boolean; created_at: string; updated_at: string; }
+export interface LoyaltyReward { id: string; product_id: string; title: string; description?: string | null; points_required: number; points_cost?: number | null; active: boolean; created_at: string; updated_at: string; product?: Pick<Product, 'name' | 'image_url'>; }
 export type LoyaltyRedemptionStatus = 'pending' | 'reserved' | 'approved' | 'fulfilled' | 'delivered' | 'cancelled';
 export interface LoyaltyRedemption { id: string; user_id: string; reward_id: string; product_id: string; points_spent: number; redemption_code: string; status: LoyaltyRedemptionStatus; created_at: string; admin_hidden?: boolean; fulfilled_at?: string | null; reward?: Pick<LoyaltyReward, 'id' | 'title'> & { product?: Pick<Product, 'name'> }; }
 export interface AdminLoyaltyRedemption extends LoyaltyRedemption { user?: Pick<Profile, 'id' | 'full_name' | 'email'>; }
