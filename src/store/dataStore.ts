@@ -3,6 +3,7 @@ import { requireSupabaseClient, type Category, type Order, type Product, type Pr
 import { writeAuditLog } from '../lib/auditLog';
 import { appConfig } from '../config/appConfig';
 import * as repo from '../repositories/quickbiteRepository';
+import { createAdminManagedUser, updateAdminManagedUser, updateProtectedAdminCredentials as updateProtectedAdminCredentialsViaApi } from '../services/adminUserService';
 
 const REALTIME_TABLES = [
   'profiles',
@@ -114,9 +115,6 @@ export const useDataStore = create<DataState>((set, get) => ({
         }
       }
 
-      // Students need to retain pending orders in memory. Besides showing the current
-      // order state consistently, this allows the order comment entered at checkout
-      // to be attached to the just-created order without waiting for payment approval.
       const orders = isAdminContext
         ? allOrders
         : allOrders;
@@ -240,31 +238,31 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
 
   addUser: async (user) => {
-    await repo.createManagedUser(user);
+    await createAdminManagedUser(user);
     await remoteAudit({ action: 'auth.signup', actorEmail: user.email, entity: 'user', metadata: { role: user.role } });
     await get().loadData({ silent: true });
   },
 
   updateUser: async (user) => {
-    await repo.updateManagedUser(user);
+    await updateAdminManagedUser(user);
     await remoteAudit({
       action: 'settings.update',
       actorEmail: user.email,
       entity: 'user',
       entityId: user.id,
-      metadata: { role: user.role },
+      metadata: { role: user.role, passwordChanged: Boolean(user.password) },
     });
     await get().loadData({ silent: true });
   },
 
   updateProtectedCredentials: async (user) => {
-    await repo.updateProtectedAdminCredentials(user);
+    await updateProtectedAdminCredentialsViaApi(user);
     await remoteAudit({
       action: 'settings.update',
       actorEmail: user.email,
       entity: 'user',
       entityId: user.id,
-      metadata: { protectedCredentialsChanged: true },
+      metadata: { protectedCredentialsChanged: true, passwordChanged: Boolean(user.password) },
     });
     await get().loadData({ silent: true });
   },
