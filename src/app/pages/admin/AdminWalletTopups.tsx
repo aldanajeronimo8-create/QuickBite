@@ -68,7 +68,7 @@ export function AdminWalletTopups() {
   const approve = async (id: string) => {
     setBusy(id);
     try {
-      const { error: rpcError } = await requireSupabaseClient().rpc('approve_wallet_topup', { p_request_id: id });
+      const { error: rpcError } = await requireSupabaseClient().rpc('admin_approve_wallet_topup', { p_request_id: id });
       if (rpcError) throw rpcError;
       toast.success('Recarga aprobada y saldo actualizado.');
       await load(true);
