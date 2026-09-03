@@ -37,6 +37,20 @@ async function restRequest(path, options = {}) {
   return response;
 }
 
+async function validateProtectedProfile(userId, role) {
+  const response = await globalThis.fetch(
+    `${url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id`,
+    { method: 'GET', headers },
+  );
+  if (!response.ok) {
+    throw new Error(`Protected E2E ${role} profile validation failed (${response.status}): ${await response.text()}`);
+  }
+  const profiles = await response.json();
+  if (!Array.isArray(profiles) || profiles.length === 0) {
+    throw new Error(`Protected E2E ${role} account exists but its profile is missing; refusing to mutate a protected account.`);
+  }
+}
+
 let users = [];
 let page = 1;
 while (true) {
@@ -65,6 +79,7 @@ const workflowEnv = [];
 
 for (const account of accounts) {
   let user = users.find((candidate) => candidate.email?.toLowerCase() === account.email);
+  let isProtected = false;
 
   if (user) {
     try {
@@ -83,6 +98,7 @@ for (const account of accounts) {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (!message.includes('protected_account_cannot_be_changed')) throw error;
+      isProtected = true;
       console.log(`E2E ${account.role} account is protected; keeping its existing credentials and metadata.`);
     }
   } else {
@@ -97,16 +113,20 @@ for (const account of accounts) {
     });
   }
 
-  await restRequest('/profiles?on_conflict=id', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({
-      id: user.id,
-      email: account.email,
-      full_name: `QuickBite E2E ${account.role}`,
-      role: account.role,
-    }),
-  });
+  if (isProtected) {
+    await validateProtectedProfile(user.id, account.role);
+  } else {
+    await restRequest('/profiles?on_conflict=id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({
+        id: user.id,
+        email: account.email,
+        full_name: `QuickBite E2E ${account.role}`,
+        role: account.role,
+      }),
+    });
+  }
 
   const signInResponse = await globalThis.fetch(`${url}/auth/v1/token?grant_type=password`, {
     method: 'POST',
