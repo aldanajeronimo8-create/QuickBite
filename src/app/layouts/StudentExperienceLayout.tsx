@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, LayoutGrid, Shield } from 'lucide-react';
 import { StudentMenuPage } from '../pages/student/StudentMenuPage';
 import { StudentMenuFavoritesOverlay } from '../components/student/StudentMenuFavoritesOverlay';
-import { StudentOrderWindows } from '../components/student/StudentOrderWindows';
+import StudentOrderWindows from '../components/student/StudentOrderWindows';
 import { useStudentContextStore } from '../../store/studentContextStore';
 import { requireSupabaseClient } from '../../lib/supabase';
 
