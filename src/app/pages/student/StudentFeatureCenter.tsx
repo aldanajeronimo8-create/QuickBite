@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Heart, History, Link2, Star, UtensilsCrossed, Wallet, CreditCard } from 'lucide-react';
+import { ArrowLeft, Bell, Clock3, Heart, History, Link2, Star, UtensilsCrossed, Wallet, CreditCard } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStudentContextStore } from '../../../store/studentContextStore';
 import { useLoyaltyProgram } from '../../hooks/useLoyaltyProgram';
@@ -17,6 +17,7 @@ export function StudentFeatureCenter() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Link reloadDocument to="/menu?tab=menu" className="rounded-3xl border border-white/60 bg-white/65 p-5 shadow-sm backdrop-blur-xl"><UtensilsCrossed className="h-5 w-5 text-emerald-700"/><h2 className="mt-3 font-black">Menú</h2><p className="mt-1 text-sm text-slate-600">Comprar y consultar disponibilidad.</p></Link>
         <Link reloadDocument to="/student/wallet" className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm backdrop-blur-xl ring-1 ring-emerald-100"><CreditCard className="h-5 w-5 text-emerald-700"/><h2 className="mt-3 font-black">Saldos y recargas</h2><p className="mt-1 text-sm text-slate-600">Saldo disponible, recargas, estados, rechazos, horas y movimientos detallados.</p></Link>
+        <Link reloadDocument to="/student/order-windows" className="rounded-3xl border border-blue-200 bg-blue-50/70 p-5 shadow-sm backdrop-blur-xl ring-1 ring-blue-100"><Clock3 className="h-5 w-5 text-blue-700"/><h2 className="mt-3 font-black">Ventanas de pedidos</h2><p className="mt-1 text-sm text-slate-600">Consulta horarios, cupos disponibles y cuándo puedes realizar tu próximo pedido.</p></Link>
         <Link reloadDocument to="/student/favorites" className="rounded-3xl border border-white/60 bg-white/65 p-5 shadow-sm backdrop-blur-xl"><Heart className="h-5 w-5 text-rose-600"/><h2 className="mt-3 font-black">Mis favoritos</h2><p className="mt-1 text-sm text-slate-600">Tus alimentos guardados para volver a pedirlos.</p></Link>
         <Link reloadDocument to="/student/account" className="rounded-3xl border border-white/60 bg-white/65 p-5 shadow-sm backdrop-blur-xl"><Wallet className="h-5 w-5 text-emerald-700"/><h2 className="mt-3 font-black">Mi cuenta</h2><p className="mt-1 text-sm text-slate-600">Mis datos, contraseña y preferencias alimentarias.</p></Link>
         <Link reloadDocument to="/student/history" className="rounded-3xl border border-white/60 bg-white/65 p-5 shadow-sm backdrop-blur-xl"><History className="h-5 w-5 text-blue-700"/><h2 className="mt-3 font-black">Pedidos de la semana</h2><p className="mt-1 text-sm text-slate-600">Consulta los pedidos realizados durante la semana actual.</p></Link>
