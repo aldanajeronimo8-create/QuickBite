@@ -67,18 +67,24 @@ for (const account of accounts) {
   let user = users.find((candidate) => candidate.email?.toLowerCase() === account.email);
 
   if (user) {
-    user = await adminRequest(`/admin/users/${encodeURIComponent(user.id)}`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        password: account.password,
-        email_confirm: true,
-        user_metadata: {
-          ...(user.user_metadata ?? {}),
-          role: account.role,
-          full_name: `QuickBite E2E ${account.role}`,
-        },
-      }),
-    });
+    try {
+      user = await adminRequest(`/admin/users/${encodeURIComponent(user.id)}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          password: account.password,
+          email_confirm: true,
+          user_metadata: {
+            ...(user.user_metadata ?? {}),
+            role: account.role,
+            full_name: `QuickBite E2E ${account.role}`,
+          },
+        }),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('protected_account_cannot_be_changed')) throw error;
+      console.log(`E2E ${account.role} account is protected; keeping its existing credentials and metadata.`);
+    }
   } else {
     user = await adminRequest('/admin/users', {
       method: 'POST',
