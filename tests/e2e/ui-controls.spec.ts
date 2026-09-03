@@ -68,8 +68,10 @@ async function loginAs(page: Page, role: Role) {
 }
 
 async function assertNoRuntimeErrors(page: Page, label: string) {
-  await page.waitForTimeout(300);
-  await expect(page.locator('body'), label).toBeVisible();
+  if (page.isClosed()) return;
+  await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+  if (page.isClosed()) return;
+  await expect(page.locator('body'), label).toBeVisible({ timeout: 10_000 });
   await expect(page.locator('body'), `${label}: application error text`).not.toContainText(
     /application error|chunkloaderror|uncaught|algo sali[oó] mal/i,
   );
@@ -80,14 +82,14 @@ function shouldSkipControl(name: string) {
 }
 
 async function dismissTransientUi(page: Page) {
+  if (page.isClosed()) return;
   const closeButtons = page.getByRole('button', { name: /^(cerrar|close|cancelar)$/i });
-  if (await closeButtons.count()) {
-    for (let i = 0; i < Math.min(await closeButtons.count(), 3); i += 1) {
-      const button = closeButtons.nth(i);
-      if (await button.isVisible().catch(() => false)) {
-        await button.click().catch(() => undefined);
-        break;
-      }
+  const count = await closeButtons.count().catch(() => 0);
+  for (let i = 0; i < Math.min(count, 3); i += 1) {
+    const button = closeButtons.nth(i);
+    if (await button.isVisible().catch(() => false)) {
+      await button.click({ timeout: 3_000 }).catch(() => undefined);
+      break;
     }
   }
 }
@@ -107,11 +109,16 @@ async function installErrorMonitors(page: Page) {
     try {
       body = (await response.text()).slice(0, 250);
     } catch {
-      body = '<unreadable>'; 
+      body = '<unreadable>';
     }
     badResponses.push(`${response.status()} ${response.request().method()} ${url} ${body}`);
   });
   return { errors, badResponses };
+}
+
+function resetMonitors(monitors: { errors: string[]; badResponses: string[] }) {
+  monitors.errors.length = 0;
+  monitors.badResponses.length = 0;
 }
 
 async function assertMonitorsClean(
@@ -120,6 +127,26 @@ async function assertMonitorsClean(
 ) {
   expect(monitors.errors, `${context}: browser errors`).toEqual([]);
   expect(monitors.badResponses, `${context}: API errors`).toEqual([]);
+}
+
+async function waitForInternalNavigation(page: Page, href: string, beforeUrl: string) {
+  if (!href.startsWith('/')) {
+    await page.waitForTimeout(150);
+    return;
+  }
+
+  if (page.isClosed()) return;
+  if (page.url() !== beforeUrl) {
+    await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+    return;
+  }
+
+  await page
+    .waitForURL((url) => url.pathname === href || url.pathname === href.replace(/\/$/, ''), { timeout: 5_000 })
+    .catch(() => undefined);
+  if (!page.isClosed()) {
+    await page.waitForLoadState('domcontentloaded').catch(() => undefined);
+  }
 }
 
 test.describe('interactive UI control audit', () => {
@@ -131,6 +158,7 @@ test.describe('interactive UI control audit', () => {
       await loginAs(page, role);
 
       for (const route of routes[role]) {
+        resetMonitors(monitors);
         await page.goto(route);
         await page.waitForLoadState('domcontentloaded');
         await assertNoRuntimeErrors(page, `${role} ${route}`);
@@ -149,8 +177,10 @@ test.describe('interactive UI control audit', () => {
         for (const control of controls) {
           if (shouldSkipControl(control.name)) continue;
 
+          resetMonitors(monitors);
           await page.goto(route);
           await page.waitForLoadState('domcontentloaded');
+          await assertNoRuntimeErrors(page, `${role} ${route} before button "${control.name}"`);
 
           const candidates = page.getByRole('button', { name: control.name, exact: true });
           const candidateCount = await candidates.count();
@@ -160,20 +190,14 @@ test.describe('interactive UI control audit', () => {
           if (!(await button.isVisible().catch(() => false)) || (await button.isDisabled().catch(() => true))) continue;
 
           const beforeUrl = page.url();
-          await button.click({ timeout: 8_000 });
-          await page.waitForTimeout(250);
+          await button.click({ timeout: 5_000 });
+          await waitForInternalNavigation(page, page.url() === beforeUrl ? beforeUrl : page.url(), beforeUrl);
 
           await assertNoRuntimeErrors(page, `${role} ${route} button "${control.name}"`);
+          await assertMonitorsClean(monitors, `${role} ${route} button "${control.name}"`);
           await dismissTransientUi(page);
-
-          if (page.url() !== beforeUrl && page.url().startsWith('http')) {
-            await page.goto(route);
-            await page.waitForLoadState('domcontentloaded');
-          }
         }
       }
-
-      await assertMonitorsClean(monitors, `${role} control audit`);
     });
 
     test(`${role}: visible links, selects, tabs and search controls are interactive`, async ({ page }) => {
@@ -181,6 +205,7 @@ test.describe('interactive UI control audit', () => {
       await loginAs(page, role);
 
       for (const route of routes[role]) {
+        resetMonitors(monitors);
         await page.goto(route);
         await page.waitForLoadState('domcontentloaded');
         await assertNoRuntimeErrors(page, `${role} ${route}`);
@@ -188,20 +213,26 @@ test.describe('interactive UI control audit', () => {
         const links = page.locator('a[href]:visible').filter({ hasNotText: /https?:\/\//i });
         const linkCount = Math.min(await links.count(), 20);
         for (let index = 0; index < linkCount; index += 1) {
-          const link = links.nth(index);
+          resetMonitors(monitors);
+          await page.goto(route);
+          await page.waitForLoadState('domcontentloaded');
+          await assertNoRuntimeErrors(page, `${role} ${route} before link ${index + 1}`);
+
+          const routeLinks = page.locator('a[href]:visible').filter({ hasNotText: /https?:\/\//i });
+          if (index >= await routeLinks.count()) continue;
+          const link = routeLinks.nth(index);
           if (!(await link.isEnabled().catch(() => false))) continue;
           const href = await link.getAttribute('href');
           if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
+
           const beforeUrl = page.url();
-          await link.click().catch(() => undefined);
-          await page.waitForTimeout(200);
+          await link.click({ timeout: 5_000 }).catch(() => undefined);
+          await waitForInternalNavigation(page, href, beforeUrl);
           await assertNoRuntimeErrors(page, `${role} ${route} link ${href}`);
-          if (page.url() !== beforeUrl && href.startsWith('/')) {
-            await page.goto(route);
-            await page.waitForLoadState('domcontentloaded');
-          }
+          await assertMonitorsClean(monitors, `${role} ${route} link ${href}`);
         }
 
+        resetMonitors(monitors);
         const searchInputs = page.locator('input[type="search"], input[placeholder*="buscar" i], input[placeholder*="search" i]:visible');
         for (let index = 0; index < Math.min(await searchInputs.count(), 3); index += 1) {
           const input = searchInputs.nth(index);
@@ -226,9 +257,9 @@ test.describe('interactive UI control audit', () => {
           await tab.click();
           await page.waitForTimeout(100);
         }
-      }
 
-      await assertMonitorsClean(monitors, `${role} secondary control audit`);
+        await assertMonitorsClean(monitors, `${role} ${route} secondary control audit`);
+      }
     });
   }
 });
