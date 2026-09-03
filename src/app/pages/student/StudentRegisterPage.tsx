@@ -24,7 +24,6 @@ const DATA_PURPOSE = 'Gestionar la cuenta estudiantil, pedidos y pagos de la caf
 
 export function StudentRegisterPage() {
   const navigate = useNavigate();
-  const setUser = useAuthStore((state) => state.setUser);
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', ti: '', guardianName: '', guardianRelationship: '', guardianEmail: '' });
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -106,7 +105,7 @@ export function StudentRegisterPage() {
         throw new Error('La cuenta se creó, pero no fue posible cargar su perfil de estudiante.');
       }
 
-      setUser(profile);
+      useAuthStore.setState({ user: profile, session: { token: activeSession.access_token }, loading: false });
       bindStudentUser(userId);
       toast.success(`¡Bienvenido, ${form.name.trim()}!`);
       navigate('/menu');
