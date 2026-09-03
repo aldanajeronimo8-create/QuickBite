@@ -73,7 +73,7 @@ export function AdminWalletTopups() {
       toast.success('Recarga aprobada y saldo actualizado.');
       await load(true);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo aprobar la recarga.');
+      toast.error(e instanceof Error ? (/unauthorized|not_authorized/i.test(e.message) ? 'Tu sesión administrativa no tiene permisos para aprobar recargas.' : /request_not_found|already_reviewed/i.test(e.message) ? 'La solicitud ya fue procesada. Actualiza la lista.' : e.message) : 'No se pudo aprobar la recarga.');
     } finally {
       setBusy(null);
     }

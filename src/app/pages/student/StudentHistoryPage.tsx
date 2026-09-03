@@ -4,6 +4,7 @@ import { ArrowLeft, History, Minus, Plus, RefreshCcw, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { requireSupabaseClient, type Order } from '../../../lib/supabase';
 import { useDataStore } from '../../../store/dataStore';
+import { useStudentContextStore } from '../../../store/studentContextStore';
 
 const money = (n: number) => n.toLocaleString('es-CO');
 type CancellationTarget = { orderId: string; itemId: string; productName: string; quantity: number; requestedQuantity: number };
@@ -12,6 +13,7 @@ type CancellationStatus = 'pending' | 'approved' | 'rejected';
 export function StudentHistoryPage() {
   const navigate = useNavigate();
   const { orders, loadData } = useDataStore();
+  const activeStudent = useStudentContextStore((state) => state.activeStudent);
   const [userId, setUserId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<CancellationTarget | null>(null);
   const [reason, setReason] = useState('');
@@ -34,13 +36,13 @@ export function StudentHistoryPage() {
       const client = requireSupabaseClient();
       const { data, error } = await client.auth.getSession();
       if (error) throw error;
-      const id = data.session?.user.id;
+      const id = activeStudent?.id ?? data.session?.user.id;
       if (!id) { navigate('/'); return; }
       if (active) setUserId(id);
       await refresh();
     })().catch(() => navigate('/'));
     return () => { active = false; };
-  }, [navigate, refresh]);
+  }, [activeStudent, navigate, refresh]);
 
   useEffect(() => { if (userId) void loadCancellationStatuses(); }, [userId, loadCancellationStatuses, orders.length]);
 
@@ -71,6 +73,7 @@ export function StudentHistoryPage() {
   };
 
   return <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(22,163,106,.14),_transparent_38%),#f5f8f7] p-5 sm:p-8 text-slate-900">
+    {activeStudent && <div className="mx-auto mb-5 max-w-3xl rounded-3xl border border-blue-200 bg-blue-50/95 p-4 text-blue-950 shadow-sm"><p className="text-[11px] font-black uppercase tracking-[.18em] text-blue-700">Modo padre</p><p className="text-sm font-bold">Historial de {activeStudent.full_name}.</p></div>}
     <div className="mx-auto max-w-3xl space-y-5">
       <header className="rounded-[2rem] border border-white/60 bg-white/70 p-6 shadow-xl backdrop-blur-2xl">
         <Link to="/student/features" className="inline-flex items-center gap-2 text-sm font-bold text-emerald-700"><ArrowLeft className="h-4 w-4"/>Funciones</Link>

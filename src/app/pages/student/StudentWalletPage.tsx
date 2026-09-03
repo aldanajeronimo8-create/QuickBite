@@ -3,6 +3,7 @@ import { AlertCircle, ArrowDownLeft, ArrowLeft, ArrowUpRight, CheckCircle2, Cloc
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { requireSupabaseClient } from '../../../lib/supabase';
+import { useStudentContextStore } from '../../../store/studentContextStore';
 
 type WalletRow = { balance: number };
 type Transaction = { id: string; amount: number; balance_after: number; type: string; description: string | null; created_at: string };
@@ -24,6 +25,8 @@ function topupErrorMessage(error: unknown) {
 }
 
 export function StudentWalletPage() {
+  const activeStudent = useStudentContextStore((state) => state.activeStudent);
+  const clearActiveStudent = useStudentContextStore((state) => state.clearActiveStudent);
   const [wallet, setWallet] = useState<WalletRow>({ balance: 0 });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [topups, setTopups] = useState<Topup[]>([]);
@@ -39,7 +42,7 @@ export function StudentWalletPage() {
     const client = requireSupabaseClient();
     const { data: session, error: sessionError } = await client.auth.getSession();
     if (sessionError) throw sessionError;
-    const userId = session.session?.user.id;
+    const userId = activeStudent?.id ?? session.session?.user.id;
     if (!userId) throw new Error('Sesión no disponible.');
     const [walletRes, txRes, topupRes] = await Promise.all([
       client.from('wallet_accounts').select('balance').eq('user_id', userId).maybeSingle(),
@@ -50,7 +53,7 @@ export function StudentWalletPage() {
     setWallet((walletRes.data as WalletRow | null) ?? { balance: 0 });
     setTransactions((txRes.data ?? []) as Transaction[]);
     setTopups((topupRes.data ?? []) as Topup[]);
-  }, []);
+  }, [activeStudent]);
 
   useEffect(() => {
     void load().catch((error) => toast.error(error instanceof Error ? error.message : 'No se pudo cargar tu información de saldo.')).finally(() => setLoading(false));
@@ -71,7 +74,7 @@ export function StudentWalletPage() {
       return;
     }
     const { data: session } = await requireSupabaseClient().auth.getSession();
-    const userId = session.session?.user.id;
+    const userId = activeStudent?.id ?? session.session?.user.id;
     if (!userId) {
       toast.error('Tu sesión no está disponible. Inicia sesión nuevamente.');
       return;
@@ -107,6 +110,7 @@ export function StudentWalletPage() {
   if (loading) return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600">Cargando saldos y recargas…</div>;
 
   return <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(22,163,106,.14),_transparent_36%),radial-gradient(circle_at_top_right,_rgba(37,99,235,.10),_transparent_32%),#f5f8f7] p-5 text-slate-900 sm:p-8">
+    {activeStudent && <div className="mx-auto mb-5 flex max-w-5xl items-center justify-between gap-4 rounded-3xl border border-blue-200 bg-blue-50/95 p-4 shadow-sm"><div className="min-w-0"><p className="text-[11px] font-black uppercase tracking-[.18em] text-blue-700">Modo padre</p><p className="truncate text-sm font-bold text-blue-950">Saldos y recargas de {activeStudent.full_name}.</p></div><button type="button" onClick={() => void (async () => { const { error } = await requireSupabaseClient().rpc('clear_parent_active_student'); if (error) { toast.error(error.message); return; } clearActiveStudent(); window.location.assign('/parent/family'); })()} className="shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black text-blue-800 shadow-sm ring-1 ring-blue-200">Volver a Padre</button></div>
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="flex items-center justify-between gap-3">
         <Link to="/student/features" className="inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-bold shadow-sm"><ArrowLeft className="h-4 w-4"/>Funciones</Link>
