@@ -150,7 +150,6 @@ export function AdminLayout() {
     if (typeof window !== 'undefined') window.sessionStorage.setItem('quickbite_admin_student_preview', '1');
     navigate('/menu?from=admin');
   };
-  if (!user) return null;
 
   const unreadBySection = useMemo(() => {
     const counts = {} as Record<AdminSection, number>;
@@ -159,6 +158,9 @@ export function AdminLayout() {
     });
     return counts;
   }, [notifications]);
+
+  if (!user) return null;
+
   const unreadTotal = notifications.length;
   const pendingCount = orders.filter((order) => !order.admin_hidden && order.status === 'pending').length;
   const isCurrentPath = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
