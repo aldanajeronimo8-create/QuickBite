@@ -22,26 +22,26 @@ export function AdminResetPage() {
     try {
       const count = await resetOrdersForNewPeriod();
       setConfirmation('');
-      toast.success(`Reinicio completo realizado. ${count} pedido(s) y todo el estado operativo fueron restablecidos.`);
+      toast.success(`Período de prueba reiniciado. ${count} pedido(s) y todo el estado operativo fueron restablecidos.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo completar el reinicio completo.');
+      toast.error(error instanceof Error ? error.message : 'No se pudo completar el reinicio del período de prueba.');
     } finally {
       setResetting(false);
     }
   };
 
   if (!isSystemAdmin) {
-    return <Card className="border border-red-200 bg-red-50 p-8"><div className="flex items-start gap-4"><ShieldAlert className="mt-1 h-7 w-7 text-red-600" /><div><h1 className="text-2xl font-black text-red-900">Acceso restringido</h1><p className="mt-2 text-sm text-red-800">El reinicio global requiere permisos administrativos porque modifica el estado compartido de QuickBite.</p></div></div></Card>;
+    return <Card className="border border-red-200 bg-red-50 p-8"><div className="flex items-start gap-4"><ShieldAlert className="mt-1 h-7 w-7 text-red-600" /><div><h1 className="text-2xl font-black text-red-900">Acceso restringido</h1><p className="mt-2 text-sm text-red-800">El reinicio del período de prueba requiere permisos administrativos porque modifica el estado compartido de QuickBite.</p></div></div></Card>;
   }
 
   return <div className="mx-auto max-w-3xl space-y-6">
-    <div><p className="text-xs font-black uppercase tracking-[0.2em] text-red-700">Zona crítica</p><h1 className="mt-1 text-4xl font-black text-slate-900">Reiniciar aplicación</h1><p className="mt-2 text-base text-slate-600">Este es el único control que cierra y limpia el período operativo actual.</p></div>
+    <div><p className="text-xs font-black uppercase tracking-[0.2em] text-red-700">Herramienta temporal de pruebas</p><h1 className="mt-1 text-4xl font-black text-slate-900">Reiniciar período de prueba</h1><p className="mt-2 text-base text-slate-600">Este control limpia el período operativo actual para que puedas repetir las pruebas desde un estado conocido.</p></div>
     <Card className="border border-red-200 bg-white p-6 shadow-sm">
-      <div className="flex items-start gap-4"><div className="rounded-2xl bg-red-100 p-3 text-red-700"><AlertTriangle className="h-6 w-6" /></div><div><h2 className="text-xl font-black text-slate-900">Reinicio completo del período</h2><p className="mt-1 text-sm text-slate-600">Actualmente hay <strong>{activeOrders.length}</strong> pedido(s) visibles en el flujo operativo.</p></div></div>
-      <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-red-900">El reinicio limpia los datos del período actual.</p><p className="mt-2">Se reinician pedidos, detalles de pedidos, ventas operativas, stock consumido (devolviéndolo al stock inicial), puntos acumulados, canjes, saldo actual de créditos/billetera, solicitudes de recarga, transacciones financieras del período, datos operativos de informes, datos de analítica, notificaciones operativas y exportaciones del período.</p><p className="mt-2 font-semibold text-slate-900">No se eliminan usuarios ni cuentas, perfiles, productos, categorías, configuración, relaciones padre-hijo, auditoría del sistema ni configuración de recompensas.</p></div>
-      <div className="mt-6 rounded-2xl bg-green-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-green-900">Exportar a Excel NO reinicia nada.</p><p className="mt-1">Excel solo genera una fotografía de los pedidos y canjes existentes hasta la fecha y hora seleccionadas. Puedes exportar varias veces sin cerrar el período y sin modificar pedidos, stock, puntos, billeteras, informes ni históricos.</p></div>
+      <div className="flex items-start gap-4"><div className="rounded-2xl bg-red-100 p-3 text-red-700"><AlertTriangle className="h-6 w-6" /></div><div><h2 className="text-xl font-black text-slate-900">Restablecer datos del período</h2><p className="mt-1 text-sm text-slate-600">Actualmente hay <strong>{activeOrders.length}</strong> pedido(s) visibles en el flujo operativo.</p></div></div>
+      <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-red-900">El reinicio elimina únicamente datos generados durante el período de prueba.</p><p className="mt-2">Se reinician pedidos, detalles de pedidos, ventas operativas, stock consumido (devolviéndolo al stock inicial), puntos acumulados, canjes, saldo actual de créditos/billetera, solicitudes de recarga, transacciones financieras del período, datos operativos de informes, datos de analítica, notificaciones operativas y exportaciones del período.</p><p className="mt-2 font-semibold text-slate-900">No se eliminan usuarios ni cuentas, perfiles, productos, categorías, configuración, relaciones padre-hijo, auditoría del sistema ni configuración permanente de recompensas.</p></div>
+      <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-900">Importante</p><p className="mt-1">La herramienta es temporal y existe para repetir pruebas. El historial operativo definitivo deberá conservarse mediante el flujo histórico correspondiente antes de retirar esta herramienta.</p></div>
       <div className="mt-6"><label htmlFor="reset-confirm" className="mb-2 block text-sm font-bold text-slate-700">Escribe <span className="font-black text-red-700">REINICIAR</span> para confirmar</label><input id="reset-confirm" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} autoComplete="off" className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold uppercase outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="REINICIAR" /></div>
-      <div className="mt-6 flex justify-end"><Button disabled={!canReset || resetting} onClick={() => void handleReset()} className="bg-red-600 text-white hover:bg-red-700"><RotateCcw className="mr-2 h-4 w-4" />{resetting ? 'Reiniciando...' : 'Reiniciar aplicación'}</Button></div>
+      <div className="mt-6 flex justify-end"><Button disabled={!canReset || resetting} onClick={() => void handleReset()} className="bg-red-600 text-white hover:bg-red-700"><RotateCcw className="mr-2 h-4 w-4" />{resetting ? 'Reiniciando...' : 'Reiniciar período'}</Button></div>
     </Card>
   </div>;
 }
