@@ -15,6 +15,17 @@ type OrderWindow = {
 
 const timeLabel = (value: string) => value.slice(0, 5);
 
+const friendlyWindowError = (cause: unknown) => {
+  const message = cause instanceof Error ? cause.message.toLowerCase() : '';
+  if (message.includes('jwt') || message.includes('auth') || message.includes('unauthorized')) {
+    return 'Tu sesión necesita actualizarse. Vuelve a iniciar sesión para consultar las ventanas.';
+  }
+  if (message.includes('get_order_window_status') || message.includes('pickup_slots')) {
+    return 'El servicio de ventanas está temporalmente no disponible. Intenta nuevamente en unos segundos.';
+  }
+  return 'No se pudieron cargar las ventanas de pedidos. Intenta nuevamente.';
+};
+
 export function StudentOrderWindows() {
   const [windows, setWindows] = useState<OrderWindow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +41,7 @@ export function StudentOrderWindows() {
       setWindows((data ?? []) as OrderWindow[]);
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudieron cargar las ventanas de pedidos.');
+      setError(friendlyWindowError(cause));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -76,7 +87,7 @@ export function StudentOrderWindows() {
 
         {error && (
           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-900">
-            No se pudo actualizar el estado de las ventanas. {error}
+            {error}
           </div>
         )}
 
