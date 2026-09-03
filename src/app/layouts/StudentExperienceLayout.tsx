@@ -5,15 +5,19 @@ import { StudentMenuPage } from '../pages/student/StudentMenuPage';
 import { StudentMenuFavoritesOverlay } from '../components/student/StudentMenuFavoritesOverlay';
 import { useStudentContextStore } from '../../store/studentContextStore';
 import { requireSupabaseClient } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
+import { canAccessAdmin } from '../../lib/access';
 
 export function StudentExperienceLayout() {
   const navigate = useNavigate();
   const activeStudent = useStudentContextStore((state) => state.activeStudent);
   const clearActiveStudent = useStudentContextStore((state) => state.clearActiveStudent);
+  const currentUser = useAuthStore((state) => state.user);
   const [returning, setReturning] = useState(false);
   const actingAsStudent = Boolean(activeStudent);
-  const adminPreview = typeof window !== 'undefined'
+  const adminPreviewFlag = typeof window !== 'undefined'
     && window.sessionStorage.getItem('quickbite_admin_student_preview') === '1';
+  const adminPreview = adminPreviewFlag && Boolean(currentUser && canAccessAdmin(currentUser.role));
 
   const returnToParent = async () => {
     if (!actingAsStudent || returning) return;
