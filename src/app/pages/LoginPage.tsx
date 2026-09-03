@@ -91,9 +91,21 @@ export function LoginPage() {
       if (intent === 'student') {
         const boundUserId = getBoundStudentUserId();
         if (boundUserId && boundUserId !== data.user.id) {
-          await client.auth.signOut();
-          setUser(null);
-          throw new Error('Este dispositivo ya está asociado a otra cuenta de estudiante. Usa “Cambiar estudiante en este dispositivo”.');
+          // A deleted student must never permanently lock the physical browser/device.
+          // Validate the stored binding against the current database before rejecting login.
+          const { data: boundProfile, error: boundProfileError } = await client
+            .from('profiles')
+            .select('id')
+            .eq('id', boundUserId)
+            .maybeSingle();
+          if (boundProfileError) throw boundProfileError;
+          if (!boundProfile) {
+            clearBoundStudentUser();
+          } else {
+            await client.auth.signOut();
+            setUser(null);
+            throw new Error('Este dispositivo ya está vinculado a otra cuenta de estudiante. Usa “Cambiar estudiante en este dispositivo”.');
+          }
         }
         if (!canAccessStudent(profile.role)) {
           await client.auth.signOut();
