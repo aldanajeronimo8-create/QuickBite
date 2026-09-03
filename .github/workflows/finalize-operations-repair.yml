@@ -1,0 +1,29 @@
+name: Finalize QuickBite operations repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/finalize-operations-repair.py'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply final repair
+        run: python3 scripts/finalize-operations-repair.py
+      - name: Commit and remove helper
+        run: |
+          rm -f scripts/finalize-operations-repair.py .github/workflows/finalize-operations-repair.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet; then exit 0; fi
+          git add -A
+          git commit -m 'fix: finalize parent context and wallet operations'
+          git push
