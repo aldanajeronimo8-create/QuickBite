@@ -5,7 +5,10 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { toast } from 'sonner';
-import { requireSupabaseClient } from '../../../lib/supabase';
+import { requireSupabaseClient, setAuthContext } from '../../../lib/supabase';
+import { getProfile } from '../../../repositories/quickbiteRepository';
+import { useAuthStore } from '../../../store/authStore';
+import { bindStudentUser } from '../../../lib/studentDeviceSession';
 import { QuickBiteLogo } from '../../components/brand/QuickBiteLogo';
 
 export interface StudentProfile {
@@ -21,6 +24,7 @@ const DATA_PURPOSE = 'Gestionar la cuenta estudiantil, pedidos y pagos de la caf
 
 export function StudentRegisterPage() {
   const navigate = useNavigate();
+  const setUser = useAuthStore((state) => state.setUser);
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', ti: '', guardianName: '', guardianRelationship: '', guardianEmail: '' });
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -58,6 +62,7 @@ export function StudentRegisterPage() {
     };
 
     try {
+      setAuthContext('user');
       const supabase = requireSupabaseClient();
       const { data, error } = await supabase.auth.signUp({ email, password: form.password, options: { data: metadata } });
       let userId = data.user?.id;
@@ -88,13 +93,23 @@ export function StudentRegisterPage() {
         return;
       }
 
-      if (!data.session) {
+      const activeSession = data.session ?? (await supabase.auth.getSession()).data.session;
+      if (!activeSession) {
         toast.success('Cuenta creada. Revisa el correo de confirmación. La autorización de datos quedó registrada.', { duration: 9000 });
         navigate('/');
-      } else {
-        toast.success(`¡Bienvenido, ${form.name.trim()}!`);
-        navigate('/menu');
+        return;
       }
+
+      const profile = await getProfile(userId);
+      if (!profile) {
+        await supabase.auth.signOut();
+        throw new Error('La cuenta se creó, pero no fue posible cargar su perfil de estudiante.');
+      }
+
+      setUser(profile);
+      bindStudentUser(userId);
+      toast.success(`¡Bienvenido, ${form.name.trim()}!`);
+      navigate('/menu');
     } catch (error) {
       const message = error instanceof Error ? error.message : (typeof error === 'object' && error && 'message' in error ? String((error as { message: unknown }).message) : 'No fue posible crear la cuenta.');
       toast.error(message);
