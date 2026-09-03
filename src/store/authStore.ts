@@ -7,7 +7,7 @@ import { canAccessAdmin } from '../lib/access';
 const ACTIVE_STUDENT_STORAGE_KEY = 'quickbite.parent.activeStudent';
 
 function clearDelegatedStudentContext() {
-  if (typeof window !== 'undefined') window.localStorage.removeItem(ACTIVE_STUDENT_STORAGE_KEY);
+  if (typeof window !== 'undefined') window.sessionStorage.removeItem(ACTIVE_STUDENT_STORAGE_KEY);
 }
 
 interface AuthState {
