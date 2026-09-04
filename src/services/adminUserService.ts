@@ -24,16 +24,23 @@ export type ProtectedCredentialsInput = {
   password?: string;
 };
 
+function getAdminApiBaseUrl() {
+  if (appConfig.apiBaseUrl) return appConfig.apiBaseUrl.replace(/\/$/, '');
+  if (appConfig.supabaseUrl) return `${appConfig.supabaseUrl.replace(/\/$/, '')}/functions/v1/server`;
+  return '';
+}
+
 async function callAdminUserEndpoint<T>(path: string, payload: unknown): Promise<T> {
-  if (!appConfig.apiBaseUrl) {
-    throw new Error('La gestión segura de usuarios no está configurada. Define VITE_API_BASE_URL.');
+  const apiBaseUrl = getAdminApiBaseUrl();
+  if (!apiBaseUrl) {
+    throw new Error('La gestión segura de usuarios no está configurada. Verifica la configuración de Supabase.');
   }
 
   const { data } = await requireSupabaseClient().auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
 
-  const response = await fetch(`${appConfig.apiBaseUrl}/api/admin/users/${path}`, {
+  const response = await fetch(`${apiBaseUrl}/api/admin/users/${path}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
