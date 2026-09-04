@@ -40,7 +40,7 @@ async function callAdminUserEndpoint<T>(path: string, payload: unknown): Promise
   const token = data.session?.access_token;
   if (!token) throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
 
-  const response = await fetch(`${apiBaseUrl}/api/admin/users/${path}`, {
+  const response = await fetch(`${apiBaseUrl}/server/api/admin/users/${path}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
