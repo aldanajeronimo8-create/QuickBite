@@ -1,0 +1,48 @@
+/* Admin production visual lock: keep the administrative shell on the original palette. */
+.admin-shell .admin-sidebar {
+  background: #1747B8 !important;
+  color: #FFFFFF !important;
+}
+
+.admin-sidebar .admin-nav-link {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar .admin-nav-link[style*="color: #fff"],
+.admin-sidebar .admin-nav-link[style*="color:#fff"] {
+  color: #FFFFFF !important;
+}
+
+.admin-sidebar .admin-nav-link span {
+  color: inherit !important;
+}
+
+.admin-sidebar nav > p {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar [style*="#93C5FD"],
+.admin-sidebar [style*="#BFDBFE"],
+.admin-sidebar [style*="#DBEAFE"] {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar [style*="#FCA5A5"] {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar button {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar button.text-white,
+.admin-sidebar button [class*="text-white"] {
+  color: #FFFFFF !important;
+}
+
+/* Do not show the desktop section-title header above the Admin content. */
+@media (min-width: 1024px) {
+  .admin-main > header > div:first-child {
+    display: none !important;
+  }
+}
