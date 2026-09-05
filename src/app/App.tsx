@@ -11,6 +11,27 @@ import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
 import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
 import { getVisualPreviewScope, isVisualPreviewMode } from './contexts/VisualThemeProvider';
 
+const BROKEN_IMAGE_FALLBACK =
+  'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 240 180%22%3E%3Crect width=%22240%22 height=%22180%22 rx=%2224%22 fill=%22%23F1F5F9%22/%3E%3Cpath d=%22M76 120h88c-4-24-20-38-44-38s-40 14-44 38Z%22 fill=%22%2394A3B8%22/%3E%3Cpath d=%22M72 124h96%22 stroke=%22%23647569%22 stroke-width=%226%22 stroke-linecap=%22round%22/%3E%3Ccircle cx=%22103%22 cy=%2270%22 r=%228%22 fill=%22%2394A3B8%22/%3E%3Ccircle cx=%22120%22 cy=%2262%22 r=%226%22 fill=%22%23CBD5E1%22/%3E%3Ccircle cx=%22138%22 cy=%2270%22 r=%227%22 fill=%22%2394A3B8%22/%3E%3C/svg%3E';
+
+function GlobalImageFallback() {
+  useEffect(() => {
+    const handleImageError = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLImageElement)) return;
+      if (target.dataset.qbImageFallback === '1') return;
+      target.dataset.qbImageFallback = '1';
+      target.removeAttribute('srcset');
+      target.src = BROKEN_IMAGE_FALLBACK;
+    };
+
+    window.addEventListener('error', handleImageError, true);
+    return () => window.removeEventListener('error', handleImageError, true);
+  }, []);
+
+  return null;
+}
+
 function SessionRestorer() {
   useEffect(() => {
     if (isVisualPreviewMode()) return;
@@ -87,7 +108,7 @@ function App() {
     return () => cleanupRealtime();
   }, [hasSupabase, subscribeRealtime, user, visualPreview]);
 
-  return <VisualThemeProvider><ErrorBoundary>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><PreviewSessionBootstrap />{!visualPreview && <SessionRestorer />}</>}</ErrorBoundary><Toaster position="top-center" /></VisualThemeProvider>;
+  return <VisualThemeProvider><GlobalImageFallback /><ErrorBoundary>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><PreviewSessionBootstrap />{!visualPreview && <SessionRestorer />}</>}</ErrorBoundary><Toaster position="top-center" /></VisualThemeProvider>;
 }
 
 export default App;
