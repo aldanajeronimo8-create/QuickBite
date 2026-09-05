@@ -2,17 +2,25 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { hasSupabaseConfig } from '../../config/appConfig';
 import { requireSupabaseClient } from '../../lib/supabase';
 import { loadVisualSettings } from '../../services/visualSettingsService';
-import { DEFAULT_VISUAL_SETTINGS, getVisualCssVariables, type VisualSettings, type VisualSettingsDraft } from '../../types/visualSettings';
+import { DEFAULT_VISUAL_SETTINGS, getVisualCssVariables, resolveVisualSettings, type VisualInterfaceScope, type VisualSettings, type VisualSettingsDraft } from '../../types/visualSettings';
 
-type VisualThemeContextValue = {
-  settings: VisualSettings;
-  loading: boolean;
-  error: string | null;
-  refresh: () => Promise<void>;
-  applyLocal: (draft: VisualSettingsDraft) => void;
-};
-
+type VisualThemeContextValue = { settings: VisualSettings; loading: boolean; error: string | null; refresh: () => Promise<void>; applyLocal: (draft: VisualSettingsDraft) => void; };
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
+
+export function getVisualInterfaceScope(): VisualInterfaceScope {
+  if (typeof document !== 'undefined') {
+    const explicit = document.querySelector<HTMLElement>('[data-qb-interface]')?.dataset.qbInterface;
+    if (explicit && ['login_student','login_parent','login_admin','admin','student','parent'].includes(explicit)) return explicit as VisualInterfaceScope;
+  }
+  if (typeof window !== 'undefined') {
+    const path = window.location.pathname;
+    if (path === '/' || path === '/login') return 'login_student';
+    if (path.startsWith('/admin')) return 'admin';
+    if (path.startsWith('/parent')) return 'parent';
+    if (path.startsWith('/menu') || path.startsWith('/student')) return 'student';
+  }
+  return 'student';
+}
 
 function applyDocumentTheme(settings: VisualSettings) {
   if (typeof document === 'undefined') return;
@@ -27,49 +35,48 @@ function applyDocumentTheme(settings: VisualSettings) {
   root.dataset.qbTheme = settings.theme_mode;
   document.title = settings.app_name;
   let link = document.querySelector<HTMLLinkElement>('link[data-quickbite-favicon]');
-  if (!link) {
-    link = document.createElement('link');
-    link.rel = 'icon';
-    link.dataset.quickbiteFavicon = 'true';
-    document.head.appendChild(link);
-  }
+  if (!link) { link = document.createElement('link'); link.rel = 'icon'; link.dataset.quickbiteFavicon = 'true'; document.head.appendChild(link); }
   link.href = settings.favicon_url || '/favicon.ico';
 }
 
-function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings {
-  return { ...draft, id: true, updated_at: previous.updated_at, updated_by: previous.updated_by };
-}
+function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings { return { ...draft, id: true, updated_at: previous.updated_at, updated_by: previous.updated_by }; }
 
 export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<VisualSettings>(() => ({ ...DEFAULT_VISUAL_SETTINGS, id: true, updated_at: new Date(0).toISOString(), updated_by: null }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<VisualSettingsDraft | null>(null);
 
   const refresh = useCallback(async () => {
     if (!hasSupabaseConfig()) return;
     setLoading(true);
-    try {
-      const next = await loadVisualSettings();
-      setSettings(next);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cargar la configuración visual.');
-    } finally {
-      setLoading(false);
-    }
+    try { const next = await loadVisualSettings(); setSettings(next); setError(null); }
+    catch (err) { setError(err instanceof Error ? err.message : 'No se pudo cargar la configuración visual.'); }
+    finally { setLoading(false); }
   }, []);
-
   useEffect(() => { void refresh(); }, [refresh]);
-  useEffect(() => { applyDocumentTheme(settings); }, [settings]);
+
+  const effectiveSettings = useMemo(() => preview ?? resolveVisualSettings(settings, getVisualInterfaceScope()), [preview, settings]);
+  useEffect(() => { applyDocumentTheme(effectiveSettings); }, [effectiveSettings]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || !event.data || event.data.type !== 'quickbite-visual-preview') return;
+      if (event.data.settings && typeof event.data.settings === 'object') setPreview(event.data.settings as VisualSettingsDraft);
+      if (event.data.type === 'quickbite-visual-preview-clear') setPreview(null);
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || settings.theme_mode !== 'system') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const sync = () => document.documentElement.classList.toggle('dark', media.matches);
-    sync();
-    media.addEventListener?.('change', sync);
+    const sync = () => { if (!preview) document.documentElement.classList.toggle('dark', media.matches); };
+    sync(); media.addEventListener?.('change', sync);
     return () => media.removeEventListener?.('change', sync);
-  }, [settings.theme_mode]);
+  }, [preview, settings.theme_mode]);
 
   useEffect(() => {
     if (!hasSupabaseConfig()) return;
@@ -79,9 +86,7 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
         if (payload.new && typeof payload.new === 'object') void loadVisualSettings(client).then(setSettings).catch(() => undefined);
       }).subscribe();
       return () => { void channel.unsubscribe(); };
-    } catch {
-      return undefined;
-    }
+    } catch { return undefined; }
   }, []);
 
   const applyLocal = useCallback((draft: VisualSettingsDraft) => setSettings((previous) => toStoredSettings(draft, previous)), []);
@@ -89,8 +94,4 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   return <VisualThemeContext.Provider value={value}>{children}</VisualThemeContext.Provider>;
 }
 
-export function useVisualTheme(): VisualThemeContextValue {
-  const context = useContext(VisualThemeContext);
-  if (!context) throw new Error('useVisualTheme debe utilizarse dentro de VisualThemeProvider.');
-  return context;
-}
+export function useVisualTheme(): VisualThemeContextValue { const context = useContext(VisualThemeContext); if (!context) throw new Error('useVisualTheme debe utilizarse dentro de VisualThemeProvider.'); return context; }
