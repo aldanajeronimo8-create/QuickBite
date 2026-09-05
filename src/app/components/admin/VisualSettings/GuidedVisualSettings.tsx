@@ -24,6 +24,7 @@ type GuideStyle = {
 };
 
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
+const PREVIEW_WINDOW_NAME = 'quickbite-visual-preview';
 const scopes: Array<[VisualInterfaceScope, string, string, string]> = [
   ['login_student', 'Inicio de sesión del estudiante', 'La pantalla donde el estudiante escribe su correo y contraseña.', 'Acceso del estudiante'],
   ['login_parent', 'Inicio de sesión de padres', 'La pantalla de acceso para padres y acudientes.', 'Acceso de padres'],
@@ -122,7 +123,7 @@ export function GuidedVisualSettings({ onOpenAdvanced }: { onOpenAdvanced: () =>
   const [paletteId, setPaletteId] = useState('friendly-green');
   const [draft, setDraft] = useState<VisualSettingsDraft>(() => resolveVisualSettings(settings, 'student'));
   const [saving, setSaving] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const previewWindowRef = useRef<Window | null>(null);
 
   const style = useMemo(() => getStyle(styleId), [styleId]);
   const palette = useMemo(() => style.palettes.find((item) => item.id === paletteId) ?? style.palettes[0], [style, paletteId]);
@@ -138,15 +139,55 @@ export function GuidedVisualSettings({ onOpenAdvanced }: { onOpenAdvanced: () =>
     setPaletteId(nextStyle.palettes[0].id);
   };
 
-  const postPreview = () => {
-    try { window.localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(generated)); } catch { /* preview still falls back to postMessage */ }
-    const frame = iframeRef.current;
-    if (frame?.contentWindow) frame.contentWindow.postMessage({ type: 'quickbite-visual-preview', settings: generated }, window.location.origin);
+  const persistPreview = () => {
+    try { window.localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(generated)); } catch { /* preview still works through postMessage when available */ }
+  };
+
+  const sendPreview = (target?: Window | null) => {
+    persistPreview();
+    const previewWindow = target ?? previewWindowRef.current;
+    if (!previewWindow || previewWindow.closed) return;
+    try {
+      previewWindow.postMessage({ type: 'quickbite-visual-preview', settings: generated }, window.location.origin);
+    } catch { /* localStorage remains the durable preview channel */ }
+  };
+
+  const openPreview = () => {
+    persistPreview();
+    const previewWindow = window.open(
+      previewPath,
+      PREVIEW_WINDOW_NAME,
+      'popup=yes,width=1440,height=900,resizable=yes,scrollbars=yes'
+    );
+
+    if (!previewWindow) {
+      toast.error('El navegador bloqueó la ventana de revisión. Permite ventanas emergentes para QuickBite e inténtalo de nuevo.');
+      return;
+    }
+
+    previewWindowRef.current = previewWindow;
+    try { previewWindow.focus(); } catch { /* focus can be denied by the browser */ }
+
+    window.setTimeout(() => sendPreview(previewWindow), 250);
+    window.setTimeout(() => sendPreview(previewWindow), 1000);
   };
 
   useEffect(() => {
-    if (step >= 3) postPreview();
-  }, [generated, step, previewPath]);
+    if (step < 3) return undefined;
+
+    const handlePreviewReady = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.data?.type !== 'quickbite-visual-preview-ready') return;
+      if (previewWindowRef.current && event.source === previewWindowRef.current) sendPreview(previewWindowRef.current);
+    };
+
+    window.addEventListener('message', handlePreviewReady);
+    sendPreview();
+    return () => window.removeEventListener('message', handlePreviewReady);
+  }, [generated, previewPath, step]);
+
+  useEffect(() => () => {
+    previewWindowRef.current = null;
+  }, []);
 
   const finish = async () => {
     setSaving(true);
@@ -238,8 +279,24 @@ export function GuidedVisualSettings({ onOpenAdvanced }: { onOpenAdvanced: () =>
 
           {step === 3 && (
             <div className="space-y-5">
-              <div className="flex items-start justify-between gap-4"><div className="flex items-start gap-3"><Eye className="mt-0.5 size-5 text-blue-600" /><div><h3 className="text-xl font-black text-slate-900">Revisa la interfaz real</h3><p className="mt-1 text-sm leading-6 text-slate-500">{selectedScope?.[1]} · estilo <b>{style.name}</b> · paleta <b>{palette.name}</b>.</p></div></div><div className="hidden shrink-0 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-2 text-[10px] font-black text-slate-600 sm:flex"><Monitor className="size-3.5" /> Aplicación real</div></div>
-              <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-100 p-3 shadow-sm"><div className="overflow-hidden rounded-2xl bg-white shadow-xl" style={{ height: 'min(68vh, 720px)' }}><iframe ref={iframeRef} title={`Vista previa de ${selectedScope?.[1] ?? 'QuickBite'}`} src={previewPath} onLoad={postPreview} className="h-full w-full border-0" /></div></div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3"><Eye className="mt-0.5 size-5 text-blue-600" /><div><h3 className="text-xl font-black text-slate-900">Revisa la interfaz real</h3><p className="mt-1 text-sm leading-6 text-slate-500">{selectedScope?.[1]} · estilo <b>{style.name}</b> · paleta <b>{palette.name}</b>.</p></div></div>
+                <div className="hidden shrink-0 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-2 text-[10px] font-black text-slate-600 sm:flex"><Monitor className="size-3.5" /> Ventana independiente</div>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-6 shadow-sm">
+                <div className="mx-auto flex min-h-[340px] max-w-3xl flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center shadow-sm">
+                  <div className="grid size-16 place-items-center rounded-2xl bg-blue-50 text-blue-700"><Eye className="size-7" /></div>
+                  <h4 className="mt-5 text-lg font-black text-slate-900">La interfaz real se abrirá aparte</h4>
+                  <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">La revisión usa la aplicación real de QuickBite en una ventana independiente del editor. Cada cambio que hagas en estilo, paleta o configuración se sincronizará con esa ventana.</p>
+                  <button type="button" onClick={openPreview} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--qb-primary)] px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:brightness-110">
+                    <Eye className="size-4" />
+                    Abrir revisión de la interfaz
+                  </button>
+                  <p className="mt-3 text-xs font-semibold text-slate-400">Puedes mantener esta ventana abierta y seguir editando aquí.</p>
+                </div>
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-slate-200 p-4"><p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Estilo</p><p className="mt-1 font-black text-slate-900">{style.name}</p><p className="mt-1 text-xs text-slate-500">{style.visualDescription}</p></div><div className="rounded-2xl border border-slate-200 p-4"><p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Paleta</p><div className="mt-2 flex gap-1.5">{[palette.primary, palette.secondary, palette.accent].map((color) => <span key={color} className="size-6 rounded-full ring-2 ring-white shadow-sm" style={{ backgroundColor: color }} />)}</div><p className="mt-1 font-black text-slate-900">{palette.name}</p></div><div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">Aplicación</p><p className="mt-1 font-black text-emerald-950">Solo esta interfaz</p><p className="mt-1 text-xs text-emerald-800">Los procesos de pedidos, usuarios y pagos siguen intactos.</p></div></div>
             </div>
           )}
