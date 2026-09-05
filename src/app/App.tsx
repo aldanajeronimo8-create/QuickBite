@@ -9,10 +9,11 @@ import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
 import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
-import { VisualThemeProvider } from './contexts/VisualThemeProvider';
+import { getVisualPreviewScope, isVisualPreviewMode } from './contexts/VisualThemeProvider';
 
 function SessionRestorer() {
   useEffect(() => {
+    if (isVisualPreviewMode()) return;
     let cancelled = false;
     const restore = async () => {
       try {
@@ -34,19 +35,30 @@ function SessionRestorer() {
 
         const pathname = window.location.pathname;
         if (pathname !== '/' && pathname !== '/login') return;
-        if (context === 'admin' && canAccessAdmin(profile.role)) {
-          await router.navigate('/admin', { replace: true });
-        } else if (context === 'user' && canAccessParent(profile.role)) {
-          await router.navigate('/parent/family', { replace: true });
-        } else if (context === 'user' && canAccessStudent(profile.role)) {
-          await router.navigate('/menu', { replace: true });
-        }
+        if (context === 'admin' && canAccessAdmin(profile.role)) await router.navigate('/admin', { replace: true });
+        else if (context === 'user' && canAccessParent(profile.role)) await router.navigate('/parent/family', { replace: true });
+        else if (context === 'user' && canAccessStudent(profile.role)) await router.navigate('/menu', { replace: true });
       } catch (error) {
         console.warn('[QuickBite] No se pudo restaurar la sesión automáticamente.', error);
       }
     };
     void restore();
     return () => { cancelled = true; };
+  }, []);
+  return null;
+}
+
+function PreviewSessionBootstrap() {
+  useEffect(() => {
+    if (!isVisualPreviewMode()) return;
+    const scope = getVisualPreviewScope();
+    const role = scope === 'admin' || scope === 'login_admin' ? 'admin' : scope === 'parent' || scope === 'login_parent' ? 'parent' : 'student';
+    const now = new Date().toISOString();
+    useAuthStore.setState({
+      user: { id: `visual-preview-${role}`, email: `${role}@preview.local`, full_name: `Vista previa ${role}`, role, ti: null, created_at: now },
+      session: { token: 'visual-preview' },
+      loading: false,
+    });
   }, []);
   return null;
 }
@@ -58,23 +70,24 @@ function App() {
   const loadData = useDataStore((s) => s.loadData);
   const needsSetup = needsFirstRunSetup();
   const hasSupabase = hasSupabaseConfig();
+  const visualPreview = isVisualPreviewMode();
 
   useEffect(() => {
-    if (hasSupabase) void checkSession();
-  }, [checkSession, hasSupabase]);
+    if (hasSupabase && !visualPreview) void checkSession();
+  }, [checkSession, hasSupabase, visualPreview]);
 
   useEffect(() => {
-    if (!hasSupabase || !user) return;
+    if (!hasSupabase || !user || visualPreview) return;
     void loadData({ silent: true });
-  }, [hasSupabase, loadData, user]);
+  }, [hasSupabase, loadData, user, visualPreview]);
 
   useEffect(() => {
-    if (!hasSupabase || !user) return;
+    if (!hasSupabase || !user || visualPreview) return;
     const cleanupRealtime = subscribeRealtime();
     return () => cleanupRealtime();
-  }, [hasSupabase, subscribeRealtime, user]);
+  }, [hasSupabase, subscribeRealtime, user, visualPreview]);
 
-  return <VisualThemeProvider><ErrorBoundary>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><SessionRestorer /></>}</ErrorBoundary><Toaster position="top-center" /></VisualThemeProvider>;
+  return <VisualThemeProvider><ErrorBoundary>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><PreviewSessionBootstrap />{!visualPreview && <SessionRestorer />}</>}</ErrorBoundary><Toaster position="top-center" /></VisualThemeProvider>;
 }
 
 export default App;
