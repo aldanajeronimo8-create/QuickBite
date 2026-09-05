@@ -20,6 +20,10 @@ export type InputStyle = typeof INPUT_STYLES[number];
 export type Density = typeof DENSITY_OPTIONS[number];
 export type ThemeMode = typeof THEME_MODES[number];
 
+export const VISUAL_INTERFACE_SCOPES = ['login_student', 'login_parent', 'login_admin', 'admin', 'student', 'parent'] as const;
+export type VisualInterfaceScope = typeof VISUAL_INTERFACE_SCOPES[number];
+export type VisualInterfaceOverrides = Partial<Record<VisualInterfaceScope, Partial<VisualSettingsDraft>>>;
+
 export interface VisualSettings {
   id: boolean;
   app_name: string;
@@ -50,6 +54,7 @@ export interface VisualSettings {
   input_style: InputStyle;
   density: Density;
   theme_mode: ThemeMode;
+  interface_overrides: VisualInterfaceOverrides;
   updated_at: string;
   updated_by: string | null;
 }
@@ -57,49 +62,21 @@ export interface VisualSettings {
 export type VisualSettingsDraft = Omit<VisualSettings, 'id' | 'updated_at' | 'updated_by'>;
 
 export const DEFAULT_VISUAL_SETTINGS: VisualSettingsDraft = {
-  app_name: 'QuickBite',
-  logo_url: null,
-  favicon_url: null,
-  login_logo_url: null,
-  primary_color: '#16A36A',
-  secondary_color: '#2563EB',
-  accent_color: '#14B8A6',
-  background_color: '#F5F8F7',
-  surface_color: '#FFFFFF',
-  text_color: '#0F172A',
-  muted_text_color: '#64748B',
-  border_color: '#E2E8F0',
-  success_color: '#16A36A',
-  warning_color: '#D97706',
-  danger_color: '#DC2626',
-  font_family: 'Nunito',
-  heading_font: 'Nunito',
-  border_radius: 'medium',
-  card_radius: 'large',
-  button_radius: 'medium',
-  shadow_style: 'subtle',
-  button_style: 'solid',
-  header_style: 'standard',
-  navigation_style: 'solid',
-  card_style: 'elevated',
-  input_style: 'outlined',
-  density: 'normal',
-  theme_mode: 'light',
+  app_name: 'QuickBite', logo_url: null, favicon_url: null, login_logo_url: null,
+  primary_color: '#16A36A', secondary_color: '#2563EB', accent_color: '#14B8A6', background_color: '#F5F8F7', surface_color: '#FFFFFF', text_color: '#0F172A', muted_text_color: '#64748B', border_color: '#E2E8F0', success_color: '#16A36A', warning_color: '#D97706', danger_color: '#DC2626',
+  font_family: 'Nunito', heading_font: 'Nunito', border_radius: 'medium', card_radius: 'large', button_radius: 'medium', shadow_style: 'subtle', button_style: 'solid', header_style: 'standard', navigation_style: 'solid', card_style: 'elevated', input_style: 'outlined', density: 'normal', theme_mode: 'light', interface_overrides: {},
 };
 
-export function isHexColor(value: string): boolean {
-  return /^#[0-9A-Fa-f]{6}$/.test(value);
-}
+export function isHexColor(value: string): boolean { return /^#[0-9A-Fa-f]{6}$/.test(value); }
 
-export function sanitizeVisualSettings(value: Partial<VisualSettingsDraft> | null | undefined): VisualSettingsDraft {
-  const source = value ?? {};
-  const result: VisualSettingsDraft = { ...DEFAULT_VISUAL_SETTINGS };
-  const colorKeys = ['primary_color', 'secondary_color', 'accent_color', 'background_color', 'surface_color', 'text_color', 'muted_text_color', 'border_color', 'success_color', 'warning_color', 'danger_color'] as const;
-  for (const key of colorKeys) if (typeof source[key] === 'string' && isHexColor(source[key])) result[key] = source[key];
+function sanitizeOverride(value: unknown): Partial<VisualSettingsDraft> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const source = value as Record<string, unknown>;
+  const result: Partial<VisualSettingsDraft> = {};
+  const colors = ['primary_color','secondary_color','accent_color','background_color','surface_color','text_color','muted_text_color','border_color','success_color','warning_color','danger_color'] as const;
+  for (const key of colors) if (typeof source[key] === 'string' && isHexColor(source[key])) result[key] = source[key];
   if (typeof source.app_name === 'string' && source.app_name.trim().length <= 60 && source.app_name.trim()) result.app_name = source.app_name.trim();
-  if (typeof source.logo_url === 'string' || source.logo_url === null) result.logo_url = source.logo_url;
-  if (typeof source.favicon_url === 'string' || source.favicon_url === null) result.favicon_url = source.favicon_url;
-  if (typeof source.login_logo_url === 'string' || source.login_logo_url === null) result.login_logo_url = source.login_logo_url;
+  for (const key of ['logo_url','favicon_url','login_logo_url'] as const) if (typeof source[key] === 'string' || source[key] === null) result[key] = source[key] as string | null;
   if (ALLOWED_FONTS.includes(source.font_family as AllowedFont)) result.font_family = source.font_family as AllowedFont;
   if (ALLOWED_FONTS.includes(source.heading_font as AllowedFont)) result.heading_font = source.heading_font as AllowedFont;
   if (RADIUS_OPTIONS.includes(source.border_radius as RadiusOption)) result.border_radius = source.border_radius as RadiusOption;
@@ -116,68 +93,48 @@ export function sanitizeVisualSettings(value: Partial<VisualSettingsDraft> | nul
   return result;
 }
 
-export function radiusToCss(value: RadiusOption): string {
-  return { sharp: '0px', small: '0.375rem', medium: '0.75rem', large: '1rem', rounded: '999px' }[value];
+export function sanitizeVisualSettings(value: Partial<VisualSettingsDraft> | null | undefined): VisualSettingsDraft {
+  const source = value ?? {};
+  const result: VisualSettingsDraft = { ...DEFAULT_VISUAL_SETTINGS };
+  const colors = ['primary_color','secondary_color','accent_color','background_color','surface_color','text_color','muted_text_color','border_color','success_color','warning_color','danger_color'] as const;
+  for (const key of colors) if (typeof source[key] === 'string' && isHexColor(source[key])) result[key] = source[key];
+  if (typeof source.app_name === 'string' && source.app_name.trim().length <= 60 && source.app_name.trim()) result.app_name = source.app_name.trim();
+  for (const key of ['logo_url','favicon_url','login_logo_url'] as const) if (typeof source[key] === 'string' || source[key] === null) result[key] = source[key] as string | null;
+  if (ALLOWED_FONTS.includes(source.font_family as AllowedFont)) result.font_family = source.font_family as AllowedFont;
+  if (ALLOWED_FONTS.includes(source.heading_font as AllowedFont)) result.heading_font = source.heading_font as AllowedFont;
+  if (RADIUS_OPTIONS.includes(source.border_radius as RadiusOption)) result.border_radius = source.border_radius as RadiusOption;
+  if (RADIUS_OPTIONS.includes(source.card_radius as RadiusOption)) result.card_radius = source.card_radius as RadiusOption;
+  if (RADIUS_OPTIONS.includes(source.button_radius as ButtonRadiusOption)) result.button_radius = source.button_radius as ButtonRadiusOption;
+  if (SHADOW_OPTIONS.includes(source.shadow_style as ShadowStyle)) result.shadow_style = source.shadow_style as ShadowStyle;
+  if (BUTTON_STYLES.includes(source.button_style as ButtonStyle)) result.button_style = source.button_style as ButtonStyle;
+  if (HEADER_STYLES.includes(source.header_style as HeaderStyle)) result.header_style = source.header_style as HeaderStyle;
+  if (NAVIGATION_STYLES.includes(source.navigation_style as NavigationStyle)) result.navigation_style = source.navigation_style as NavigationStyle;
+  if (CARD_STYLES.includes(source.card_style as CardStyle)) result.card_style = source.card_style as CardStyle;
+  if (INPUT_STYLES.includes(source.input_style as InputStyle)) result.input_style = source.input_style as InputStyle;
+  if (DENSITY_OPTIONS.includes(source.density as Density)) result.density = source.density as Density;
+  if (THEME_MODES.includes(source.theme_mode as ThemeMode)) result.theme_mode = source.theme_mode as ThemeMode;
+  const rawOverrides = source.interface_overrides;
+  if (rawOverrides && typeof rawOverrides === 'object' && !Array.isArray(rawOverrides)) {
+    const safeOverrides: VisualInterfaceOverrides = {};
+    for (const scope of VISUAL_INTERFACE_SCOPES) safeOverrides[scope] = sanitizeOverride((rawOverrides as Record<string, unknown>)[scope]);
+    result.interface_overrides = safeOverrides;
+  }
+  return result;
 }
 
-export function shadowToCss(value: ShadowStyle): string {
-  return { none: 'none', subtle: '0 2px 10px rgba(15, 23, 42, 0.06)', normal: '0 8px 24px rgba(15, 23, 42, 0.10)', elevated: '0 18px 45px rgba(15, 23, 42, 0.16)' }[value];
+export function resolveVisualSettings(settings: VisualSettings | VisualSettingsDraft, scope: VisualInterfaceScope): VisualSettingsDraft {
+  const base = sanitizeVisualSettings(settings);
+  const override = base.interface_overrides?.[scope] ?? {};
+  return sanitizeVisualSettings({ ...base, ...override, interface_overrides: base.interface_overrides });
 }
 
-export function densityToCss(value: Density): { spacing: string; controlHeight: string } {
-  return { compact: { spacing: '0.75rem', controlHeight: '2.5rem' }, normal: { spacing: '1rem', controlHeight: '2.75rem' }, comfortable: { spacing: '1.25rem', controlHeight: '3rem' } }[value];
-}
-
+export function radiusToCss(value: RadiusOption): string { return { sharp: '0px', small: '0.375rem', medium: '0.75rem', large: '1rem', rounded: '999px' }[value]; }
+export function shadowToCss(value: ShadowStyle): string { return { none: 'none', subtle: '0 2px 10px rgba(15, 23, 42, 0.06)', normal: '0 8px 24px rgba(15, 23, 42, 0.10)', elevated: '0 18px 45px rgba(15, 23, 42, 0.16)' }[value]; }
+export function densityToCss(value: Density): { spacing: string; controlHeight: string } { return { compact: { spacing: '0.75rem', controlHeight: '2.5rem' }, normal: { spacing: '1rem', controlHeight: '2.75rem' }, comfortable: { spacing: '1.25rem', controlHeight: '3rem' } }[value]; }
 export function getVisualCssVariables(settings: VisualSettingsDraft): Record<string, string> {
-  const radius = radiusToCss(settings.border_radius);
-  const cardRadius = radiusToCss(settings.card_radius);
-  const buttonRadius = radiusToCss(settings.button_radius);
-  const density = densityToCss(settings.density);
-  const dark = settings.theme_mode === 'dark';
-  return {
-    '--qb-primary': settings.primary_color,
-    '--qb-secondary': settings.secondary_color,
-    '--qb-accent': settings.accent_color,
-    '--qb-background': dark ? '#070B14' : settings.background_color,
-    '--qb-surface': dark ? '#0F172A' : settings.surface_color,
-    '--qb-text': dark ? '#F8FAFC' : settings.text_color,
-    '--qb-text-secondary': dark ? '#CBD5E1' : settings.muted_text_color,
-    '--qb-text-muted': dark ? '#94A3B8' : settings.muted_text_color,
-    '--qb-border': dark ? '#334155' : settings.border_color,
-    '--qb-success': settings.success_color,
-    '--qb-warning': settings.warning_color,
-    '--qb-error': settings.danger_color,
-    '--qb-radius': radius,
-    '--qb-card-radius': cardRadius,
-    '--qb-button-radius': buttonRadius,
-    '--qb-shadow': shadowToCss(settings.shadow_style),
-    '--qb-density-spacing': density.spacing,
-    '--qb-control-height': density.controlHeight,
-    '--qb-font-family': settings.font_family === 'system-ui' ? 'ui-sans-serif, system-ui, sans-serif' : `"${settings.font_family}", ui-sans-serif, system-ui, sans-serif`,
-    '--qb-heading-font': settings.heading_font === 'system-ui' ? 'ui-sans-serif, system-ui, sans-serif' : `"${settings.heading_font}", ui-sans-serif, system-ui, sans-serif`,
-    '--background': dark ? '#070B14' : settings.background_color,
-    '--foreground': dark ? '#F8FAFC' : settings.text_color,
-    '--card': dark ? '#0F172A' : settings.surface_color,
-    '--card-foreground': dark ? '#F8FAFC' : settings.text_color,
-    '--popover': dark ? '#0F172A' : settings.surface_color,
-    '--popover-foreground': dark ? '#F8FAFC' : settings.text_color,
-    '--primary': settings.primary_color,
-    '--primary-foreground': '#FFFFFF',
-    '--secondary': settings.secondary_color,
-    '--secondary-foreground': '#FFFFFF',
-    '--accent': settings.accent_color,
-    '--accent-foreground': '#FFFFFF',
-    '--destructive': settings.danger_color,
-    '--destructive-foreground': '#FFFFFF',
-    '--border': dark ? '#334155' : settings.border_color,
-    '--input': dark ? '#1E293B' : settings.surface_color,
-    '--input-background': dark ? '#1E293B' : settings.surface_color,
-    '--muted-foreground': dark ? '#CBD5E1' : settings.muted_text_color,
-    '--ring': settings.primary_color,
-    '--radius': radius,
-    '--sidebar': settings.primary_color,
-    '--sidebar-primary': settings.secondary_color,
-    '--sidebar-accent': 'rgba(255,255,255,0.12)',
-    '--sidebar-border': dark ? '#334155' : settings.border_color,
-  };
+  const radius = radiusToCss(settings.border_radius), cardRadius = radiusToCss(settings.card_radius), buttonRadius = radiusToCss(settings.button_radius), density = densityToCss(settings.density), dark = settings.theme_mode === 'dark';
+  return {'--qb-primary':settings.primary_color,'--qb-secondary':settings.secondary_color,'--qb-accent':settings.accent_color,'--qb-background':dark?'#070B14':settings.background_color,'--qb-surface':dark?'#0F172A':settings.surface_color,'--qb-text':dark?'#F8FAFC':settings.text_color,'--qb-text-secondary':dark?'#CBD5E1':settings.muted_text_color,'--qb-text-muted':dark?'#94A3B8':settings.muted_text_color,'--qb-border':dark?'#334155':settings.border_color,'--qb-success':settings.success_color,'--qb-warning':settings.warning_color,'--qb-error':settings.danger_color,'--qb-radius':radius,'--qb-card-radius':cardRadius,'--qb-button-radius':buttonRadius,'--qb-shadow':shadowToCss(settings.shadow_style),'--qb-density-spacing':density.spacing,'--qb-control-height':density.controlHeight,'--qb-font-family':settings.font_family==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.font_family}", ui-sans-serif, system-ui, sans-serif`,'--qb-heading-font':settings.heading_font==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.heading_font}", ui-sans-serif, system-ui, sans-serif`,'--background':dark?'#070B14':settings.background_color,'--foreground':dark?'#F8FAFC':settings.text_color,'--card':dark?'#0F172A':settings.surface_color,'--card-foreground':dark?'#F8FAFC':settings.text_color,'--popover':dark?'#0F172A':settings.surface_color,'--popover-foreground':dark?'#F8FAFC':settings.text_color,'--primary':settings.primary_color,'--primary-foreground':'#FFFFFF','--secondary':settings.secondary_color,'--secondary-foreground':'#FFFFFF','--accent':settings.accent_color,'--accent-foreground':'#FFFFFF','--destructive':settings.danger_color,'--destructive-foreground':'#FFFFFF','--border':dark?'#334155':settings.border_color,'--input':dark?'#1E293B':settings.surface_color,'--input-background':dark?'#1E293B':settings.surface_color,'--muted-foreground':dark?'#CBD5E1':settings.muted_text_color,'--ring':settings.primary_color,'--radius':radius,'--sidebar':settings.primary_color,'--sidebar-primary':settings.secondary_color,'--sidebar-accent':'rgba(255,255,255,0.12)','--sidebar-border':dark?'#334155':settings.border_color};
 }
+
+// Alias kept local to avoid changing the public radius API.
+type ButtonRadiusOption = RadiusOption;
