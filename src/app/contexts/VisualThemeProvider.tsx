@@ -13,8 +13,7 @@ export function getVisualInterfaceScope(): VisualInterfaceScope {
     if (explicit && ['login_student','login_parent','login_admin','admin','student','parent'].includes(explicit)) return explicit as VisualInterfaceScope;
     const auth = document.querySelector<HTMLElement>('.qb-auth');
     if (auth?.classList.contains('qb-auth--admin')) return 'login_admin';
-    const loginHeading = Array.from(document.querySelectorAll('h3')).find((node) => /iniciar sesión como padre/i.test(node.textContent ?? ''));
-    if (loginHeading) return 'login_parent';
+    if (Array.from(document.querySelectorAll('h3')).some((node) => /iniciar sesión como padre/i.test(node.textContent ?? ''))) return 'login_parent';
   }
   if (typeof window !== 'undefined') {
     const path = window.location.pathname;
@@ -41,10 +40,10 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const [loading,setLoading]=useState(false); const [error,setError]=useState<string|null>(null); const [preview,setPreview]=useState<VisualSettingsDraft|null>(null); const [scope,setScope]=useState<VisualInterfaceScope>(getVisualInterfaceScope);
   const refresh=useCallback(async()=>{if(!hasSupabaseConfig())return;setLoading(true);try{const next=await loadVisualSettings();setSettings(next);setError(null)}catch(err){setError(err instanceof Error?err.message:'No se pudo cargar la configuración visual.')}finally{setLoading(false)}},[]);
   useEffect(()=>{void refresh()},[refresh]);
-  useEffect(()=>{if(typeof document==='undefined')return;const sync=()=>setScope(getVisualInterfaceScope());sync();const observer=new MutationObserver(sync);observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class','data-qb-interface']});return()=>observer.disconnect()},[]);
+  useEffect(()=>{if(typeof document==='undefined')return;const sync=()=>setScope(getVisualInterfaceScope());sync();const observer=new MutationObserver(sync);observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','data-qb-interface']});return()=>observer.disconnect()},[]);
   const effectiveSettings=useMemo(()=>preview??resolveVisualSettings(settings,scope),[preview,settings,scope]);
   useEffect(()=>{applyDocumentTheme(effectiveSettings)},[effectiveSettings]);
-  useEffect(()=>{if(typeof window==='undefined')return;const onMessage=(event:MessageEvent)=>{if(event.origin!==window.location.origin||!event.data)return;if(event.data.type==='quickbite-visual-preview'&&event.data.settings&&typeof event.data.settings==='object')setPreview(event.data.settings as VisualSettingsDraft);if(event.data.type==='quickbite-visual-preview-clear')setPreview(null)};window.addEventListener('message',onMessage);return()=>window.removeEventListener('message',onMessage)},[]);
+  useEffect(()=>{if(typeof window==='undefined')return;const onMessage=(event:MessageEvent)=>{if(event.origin!==window.location.origin||!event.data)return;if(event.data.type==='quickbite-visual-preview'&&event.data.settings&&typeof event.data.settings==='object')setPreview(event.data.settings as VisualSettingsDraft);else if(event.data.type==='quickbite-visual-preview-clear')setPreview(null)};window.addEventListener('message',onMessage);return()=>window.removeEventListener('message',onMessage)},[]);
   useEffect(()=>{if(typeof window==='undefined'||settings.theme_mode!=='system')return;const media=window.matchMedia('(prefers-color-scheme: dark)');const sync=()=>{if(!preview)document.documentElement.classList.toggle('dark',media.matches)};sync();media.addEventListener?.('change',sync);return()=>media.removeEventListener?.('change',sync)},[preview,settings.theme_mode]);
   useEffect(()=>{if(!hasSupabaseConfig())return;try{const client=requireSupabaseClient();const channel=client.channel('quickbite-visual-settings').on('postgres_changes',{event:'*',schema:'public',table:'app_visual_settings'},(payload)=>{if(payload.new&&typeof payload.new==='object')void loadVisualSettings(client).then(setSettings).catch(()=>undefined)}).subscribe();return()=>{void channel.unsubscribe()}}catch{return undefined}},[]);
   const applyLocal=useCallback((draft:VisualSettingsDraft)=>setSettings(previous=>toStoredSettings(draft,previous)),[]);
