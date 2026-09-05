@@ -26,16 +26,14 @@ function applyDocumentTheme(settings: VisualSettings) {
   root.classList.toggle('dark', settings.theme_mode === 'dark');
   root.dataset.qbTheme = settings.theme_mode;
   document.title = settings.app_name;
-
-  const favicon = settings.favicon_url;
   let link = document.querySelector<HTMLLinkElement>('link[data-quickbite-favicon]');
-  if (!favicon) {
+  if (!link) {
     link = document.createElement('link');
     link.rel = 'icon';
     link.dataset.quickbiteFavicon = 'true';
     document.head.appendChild(link);
   }
-  link.href = favicon || '/favicon.ico';
+  link.href = settings.favicon_url || '/favicon.ico';
 }
 
 function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings {
@@ -65,8 +63,7 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => { applyDocumentTheme(settings); }, [settings]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (settings.theme_mode !== 'system') return;
+    if (typeof window === 'undefined' || settings.theme_mode !== 'system') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const sync = () => document.documentElement.classList.toggle('dark', media.matches);
     sync();
@@ -76,18 +73,15 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hasSupabaseConfig()) return;
-    let channel: ReturnType<ReturnType<typeof requireSupabaseClient>['channel']> | null = null;
     try {
       const client = requireSupabaseClient();
-      channel = client.channel('quickbite-visual-settings').on('postgres_changes', { event: '*', schema: 'public', table: 'app_visual_settings' }, (payload) => {
-        if (payload.new && typeof payload.new === 'object') {
-          void loadVisualSettings(client).then(setSettings).catch(() => undefined);
-        }
+      const channel = client.channel('quickbite-visual-settings').on('postgres_changes', { event: '*', schema: 'public', table: 'app_visual_settings' }, (payload) => {
+        if (payload.new && typeof payload.new === 'object') void loadVisualSettings(client).then(setSettings).catch(() => undefined);
       }).subscribe();
+      return () => { void channel.unsubscribe(); };
     } catch {
-      channel = null;
+      return undefined;
     }
-    return () => { if (channel) void channel.unsubscribe(); };
   }, []);
 
   const applyLocal = useCallback((draft: VisualSettingsDraft) => setSettings((previous) => toStoredSettings(draft, previous)), []);

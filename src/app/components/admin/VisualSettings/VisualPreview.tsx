@@ -1,10 +1,11 @@
-import { getVisualCssVariables, radiusToCss, shadowToCss, type VisualSettingsDraft } from '../../../../types/visualSettings';
+import type { CSSProperties } from 'react';
+import { getVisualCssVariables, radiusToCss, type VisualSettingsDraft } from '../../../../types/visualSettings';
 
 type Props = { settings: VisualSettingsDraft };
 
 export function VisualPreview({ settings }: Props) {
   const variables = getVisualCssVariables(settings);
-  const style = variables as React.CSSProperties;
+  const style = variables as CSSProperties;
   return (
     <section className="sticky top-6 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl">
       <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">

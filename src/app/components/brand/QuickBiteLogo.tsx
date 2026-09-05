@@ -1,4 +1,6 @@
+import { useLocation } from 'react-router-dom';
 import quickBiteLogo from '../../../assets/quickbite-logo.png';
+import { useVisualTheme } from '../../contexts/VisualThemeProvider';
 
 type QuickBiteLogoProps = {
   className?: string;
@@ -6,20 +8,14 @@ type QuickBiteLogoProps = {
   alt?: string;
 };
 
-/**
- * Branded mark with its own light surface so the transparent wordmark remains
- * legible on both the student (green) and admin (blue) interfaces.
- */
-export function QuickBiteLogo({
-  className = '',
-  imageClassName = '',
-  alt = 'QuickBite',
-}: QuickBiteLogoProps) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center justify-center overflow-hidden bg-white p-1.5 shadow-lg ring-1 ring-slate-950/10 ${className}`}
-    >
-      <img src={quickBiteLogo} alt={alt} className={`h-full w-full scale-[1.55] object-contain ${imageClassName}`} />
-    </span>
-  );
+export function QuickBiteLogo({ className = '', imageClassName = '', alt }: QuickBiteLogoProps) {
+  const location = useLocation();
+  const { settings } = useVisualTheme();
+  const isLogin = location.pathname === '/' || location.pathname === '/login';
+  const source = (isLogin ? settings.login_logo_url : settings.logo_url) || settings.logo_url || quickBiteLogo;
+  const label = alt || settings.app_name || 'QuickBite';
+
+  return <span className={`inline-flex shrink-0 items-center justify-center ${className}`}>
+    <img src={source} alt={label} className={`max-h-full max-w-full object-contain ${imageClassName}`} />
+  </span>;
 }
