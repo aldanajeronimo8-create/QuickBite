@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Eye, ImagePlus, Palette, RotateCcw, Save, ShieldCheck, Type, Upload, WandSparkles, Monitor } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVisualTheme } from '../../../contexts/VisualThemeProvider';
 import { resetVisualSettings, saveVisualSettings, uploadBrandingImage } from '../../../../services/visualSettingsService';
 import { isHexColor, resolveVisualSettings, type VisualInterfaceScope, type VisualSettingsDraft } from '../../../../types/visualSettings';
+import { PreviewStudio } from './PreviewStudio';
 
 type Tab = 'interfaces' | 'branding' | 'colors' | 'type' | 'components';
 const tabs: Array<[Tab, string, typeof Eye]> = [['interfaces','Interfaces',Eye],['branding','Branding',ImagePlus],['colors','Colores',Palette],['type','Tipografía',Type],['components','Botones y componentes',WandSparkles]];
@@ -25,7 +26,7 @@ export function VisualSettingsPanel(){
   const {settings,loading,applyLocal,refresh}=useVisualTheme();
   const [tab,setTab]=useState<Tab>('interfaces'); const [scope,setScope]=useState<VisualInterfaceScope>('login_student');
   const [draft,setDraft]=useState<VisualSettingsDraft>(resolveVisualSettings(settings,'login_student')); const [saved,setSaved]=useState<VisualSettingsDraft>(resolveVisualSettings(settings,'login_student'));
-  const [saving,setSaving]=useState(false); const [uploading,setUploading]=useState<string|null>(null); const iframeRef=useRef<HTMLIFrameElement|null>(null);
+  const [saving,setSaving]=useState(false); const [uploading,setUploading]=useState<string|null>(null);
   const globalBase=useMemo(()=>({...settings,interface_overrides:settings.interface_overrides}),[settings]);
   useEffect(()=>{const next=resolveVisualSettings(settings,scope);setDraft(next);setSaved(next)},[settings,scope]);
   const dirty=JSON.stringify(draft)!==JSON.stringify(saved); const contrast=contrastRatio(draft.text_color,draft.background_color);
@@ -33,8 +34,6 @@ export function VisualSettingsPanel(){
   const loginRole=scope.startsWith('login_')?scope.replace('login_',''):null;
   const basePreviewPath=scope.startsWith('login_')?`/login?preview_role=${loginRole}`:(scopes.find(s=>s[0]===scope)?.[2]??'/login');
   const previewPath=`${basePreviewPath}${basePreviewPath.includes('?')?'&':'?'}visual_preview=1&visual_preview_scope=${scope}`;
-  const postPreview=()=>{const frame=iframeRef.current;if(frame?.contentWindow)frame.contentWindow.postMessage({type:'quickbite-visual-preview',settings:draft},window.location.origin)};
-  useEffect(()=>{postPreview()},[draft]);
   const selectScope=(next:VisualInterfaceScope)=>{setScope(next);setTab('interfaces')};
   const save=async()=>{if(!isHexColor(draft.primary_color)||!isHexColor(draft.background_color)||!isHexColor(draft.text_color)){toast.error('Revisa los colores antes de guardar.');return}if(contrast<3){toast.error('El contraste mínimo permitido es 3:1.');return}setSaving(true);try{const overrides={...(settings.interface_overrides??{})};overrides[scope]=pickEditable(draft);const next={...globalBase,interface_overrides:overrides};const result=await saveVisualSettings(next);applyLocal(result);const effective=resolveVisualSettings(result,scope);setDraft(effective);setSaved(effective);toast.success(`Cambios guardados para ${scopes.find(s=>s[0]===scope)?.[1]}.`)}catch(e){toast.error(e instanceof Error?e.message:'No se pudieron guardar los cambios')}finally{setSaving(false)}};
   const reset=async()=>{if(!window.confirm('¿Restablecer toda la personalización visual?'))return;setSaving(true);try{const result=await resetVisualSettings();applyLocal(result);const effective=resolveVisualSettings(result,scope);setDraft(effective);setSaved(effective);await refresh();toast.success('Apariencia restablecida.')}catch(e){toast.error(e instanceof Error?e.message:'No se pudo restablecer.')}finally{setSaving(false)}};
@@ -50,7 +49,7 @@ export function VisualSettingsPanel(){
         {tab==='type'&&<div className="space-y-5"><div><h2 className="text-lg font-black text-slate-900">Tipografía y densidad</h2></div><div className="grid gap-4 md:grid-cols-2">{select('Fuente general',draft.font_family,[['Nunito','Nunito'],['Inter','Inter'],['Poppins','Poppins'],['Roboto','Roboto'],['system-ui','System UI']],v=>patch('font_family',v as never))}{select('Fuente de títulos',draft.heading_font,[['Nunito','Nunito'],['Inter','Inter'],['Poppins','Poppins'],['Roboto','Roboto'],['system-ui','System UI']],v=>patch('heading_font',v as never))}{select('Tema',draft.theme_mode,options.theme,v=>patch('theme_mode',v as never))}{select('Densidad',draft.density,options.density,v=>patch('density',v as never))}</div></div>}
         {tab==='components'&&<div className="space-y-5"><div><h2 className="text-lg font-black text-slate-900">Botones, tarjetas, formularios y navegación</h2><p className="mt-1 text-sm text-slate-500">Estos controles modifican componentes reales mediante tokens seguros.</p></div><div className="grid gap-4 md:grid-cols-2">{select('Estilo de botones',draft.button_style,options.button,v=>patch('button_style',v as never))}{select('Radio de botones',draft.button_radius,options.radius,v=>patch('button_radius',v as never))}{select('Estilo de tarjetas',draft.card_style,options.card,v=>patch('card_style',v as never))}{select('Radio de tarjetas',draft.card_radius,options.radius,v=>patch('card_radius',v as never))}{select('Estilo de inputs',draft.input_style,options.input,v=>patch('input_style',v as never))}{select('Radio general',draft.border_radius,options.radius,v=>patch('border_radius',v as never))}{select('Sombras',draft.shadow_style,options.shadow,v=>patch('shadow_style',v as never))}{select('Encabezado',draft.header_style,options.header,v=>patch('header_style',v as never))}{select('Navegación',draft.navigation_style,options.navigation,v=>patch('navigation_style',v as never))}</div></div>}
       </div></div>
-      <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-900 shadow-xl"><div className="flex flex-col gap-3 border-b border-white/10 bg-slate-950 p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-blue-300"><Eye className="h-4 w-4"/>Vista previa real</div><p className="mt-1 text-sm font-bold text-white">{scopes.find(s=>s[0]===scope)?.[1]}</p></div><div className="flex items-center gap-2 text-xs text-slate-400"><Monitor className="h-4 w-4"/>Aplicación real</div></div><div className="bg-slate-200 p-3"><div className="overflow-hidden rounded-2xl bg-white shadow-2xl"style={{height:'min(72vh,760px)'}}><iframe ref={iframeRef}title="Vista previa real de QuickBite"src={previewPath}onLoad={postPreview}className="h-full w-full border-0"/></div></div><div className="border-t border-white/10 bg-slate-950 px-4 py-3 text-xs leading-5 text-slate-400">La vista previa usa una sesión visual aislada y no restaura la sesión de tu navegador ni modifica tu cuenta real.</div></div>
+      <PreviewStudio scope={scope} previewPath={previewPath} draft={draft} saved={saved} />
     </div>
     {loading&&<div className="text-xs font-bold text-slate-500">Cargando configuración visual…</div>}
   </div>;
