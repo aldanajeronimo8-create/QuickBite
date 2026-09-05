@@ -23,6 +23,7 @@ type GuideStyle = {
   palettes: GuidePalette[];
 };
 
+const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
 const scopes: Array<[VisualInterfaceScope, string, string, string]> = [
   ['login_student', 'Inicio de sesión del estudiante', 'La pantalla donde el estudiante escribe su correo y contraseña.', 'Acceso del estudiante'],
   ['login_parent', 'Inicio de sesión de padres', 'La pantalla de acceso para padres y acudientes.', 'Acceso de padres'],
@@ -52,7 +53,7 @@ const styles: GuideStyle[] = [
     visualDescription: 'Más color, tarjetas elevadas, botones redondeados y una sensación cálida y accesible.',
     card: 'elevated', button: 'solid', shadow: 'normal', radius: 'large', density: 'normal', header: 'standard', navigation: 'solid', input: 'outlined',
     palettes: [
-      { id: 'friendly-green', name: 'Verde QuickBite', description: 'El verde toma el protagonismo y el azul acompaña.', primary: '#16A36A', secondary: '#2563EB', accent: '#FBBF24', background: '#F2FBF6', surface: '#FFFFFF' },
+      { id: 'friendly-green', name: 'Verde QuickBite', description: 'El verde toma el protagonismo y el azul acompaña.', primary: '#16A36A', secondary: '#2563EB', accent: '#2DD4BF', background: '#F2FBF6', surface: '#FFFFFF' },
       { id: 'friendly-turquoise', name: 'Turquesa vital', description: 'Turquesa alegre con verde y azul de apoyo.', primary: '#0F9F8A', secondary: '#16A36A', accent: '#2563EB', background: '#F1FBFA', surface: '#FFFFFF' },
       { id: 'friendly-blue', name: 'Azul juvenil', description: 'Azul vivo equilibrado con verde cafetería.', primary: '#2563EB', secondary: '#16A36A', accent: '#38BDF8', background: '#F3F8FF', surface: '#FFFFFF' },
     ],
@@ -71,9 +72,7 @@ const styles: GuideStyle[] = [
   },
 ];
 
-function getStyle(id: GuideStyleId) {
-  return styles.find((item) => item.id === id) ?? styles[1];
-}
+function getStyle(id: GuideStyleId) { return styles.find((item) => item.id === id) ?? styles[1]; }
 
 function patchFromGuide(current: VisualSettingsDraft, palette: GuidePalette, style: GuideStyle): VisualSettingsDraft {
   return {
@@ -131,9 +130,7 @@ export function GuidedVisualSettings({ onOpenAdvanced }: { onOpenAdvanced: () =>
   const previewPath = useMemo(() => buildPreviewPath(scope), [scope]);
   const selectedScope = useMemo(() => scopes.find(([id]) => id === scope), [scope]);
 
-  useEffect(() => {
-    setDraft(resolveVisualSettings(settings, scope));
-  }, [settings, scope]);
+  useEffect(() => { setDraft(resolveVisualSettings(settings, scope)); }, [settings, scope]);
 
   const chooseStyle = (nextStyleId: GuideStyleId) => {
     const nextStyle = getStyle(nextStyleId);
@@ -142,10 +139,9 @@ export function GuidedVisualSettings({ onOpenAdvanced }: { onOpenAdvanced: () =>
   };
 
   const postPreview = () => {
+    try { window.localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(generated)); } catch { /* preview still falls back to postMessage */ }
     const frame = iframeRef.current;
-    if (frame?.contentWindow) {
-      frame.contentWindow.postMessage({ type: 'quickbite-visual-preview', settings: generated }, window.location.origin);
-    }
+    if (frame?.contentWindow) frame.contentWindow.postMessage({ type: 'quickbite-visual-preview', settings: generated }, window.location.origin);
   };
 
   useEffect(() => {
@@ -165,9 +161,7 @@ export function GuidedVisualSettings({ onOpenAdvanced }: { onOpenAdvanced: () =>
       toast.success(`Personalización guardada para ${selectedScope?.[1] ?? 'la interfaz seleccionada'}.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo guardar la personalización.');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const labels = ['Interfaz', 'Estilo', 'Colores', 'Revisión', 'Listo'];
