@@ -5,37 +5,22 @@
   --qb-font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
   --qb-heading-font: "Nunito", ui-sans-serif, system-ui, sans-serif;
 }
-
-body {
-  font-family: var(--qb-font-family);
-  background: var(--qb-background);
-  color: var(--qb-text);
-}
-
-h1,
-h2,
-h3,
-h4 {
-  font-family: var(--qb-heading-font);
-}
-
-.qb-theme-card {
-  border-radius: var(--qb-card-radius);
-  box-shadow: var(--qb-shadow);
-  border-color: var(--qb-border);
-}
-
-.qb-theme-button {
-  border-radius: var(--qb-button-radius);
-}
-
-.qb-theme-input {
-  min-height: var(--qb-control-height);
-  border-radius: var(--qb-button-radius);
-  border-color: var(--qb-border);
-}
-
-[data-qb-preview] button,
-[data-qb-preview] input {
-  font-family: var(--qb-font-family);
-}
+body { font-family: var(--qb-font-family); background: var(--qb-background); color: var(--qb-text); }
+h1,h2,h3,h4 { font-family: var(--qb-heading-font); }
+button:not([data-qb-preserve-style]), [role="button"]:not([data-qb-preserve-style]) { border-radius: var(--qb-button-radius); box-shadow: var(--qb-shadow); transition: filter 160ms ease, transform 160ms ease, background-color 160ms ease, border-color 160ms ease; }
+:root[data-qb-button-style="solid"] button:not([data-qb-preserve-style]), :root[data-qb-button-style="solid"] [role="button"]:not([data-qb-preserve-style]) { background: var(--qb-primary) !important; border-color: var(--qb-primary) !important; color: #fff !important; }
+:root[data-qb-button-style="soft"] button:not([data-qb-preserve-style]), :root[data-qb-button-style="soft"] [role="button"]:not([data-qb-preserve-style]) { background: color-mix(in srgb, var(--qb-primary) 12%, transparent) !important; border-color: color-mix(in srgb, var(--qb-primary) 25%, transparent) !important; color: var(--qb-primary) !important; }
+:root[data-qb-button-style="outline"] button:not([data-qb-preserve-style]), :root[data-qb-button-style="outline"] [role="button"]:not([data-qb-preserve-style]) { background: transparent !important; border: 1px solid var(--qb-primary) !important; color: var(--qb-primary) !important; }
+:root[data-qb-button-style="ghost"] button:not([data-qb-preserve-style]), :root[data-qb-button-style="ghost"] [role="button"]:not([data-qb-preserve-style]) { background: transparent !important; border-color: transparent !important; box-shadow: none !important; color: var(--qb-primary) !important; }
+input:not([data-qb-preserve-style]), select:not([data-qb-preserve-style]), textarea:not([data-qb-preserve-style]) { min-height: var(--qb-control-height); border-radius: var(--qb-button-radius); border-color: var(--qb-border); font-family: var(--qb-font-family); }
+:root[data-qb-input-style="soft"] input:not([data-qb-preserve-style]), :root[data-qb-input-style="soft"] select:not([data-qb-preserve-style]), :root[data-qb-input-style="soft"] textarea:not([data-qb-preserve-style]) { background: color-mix(in srgb, var(--qb-primary) 6%, var(--qb-surface)) !important; border-color: color-mix(in srgb, var(--qb-primary) 18%, transparent) !important; }
+:root[data-qb-input-style="filled"] input:not([data-qb-preserve-style]), :root[data-qb-input-style="filled"] select:not([data-qb-preserve-style]), :root[data-qb-input-style="filled"] textarea:not([data-qb-preserve-style]) { background: var(--qb-surface) !important; border-color: transparent !important; }
+header:not([data-qb-preserve-style]) { box-shadow: var(--qb-shadow); }
+nav:not([data-qb-preserve-style]) { border-color: var(--qb-border); }
+:root[data-qb-navigation-style="glass"] nav:not([data-qb-preserve-style]) { background: color-mix(in srgb, var(--qb-surface) 72%, transparent) !important; backdrop-filter: blur(14px); }
+:root[data-qb-navigation-style="soft"] nav:not([data-qb-preserve-style]) { background: color-mix(in srgb, var(--qb-primary) 7%, var(--qb-surface)) !important; }
+:root[data-qb-navigation-style="solid"] nav:not([data-qb-preserve-style]) { background: var(--qb-surface) !important; }
+.qb-theme-card { border-radius: var(--qb-card-radius); box-shadow: var(--qb-shadow); border-color: var(--qb-border); }
+.qb-theme-button { border-radius: var(--qb-button-radius); }
+.qb-theme-input { min-height: var(--qb-control-height); border-radius: var(--qb-button-radius); border-color: var(--qb-border); }
+[data-qb-preview] button,[data-qb-preview] input { font-family: var(--qb-font-family); }
