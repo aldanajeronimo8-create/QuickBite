@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
 import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
+import { VisualThemeProvider } from './contexts/VisualThemeProvider';
 
 function SessionRestorer() {
   useEffect(() => {
@@ -73,7 +74,7 @@ function App() {
     return () => cleanupRealtime();
   }, [hasSupabase, subscribeRealtime, user]);
 
-  return <><ErrorBoundary>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><SessionRestorer /></>}</ErrorBoundary><Toaster position="top-center" /></>;
+  return <VisualThemeProvider><ErrorBoundary>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><SessionRestorer /></>}</ErrorBoundary><Toaster position="top-center" /></VisualThemeProvider>;
 }
 
 export default App;
