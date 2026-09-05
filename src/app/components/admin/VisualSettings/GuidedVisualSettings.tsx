@@ -42,9 +42,9 @@ const styles: GuideStyle[] = [
     visualDescription: 'Mucho espacio, superficies claras, bordes suaves y una jerarquía muy limpia.',
     card: 'flat', button: 'solid', shadow: 'subtle', radius: 'small', density: 'comfortable', header: 'minimal', navigation: 'soft', input: 'soft',
     palettes: [
-      { id: 'minimal-sky', name: 'Azul aire', description: 'Azul fresco con turquesa para una interfaz muy limpia.', primary: '#2563EB', secondary: '#0EA5E9', accent: '#14B8A6', background: '#F6FAFF', surface: '#FFFFFF' },
-      { id: 'minimal-mint', name: 'Menta fresca', description: 'Verde claro y turquesa con sensación ligera.', primary: '#16A36A', secondary: '#0F766E', accent: '#2DD4BF', background: '#F4FBF7', surface: '#FFFFFF' },
-      { id: 'minimal-navy', name: 'Azul sobrio', description: 'Azul profundo con acentos verdes muy discretos.', primary: '#1747B8', secondary: '#1D4ED8', accent: '#22C55E', background: '#F7F9FC', surface: '#FFFFFF' },
+      { id: 'minimal-sky', name: 'Azul aire', description: 'Azul fresco con turquesa para una interfaz muy limpia.', primary: '#2563EB', secondary: '#E0ECFF', accent: '#14B8A6', background: '#F5F8F7', surface: '#FFFFFF' },
+      { id: 'minimal-mint', name: 'Menta fresca', description: 'Verde claro y turquesa con sensación ligera.', primary: '#16A36A', secondary: '#DDF7EB', accent: '#14B8A6', background: '#F5F8F7', surface: '#FFFFFF' },
+      { id: 'minimal-navy', name: 'Azul sobrio', description: 'Azul profundo con acentos verdes muy discretos.', primary: '#1747B8', secondary: '#E0ECFF', accent: '#16A36A', background: '#F5F8F7', surface: '#FFFFFF' },
     ],
   },
   {
@@ -54,9 +54,9 @@ const styles: GuideStyle[] = [
     visualDescription: 'Más color, tarjetas elevadas, botones redondeados y una sensación cálida y accesible.',
     card: 'elevated', button: 'solid', shadow: 'normal', radius: 'large', density: 'normal', header: 'standard', navigation: 'solid', input: 'outlined',
     palettes: [
-      { id: 'friendly-green', name: 'Verde QuickBite', description: 'El verde toma el protagonismo y el azul acompaña.', primary: '#16A36A', secondary: '#2563EB', accent: '#2DD4BF', background: '#F2FBF6', surface: '#FFFFFF' },
-      { id: 'friendly-turquoise', name: 'Turquesa vital', description: 'Turquesa alegre con verde y azul de apoyo.', primary: '#0F9F8A', secondary: '#16A36A', accent: '#2563EB', background: '#F1FBFA', surface: '#FFFFFF' },
-      { id: 'friendly-blue', name: 'Azul juvenil', description: 'Azul vivo equilibrado con verde cafetería.', primary: '#2563EB', secondary: '#16A36A', accent: '#38BDF8', background: '#F3F8FF', surface: '#FFFFFF' },
+      { id: 'friendly-green', name: 'Verde QuickBite', description: 'El verde toma el protagonismo y el azul acompaña.', primary: '#16A36A', secondary: '#2563EB', accent: '#14B8A6', background: '#F5F8F7', surface: '#FFFFFF' },
+      { id: 'friendly-turquoise', name: 'Turquesa vital', description: 'Turquesa alegre con verde y azul de apoyo.', primary: '#14B8A6', secondary: '#16A36A', accent: '#2563EB', background: '#F5F8F7', surface: '#FFFFFF' },
+      { id: 'friendly-blue', name: 'Azul juvenil', description: 'Azul vivo equilibrado con verde cafetería.', primary: '#2563EB', secondary: '#16A36A', accent: '#14B8A6', background: '#F5F8F7', surface: '#FFFFFF' },
     ],
   },
   {
@@ -66,9 +66,9 @@ const styles: GuideStyle[] = [
     visualDescription: 'Contraste más firme, bordes definidos y una lectura visual más institucional.',
     card: 'outlined', button: 'solid', shadow: 'subtle', radius: 'medium', density: 'normal', header: 'prominent', navigation: 'soft', input: 'outlined',
     palettes: [
-      { id: 'pro-navy', name: 'Institucional', description: 'Azul profundo con verde como señal de acción.', primary: '#1747B8', secondary: '#0F3B82', accent: '#16A36A', background: '#F5F8FC', surface: '#FFFFFF' },
-      { id: 'pro-emerald', name: 'Esmeralda', description: 'Verde serio con azul para confianza y tecnología.', primary: '#087F5B', secondary: '#1747B8', accent: '#14B8A6', background: '#F4F9F7', surface: '#FFFFFF' },
-      { id: 'pro-bluegreen', name: 'Azul ejecutivo', description: 'Azul dominante, verde controlado y turquesa puntual.', primary: '#1D4ED8', secondary: '#14532D', accent: '#0F9F8A', background: '#F6F8FC', surface: '#FFFFFF' },
+      { id: 'pro-navy', name: 'Institucional', description: 'Azul profundo con verde como señal de acción.', primary: '#1747B8', secondary: '#E0ECFF', accent: '#16A36A', background: '#F5F8F7', surface: '#FFFFFF' },
+      { id: 'pro-emerald', name: 'Esmeralda', description: 'Verde serio con azul para confianza y tecnología.', primary: '#087A50', secondary: '#1747B8', accent: '#14B8A6', background: '#F5F8F7', surface: '#FFFFFF' },
+      { id: 'pro-bluegreen', name: 'Azul ejecutivo', description: 'Azul dominante, verde controlado y turquesa puntual.', primary: '#2563EB', secondary: '#DDF7EB', accent: '#14B8A6', background: '#F5F8F7', surface: '#FFFFFF' },
     ],
   },
 ];
@@ -84,8 +84,8 @@ function patchFromGuide(current: VisualSettingsDraft, palette: GuidePalette, sty
     background_color: palette.background,
     surface_color: palette.surface,
     text_color: '#0F172A',
-    muted_text_color: '#64748B',
-    border_color: '#D9E2EC',
+    muted_text_color: '#475569',
+    border_color: '#E2E8F0',
     success_color: '#16A36A',
     warning_color: '#D97706',
     danger_color: '#DC2626',
@@ -131,12 +131,22 @@ export function GuidedVisualSettings({ onOpenAdvanced }: { onOpenAdvanced: () =>
   const previewPath = useMemo(() => buildPreviewPath(scope), [scope]);
   const selectedScope = useMemo(() => scopes.find(([id]) => id === scope), [scope]);
 
-  useEffect(() => { setDraft(resolveVisualSettings(settings, scope)); }, [settings, scope]);
+  useEffect(() => {
+    const resolved = resolveVisualSettings(settings, scope);
+    setDraft(resolved);
+  }, [settings, scope]);
 
   const chooseStyle = (nextStyleId: GuideStyleId) => {
     const nextStyle = getStyle(nextStyleId);
+    const nextPalette = nextStyle.palettes[0];
     setStyleId(nextStyleId);
-    setPaletteId(nextStyle.palettes[0].id);
+    setPaletteId(nextPalette.id);
+    setDraft((current) => patchFromGuide(current, nextPalette, nextStyle));
+  };
+
+  const choosePalette = (nextPalette: GuidePalette) => {
+    setPaletteId(nextPalette.id);
+    setDraft((current) => patchFromGuide(current, nextPalette, style));
   };
 
   const persistPreview = () => {
@@ -251,7 +261,7 @@ export function GuidedVisualSettings({ onOpenAdvanced }: { onOpenAdvanced: () =>
               <div className="grid gap-3 md:grid-cols-3">
                 {styles.map((item) => (
                   <button key={item.id} type="button" onClick={() => chooseStyle(item.id)} className={`rounded-2xl border p-5 text-left transition ${styleId === item.id ? 'border-blue-400 bg-blue-50 shadow-md' : 'border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm'}`}>
-                    <div className="mb-4 flex items-center justify-between gap-3"><div className="flex items-center gap-2"><span className={`size-4 rounded-full ${item.id === 'minimal' ? 'bg-sky-500' : item.id === 'friendly' ? 'bg-emerald-500' : 'bg-blue-800'}`} /><span className="font-black text-slate-900">{item.name}</span></div><span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-slate-500 shadow-sm">{item.palettes.length} paletas</span></div>
+                    <div className="mb-4 flex items-center justify-between gap-3"><div className="flex items-center gap-2"><span className={`size-4 rounded-full ${item.id === 'minimal' ? 'bg-blue-600' : item.id === 'friendly' ? 'bg-green-600' : 'bg-blue-800'}`} /><span className="font-black text-slate-900">{item.name}</span></div><span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-slate-500 shadow-sm">{item.palettes.length} paletas</span></div>
                     <p className="text-xs font-bold leading-5 text-slate-700">{item.description}</p>
                     <p className="mt-2 text-xs leading-5 text-slate-500">{item.visualDescription}</p>
                     <div className="mt-5 flex gap-2"><span className="px-3 py-2 text-[11px] font-black text-white" style={{ background: item.id === 'minimal' ? '#2563EB' : item.id === 'friendly' ? '#16A36A' : '#1747B8', borderRadius: item.id === 'minimal' ? '0.375rem' : item.id === 'friendly' ? '1rem' : '0.75rem', boxShadow: item.id === 'friendly' ? '0 8px 24px rgba(15,23,42,.10)' : 'none' }}>Botón</span><span className="grid place-items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-700">Tarjeta</span></div>
@@ -267,7 +277,7 @@ export function GuidedVisualSettings({ onOpenAdvanced }: { onOpenAdvanced: () =>
               <div className="flex items-start gap-3"><Palette className="mt-0.5 size-5 text-emerald-600" /><div><h3 className="text-xl font-black text-slate-900">Colores para el estilo {style.name}</h3><p className="mt-1 text-sm leading-6 text-slate-500">Estas paletas son exclusivas de este estilo. Cada una cambia realmente el color principal, secundario, acento y fondo.</p></div></div>
               <div className="grid gap-3 md:grid-cols-3">
                 {style.palettes.map((item) => (
-                  <button key={item.id} type="button" onClick={() => setPaletteId(item.id)} className={`rounded-2xl border p-4 text-left transition ${paletteId === item.id ? 'border-emerald-400 bg-emerald-50 shadow-md' : 'border-slate-200 bg-white hover:border-emerald-200 hover:shadow-sm'}`}>
+                  <button key={item.id} type="button" onClick={() => choosePalette(item)} className={`rounded-2xl border p-4 text-left transition ${paletteId === item.id ? 'border-emerald-400 bg-emerald-50 shadow-md' : 'border-slate-200 bg-white hover:border-emerald-200 hover:shadow-sm'}`}>
                     <div className="flex items-start justify-between gap-3"><div><p className="font-black text-slate-900">{item.name}</p><p className="mt-1 text-xs leading-5 text-slate-600">{item.description}</p></div><div className="flex shrink-0 gap-1">{[item.primary, item.secondary, item.accent].map((color) => <span key={color} className="size-8 rounded-full ring-2 ring-white shadow-sm" style={{ backgroundColor: color }} />)}</div></div>
                     <div className="mt-4 h-2.5 rounded-full" style={{ background: `linear-gradient(90deg, ${item.primary}, ${item.secondary}, ${item.accent})` }} />
                     <div className="mt-3 rounded-xl border border-white bg-white/80 px-3 py-2 text-[10px] font-bold text-slate-500"><span style={{ color: item.primary }}>Principal</span> · <span style={{ color: item.secondary }}>Secundario</span> · <span style={{ color: item.accent }}>Acento</span></div>
