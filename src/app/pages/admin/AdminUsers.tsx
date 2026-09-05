@@ -105,10 +105,10 @@ export function AdminUsers() {
         if (protectedOriginalEmail) setProtectedEmails((current) => { const next = new Set(current); next.delete(protectedOriginalEmail); next.add(email); return next; });
         toast.success('Credenciales de la cuenta protegida actualizadas en Supabase');
       } else if (form.id) {
-        await updateUser({ id: form.id, email, full_name: fullName, role: form.role, ti: needsTi(form.role) ? ti : '', password: password || undefined, student_code: studentCode || undefined, relationship: form.relationship || undefined });
+        await updateUser({ id: form.id, email, full_name: fullName, role: form.role, ti: needsTi(form.role) ? ti : '', password: password || undefined, student_code: studentCode || undefined, relationship: form.relationship || undefined } as any);
         toast.success('Usuario actualizado en Supabase');
       } else {
-        await addUser({ email, password, full_name: fullName, role: form.role, ti: needsTi(form.role) ? ti : '', student_code: studentCode || undefined, relationship: needsStudentCode(form.role) ? form.relationship : undefined });
+        await addUser({ email, password, full_name: fullName, role: form.role, ti: needsTi(form.role) ? ti : '', student_code: studentCode || undefined, relationship: needsStudentCode(form.role) ? form.relationship : undefined } as any);
         toast.success('Usuario creado en Supabase');
       }
       closeModal(); await loadConsents();
