@@ -7,12 +7,23 @@ import { DEFAULT_VISUAL_SETTINGS, getVisualCssVariables, resolveVisualSettings, 
 type VisualThemeContextValue = { settings: VisualSettings; loading: boolean; error: string | null; refresh: () => Promise<void>; applyLocal: (draft: VisualSettingsDraft) => void; };
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const VALID_SCOPES: VisualInterfaceScope[] = ['login_student','login_parent','login_admin','admin','student','parent'];
+const ADMIN_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: '#E0ECFF', accentForeground: '#1747B8', border: 'rgba(255,255,255,0.12)', ring: '#2563EB' };
+const DEFAULT_SIDEBAR = { sidebar: '#F8FAFC', foreground: '#0F172A', primary: '#030213', primaryForeground: '#FFFFFF', accent: '#F1F5F9', accentForeground: '#0F172A', border: '#E2E8F0', ring: '#94A3B8' };
+
+export function getVisualPreviewScope(): VisualInterfaceScope | null {
+  if (typeof window === 'undefined') return null;
+  const value = new URLSearchParams(window.location.search).get('visual_preview_scope');
+  return value && VALID_SCOPES.includes(value as VisualInterfaceScope) ? value as VisualInterfaceScope : null;
+}
+
+export function isVisualPreviewMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('visual_preview') === '1' && Boolean(getVisualPreviewScope());
+}
 
 export function getVisualInterfaceScope(): VisualInterfaceScope {
-  if (typeof window !== 'undefined') {
-    const previewScope = new URLSearchParams(window.location.search).get('visual_preview_scope');
-    if (previewScope && VALID_SCOPES.includes(previewScope as VisualInterfaceScope)) return previewScope as VisualInterfaceScope;
-  }
+  const previewScope = getVisualPreviewScope();
+  if (previewScope) return previewScope;
   if (typeof document !== 'undefined') {
     const explicit = document.querySelector<HTMLElement>('[data-qb-interface]')?.dataset.qbInterface;
     if (explicit && VALID_SCOPES.includes(explicit as VisualInterfaceScope)) return explicit as VisualInterfaceScope;
@@ -30,14 +41,23 @@ export function getVisualInterfaceScope(): VisualInterfaceScope {
   return 'student';
 }
 
-function applyDocumentTheme(settings: VisualSettings) {
+function applyDocumentTheme(settings: VisualSettings, scope: VisualInterfaceScope) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   Object.entries(getVisualCssVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value));
+  const sidebar = scope === 'admin' ? ADMIN_SIDEBAR : DEFAULT_SIDEBAR;
   root.style.setProperty('--qb-header-style', settings.header_style);
   root.style.setProperty('--qb-navigation-style', settings.navigation_style);
   root.style.setProperty('--qb-card-style', settings.card_style);
   root.style.setProperty('--qb-input-style', settings.input_style);
+  root.style.setProperty('--sidebar', sidebar.sidebar);
+  root.style.setProperty('--sidebar-foreground', sidebar.foreground);
+  root.style.setProperty('--sidebar-primary', sidebar.primary);
+  root.style.setProperty('--sidebar-primary-foreground', sidebar.primaryForeground);
+  root.style.setProperty('--sidebar-accent', sidebar.accent);
+  root.style.setProperty('--sidebar-accent-foreground', sidebar.accentForeground);
+  root.style.setProperty('--sidebar-border', sidebar.border);
+  root.style.setProperty('--sidebar-ring', sidebar.ring);
   root.dataset.qbTheme = settings.theme_mode;
   root.dataset.qbButtonStyle = settings.button_style;
   root.dataset.qbCardStyle = settings.card_style;
@@ -56,9 +76,7 @@ function applyDocumentTheme(settings: VisualSettings) {
   link.href = settings.favicon_url || '/favicon.ico';
 }
 
-function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings {
-  return { ...draft, id: true, updated_at: previous.updated_at, updated_by: previous.updated_by };
-}
+function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings { return { ...draft, id: true, updated_at: previous.updated_at, updated_by: previous.updated_by }; }
 
 export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<VisualSettings>({ ...DEFAULT_VISUAL_SETTINGS, id: true, updated_at: new Date(0).toISOString(), updated_by: null });
@@ -70,15 +88,9 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     if (!hasSupabaseConfig()) return;
     setLoading(true);
-    try {
-      const next = await loadVisualSettings();
-      setSettings(next);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cargar la configuración visual.');
-    } finally {
-      setLoading(false);
-    }
+    try { const next = await loadVisualSettings(); setSettings(next); setError(null); }
+    catch (err) { setError(err instanceof Error ? err.message : 'No se pudo cargar la configuración visual.'); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -92,7 +104,7 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const effectiveSettings = useMemo(() => preview ?? resolveVisualSettings(settings, scope), [preview, settings, scope]);
-  useEffect(() => { applyDocumentTheme(effectiveSettings); }, [effectiveSettings]);
+  useEffect(() => { applyDocumentTheme(effectiveSettings, scope); }, [effectiveSettings, scope]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
