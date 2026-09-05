@@ -8,6 +8,23 @@ type VisualThemeContextValue = { settings: VisualSettings; loading: boolean; err
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const VALID_SCOPES: VisualInterfaceScope[] = ['login_student','login_parent','login_admin','admin','student','parent'];
 const PRODUCTION_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: 'rgba(255,255,255,0.12)', accentForeground: '#FFFFFF', border: 'rgba(255,255,255,0.12)', ring: '#E0ECFF' };
+const PRODUCTION_ADMIN_THEME: VisualSettingsDraft = {
+  ...DEFAULT_VISUAL_SETTINGS,
+  primary_color: '#16A36A',
+  secondary_color: '#E0ECFF',
+  accent_color: '#14B8A6',
+  background_color: '#F5F8F7',
+  surface_color: '#FFFFFF',
+  text_color: '#0F172A',
+  muted_text_color: '#475569',
+  border_color: '#E2E8F0',
+  success_color: '#16A36A',
+  warning_color: '#D97706',
+  danger_color: '#DC2626',
+  font_family: 'Nunito',
+  heading_font: 'Nunito',
+  theme_mode: 'light',
+};
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
 
 function getPathScope(pathname: string, search: string): VisualInterfaceScope | null {
@@ -58,7 +75,7 @@ export function getVisualInterfaceScope(): VisualInterfaceScope {
   return 'student';
 }
 
-function applyDocumentTheme(settings: VisualSettings, scope: VisualInterfaceScope, active: boolean) {
+function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfaceScope, active: boolean) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   Object.entries(getVisualCssVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value));
@@ -130,7 +147,15 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     return () => observer.disconnect();
   }, []);
 
-  const effectiveSettings = useMemo(() => preview ?? resolveVisualSettings(settings, scope), [preview, settings, scope]);
+  const effectiveSettings = useMemo(() => {
+    if (preview) return preview;
+    // The real Admin interface keeps the production palette from fe8444a.
+    // Guided customization still works inside the dedicated preview iframe,
+    // where `preview` is present, without tinting the live Admin shell.
+    if (scope === 'admin' && !isVisualPreviewMode()) return PRODUCTION_ADMIN_THEME;
+    return resolveVisualSettings(settings, scope);
+  }, [preview, settings, scope]);
+
   useEffect(() => {
     const storedOverride = settings.interface_overrides?.[scope];
     const active = Boolean(preview) || isVisualPreviewMode() || Boolean(storedOverride && Object.keys(storedOverride).length);
