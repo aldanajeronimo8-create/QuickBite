@@ -58,11 +58,23 @@ export function getVisualInterfaceScope(): VisualInterfaceScope {
   return 'student';
 }
 
-function applyDocumentTheme(settings: VisualSettings, scope: VisualInterfaceScope) {
+function applyDocumentTheme(settings: VisualSettings, scope: VisualInterfaceScope, active: boolean) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   Object.entries(getVisualCssVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value));
-  Object.entries(PRODUCTION_SIDEBAR).forEach(([name, value]) => root.style.setProperty(`--${name}`, value));
+
+  // Keep the production sidebar palette isolated. Never map these values to
+  // --primary/--foreground/--accent/etc., because those variables belong to
+  // the main application and would tint unrelated text and controls.
+  root.style.setProperty('--sidebar', PRODUCTION_SIDEBAR.sidebar);
+  root.style.setProperty('--sidebar-foreground', PRODUCTION_SIDEBAR.foreground);
+  root.style.setProperty('--sidebar-primary', PRODUCTION_SIDEBAR.primary);
+  root.style.setProperty('--sidebar-primary-foreground', PRODUCTION_SIDEBAR.primaryForeground);
+  root.style.setProperty('--sidebar-accent', PRODUCTION_SIDEBAR.accent);
+  root.style.setProperty('--sidebar-accent-foreground', PRODUCTION_SIDEBAR.accentForeground);
+  root.style.setProperty('--sidebar-border', PRODUCTION_SIDEBAR.border);
+  root.style.setProperty('--sidebar-ring', PRODUCTION_SIDEBAR.ring);
+
   root.style.setProperty('--qb-header-style', settings.header_style);
   root.style.setProperty('--qb-navigation-style', settings.navigation_style);
   root.style.setProperty('--qb-card-style', settings.card_style);
@@ -75,6 +87,7 @@ function applyDocumentTheme(settings: VisualSettings, scope: VisualInterfaceScop
   root.dataset.qbNavigationStyle = settings.navigation_style;
   root.dataset.qbVisualPreview = isVisualPreviewMode() ? '1' : '0';
   root.dataset.qbVisualPreviewScope = scope;
+  root.dataset.qbVisualActive = active ? '1' : '0';
   root.classList.toggle('dark', settings.theme_mode === 'dark');
   document.title = settings.app_name;
   let link = document.querySelector<HTMLLinkElement>('link[data-quickbite-favicon]');
@@ -118,7 +131,11 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const effectiveSettings = useMemo(() => preview ?? resolveVisualSettings(settings, scope), [preview, settings, scope]);
-  useEffect(() => { applyDocumentTheme(effectiveSettings, scope); }, [effectiveSettings, scope]);
+  useEffect(() => {
+    const storedOverride = settings.interface_overrides?.[scope];
+    const active = Boolean(preview) || isVisualPreviewMode() || Boolean(storedOverride && Object.keys(storedOverride).length);
+    applyDocumentTheme(effectiveSettings, scope, active);
+  }, [effectiveSettings, preview, scope, settings.interface_overrides]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
