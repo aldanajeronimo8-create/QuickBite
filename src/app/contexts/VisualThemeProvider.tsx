@@ -2,13 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { hasSupabaseConfig } from '../../config/appConfig';
 import { requireSupabaseClient } from '../../lib/supabase';
 import { loadVisualSettings } from '../../services/visualSettingsService';
-import { DEFAULT_VISUAL_SETTINGS, getVisualCssVariables, resolveVisualSettings, type VisualInterfaceScope, type VisualSettings, type VisualSettingsDraft } from '../../types/visualSettings';
+import { DEFAULT_VISUAL_SETTINGS, getVisualCssVariables, resolveVisualSettings, sanitizeVisualSettings, type VisualInterfaceScope, type VisualSettings, type VisualSettingsDraft } from '../../types/visualSettings';
 
 type VisualThemeContextValue = { settings: VisualSettings; loading: boolean; error: string | null; refresh: () => Promise<void>; applyLocal: (draft: VisualSettingsDraft) => void; };
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const VALID_SCOPES: VisualInterfaceScope[] = ['login_student','login_parent','login_admin','admin','student','parent'];
-const ADMIN_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: '#E0ECFF', accentForeground: '#1747B8', border: 'rgba(255,255,255,0.12)', ring: '#2563EB' };
-const DEFAULT_SIDEBAR = { sidebar: '#F8FAFC', foreground: '#0F172A', primary: '#030213', primaryForeground: '#FFFFFF', accent: '#F1F5F9', accentForeground: '#0F172A', border: '#E2E8F0', ring: '#94A3B8' };
+const PRODUCTION_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: 'rgba(255,255,255,0.12)', accentForeground: '#FFFFFF', border: 'rgba(255,255,255,0.12)', ring: '#E0ECFF' };
+const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
 
 function getPathScope(pathname: string, search: string): VisualInterfaceScope | null {
   const params = new URLSearchParams(search);
@@ -25,9 +25,7 @@ export function getVisualPreviewScope(): VisualInterfaceScope | null {
   const direct = getPathScope(window.location.pathname, window.location.search);
   if (direct) return direct;
   try {
-    if (window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance')) {
-      return getPathScope(window.location.pathname, window.location.search);
-    }
+    if (window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance')) return getPathScope(window.location.pathname, window.location.search);
   } catch { return null; }
   return null;
 }
@@ -36,9 +34,8 @@ export function isVisualPreviewMode(): boolean {
   if (typeof window === 'undefined') return false;
   const params = new URLSearchParams(window.location.search);
   if (params.get('visual_preview') === '1' && Boolean(getVisualPreviewScope())) return true;
-  try {
-    return window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance') && Boolean(getVisualPreviewScope());
-  } catch { return false; }
+  try { return window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance') && Boolean(getVisualPreviewScope()); }
+  catch { return false; }
 }
 
 export function getVisualInterfaceScope(): VisualInterfaceScope {
@@ -65,30 +62,32 @@ function applyDocumentTheme(settings: VisualSettings, scope: VisualInterfaceScop
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   Object.entries(getVisualCssVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value));
-  const sidebar = scope === 'admin' ? ADMIN_SIDEBAR : DEFAULT_SIDEBAR;
+  Object.entries(PRODUCTION_SIDEBAR).forEach(([name, value]) => root.style.setProperty(`--${name}`, value));
   root.style.setProperty('--qb-header-style', settings.header_style);
   root.style.setProperty('--qb-navigation-style', settings.navigation_style);
   root.style.setProperty('--qb-card-style', settings.card_style);
   root.style.setProperty('--qb-input-style', settings.input_style);
-  root.style.setProperty('--sidebar', sidebar.sidebar);
-  root.style.setProperty('--sidebar-foreground', sidebar.foreground);
-  root.style.setProperty('--sidebar-primary', sidebar.primary);
-  root.style.setProperty('--sidebar-primary-foreground', sidebar.primaryForeground);
-  root.style.setProperty('--sidebar-accent', sidebar.accent);
-  root.style.setProperty('--sidebar-accent-foreground', sidebar.accentForeground);
-  root.style.setProperty('--sidebar-border', sidebar.border);
-  root.style.setProperty('--sidebar-ring', sidebar.ring);
   root.dataset.qbTheme = settings.theme_mode;
   root.dataset.qbButtonStyle = settings.button_style;
   root.dataset.qbCardStyle = settings.card_style;
   root.dataset.qbInputStyle = settings.input_style;
   root.dataset.qbHeaderStyle = settings.header_style;
   root.dataset.qbNavigationStyle = settings.navigation_style;
+  root.dataset.qbVisualPreview = isVisualPreviewMode() ? '1' : '0';
+  root.dataset.qbVisualPreviewScope = scope;
   root.classList.toggle('dark', settings.theme_mode === 'dark');
   document.title = settings.app_name;
   let link = document.querySelector<HTMLLinkElement>('link[data-quickbite-favicon]');
   if (!link) { link = document.createElement('link'); link.rel = 'icon'; link.dataset.quickbiteFavicon = 'true'; document.head.appendChild(link); }
   link.href = settings.favicon_url || '/favicon.ico';
+}
+
+function readStoredPreview(): VisualSettingsDraft | null {
+  if (typeof window === 'undefined' || !isVisualPreviewMode()) return null;
+  try {
+    const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
+    return raw ? sanitizeVisualSettings(JSON.parse(raw) as Partial<VisualSettingsDraft>) : null;
+  } catch { return null; }
 }
 
 function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings { return { ...draft, id: true, updated_at: previous.updated_at, updated_by: previous.updated_by }; }
@@ -97,11 +96,11 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<VisualSettings>({ ...DEFAULT_VISUAL_SETTINGS, id: true, updated_at: new Date(0).toISOString(), updated_by: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<VisualSettingsDraft | null>(null);
+  const [preview, setPreview] = useState<VisualSettingsDraft | null>(readStoredPreview);
   const [scope, setScope] = useState<VisualInterfaceScope>(getVisualInterfaceScope);
 
   const refresh = useCallback(async () => {
-    if (!hasSupabaseConfig()) return;
+    if (!hasSupabaseConfig() || isVisualPreviewMode()) return;
     setLoading(true);
     try { const next = await loadVisualSettings(); setSettings(next); setError(null); }
     catch (err) { setError(err instanceof Error ? err.message : 'No se pudo cargar la configuración visual.'); }
@@ -125,11 +124,18 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return;
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || !event.data) return;
-      if (event.data.type === 'quickbite-visual-preview' && event.data.settings && typeof event.data.settings === 'object') setPreview(event.data.settings as VisualSettingsDraft);
-      else if (event.data.type === 'quickbite-visual-preview-clear') setPreview(null);
+      if (event.data.type === 'quickbite-visual-preview' && event.data.settings && typeof event.data.settings === 'object') {
+        setPreview(sanitizeVisualSettings(event.data.settings as Partial<VisualSettingsDraft>));
+      } else if (event.data.type === 'quickbite-visual-preview-clear') setPreview(null);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== PREVIEW_STORAGE_KEY) return;
+      try { setPreview(event.newValue ? sanitizeVisualSettings(JSON.parse(event.newValue) as Partial<VisualSettingsDraft>) : null); }
+      catch { setPreview(null); }
     };
     window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
+    window.addEventListener('storage', onStorage);
+    return () => { window.removeEventListener('message', onMessage); window.removeEventListener('storage', onStorage); };
   }, []);
 
   useEffect(() => {
