@@ -70,6 +70,15 @@ h1,h2,h3,h4 { font-family: var(--qb-heading-font); }
   background: var(--qb-surface);
 }
 
+/* Never apply global navigation styling to the administrative sidebar.
+ * The sidebar has its own production identity and must remain solid blue. */
+:root[data-qb-visual-active="1"] .admin-sidebar nav,
+:root[data-qb-visual-active="1"] .admin-sidebar nav:not([data-qb-preserve-style]) {
+  background: transparent !important;
+  border-color: transparent !important;
+  backdrop-filter: none !important;
+}
+
 /* The real application contains explicit green/blue Tailwind utilities.
  * During customization they are remapped to the selected palette, while
  * normal production pages keep their original classes untouched. */
@@ -97,8 +106,8 @@ h1,h2,h3,h4 { font-family: var(--qb-heading-font); }
 :root[data-qb-visual-active="1"] .bg-blue-50 {
   background: color-mix(in srgb, var(--qb-primary) 8%, var(--qb-surface)) !important;
 }
-:root[data-qb-visual-active="1"] .hover\:bg-green-50:hover,
-:root[data-qb-visual-active="1"] .hover\:bg-blue-50:hover {
+:root[data-qb-visual-active="1"] .hover\\:bg-green-50:hover,
+:root[data-qb-visual-active="1"] .hover\\:bg-blue-50:hover {
   background: color-mix(in srgb, var(--qb-primary) 12%, var(--qb-surface)) !important;
 }
 :root[data-qb-visual-active="1"] .bg-gradient-to-r.from-blue-500 {
