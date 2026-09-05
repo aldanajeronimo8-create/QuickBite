@@ -104,7 +104,7 @@ export function sanitizeVisualSettings(value: Partial<VisualSettingsDraft> | nul
   if (ALLOWED_FONTS.includes(source.heading_font as AllowedFont)) result.heading_font = source.heading_font as AllowedFont;
   if (RADIUS_OPTIONS.includes(source.border_radius as RadiusOption)) result.border_radius = source.border_radius as RadiusOption;
   if (RADIUS_OPTIONS.includes(source.card_radius as RadiusOption)) result.card_radius = source.card_radius as RadiusOption;
-  if (RADIUS_OPTIONS.includes(source.button_radius as ButtonRadiusOption)) result.button_radius = source.button_radius as ButtonRadiusOption;
+  if (RADIUS_OPTIONS.includes(source.button_radius as RadiusOption)) result.button_radius = source.button_radius as ButtonRadiusOption;
   if (SHADOW_OPTIONS.includes(source.shadow_style as ShadowStyle)) result.shadow_style = source.shadow_style as ShadowRadiusOption;
   if (BUTTON_STYLES.includes(source.button_style as ButtonStyle)) result.button_style = source.button_style as ButtonStyle;
   if (HEADER_STYLES.includes(source.header_style as HeaderStyle)) result.header_style = source.header_style as HeaderStyle;
