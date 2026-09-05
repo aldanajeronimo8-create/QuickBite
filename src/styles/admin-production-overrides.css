@@ -53,15 +53,42 @@
   color: inherit !important;
 }
 
-:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] > * {
+/* Radix floating layers: popovers, dropdowns, selects, context menus and similar portals. */
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] > *,
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="popover-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="dropdown-menu-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="dropdown-menu-sub-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="select-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="context-menu-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="context-menu-sub-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="navigation-menu-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="navigation-menu-viewport"] {
   background: #FFFFFF !important;
   color: #0F172A !important;
   border-color: #E2E8F0 !important;
 }
 
-:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-highlighted] {
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-highlighted],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-highlighted=true] {
   background: #F1F5F9 !important;
   color: #0F172A !important;
+}
+
+/* Modal and side-panel surfaces rendered through portals. */
+:root[data-qb-visual-preview-scope="admin"] [data-slot="dialog-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="alert-dialog-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="sheet-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="drawer-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="command"] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Tooltips intentionally stay compact dark-neutral, rather than inheriting the Admin primary color. */
+:root[data-qb-visual-preview-scope="admin"] [data-slot="tooltip-content"] {
+  background: #0F172A !important;
+  color: #FFFFFF !important;
 }
 
 /* Admin notification dropdown stays neutral even while the main Admin theme is personalized. */
