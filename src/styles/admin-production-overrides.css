@@ -85,6 +85,51 @@
   border-color: #E2E8F0 !important;
 }
 
+/* Admin form controls are structural UI, not part of the guided color palette.
+ * Keep text fields, textareas, native selects and combobox-like controls white. */
+:root[data-qb-visual-preview-scope="admin"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+:root[data-qb-visual-preview-scope="admin"] textarea,
+:root[data-qb-visual-preview-scope="admin"] select,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="input"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="textarea"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="select-trigger"],
+:root[data-qb-visual-preview-scope="admin"] [role="combobox"] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+  background-image: none !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] input::placeholder,
+:root[data-qb-visual-preview-scope="admin"] textarea::placeholder,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="select-trigger"][data-placeholder],
+:root[data-qb-visual-preview-scope="admin"] [role="combobox"][aria-placeholder] {
+  color: #64748B !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] [data-slot="select-trigger"] svg,
+:root[data-qb-visual-preview-scope="admin"] [role="combobox"] svg {
+  color: #64748B !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] input:focus,
+:root[data-qb-visual-preview-scope="admin"] textarea:focus,
+:root[data-qb-visual-preview-scope="admin"] select:focus,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="input"]:focus-visible,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="textarea"]:focus-visible,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="select-trigger"]:focus-visible,
+:root[data-qb-visual-preview-scope="admin"] [role="combobox"]:focus-visible {
+  border-color: #2563EB !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+/* Keep the semantic tokens used by form controls neutral in Admin as well.
+ * This also covers custom inputs that do not expose a QuickBite data-slot. */
+:root[data-qb-visual-preview-scope="admin"] {
+  --input: #FFFFFF;
+  --input-background: #FFFFFF;
+}
+
 /* Tooltips intentionally stay compact dark-neutral, rather than inheriting the Admin primary color. */
 :root[data-qb-visual-preview-scope="admin"] [data-slot="tooltip-content"] {
   background: #0F172A !important;
