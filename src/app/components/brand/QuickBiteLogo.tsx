@@ -1,4 +1,3 @@
-import { useLocation } from 'react-router-dom';
 import quickBiteLogo from '../../../assets/quickbite-logo.png';
 import { useVisualTheme } from '../../contexts/VisualThemeProvider';
 
@@ -9,9 +8,9 @@ type QuickBiteLogoProps = {
 };
 
 export function QuickBiteLogo({ className = '', imageClassName = '', alt }: QuickBiteLogoProps) {
-  const location = useLocation();
   const { settings } = useVisualTheme();
-  const isLogin = location.pathname === '/' || location.pathname === '/login';
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isLogin = pathname === '/' || pathname === '/login';
   const source = (isLogin ? settings.login_logo_url : settings.logo_url) || settings.logo_url || quickBiteLogo;
   const label = alt || settings.app_name || 'QuickBite';
 
