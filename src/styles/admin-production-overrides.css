@@ -40,6 +40,42 @@
   color: #FFFFFF !important;
 }
 
+/* Neutral administrative overlays must not inherit the saved Admin palette.
+ * The main Admin surface remains customizable; transient overlays stay clean. */
+:root[data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast] [data-title],
+:root[data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast] [data-description] {
+  color: inherit !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] > * {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-highlighted] {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+/* Admin notification dropdown stays neutral even while the main Admin theme is personalized. */
+.admin-shell .admin-notification-popover,
+.admin-shell .admin-notification-popover * {
+  --tw-ring-color: #E2E8F0;
+}
+
+.admin-shell .admin-notification-popover {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
 /* Do not show the desktop section-title header above the Admin content. */
 @media (min-width: 1024px) {
   .admin-main > header > div:first-child {
