@@ -8,23 +8,6 @@ type VisualThemeContextValue = { settings: VisualSettings; loading: boolean; err
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const VALID_SCOPES: VisualInterfaceScope[] = ['login_student','login_parent','login_admin','admin','student','parent'];
 const PRODUCTION_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: 'rgba(255,255,255,0.12)', accentForeground: '#FFFFFF', border: 'rgba(255,255,255,0.12)', ring: '#E0ECFF' };
-const PRODUCTION_ADMIN_THEME: VisualSettingsDraft = {
-  ...DEFAULT_VISUAL_SETTINGS,
-  primary_color: '#16A36A',
-  secondary_color: '#E0ECFF',
-  accent_color: '#14B8A6',
-  background_color: '#F5F8F7',
-  surface_color: '#FFFFFF',
-  text_color: '#0F172A',
-  muted_text_color: '#475569',
-  border_color: '#E2E8F0',
-  success_color: '#16A36A',
-  warning_color: '#D97706',
-  danger_color: '#DC2626',
-  font_family: 'Nunito',
-  heading_font: 'Nunito',
-  theme_mode: 'light',
-};
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
 
 function getPathScope(pathname: string, search: string): VisualInterfaceScope | null {
@@ -80,9 +63,8 @@ function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfac
   const root = document.documentElement;
   Object.entries(getVisualCssVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value));
 
-  // Keep the production sidebar palette isolated. Never map these values to
-  // --primary/--foreground/--accent/etc., because those variables belong to
-  // the main application and would tint unrelated text and controls.
+  // Keep only the administrative shell/sidebar locked to production.
+  // The main Admin interface must still receive the saved guided override.
   root.style.setProperty('--sidebar', PRODUCTION_SIDEBAR.sidebar);
   root.style.setProperty('--sidebar-foreground', PRODUCTION_SIDEBAR.foreground);
   root.style.setProperty('--sidebar-primary', PRODUCTION_SIDEBAR.primary);
@@ -148,11 +130,9 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const effectiveSettings = useMemo(() => {
+    // Preview always wins. Otherwise the selected interface resolves its own
+    // scoped override over the global production configuration.
     if (preview) return preview;
-    // The real Admin interface keeps the production palette from fe8444a.
-    // Guided customization still works inside the dedicated preview iframe,
-    // where `preview` is present, without tinting the live Admin shell.
-    if (scope === 'admin' && !isVisualPreviewMode()) return PRODUCTION_ADMIN_THEME;
     return resolveVisualSettings(settings, scope);
   }, [preview, settings, scope]);
 
@@ -178,6 +158,15 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     window.addEventListener('message', onMessage);
     window.addEventListener('storage', onStorage);
     return () => { window.removeEventListener('message', onMessage); window.removeEventListener('storage', onStorage); };
+  }, []);
+
+  // The guided editor opens the real application in a separate window.
+  // Signal readiness so the editor can immediately push the current draft.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isVisualPreviewMode() || !window.opener) return;
+    try {
+      window.opener.postMessage({ type: 'quickbite-visual-preview-ready' }, window.location.origin);
+    } catch { /* popup may deny cross-window messaging */ }
   }, []);
 
   useEffect(() => {
