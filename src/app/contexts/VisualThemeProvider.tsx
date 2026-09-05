@@ -10,20 +10,40 @@ const VALID_SCOPES: VisualInterfaceScope[] = ['login_student','login_parent','lo
 const ADMIN_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: '#E0ECFF', accentForeground: '#1747B8', border: 'rgba(255,255,255,0.12)', ring: '#2563EB' };
 const DEFAULT_SIDEBAR = { sidebar: '#F8FAFC', foreground: '#0F172A', primary: '#030213', primaryForeground: '#FFFFFF', accent: '#F1F5F9', accentForeground: '#0F172A', border: '#E2E8F0', ring: '#94A3B8' };
 
+function getPathScope(pathname: string, search: string): VisualInterfaceScope | null {
+  const params = new URLSearchParams(search);
+  const previewRole = params.get('preview_role');
+  if ((pathname === '/' || pathname === '/login') && (previewRole === 'student' || previewRole === 'parent' || previewRole === 'admin')) return `login_${previewRole}` as VisualInterfaceScope;
+  if (pathname.startsWith('/admin')) return 'admin';
+  if (pathname.startsWith('/parent')) return 'parent';
+  if (pathname.startsWith('/menu') || pathname.startsWith('/student')) return 'student';
+  return null;
+}
+
 export function getVisualPreviewScope(): VisualInterfaceScope | null {
   if (typeof window === 'undefined') return null;
-  const value = new URLSearchParams(window.location.search).get('visual_preview_scope');
-  return value && VALID_SCOPES.includes(value as VisualInterfaceScope) ? value as VisualInterfaceScope : null;
+  const direct = getPathScope(window.location.pathname, window.location.search);
+  if (direct) return direct;
+  try {
+    if (window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance')) {
+      return getPathScope(window.location.pathname, window.location.search);
+    }
+  } catch { return null; }
+  return null;
 }
 
 export function isVisualPreviewMode(): boolean {
   if (typeof window === 'undefined') return false;
-  return new URLSearchParams(window.location.search).get('visual_preview') === '1' && Boolean(getVisualPreviewScope());
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('visual_preview') === '1' && Boolean(getVisualPreviewScope())) return true;
+  try {
+    return window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance') && Boolean(getVisualPreviewScope());
+  } catch { return false; }
 }
 
 export function getVisualInterfaceScope(): VisualInterfaceScope {
   const previewScope = getVisualPreviewScope();
-  if (previewScope) return previewScope;
+  if (previewScope && (isVisualPreviewMode() || new URLSearchParams(window.location.search).has('visual_preview_scope'))) return previewScope;
   if (typeof document !== 'undefined') {
     const explicit = document.querySelector<HTMLElement>('[data-qb-interface]')?.dataset.qbInterface;
     if (explicit && VALID_SCOPES.includes(explicit as VisualInterfaceScope)) return explicit as VisualInterfaceScope;
@@ -67,12 +87,7 @@ function applyDocumentTheme(settings: VisualSettings, scope: VisualInterfaceScop
   root.classList.toggle('dark', settings.theme_mode === 'dark');
   document.title = settings.app_name;
   let link = document.querySelector<HTMLLinkElement>('link[data-quickbite-favicon]');
-  if (!link) {
-    link = document.createElement('link');
-    link.rel = 'icon';
-    link.dataset.quickbiteFavicon = 'true';
-    document.head.appendChild(link);
-  }
+  if (!link) { link = document.createElement('link'); link.rel = 'icon'; link.dataset.quickbiteFavicon = 'true'; document.head.appendChild(link); }
   link.href = settings.favicon_url || '/favicon.ico';
 }
 
@@ -127,7 +142,7 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   }, [preview, settings.theme_mode]);
 
   useEffect(() => {
-    if (!hasSupabaseConfig()) return;
+    if (!hasSupabaseConfig() || isVisualPreviewMode()) return;
     try {
       const client = requireSupabaseClient();
       const channel = client.channel('quickbite-visual-settings').on('postgres_changes', { event: '*', schema: 'public', table: 'app_visual_settings' }, payload => {
