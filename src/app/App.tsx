@@ -11,6 +11,7 @@ import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
 import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
 import { getVisualPreviewScope, isVisualPreviewMode, VisualThemeProvider } from './contexts/VisualThemeProvider';
 import { VisualPreviewEditor } from './components/visual/VisualPreviewEditor';
+import { UserThemePreference } from './components/UserThemePreference';
 
 function safeIsVisualPreviewMode(): boolean {
   try { return isVisualPreviewMode(); } catch { return false; }
@@ -71,7 +72,7 @@ function AppContent() {
   return (
     <ErrorBoundary>
       <VisualThemeProvider>
-        {needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><PreviewSessionBootstrap />{visualPreview && <VisualPreviewEditor scope={getVisualPreviewScope() ?? 'student'} />}{!visualPreview && <SessionRestorer />}</>}
+        {needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><PreviewSessionBootstrap />{visualPreview && <VisualPreviewEditor scope={getVisualPreviewScope() ?? 'student'} />}{!visualPreview && <SessionRestorer />}{!visualPreview && user && <UserThemePreference />}</>}
         <Toaster position="top-center" />
       </VisualThemeProvider>
     </ErrorBoundary>
