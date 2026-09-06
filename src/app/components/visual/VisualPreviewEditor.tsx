@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Edit3, RotateCcw, X } from 'lucide-react';
 import { useVisualTheme } from '../../contexts/VisualThemeProvider';
-import { sanitizeVisualElementStyle, sanitizeVisualSettings, type VisualElementStyle, type VisualInterfaceScope, type VisualSettingsDraft } from '../../../types/visualSettings';
+import {
+  sanitizeVisualElementStyle,
+  sanitizeVisualSettings,
+  type VisualElementStyle,
+  type VisualInterfaceScope,
+  type VisualSettingsDraft,
+} from '../../../types/visualSettings';
 
 type Props = { scope: VisualInterfaceScope };
 type Selected = { element: HTMLElement; selector: string; label: string } | null;
-type Field = { key: keyof VisualElementStyle; label: string; type: 'color' | 'text' | 'textarea' | 'select'; options?: string[] };
+type Field = {
+  key: keyof VisualElementStyle;
+  label: string;
+  type: 'color' | 'text' | 'textarea' | 'select';
+  options?: string[];
+};
 
 const PROTECTED_SELECTOR = '.admin-sidebar, [data-qb-visual-editor]';
 const CLICK_DELAY = 220;
@@ -28,10 +39,18 @@ const FIELDS: Field[] = [
 ];
 
 function cssEscape(value: string): string {
-  try { return CSS.escape(value); } catch { return value.replace(/[^a-zA-Z0-9_-]/g, '\\$&'); }
+  try { return CSS.escape(value); }
+  catch { return value.replace(/[^a-zA-Z0-9_-]/g, '\\$&'); }
 }
-function isDynamicId(value: string) { return /^([0-9a-f]{8}-[0-9a-f-]{27,}|radix-|headlessui-|:r)/i.test(value) || /^\d+$/.test(value); }
-function attrSelector(name: string, value: string) { return `[${name}="${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`; }
+
+function isDynamicId(value: string) {
+  return /^([0-9a-f]{8}-[0-9a-f-]{27,}|radix-|headlessui-|:r)/i.test(value) || /^\d+$/.test(value);
+}
+
+function attrSelector(name: string, value: string) {
+  const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `[${name}="${escaped}"]`;
+}
 
 function buildSelector(element: HTMLElement): string {
   const parts: string[] = [];
@@ -60,7 +79,9 @@ function buildSelector(element: HTMLElement): string {
 }
 
 function readVisibleText(element: HTMLElement): string {
-  const direct = Array.from(element.childNodes).filter((node): node is Text => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()));
+  const direct = Array.from(element.childNodes).filter(
+    (node): node is Text => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()),
+  );
   if (direct.length) return direct.map((node) => node.textContent?.trim() ?? '').join(' ');
   if (element.childElementCount === 0) return element.textContent?.trim() ?? '';
   return '';
@@ -69,7 +90,11 @@ function readVisibleText(element: HTMLElement): string {
 function describeElement(element: HTMLElement): string {
   const tag = element.tagName.toLowerCase();
   const label = element.getAttribute('aria-label') || element.getAttribute('title') || readVisibleText(element).replace(/\s+/g, ' ').trim().slice(0, 70);
-  const names: Record<string, string> = { button: 'Botón', a: 'Enlace', input: 'Campo', select: 'Selector', textarea: 'Texto', img: 'Imagen', nav: 'Navegación', header: 'Cabecera', section: 'Sección', form: 'Formulario', label: 'Etiqueta', p: 'Texto', h1: 'Título', h2: 'Título', h3: 'Título' };
+  const names: Record<string, string> = {
+    button: 'Botón', a: 'Enlace', input: 'Campo', select: 'Selector', textarea: 'Texto', img: 'Imagen',
+    nav: 'Navegación', header: 'Cabecera', section: 'Sección', form: 'Formulario', label: 'Etiqueta',
+    p: 'Texto', h1: 'Título', h2: 'Título', h3: 'Título',
+  };
   return `${names[tag] ?? 'Elemento'}${label ? ` — “${label}”` : ''}`;
 }
 
@@ -99,7 +124,7 @@ function toHex(value: string): string | undefined {
   return `#${[1, 2, 3].map((index) => Number(match[index]).toString(16).padStart(2, '0')).join('')}`;
 }
 
-function cloneOverrides(source: VisualSettingsDraft['element_overrides']): VisualSettingsDraft['element_overrides'] {
+function cloneOverrides(source: VisualSettingsDraft['element_overrides']) {
   return Object.fromEntries(Object.entries(source ?? {}).map(([selector, style]) => [selector, { ...style }]));
 }
 
@@ -118,23 +143,21 @@ export function VisualPreviewEditor({ scope }: Props) {
   const selectedStyle = useMemo(() => {
     if (!selected) return {};
     return { ...inspectedStyle, ...(sessionOverrides[selected.selector] ?? {}), ...draftStyle };
-  }, [inspectedStyle, selected, sessionOverrides, draftStyle]);
+  }, [draftStyle, inspectedStyle, selected, sessionOverrides]);
 
   const syncSessionOverrides = (next: VisualSettingsDraft['element_overrides']) => {
     const cloned = cloneOverrides(next);
     sessionOverridesRef.current = cloned;
     setSessionOverrides(cloned);
-    return cloned;
   };
 
   useEffect(() => { sessionOverridesRef.current = sessionOverrides; }, [sessionOverrides]);
 
   const selectElement = (element: HTMLElement) => {
     const selector = buildSelector(element);
-    const override = sessionOverridesRef.current[selector] ?? {};
     setSelected({ element, selector, label: describeElement(element) });
     setInspectedStyle(readComputedStyle(element));
-    setDraftStyle({ ...override });
+    setDraftStyle({ ...(sessionOverridesRef.current[selector] ?? {}) });
   };
 
   useEffect(() => {
@@ -159,12 +182,11 @@ export function VisualPreviewEditor({ scope }: Props) {
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
 
       const interactive = target.closest('button, a, input, select, textarea, [role="button"]') as HTMLElement | null;
-      const editable = interactive ?? target.closest('label, div, section, header, nav, main, aside, footer, form, article, img, p, h1, h2, h3, h4, h5, h6, span') as HTMLElement | null;
+      const editable = interactive ?? (target.closest('label, div, section, header, nav, main, aside, footer, form, article, img, p, h1, h2, h3, h4, h5, h6, span, li, ul, ol, table, tr, td, th') as HTMLElement | null);
       if (!editable || editable === document.body || editable === document.documentElement) return;
 
       const state = clickState.current;
-      const same = state.element === editable;
-      state.count = same ? state.count + 1 : 1;
+      state.count = state.element === editable ? state.count + 1 : 1;
       state.element = editable;
       if (state.timer) window.clearTimeout(state.timer);
 
@@ -176,8 +198,7 @@ export function VisualPreviewEditor({ scope }: Props) {
         return;
       }
 
-      event.preventDefault();
-      event.stopPropagation();
+      event.preventDefault(); event.stopPropagation();
       if (state.count >= 3) {
         state.count = 0; state.timer = null; event.stopImmediatePropagation();
         selectElement(editable);
@@ -189,7 +210,8 @@ export function VisualPreviewEditor({ scope }: Props) {
         const current = clickState.current;
         if (current.element !== editable || current.count < 1) return;
         replayingClick.current = true;
-        try { editable.click(); } finally { window.setTimeout(() => { replayingClick.current = false; }, 0); }
+        try { editable.click(); }
+        finally { window.setTimeout(() => { replayingClick.current = false; }, 0); }
         current.element = null; current.count = 0; current.timer = null;
       }, CLICK_DELAY);
     };
@@ -202,16 +224,16 @@ export function VisualPreviewEditor({ scope }: Props) {
 
   useEffect(() => {
     if (!selected) return;
-    const el = selected.element;
+    const element = selected.element;
     const previous = new Map<string, string>();
     Object.entries(draftStyle).forEach(([key, value]) => {
       if (!value || key === 'textContent') return;
       const property = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-      previous.set(property, el.style.getPropertyValue(property));
-      el.style.setProperty(property, value, 'important');
+      previous.set(property, element.style.getPropertyValue(property));
+      element.style.setProperty(property, value, 'important');
     });
-    return () => previous.forEach((value, property) => value ? el.style.setProperty(property, value) : el.style.removeProperty(property));
-  }, [selected, draftStyle]);
+    return () => previous.forEach((value, property) => value ? element.style.setProperty(property, value) : element.style.removeProperty(property));
+  }, [draftStyle, selected]);
 
   const buildDraftSettings = (nextOverrides: Record<string, VisualElementStyle>) => {
     const currentScope = settings.interface_overrides?.[scope] ?? {};
@@ -225,12 +247,19 @@ export function VisualPreviewEditor({ scope }: Props) {
     });
   };
 
-  const notifyHost = (type: 'quickbite-visual-element-edit' | 'quickbite-visual-element-reset', fullSettings: VisualSettingsDraft, selector: string, styles?: VisualElementStyle) => {
+  const notifyHost = (
+    type: 'quickbite-visual-element-edit' | 'quickbite-visual-element-reset',
+    fullSettings: VisualSettingsDraft,
+    selector: string,
+    styles?: VisualElementStyle,
+  ) => {
     const payload = { type, scope, selector, ...(styles ? { styles } : {}), settings: fullSettings };
     try {
       if (window.parent !== window) window.parent.postMessage(payload, window.location.origin);
       else window.opener?.postMessage(payload, window.location.origin);
-    } catch { /* optional */ }
+    } catch {
+      // Preview host is optional.
+    }
   };
 
   const commit = (patch: VisualElementStyle) => {
@@ -240,8 +269,7 @@ export function VisualPreviewEditor({ scope }: Props) {
     const nextOverrides = { ...sessionOverridesRef.current, [selected.selector]: next };
     syncSessionOverrides(nextOverrides);
     setDraftStyle(next);
-    const fullSettings = buildDraftSettings(nextOverrides);
-    notifyHost('quickbite-visual-element-edit', fullSettings, selected.selector, next);
+    notifyHost('quickbite-visual-element-edit', buildDraftSettings(nextOverrides), selected.selector, next);
     setMessage('Cambio aplicado al borrador. Puedes seguir editando otros elementos; Guardar cambios lo persiste todo.');
   };
 
@@ -251,24 +279,82 @@ export function VisualPreviewEditor({ scope }: Props) {
     delete nextOverrides[selected.selector];
     syncSessionOverrides(nextOverrides);
     setDraftStyle({});
-    const fullSettings = buildDraftSettings(nextOverrides);
     setInspectedStyle(readComputedStyle(selected.element));
-    notifyHost('quickbite-visual-element-reset', fullSettings, selected.selector);
+    notifyHost('quickbite-visual-element-reset', buildDraftSettings(nextOverrides), selected.selector);
     setMessage('Elemento restaurado en el borrador. Puedes seguir editando y guardar todo al final.');
+  };
+
+  const closeEditor = () => {
+    setSelected(null);
+    setMessage(designMode ? 'Modo diseño: selecciona un elemento.' : '1 clic ejecuta la acción · 3 clics editan el elemento');
   };
 
   return (
     <>
-      <div data-qb-visual-editor className="fixed left-4 top-4 z-[9998] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl bg-slate-950/90 px-4 py-3 text-white shadow-2xl backdrop-blur">
+      <div
+        data-qb-visual-editor
+        className="fixed left-4 top-4 z-[9998] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl bg-slate-950/90 px-4 py-3 text-white shadow-2xl backdrop-blur"
+      >
         <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/10"><Edit3 className="size-4" /></div>
         <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-300">Editor visual</p><p className="truncate text-xs font-bold">{message}</p></div>
-        <button type="button" onClick={() => setDesignMode((value) => !value)} className={`shrink-0 rounded-xl px-3 py-2 text-[10px] font-black ${designMode ? 'bg-white text-slate-900' : 'bg-white/10 text-white hover:bg-white/15'}`}>{designMode ? 'Modo diseño' : 'Interactivo'}</button>
+        <button type="button" onClick={() => setDesignMode((value) => !value)} className={`shrink-0 rounded-xl px-3 py-2 text-[10px] font-black ${designMode ? 'bg-white text-slate-900' : 'bg-white/10 text-white hover:bg-white/15'}`}>
+          {designMode ? 'Modo diseño' : 'Interactivo'}
+        </button>
       </div>
-      {selected && <aside data-qb-visual-editor-panel className="fixed bottom-4 right-4 z-[9999] w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-[.16em] text-slate-500">Editar elemento</p><p className="mt-1 truncate text-sm font-black text-slate-900">{selected.label}</p><p className="mt-1 truncate text-[10px] text-slate-400">{selected.selector}</p><p className="mt-2 text-[10px] font-semibold text-slate-500">Seleccionar solo inspecciona. Los cambios se acumulan en el borrador de la sesión.</p></div><button type="button" onClick={() => setSelected(null)} className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200" aria-label="Cerrar"><X className="size-4" /></button></div>
-        <div className="max-h-[65vh] space-y-3 overflow-y-auto p-5">{FIELDS.map((field) => { const value = selectedStyle[field.key] ?? ''; return <label key={field.key} className="block"><span className="mb-1 block text-xs font-black text-slate-600">{field.label}</span>{field.type === 'color' ? <div className="flex gap-2"><input type="color" value={typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : '#ffffff'} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="size-10 cursor-pointer rounded-lg border border-slate-200 p-1" /><input value={String(value)} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm" /></div> : field.type === 'select' ? <select value={String(value)} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{field.options?.map((option) => <option key={option}>{option}</option>)}</select> : field.type === 'textarea' ? <textarea value={String(value)} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="min-h-20 w-full resize-y rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Texto visible" maxLength={500} /> : <input value={String(value)} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Auto" /></label>; })}</div>
-        <div className="flex items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4"><button type="button" onClick={reset} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700"><RotateCcw className="size-4" /> Restablecer</button><button type="button" onClick={() => { setSelected(null); setMessage(designMode ? 'Modo diseño: selecciona un elemento.' : '1 clic ejecuta la acción · 3 clics editan el elemento'); }} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white"><Check className="size-4" /> Listo</button></div>
-      </aside>}
+
+      {selected && (
+        <aside data-qb-visual-editor-panel className="fixed bottom-4 right-4 z-[9999] w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+          <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[.16em] text-slate-500">Editar elemento</p>
+              <p className="mt-1 truncate text-sm font-black text-slate-900">{selected.label}</p>
+              <p className="mt-1 truncate text-[10px] text-slate-400">{selected.selector}</p>
+              <p className="mt-2 text-[10px] font-semibold text-slate-500">Seleccionar solo inspecciona. Los cambios se acumulan en el borrador de la sesión.</p>
+            </div>
+            <button type="button" onClick={closeEditor} className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200" aria-label="Cerrar">
+              <X className="size-4" />
+            </button>
+          </div>
+
+          <div className="max-h-[65vh] space-y-3 overflow-y-auto p-5">
+            {FIELDS.map((field) => {
+              const value = selectedStyle[field.key] ?? '';
+              const stringValue = String(value);
+              return (
+                <label key={field.key} className="block">
+                  <span className="mb-1 block text-xs font-black text-slate-600">{field.label}</span>
+                  {field.type === 'color' && (
+                    <div className="flex gap-2">
+                      <input type="color" value={typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : '#ffffff'} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="size-10 cursor-pointer rounded-lg border border-slate-200 p-1" />
+                      <input value={stringValue} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                    </div>
+                  )}
+                  {field.type === 'select' && (
+                    <select value={stringValue} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                      {field.options?.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  )}
+                  {field.type === 'textarea' && (
+                    <textarea value={stringValue} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="min-h-20 w-full resize-y rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Texto visible" maxLength={500} />
+                  )}
+                  {field.type === 'text' && (
+                    <input value={stringValue} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Auto" />
+                  )}
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4">
+            <button type="button" onClick={reset} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700">
+              <RotateCcw className="size-4" /> Restablecer
+            </button>
+            <button type="button" onClick={closeEditor} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white">
+              <Check className="size-4" /> Listo
+            </button>
+          </div>
+        </aside>
+      )}
     </>
   );
 }
