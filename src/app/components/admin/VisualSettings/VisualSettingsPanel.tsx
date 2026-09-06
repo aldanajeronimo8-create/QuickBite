@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, History, RotateCcw, Save, Undo2, Redo2, WandSparkles } from 'lucide-react';
+import { Check, History, RotateCcw, Save, WandSparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVisualTheme } from '../../../contexts/VisualThemeProvider';
 import { resetVisualSettings, saveVisualSettings } from '../../../../services/visualSettingsService';
@@ -163,12 +163,7 @@ export function VisualSettingsPanel() {
             <p className="mt-1 text-sm text-slate-500">{scopeInfo.description} Elige un elemento y haz triple clic para editarlo.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="block min-w-[250px]">
-              <span className="sr-only">Interfaz</span>
-              <select value={scope} onChange={(event) => selectScope(event.target.value as VisualInterfaceScope)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">
-                {SCOPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-              </select>
-            </label>
+            <label className="block min-w-[250px]"><span className="sr-only">Interfaz</span><select value={scope} onChange={(event) => selectScope(event.target.value as VisualInterfaceScope)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">{SCOPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
             <span className={`rounded-full px-3 py-2 text-xs font-black ${dirty ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-700'}`}>{dirty ? 'Borrador modificado' : 'Guardado'}</span>
             <button type="button" disabled={!history.length} onClick={undo} className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30" aria-label="Deshacer"><Undo2 className="h-4 w-4" /></button>
             <button type="button" disabled={!future.length} onClick={redo} className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30" aria-label="Rehacer"><Redo2 className="h-4 w-4" /></button>
@@ -193,10 +188,7 @@ export function VisualSettingsPanel() {
       />
 
       <details className="group rounded-[2rem] border border-slate-200 bg-white shadow-sm" open={false}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
-          <div><p className="text-sm font-black text-slate-900">Ajustes base de la interfaz</p><p className="text-xs text-slate-500">Marca, paleta, tipografía y densidad. La edición de elementos se hace directamente en la preview.</p></div>
-          <span className="text-xs font-black text-slate-400 group-open:hidden">Mostrar</span><span className="hidden text-xs font-black text-slate-400 group-open:inline">Ocultar</span>
-        </summary>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4"><div><p className="text-sm font-black text-slate-900">Ajustes base de la interfaz</p><p className="text-xs text-slate-500">Marca, paleta, tipografía y densidad. La edición de elementos se hace directamente en la preview.</p></div><span className="text-xs font-black text-slate-400 group-open:hidden">Mostrar</span><span className="hidden text-xs font-black text-slate-400 group-open:inline">Ocultar</span></summary>
         <div className="grid gap-4 border-t border-slate-100 p-5 md:grid-cols-2 xl:grid-cols-4">
           <label><span className="mb-1 block text-xs font-bold text-slate-600">Nombre</span><input value={draft.app_name} onChange={(event) => patch('app_name', event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm" /></label>
           {([['primary_color','Primario'],['background_color','Fondo'],['surface_color','Superficie'],['text_color','Texto']] as const).map(([key,label]) => <label key={key}><span className="mb-1 block text-xs font-bold text-slate-600">{label}</span><div className="flex gap-2"><input type="color" value={draft[key]} onChange={(event) => patch(key, event.target.value.toUpperCase() as never)} className="size-10 cursor-pointer rounded-lg border p-1" /><input value={draft[key]} onChange={(event) => patch(key, event.target.value.toUpperCase() as never)} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 font-mono text-xs" /></div></label>)}
@@ -209,10 +201,7 @@ export function VisualSettingsPanel() {
         </div>
       </details>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600">
-        <Check className="mr-2 inline h-4 w-4 text-emerald-600" /> La preview es una sesión aislada: los clics pueden ejecutar la navegación normal, pero las ediciones visuales solo se guardan al pulsar <b>Guardar</b>. No se permite modificar HTML, JavaScript, permisos, pagos, pedidos ni datos.
-        <span className="ml-2 inline-flex items-center gap-1 text-slate-400"><History className="h-3.5 w-3.5" />{history.length + future.length} pasos en el historial</span>
-      </div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600"><Check className="mr-2 inline h-4 w-4 text-emerald-600" /> La preview es una sesión aislada: los clics pueden ejecutar la navegación normal, pero las ediciones visuales solo se guardan al pulsar <b>Guardar</b>. No se permite modificar HTML, JavaScript, permisos, pagos, pedidos ni datos.<span className="ml-2 inline-flex items-center gap-1 text-slate-400"><History className="h-3.5 w-3.5" />{history.length + future.length} pasos en el historial</span></div>
     </div>
   );
 }
