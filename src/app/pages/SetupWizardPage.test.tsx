@@ -3,6 +3,23 @@ import { describe, expect, it } from 'vitest';
 import { VisualThemeProvider } from '../contexts/VisualThemeProvider';
 import { SetupWizardPage } from './SetupWizardPage';
 
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener() {},
+      removeListener() {},
+      addEventListener() {},
+      removeEventListener() {},
+      dispatchEvent() {
+        return false;
+      },
+    }) as MediaQueryList,
+});
+
 describe('SetupWizardPage', () => {
   it('explains the required first-run configuration', () => {
     render(
