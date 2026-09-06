@@ -114,7 +114,7 @@ function sanitizeOverride(value: unknown): VisualInterfaceOverride {
   if (ALLOWED_FONTS.includes(source.heading_font as AllowedFont)) result.heading_font = source.heading_font as AllowedFont;
   if (RADIUS_OPTIONS.includes(source.border_radius as RadiusOption)) result.border_radius = source.border_radius as RadiusOption;
   if (RADIUS_OPTIONS.includes(source.card_radius as RadiusOption)) result.card_radius = source.card_radius as RadiusOption;
-  if (RADIUS_OPTIONS.includes(source.button_radius as RadiusOption)) result.button_radius = source.button_radius as RadiusOption;
+  if (RADIUS_OPTIONS.includes(source.button_radius as ButtonStyle)) result.button_radius = source.button_radius as RadiusOption;
   if (SHADOW_OPTIONS.includes(source.shadow_style as ShadowStyle)) result.shadow_style = source.shadow_style as ShadowStyle;
   if (BUTTON_STYLES.includes(source.button_style as ButtonStyle)) result.button_style = source.button_style as ButtonStyle;
   if (HEADER_STYLES.includes(source.header_style as HeaderStyle)) result.header_style = source.header_style as HeaderStyle;
@@ -149,7 +149,20 @@ export function sanitizeVisualSettings(value: Partial<VisualSettingsDraft> | nul
   if (source.interface_overrides && typeof source.interface_overrides === 'object' && !Array.isArray(source.interface_overrides)) { const safe: VisualInterfaceOverrides = {}; for (const scope of VISUAL_INTERFACE_SCOPES) safe[scope] = sanitizeOverride((source.interface_overrides as Record<string, unknown>)[scope]); result.interface_overrides = safe; }
   return result;
 }
-export function resolveVisualSettings(settings: VisualSettings | VisualSettingsDraft, scope: VisualInterfaceScope): VisualSettingsDraft { const base = sanitizeVisualSettings(settings); const override = base.interface_overrides?.[scope] ?? {}; return sanitizeVisualSettings({ ...base, ...override, element_overrides: override.element_overrides ?? base.element_overrides, interface_overrides: base.interface_overrides }); }
+export function resolveVisualSettings(settings: VisualSettings | VisualSettingsDraft, scope: VisualInterfaceScope): VisualSettingsDraft {
+  const base = sanitizeVisualSettings(settings);
+  const override = base.interface_overrides?.[scope] ?? {};
+  const mergedElementOverrides = {
+    ...(base.element_overrides ?? {}),
+    ...((override.element_overrides as VisualElementOverrides | undefined) ?? {}),
+  };
+  return sanitizeVisualSettings({
+    ...base,
+    ...override,
+    element_overrides: mergedElementOverrides,
+    interface_overrides: base.interface_overrides,
+  });
+}
 export function radiusToCss(value: RadiusOption): string { return { sharp:'0px', small:'0.375rem', medium:'0.75rem', large:'1rem', rounded:'999px' }[value]; }
 export function shadowToCss(value: ShadowStyle): string { return { none:'none', subtle:'0 2px 10px rgba(15, 23, 42, 0.06)', normal:'0 8px 24px rgba(15, 23, 42, 0.10)', elevated:'0 18px 45px rgba(15, 23, 42, 0.16)' }[value]; }
 export function densityToCss(value: Density): { spacing: string; controlHeight: string } { return { compact:{spacing:'0.75rem',controlHeight:'2.5rem'}, normal:{spacing:'1rem',controlHeight:'2.75rem'}, comfortable:{spacing:'1.25rem',controlHeight:'3rem'} }[value]; }
