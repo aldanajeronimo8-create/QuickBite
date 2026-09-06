@@ -7,6 +7,7 @@ import { getVisualCssVariables } from '../../types/visualSettings';
 import { isVisualPreviewMode, useVisualTheme } from '../contexts/VisualThemeProvider';
 
 type ThemeMode = 'light' | 'dark';
+type UserThemePreferenceProps = { showControl?: boolean };
 
 const THEME_VARIABLES = [
   '--qb-primary', '--qb-secondary', '--qb-accent', '--qb-background', '--qb-surface', '--qb-text',
@@ -41,7 +42,7 @@ function clearUserThemeOverride(settings: ReturnType<typeof useVisualTheme>['set
   root.style.removeProperty('color-scheme');
 }
 
-export function UserThemePreference() {
+export function UserThemePreference({ showControl = false }: UserThemePreferenceProps) {
   const user = useAuthStore((state) => state.user);
   const { settings } = useVisualTheme();
   const [mode, setMode] = useState<ThemeMode>('light');
@@ -87,7 +88,7 @@ export function UserThemePreference() {
     };
   }, [authenticated, loaded, mode, settings]);
 
-  if (!authenticated || !loaded) return null;
+  if (!authenticated || !loaded || !showControl) return null;
 
   const changeMode = async (next: ThemeMode) => {
     if (next === mode || saving) return;
