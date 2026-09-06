@@ -3,13 +3,15 @@ import { useAuthStore } from '../../store/authStore';
 import { Loader2 } from 'lucide-react';
 import { canAccessAdmin } from '../../lib/access';
 import { QuickBiteLogo } from './brand/QuickBiteLogo';
+import { isVisualPreviewMode } from '../contexts/VisualThemeProvider';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
+interface ProtectedRouteProps { children: React.ReactNode; }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuthStore();
+  const preview = isVisualPreviewMode();
+
+  if (preview) return <>{children}</>;
 
   if (loading) {
     return (
@@ -23,9 +25,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />;
 
   if (!canAccessAdmin(user.role)) {
     return (
@@ -38,15 +38,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Acceso Denegado</h2>
-          <p className="text-white/70 mb-6">
-            Solo administradores pueden acceder a esta sección.
-          </p>
-          <button
-            onClick={() => window.location.href = '/login'}
-            className="w-full rounded-xl bg-blue-600 px-6 py-3 font-medium text-white transition-all hover:bg-blue-700"
-          >
-            Volver al Login
-          </button>
+          <p className="text-white/70 mb-6">Solo administradores pueden acceder a esta sección.</p>
+          <button onClick={() => window.location.href = '/login'} className="w-full rounded-xl bg-blue-600 px-6 py-3 font-medium text-white transition-all hover:bg-blue-700">Volver al Login</button>
         </div>
       </div>
     );

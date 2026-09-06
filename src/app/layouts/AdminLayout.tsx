@@ -10,21 +10,14 @@ import { Toaster } from '../components/ui/sonner';
 import { canAccessStudent } from '../../lib/access';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 import { requireSupabaseClient } from '../../lib/supabase';
+import { isVisualPreviewMode } from '../contexts/VisualThemeProvider';
 
 const primaryColor = '#1747B8';
 const navigationAccent = '#E0ECFF';
 type AdminSection = 'dashboard' | 'orders' | 'payments' | 'wallet' | 'inventory' | 'menu' | 'verification' | 'users' | 'loyalty' | 'reports' | 'history' | 'system' | 'features';
 type AdminNotification = { id: string; section: AdminSection; title: string; body: string; entity_type: string | null; entity_id: string | null; created_at: string; read_at: string | null };
 
-type NavItemProps = {
-  path: string;
-  label: string;
-  icon: LucideIcon;
-  active: boolean;
-  badge?: number;
-  hasUnread?: boolean;
-  collapsed?: boolean;
-};
+type NavItemProps = { path: string; label: string; icon: LucideIcon; active: boolean; badge?: number; hasUnread?: boolean; collapsed?: boolean; };
 
 function NavItem({ path, label, icon: Icon, active, badge, hasUnread, collapsed = false }: NavItemProps) {
   return <Link to={path} title={collapsed ? label : undefined} className={`admin-nav-link relative mb-0.5 flex items-center rounded-2xl py-2.5 text-sm font-medium transition-all ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'}`} style={active ? { background: 'rgba(255,255,255,0.13)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : { color: '#BFDBFE' }}>
@@ -53,19 +46,7 @@ const sectionForPath = (pathname: string): AdminSection => {
 };
 
 const sectionPath: Record<AdminSection, string> = {
-  dashboard: '/admin',
-  orders: '/admin/orders',
-  payments: '/admin/payments',
-  wallet: '/admin/wallet',
-  inventory: '/admin/inventory',
-  menu: '/admin/menu',
-  verification: '/admin/verification',
-  users: '/admin/users',
-  loyalty: '/admin/loyalty',
-  reports: '/admin/reports',
-  history: '/admin/history',
-  system: '/admin/system',
-  features: '/admin/features',
+  dashboard: '/admin', orders: '/admin/orders', payments: '/admin/payments', wallet: '/admin/wallet', inventory: '/admin/inventory', menu: '/admin/menu', verification: '/admin/verification', users: '/admin/users', loyalty: '/admin/loyalty', reports: '/admin/reports', history: '/admin/history', system: '/admin/system', features: '/admin/features',
 };
 
 export function AdminLayout() {
@@ -73,6 +54,7 @@ export function AdminLayout() {
   const location = useLocation();
   const { user, signOut } = useAuthStore();
   const { loadData, orders } = useDataStore();
+  const preview = isVisualPreviewMode();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -82,49 +64,41 @@ export function AdminLayout() {
   const latestNotificationAt = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || preview) return;
     void loadData();
-  }, [loadData, user]);
+  }, [loadData, preview, user]);
 
   const loadNotifications = useCallback(async () => {
-    if (!user || user.role !== 'admin' && user.role !== 'both') return;
-    const { data, error } = await requireSupabaseClient()
-      .from('admin_notifications')
-      .select('id,section,title,body,entity_type,entity_id,created_at,read_at')
-      .eq('admin_user_id', user.id)
-      .is('read_at', null)
-      .order('created_at', { ascending: false })
-      .limit(80);
+    if (preview || !user || user.role !== 'admin' && user.role !== 'both') return;
+    const { data, error } = await requireSupabaseClient().from('admin_notifications').select('id,section,title,body,entity_type,entity_id,created_at,read_at').eq('admin_user_id', user.id).is('read_at', null).order('created_at', { ascending: false }).limit(80);
     if (error) return;
     const next = (data ?? []) as AdminNotification[];
     const previous = latestNotificationAt.current;
-    if (notificationInitialized.current && previous) {
-      const fresh = next.filter((item) => item.created_at > previous).reverse();
-      fresh.slice(0, 3).forEach((item) => toast.info(item.title, { description: item.body }));
-    }
+    if (notificationInitialized.current && previous) next.filter((item) => item.created_at > previous).reverse().slice(0, 3).forEach((item) => toast.info(item.title, { description: item.body }));
     if (next[0]?.created_at) latestNotificationAt.current = next[0].created_at;
     notificationInitialized.current = true;
     setNotifications(next);
-  }, [user]);
+  }, [preview, user]);
 
   useEffect(() => {
+    if (preview) return;
     void loadNotifications();
     const id = window.setInterval(() => void loadNotifications(), 7000);
     return () => window.clearInterval(id);
-  }, [loadNotifications]);
+  }, [loadNotifications, preview]);
 
   const markSectionRead = useCallback(async (section: AdminSection) => {
-    if (!user) return;
+    if (preview || !user) return;
     try {
       await requireSupabaseClient().rpc('mark_admin_notifications_read', { p_section: section });
       setNotifications((current) => current.filter((item) => item.section !== section));
     } catch {
       // The section remains usable even when read-state persistence is temporarily unavailable.
     }
-  }, [user]);
+  }, [preview, user]);
 
   const markAllNotificationsRead = useCallback(async () => {
-    if (!user || isClearingNotifications || notifications.length === 0) return;
+    if (preview || !user || isClearingNotifications || notifications.length === 0) return;
     setIsClearingNotifications(true);
     try {
       const { error } = await requireSupabaseClient().rpc('mark_admin_notifications_read', { p_section: null });
@@ -135,32 +109,24 @@ export function AdminLayout() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron marcar las notificaciones como leídas.');
       await loadNotifications();
-    } finally {
-      setIsClearingNotifications(false);
-    }
-  }, [isClearingNotifications, loadNotifications, notifications.length, user]);
+    } finally { setIsClearingNotifications(false); }
+  }, [isClearingNotifications, loadNotifications, notifications.length, preview, user]);
 
   useEffect(() => {
-    if (user) void markSectionRead(sectionForPath(location.pathname));
-  }, [location.pathname, markSectionRead, user]);
+    if (preview || !user) return;
+    void markSectionRead(sectionForPath(location.pathname));
+  }, [location.pathname, markSectionRead, preview, user]);
 
   useEffect(() => { setMobileSidebarOpen(false); }, [location.pathname]);
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
   const openStudentPreview = () => {
+    if (preview) return;
     if (typeof window !== 'undefined') window.sessionStorage.setItem('quickbite_admin_student_preview', '1');
     navigate('/menu?from=admin');
   };
 
-  const unreadBySection = useMemo(() => {
-    const counts = {} as Record<AdminSection, number>;
-    notifications.forEach((item) => {
-      counts[item.section] = (counts[item.section] ?? 0) + 1;
-    });
-    return counts;
-  }, [notifications]);
-
+  const unreadBySection = useMemo(() => { const counts = {} as Record<AdminSection, number>; notifications.forEach((item) => { counts[item.section] = (counts[item.section] ?? 0) + 1; }); return counts; }, [notifications]);
   if (!user) return null;
-
   const unreadTotal = notifications.length;
   const pendingCount = orders.filter((order) => !order.admin_hidden && order.status === 'pending').length;
   const isCurrentPath = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -170,8 +136,8 @@ export function AdminLayout() {
 
   return <div className="admin-shell min-h-screen" style={{ background: '#F8FAFC' }}>
     {mobileSidebarOpen && <button type="button" aria-label="Cerrar menú" className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" onClick={() => setMobileSidebarOpen(false)} />}
-    <aside className={`admin-sidebar fixed left-0 top-0 z-40 flex h-full w-72 flex-col shadow-xl transition-[width,transform] duration-200 ${sidebarWidth} ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ background: primaryColor }}>
-      <div className={`px-5 pb-5 pt-7 ${sidebarContentCollapsed ? 'lg:px-3' : ''}`}><div className={`flex items-center ${sidebarContentCollapsed ? 'justify-center' : 'gap-3'}`}><QuickBiteLogo className="h-10 w-10 shrink-0 rounded-xl shadow-md" alt="QuickBite Administración" />{!sidebarContentCollapsed && <div className="min-w-0"><p className="text-base font-bold leading-tight text-white">QuickBite Admin</p><p className="text-xs" style={{ color: '#93C5FD' }}>Panel de control</p></div>}<button type="button" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} className="ml-auto hidden rounded-full p-2 text-blue-100 hover:bg-white/10 lg:inline-flex" aria-label={sidebarCollapsed ? 'Expandir menú lateral' : 'Colapsar menú lateral'} title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}><Menu className="h-5 w-5" /></button><button type="button" className="ml-auto rounded-full p-2 text-blue-100 hover:bg-white/10 lg:hidden" onClick={() => setMobileSidebarOpen(false)} aria-label="Cerrar menú lateral"><X className="h-5 w-5" /></button></div></div>
+    <aside className={`admin-sidebar fixed left-0 top-0 z-40 flex h-full w-72 flex-col shadow-xl transition-[width,transform] duration-200 ${sidebarWidth} ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ backgroundColor: primaryColor, backgroundImage: 'none' }}>
+      <div className={`px-5 pb-5 pt-7 ${sidebarContentCollapsed ? 'lg:px-3' : ''}`}><div className={`flex items-center ${sidebarContentCollapsed ? 'justify-center' : 'gap-3'}`}><QuickBiteLogo className="h-10 w-10 shrink-0 rounded-xl shadow-md" alt="QuickBite Administración" />{!sidebarContentCollapsed && <div className="min-w-0"><p className="text-base font-bold leading-tight text-white">QuickBite Admin</p><p className="text-xs" style={{ color: '#93C5FD' }}>Panel de control</p></div>}<button type="button" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} className="ml-auto hidden rounded-full p-2 text-blue-100 hover:bg-white/10 lg:inline-flex" aria-label={sidebarCollapsed ? 'Expandir menú lateral' : 'Colapsar menú'} title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}><Menu className="h-5 w-5" /></button><button type="button" className="ml-auto rounded-full p-2 text-blue-100 hover:bg-white/10 lg:hidden" onClick={() => setMobileSidebarOpen(false)} aria-label="Cerrar menú lateral"><X className="h-5 w-5" /></button></div></div>
       <div className="mx-4 mb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }} />
       <nav className={`flex-1 overflow-y-auto px-3 ${sidebarContentCollapsed ? 'lg:px-2' : ''}`}>
         {!sidebarContentCollapsed && <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-widest" style={{ color: '#93C5FD' }}>Operaciones</p>}
@@ -193,39 +159,25 @@ export function AdminLayout() {
       </nav>
       <div className={`px-4 pb-5 pt-3 ${sidebarContentCollapsed ? 'lg:px-2' : ''}`} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         {!sidebarContentCollapsed && <div className="mb-3 flex items-center gap-2.5"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: 'rgba(255,255,255,0.12)' }}>{user.full_name?.[0]?.toUpperCase() ?? 'A'}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-white">{user.full_name}</p><p className="truncate text-xs" style={{ color: '#93C5FD' }}>{user.role === 'both' ? 'Administrador y estudiante' : 'Administrador'}</p></div></div>}
-        {canAccessStudent(user.role) && <button type="button" onClick={openStudentPreview} title={sidebarContentCollapsed ? 'Ver como estudiante' : undefined} className={`mb-2 flex w-full items-center rounded-2xl border py-2 text-xs font-semibold transition hover:bg-white/10 ${sidebarContentCollapsed ? 'justify-center px-2' : 'justify-center px-3'}`} style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#DBEAFE' }}><GraduationCap className={sidebarContentCollapsed ? 'h-4 w-4' : 'mr-2 h-3.5 w-3.5'} />{!sidebarContentCollapsed && 'Ver como estudiante'}</button>}
-        <Button onClick={handleSignOut} variant="outline" size="sm" title={sidebarContentCollapsed ? 'Cerrar sesión' : undefined} className="w-full text-xs" style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.2)', color: '#BFDBFE' }}><LogOut className={sidebarContentCollapsed ? 'h-4 w-4' : 'mr-2 h-3.5 w-3.5'} />{!sidebarContentCollapsed && 'Cerrar sesión'}</Button>
+        {canAccessStudent(user.role) && !preview && <button type="button" onClick={openStudentPreview} title={sidebarContentCollapsed ? 'Ver como estudiante' : undefined} className={`mb-2 flex w-full items-center rounded-2xl border py-2 text-xs font-semibold transition hover:bg-white/10 ${sidebarContentCollapsed ? 'justify-center px-2' : 'justify-center px-3'}`} style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#DBEAFE' }}><GraduationCap className={sidebarContentCollapsed ? 'h-4 w-4' : 'mr-2 h-3.5 w-3.5'} />{!sidebarContentCollapsed && 'Ver como estudiante'}</button>}
+        <Button onClick={handleSignOut} variant="outline" size="sm" title={sidebarContentCollapsed ? 'Cerrar sesión' : undefined} className="w-full text-xs" style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.22)', color: '#fff' }}><LogOut className="mr-2 h-4 w-4" />{!sidebarContentCollapsed && 'Cerrar sesión'}</Button>
       </div>
     </aside>
 
-    <header className="admin-mobile-header sticky top-0 z-20 flex h-14 items-center border-b border-slate-200 bg-white/95 px-4 shadow-sm backdrop-blur lg:hidden">
-      <button type="button" onClick={() => setMobileSidebarOpen(true)} className="rounded-full p-2 text-blue-900 hover:bg-blue-50" aria-label="Abrir menú lateral"><Menu className="h-6 w-6" /></button>
-      <div className="ml-3 flex items-center gap-2"><QuickBiteLogo className="h-8 w-8 rounded-lg" alt="QuickBite" /><span className="font-black text-blue-900">QuickBite Admin</span></div>
-      <button type="button" onClick={() => setNotificationOpen((open) => !open)} className="relative ml-auto rounded-full p-2 text-blue-900 hover:bg-blue-50" aria-label="Abrir notificaciones administrativas">
-        <Bell className="h-5 w-5" />{unreadTotal > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500" />}
-      </button>
-    </header>
-
-    <main className={`admin-main ${mainMargin} min-h-screen transition-all duration-200`}><div className="p-4 sm:p-6 lg:p-8">
-      <div className="sticky top-2 z-10 mb-5 flex justify-end">
-        <div className="relative">
-          <button type="button" onClick={() => setNotificationOpen((open) => !open)} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md" aria-label="Notificaciones administrativas">
-            <Bell className="h-4 w-4 text-blue-700" />
-            Notificaciones
-            {unreadTotal > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[11px] font-black text-white">{unreadTotal > 99 ? '99+' : unreadTotal}</span>}
-          </button>
-          {notificationOpen && <div className="absolute right-0 mt-2 w-[min(92vw,420px)] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="font-black text-slate-900">Actividad administrativa</p><p className="text-xs text-slate-500">Las alertas nuevas permanecen hasta que las marques como leídas.</p></div><span className="text-xs font-black text-slate-400">{unreadTotal} nuevas</span></div>
-            <div className="max-h-[60vh] overflow-y-auto p-2">
-              {notifications.length === 0 ? <div className="p-6 text-center"><CheckCheck className="mx-auto mb-2 h-7 w-7 text-emerald-500" /><p className="text-sm font-bold text-slate-700">No tienes notificaciones nuevas.</p><p className="mt-1 text-xs text-slate-400">Todo está al día.</p></div> : notifications.slice(0, 20).map((item) => <button key={item.id} type="button" onClick={() => { setNotificationOpen(false); navigate(sectionPath[item.section]); }} className="block w-full rounded-2xl bg-blue-50/70 p-3 text-left transition hover:bg-slate-50">
-                <div className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" /><div className="min-w-0"><p className="font-black text-slate-900">{item.title}</p><p className="mt-0.5 text-xs leading-5 text-slate-600">{item.body}</p><time className="mt-1 block text-[11px] text-slate-400">{new Date(item.created_at).toLocaleString('es-CO')}</time></div></div>
-              </button>)}
-            </div>
-            {unreadTotal > 0 && <div className="border-t border-slate-100 p-2"><button type="button" onClick={() => void markAllNotificationsRead()} disabled={isClearingNotifications} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-50 px-3 py-2.5 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"><CheckCheck className="h-4 w-4" />{isClearingNotifications ? 'Marcando como leídas...' : 'Marcar todas como leídas'}</button></div>}
-          </div>}
+    <main className={`${mainMargin} min-h-screen transition-[margin] duration-200`}>
+      <div className="p-4 lg:p-8">
+        <div className="mb-4 flex justify-end">
+          <div className="relative">
+            <button type="button" onClick={() => setNotificationOpen((open) => !open)} className="rounded-xl p-2 text-slate-600 hover:bg-slate-100" aria-label="Notificaciones">
+              <Bell className="h-5 w-5" />
+              {unreadTotal > 0 && <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-red-500 px-1 text-[9px] font-black leading-4 text-white">{unreadTotal > 9 ? '9+' : unreadTotal}</span>}
+            </button>
+            {notificationOpen && <div className="absolute right-0 top-10 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"><div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><p className="text-sm font-black text-slate-900">Notificaciones</p><button type="button" onClick={() => void markAllNotificationsRead()} disabled={preview || notifications.length === 0 || isClearingNotifications} className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 disabled:opacity-40"><CheckCheck className="h-3.5 w-3.5" />Marcar leídas</button></div><div className="max-h-80 overflow-auto">{notifications.length===0?<p className="p-5 text-sm text-slate-500">No hay notificaciones pendientes.</p>:notifications.map((item)=><button key={item.id} type="button" onClick={() => { setNotificationOpen(false); navigate(sectionPath[item.section] ?? '/admin'); }} className="block w-full border-b border-slate-100 p-4 text-left hover:bg-slate-50"><p className="text-sm font-black text-slate-800">{item.title}</p><p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p></button>)}</div></div>}
+          </div>
         </div>
+        <Outlet />
       </div>
-      <Outlet />
-    </div></main><Toaster position="top-center" />
+    </main>
+    <Toaster position="top-center" />
   </div>;
 }

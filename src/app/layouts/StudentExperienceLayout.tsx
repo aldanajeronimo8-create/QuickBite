@@ -7,6 +7,7 @@ import { useStudentContextStore } from '../../store/studentContextStore';
 import { requireSupabaseClient } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { canAccessAdmin } from '../../lib/access';
+import { isVisualPreviewMode } from '../contexts/VisualThemeProvider';
 
 export function StudentExperienceLayout() {
   const navigate = useNavigate();
@@ -15,8 +16,8 @@ export function StudentExperienceLayout() {
   const currentUser = useAuthStore((state) => state.user);
   const [returning, setReturning] = useState(false);
   const actingAsStudent = Boolean(activeStudent);
-  const adminPreviewFlag = typeof window !== 'undefined'
-    && window.sessionStorage.getItem('quickbite_admin_student_preview') === '1';
+  const visualPreview = isVisualPreviewMode();
+  const adminPreviewFlag = !visualPreview && typeof window !== 'undefined' && window.sessionStorage.getItem('quickbite_admin_student_preview') === '1';
   const adminPreview = adminPreviewFlag && Boolean(currentUser && canAccessAdmin(currentUser.role));
 
   const returnToParent = async () => {

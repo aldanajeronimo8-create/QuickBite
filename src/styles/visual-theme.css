@@ -1,0 +1,164 @@
+:root {
+  --qb-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+  --qb-density-spacing: 1rem;
+  --qb-control-height: 2.75rem;
+  --qb-font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --qb-heading-font: "Nunito", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Production keeps the original QuickBite theme. Dynamic visual-editor rules
+ * are activated only for a guided/advanced customization or its preview. */
+body { font-family: var(--qb-font-family); color: var(--qb-text); }
+h1,h2,h3,h4 { font-family: var(--qb-heading-font); }
+
+:root[data-qb-visual-active="1"] body {
+  background: var(--qb-background) !important;
+}
+
+:root[data-qb-visual-active="1"] :where(button:not([data-qb-preserve-style]), [role="button"]:not([data-qb-preserve-style])) {
+  border-radius: var(--qb-button-radius);
+  box-shadow: var(--qb-shadow);
+  transition: filter 160ms ease, transform 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+:root[data-qb-visual-active="1"][data-qb-button-style="solid"] :where(.qb-visual-action) {
+  background: var(--qb-primary) !important;
+  color: #fff !important;
+  border-color: var(--qb-primary) !important;
+}
+:root[data-qb-visual-active="1"][data-qb-button-style="soft"] :where(.qb-visual-action) {
+  background: color-mix(in srgb, var(--qb-primary) 12%, var(--qb-surface)) !important;
+  color: var(--qb-primary) !important;
+  border-color: color-mix(in srgb, var(--qb-primary) 28%, transparent) !important;
+}
+:root[data-qb-visual-active="1"][data-qb-button-style="outline"] :where(.qb-visual-action) {
+  background: transparent !important;
+  border: 1px solid var(--qb-primary) !important;
+  color: var(--qb-primary) !important;
+}
+:root[data-qb-visual-active="1"][data-qb-button-style="ghost"] :where(.qb-visual-action) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--qb-primary) !important;
+}
+
+:root[data-qb-visual-active="1"] :where(input:not([data-qb-preserve-style]), select:not([data-qb-preserve-style]), textarea:not([data-qb-preserve-style])) {
+  min-height: var(--qb-control-height);
+  border-radius: var(--qb-button-radius);
+  border-color: var(--qb-border);
+  font-family: var(--qb-font-family);
+}
+:root[data-qb-visual-active="1"][data-qb-input-style="soft"] :where(input:not([data-qb-preserve-style]), select:not([data-qb-preserve-style]), textarea:not([data-qb-preserve-style])) {
+  background: color-mix(in srgb, var(--qb-primary) 6%, var(--qb-surface));
+}
+:root[data-qb-visual-active="1"][data-qb-input-style="filled"] :where(input:not([data-qb-preserve-style]), select:not([data-qb-preserve-style]), textarea:not([data-qb-preserve-style])) {
+  background: var(--qb-surface);
+  border-color: transparent;
+}
+
+:root[data-qb-visual-active="1"] :where(header:not([data-qb-preserve-style])) { box-shadow: var(--qb-shadow); }
+:root[data-qb-visual-active="1"] :where(nav:not([data-qb-preserve-style])) { border-color: var(--qb-border); }
+:root[data-qb-visual-active="1"][data-qb-navigation-style="glass"] :where(nav:not([data-qb-preserve-style])) {
+  background: color-mix(in srgb, var(--qb-surface) 72%, transparent);
+  backdrop-filter: blur(14px);
+}
+:root[data-qb-visual-active="1"][data-qb-navigation-style="soft"] :where(nav:not([data-qb-preserve-style])) {
+  background: color-mix(in srgb, var(--qb-primary) 7%, var(--qb-surface));
+}
+:root[data-qb-visual-active="1"][data-qb-navigation-style="solid"] :where(nav:not([data-qb-preserve-style])) {
+  background: var(--qb-surface);
+}
+
+/* Never apply global navigation styling to the administrative sidebar.
+ * The sidebar has its own production identity and must remain solid blue. */
+:root[data-qb-visual-active="1"] .admin-sidebar nav,
+:root[data-qb-visual-active="1"] .admin-sidebar nav:not([data-qb-preserve-style]) {
+  background: transparent !important;
+  border-color: transparent !important;
+  backdrop-filter: none !important;
+}
+
+/* The real application contains explicit green/blue Tailwind utilities.
+ * During customization they are remapped to the selected palette, while
+ * normal production pages keep their original classes untouched. */
+:root[data-qb-visual-active="1"] .bg-green-600,
+:root[data-qb-visual-active="1"] .bg-green-700,
+:root[data-qb-visual-active="1"] .bg-blue-600,
+:root[data-qb-visual-active="1"] .bg-blue-700 {
+  background-color: var(--qb-primary) !important;
+}
+:root[data-qb-visual-active="1"] .text-green-600,
+:root[data-qb-visual-active="1"] .text-green-700,
+:root[data-qb-visual-active="1"] .text-green-800,
+:root[data-qb-visual-active="1"] .text-blue-600,
+:root[data-qb-visual-active="1"] .text-blue-700,
+:root[data-qb-visual-active="1"] .text-blue-800 {
+  color: var(--qb-primary) !important;
+}
+:root[data-qb-visual-active="1"] .border-green-200,
+:root[data-qb-visual-active="1"] .border-green-300,
+:root[data-qb-visual-active="1"] .border-blue-200,
+:root[data-qb-visual-active="1"] .border-blue-300 {
+  border-color: color-mix(in srgb, var(--qb-primary) 26%, transparent) !important;
+}
+:root[data-qb-visual-active="1"] .bg-green-50,
+:root[data-qb-visual-active="1"] .bg-blue-50 {
+  background: color-mix(in srgb, var(--qb-primary) 8%, var(--qb-surface)) !important;
+}
+:root[data-qb-visual-active="1"] .hover\\:bg-green-50:hover,
+:root[data-qb-visual-active="1"] .hover\\:bg-blue-50:hover {
+  background: color-mix(in srgb, var(--qb-primary) 12%, var(--qb-surface)) !important;
+}
+:root[data-qb-visual-active="1"] .bg-gradient-to-r.from-blue-500 {
+  background-image: linear-gradient(90deg, var(--qb-primary), var(--qb-secondary)) !important;
+}
+
+.qb-theme-card { border-radius: var(--qb-card-radius); border-color: var(--qb-border); }
+.qb-theme-button { border-radius: var(--qb-button-radius); }
+.qb-theme-input { min-height: var(--qb-control-height); border-radius: var(--qb-button-radius); border-color: var(--qb-border); }
+[data-qb-preview] button,[data-qb-preview] input { font-family: var(--qb-font-family); }
+
+/* Login is intentionally preview/customization-scoped so production retains
+ * the original green/teal/blue glass treatment. */
+:root[data-qb-visual-active="1"] .qb-auth {
+  background: linear-gradient(135deg, var(--qb-primary), var(--qb-secondary)) !important;
+  color: var(--qb-text);
+}
+:root[data-qb-visual-active="1"] .qb-auth .qb-auth-card {
+  background: var(--qb-surface) !important;
+  color: var(--qb-text) !important;
+  border-color: var(--qb-border) !important;
+  border-radius: var(--qb-card-radius) !important;
+  box-shadow: var(--qb-shadow) !important;
+}
+:root[data-qb-visual-active="1"] .qb-auth .qb-auth-card h2,
+:root[data-qb-visual-active="1"] .qb-auth .qb-auth-card h3,
+:root[data-qb-visual-active="1"] .qb-auth .qb-auth-card label { color: var(--qb-text) !important; }
+:root[data-qb-visual-active="1"] .qb-auth .qb-auth-card p { color: var(--qb-text-secondary) !important; }
+:root[data-qb-visual-active="1"] .qb-auth .qb-auth-card input {
+  background: var(--qb-surface) !important;
+  color: var(--qb-text) !important;
+  border-color: var(--qb-border) !important;
+  border-radius: var(--qb-button-radius) !important;
+}
+:root[data-qb-visual-active="1"] .qb-auth .qb-auth-card button[type="submit"] {
+  background: var(--qb-primary) !important;
+  color: #fff !important;
+  border-radius: var(--qb-button-radius) !important;
+}
+:root[data-qb-visual-active="1"] .qb-auth .qb-auth-card a { color: var(--qb-primary) !important; }
+
+:root[data-qb-visual-active="1"][data-qb-header-style="prominent"] header { border-bottom: 2px solid var(--qb-primary); }
+:root[data-qb-visual-active="1"][data-qb-header-style="minimal"] header { box-shadow: none; border-bottom: 1px solid var(--qb-border); }
+:root[data-qb-visual-active="1"][data-qb-card-style="flat"] .qb-theme-card { box-shadow: none; }
+:root[data-qb-visual-active="1"][data-qb-card-style="outlined"] .qb-theme-card { box-shadow: none; border: 1px solid var(--qb-border); }
+:root[data-qb-visual-active="1"][data-qb-card-style="elevated"] .qb-theme-card { box-shadow: var(--qb-shadow); }
+:root[data-qb-visual-active="1"][data-qb-card-style="glass"] .qb-theme-card {
+  background: color-mix(in srgb, var(--qb-surface) 78%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+/* Keep the administrative sidebar on the original production identity.
+ * Its variables are deliberately independent from the chosen guided palette. */
+.admin-sidebar { --sidebar: #1747B8; --sidebar-foreground: #FFFFFF; --sidebar-primary: #2563EB; --sidebar-primary-foreground: #FFFFFF; --sidebar-accent: rgba(255,255,255,0.12); --sidebar-accent-foreground: #FFFFFF; --sidebar-border: rgba(255,255,255,0.12); --sidebar-ring: #E0ECFF; }

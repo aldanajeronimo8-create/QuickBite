@@ -1,0 +1,28 @@
+/* Admin neutral action controls: restore the white treatment for buttons that
+ * explicitly carry the legacy production-blue background. The production sidebar
+ * is intentionally excluded, and theme-driven primary buttons remain customizable. */
+:root[data-qb-visual-preview-scope="admin"] .admin-main [data-slot="button"][class*="bg-blue-"],
+:root[data-qb-visual-preview-scope="admin"] .admin-main button[class*="bg-blue-"],
+:root[data-qb-visual-preview-scope="admin"] .admin-main [data-slot="button"][class*="bg-[#1747B8]"],
+:root[data-qb-visual-preview-scope="admin"] .admin-main button[class*="bg-[#1747B8]"],
+:root[data-qb-visual-preview-scope="admin"] .admin-main [data-slot="button"][style*="#1747B8"],
+:root[data-qb-visual-preview-scope="admin"] .admin-main button[style*="#1747B8"],
+:root[data-qb-visual-preview-scope="admin"] .admin-main [data-slot="button"][style*="#2563EB"],
+:root[data-qb-visual-preview-scope="admin"] .admin-main button[style*="#2563EB"] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] .admin-main [data-slot="button"][class*="bg-blue-"]:hover,
+:root[data-qb-visual-preview-scope="admin"] .admin-main button[class*="bg-blue-"]:hover,
+:root[data-qb-visual-preview-scope="admin"] .admin-main [data-slot="button"][class*="bg-[#1747B8]"]:hover,
+:root[data-qb-visual-preview-scope="admin"] .admin-main button[class*="bg-[#1747B8]"]:hover,
+:root[data-qb-visual-preview-scope="admin"] .admin-main [data-slot="button"][style*="#1747B8"]:hover,
+:root[data-qb-visual-preview-scope="admin"] .admin-main button[style*="#1747B8"]:hover,
+:root[data-qb-visual-preview-scope="admin"] .admin-main [data-slot="button"][style*="#2563EB"]:hover,
+:root[data-qb-visual-preview-scope="admin"] .admin-main button[style*="#2563EB"]:hover {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}

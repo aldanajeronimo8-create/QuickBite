@@ -1,0 +1,197 @@
+/* Admin production visual lock: keep the administrative shell on the original palette. */
+.admin-shell .admin-sidebar {
+  background: #1747B8 !important;
+  color: #FFFFFF !important;
+}
+
+.admin-sidebar .admin-nav-link {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar .admin-nav-link[style*="color: #fff"],
+.admin-sidebar .admin-nav-link[style*="color:#fff"] {
+  color: #FFFFFF !important;
+}
+
+.admin-sidebar .admin-nav-link span {
+  color: inherit !important;
+}
+
+.admin-sidebar nav > p {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar [style*="#93C5FD"],
+.admin-sidebar [style*="#BFDBFE"],
+.admin-sidebar [style*="#DBEAFE"] {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar [style*="#FCA5A5"] {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar button {
+  color: #E0ECFF !important;
+}
+
+.admin-sidebar button.text-white,
+.admin-sidebar button [class*="text-white"] {
+  color: #FFFFFF !important;
+}
+
+/* Neutral administrative overlays must not inherit the saved Admin palette.
+ * The main Admin surface remains customizable; transient overlays stay clean. */
+:root[data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast] [data-title],
+:root[data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast] [data-description] {
+  color: inherit !important;
+}
+
+/* Radix floating layers: popovers, dropdowns, selects, context menus and similar portals. */
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] > *,
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="popover-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="dropdown-menu-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="dropdown-menu-sub-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="select-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="context-menu-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-slot="context-menu-sub-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="navigation-menu-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="navigation-menu-viewport"] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-highlighted],
+:root[data-qb-visual-preview-scope="admin"] [data-radix-popper-content-wrapper] [data-highlighted=true] {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+/* Modal and side-panel surfaces rendered through portals. */
+:root[data-qb-visual-preview-scope="admin"] [data-slot="dialog-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="alert-dialog-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="sheet-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="drawer-content"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="command"] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Admin form controls are structural UI, not part of the guided color palette.
+ * Keep text fields, textareas, native selects and combobox-like controls white. */
+:root[data-qb-visual-preview-scope="admin"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+:root[data-qb-visual-preview-scope="admin"] textarea,
+:root[data-qb-visual-preview-scope="admin"] select,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="input"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="textarea"],
+:root[data-qb-visual-preview-scope="admin"] [data-slot="select-trigger"],
+:root[data-qb-visual-preview-scope="admin"] [role="combobox"] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+  background-image: none !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] input::placeholder,
+:root[data-qb-visual-preview-scope="admin"] textarea::placeholder,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="select-trigger"][data-placeholder],
+:root[data-qb-visual-preview-scope="admin"] [role="combobox"][aria-placeholder] {
+  color: #64748B !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] [data-slot="select-trigger"] svg,
+:root[data-qb-visual-preview-scope="admin"] [role="combobox"] svg {
+  color: #64748B !important;
+}
+
+:root[data-qb-visual-preview-scope="admin"] input:focus,
+:root[data-qb-visual-preview-scope="admin"] textarea:focus,
+:root[data-qb-visual-preview-scope="admin"] select:focus,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="input"]:focus-visible,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="textarea"]:focus-visible,
+:root[data-qb-visual-preview-scope="admin"] [data-slot="select-trigger"]:focus-visible,
+:root[data-qb-visual-preview-scope="admin"] [role="combobox"]:focus-visible {
+  border-color: #2563EB !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+/* Keep the semantic tokens used by form controls neutral in Admin as well.
+ * This also covers custom inputs that do not expose a QuickBite data-slot. */
+:root[data-qb-visual-preview-scope="admin"] {
+  --input: #FFFFFF;
+  --input-background: #FFFFFF;
+}
+
+/* Tooltips intentionally stay compact dark-neutral, rather than inheriting the Admin primary color. */
+:root[data-qb-visual-preview-scope="admin"] [data-slot="tooltip-content"] {
+  background: #0F172A !important;
+  color: #FFFFFF !important;
+}
+
+/* Admin notification dropdown stays neutral even while the main Admin theme is personalized. */
+.admin-shell .admin-notification-popover,
+.admin-shell .admin-notification-popover * {
+  --tw-ring-color: #E2E8F0;
+}
+
+.admin-shell .admin-notification-popover {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Do not show the desktop section-title header above the Admin content. */
+@media (min-width: 1024px) {
+  .admin-main > header > div:first-child {
+    display: none !important;
+  }
+}
+
+/* Explicit blue utility classes used for structural metadata in Admin.
+ * These surfaces are not theme actions and must not become the visual Admin primary. */
+.admin-shell table tbody td:nth-child(2) .bg-blue-50.text-blue-700 {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+}
+
+.admin-shell table tbody td:nth-child(3) > .bg-blue-50.text-blue-700 {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+}
+
+.admin-shell [class*="border-l-4"][class*="bg-blue-50"][class*="border-blue-500"] {
+  background: #F8FAFC !important;
+  border-left-color: #CBD5E1 !important;
+  color: #475569 !important;
+}
+
+.admin-shell [class*="border-l-4"][class*="bg-blue-50"][class*="border-blue-500"] strong {
+  color: #334155 !important;
+}
+
+/* The report-period badge is informational metadata, not a primary action. */
+.admin-shell section.rounded-3xl .flex.flex-wrap.gap-2.text-sm > span:first-child.bg-blue-50 {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+}
+
+/* Feature-center icon tiles stay neutral; the Admin primary remains reserved for real actions. */
+.admin-shell [data-testid="admin-feature-center"] [class*="bg-blue-50"][class*="text-blue-700"] {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+}
+
+.admin-shell [data-testid="admin-feature-center"] .group:hover [class*="bg-blue-50"][class*="text-blue-700"] {
+  background: #E2E8F0 !important;
+  color: #334155 !important;
+}
+
+/* Trigger Vercel Git integration for the latest branch revision. */
