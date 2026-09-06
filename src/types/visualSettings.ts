@@ -94,11 +94,19 @@ const SAFE_SHADOW = /^(?:none|0 0 \d{1,3}px rgba\(\d{1,3}, \d{1,3}, \d{1,3}, 0?\
 const CSS_ELEMENT_STYLE_KEYS = ['backgroundColor','color','borderColor','borderRadius','boxShadow','fontSize','fontWeight','padding','margin','width','height','opacity','textAlign'] as const;
 const ELEMENT_OVERRIDE_KEYS = ['textContent', ...CSS_ELEMENT_STYLE_KEYS] as const;
 
+function hasControlCharacters(value: string): boolean {
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    if ((code >= 0 && code <= 31) || code === 127) return true;
+  }
+  return false;
+}
+
 export function sanitizeVisualElementStyle(value: unknown): VisualElementStyle {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const source = value as Record<string, unknown>;
   const result: VisualElementStyle = {};
-  if (typeof source.textContent === 'string' && source.textContent.length <= 500 && !/[\u0000-\u001F\u007F]/.test(source.textContent)) result.textContent = source.textContent;
+  if (typeof source.textContent === 'string' && source.textContent.length <= 500 && !hasControlCharacters(source.textContent)) result.textContent = source.textContent;
   for (const key of ['backgroundColor','color','borderColor'] as const) if (typeof source[key] === 'string' && isHexColor(source[key])) result[key] = source[key].toUpperCase();
   for (const key of ['borderRadius','fontSize','padding','margin','width','height'] as const) if (typeof source[key] === 'string' && SAFE_CSS_VALUE.test(source[key])) result[key] = source[key];
   if (typeof source.boxShadow === 'string' && SAFE_SHADOW.test(source.boxShadow)) result.boxShadow = source.boxShadow;
