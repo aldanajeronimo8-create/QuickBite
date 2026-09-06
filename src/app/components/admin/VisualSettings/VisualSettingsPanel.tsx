@@ -1,56 +1,218 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, ImagePlus, Palette, RotateCcw, Save, ShieldCheck, Type, Upload, WandSparkles, Monitor } from 'lucide-react';
+import { Check, Copy, ExternalLink, History, Monitor, RotateCcw, Save, Smartphone, Tablet, Undo2, Redo2, WandSparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVisualTheme } from '../../../contexts/VisualThemeProvider';
-import { resetVisualSettings, saveVisualSettings, uploadBrandingImage } from '../../../../services/visualSettingsService';
-import { isHexColor, resolveVisualSettings, type VisualInterfaceScope, type VisualSettingsDraft } from '../../../../types/visualSettings';
+import { resetVisualSettings, saveVisualSettings } from '../../../../services/visualSettingsService';
+import { isHexColor, resolveVisualSettings, sanitizeVisualSettings, type VisualInterfaceScope, type VisualSettingsDraft } from '../../../../types/visualSettings';
 import { PreviewStudio } from './PreviewStudio';
 
-type Tab = 'interfaces' | 'branding' | 'colors' | 'type' | 'components';
-const tabs: Array<[Tab, string, typeof Eye]> = [['interfaces','Interfaces',Eye],['branding','Branding',ImagePlus],['colors','Colores',Palette],['type','Tipografía',Type],['components','Botones y componentes',WandSparkles]];
-const scopes: Array<[VisualInterfaceScope,string,string,string]> = [
-  ['login_student','Login · Estudiante','/login','Vista de inicio de sesión del estudiante'],
-  ['login_parent','Login · Padre','/login','Vista de inicio de sesión del padre de familia'],
-  ['login_admin','Login · Admin','/login','Vista de inicio de sesión administrativa'],
-  ['admin','Panel · Admin','/admin','Toda la experiencia administrativa'],
-  ['student','Panel · Estudiante','/menu','Toda la experiencia del estudiante'],
-  ['parent','Panel · Padre','/parent/family','Toda la experiencia del padre de familia'],
+type ScopeInfo = { id: VisualInterfaceScope; label: string; path: string; description: string };
+const SCOPES: ScopeInfo[] = [
+  { id: 'login_student', label: 'Login · Estudiante', path: '/login', description: 'Inicio de sesión del estudiante.' },
+  { id: 'login_parent', label: 'Login · Padre', path: '/login', description: 'Inicio de sesión del padre de familia.' },
+  { id: 'login_admin', label: 'Login · Administrador', path: '/login', description: 'Inicio de sesión administrativa.' },
+  { id: 'admin', label: 'Panel · Administrador', path: '/admin', description: 'Toda la experiencia administrativa.' },
+  { id: 'student', label: 'Panel · Estudiante', path: '/menu', description: 'Toda la experiencia del estudiante.' },
+  { id: 'parent', label: 'Panel · Padre', path: '/parent/family', description: 'Toda la experiencia del padre de familia.' },
 ];
-const colorFields: Array<[keyof VisualSettingsDraft,string]> = [['primary_color','Primario'],['secondary_color','Secundario'],['accent_color','Acento'],['background_color','Fondo'],['surface_color','Superficies'],['text_color','Texto'],['muted_text_color','Texto secundario'],['border_color','Bordes'],['success_color','Éxito'],['warning_color','Advertencia'],['danger_color','Error']];
-const options = { radius:[['sharp','Sin redondeo'],['small','Pequeño'],['medium','Medio'],['large','Grande'],['rounded','Píldora']], shadow:[['none','Sin sombra'],['subtle','Sutil'],['normal','Normal'],['elevated','Elevada']], button:[['solid','Sólido'],['soft','Suave'],['outline','Contorno'],['ghost','Fantasma']], header:[['standard','Estándar'],['minimal','Minimal'],['prominent','Destacado']], navigation:[['solid','Sólida'],['soft','Suave'],['glass','Cristal']], card:[['flat','Plana'],['outlined','Con borde'],['elevated','Elevada'],['glass','Cristal']], input:[['outlined','Contorno'],['soft','Suave'],['filled','Relleno']], density:[['compact','Compacta'],['normal','Normal'],['comfortable','Cómoda']], theme:[['light','Claro'],['dark','Oscuro'],['system','Sistema']] };
-const editableKeys = ['app_name','logo_url','favicon_url','login_logo_url','primary_color','secondary_color','accent_color','background_color','surface_color','text_color','muted_text_color','border_color','success_color','warning_color','danger_color','font_family','heading_font','border_radius','card_radius','button_radius','shadow_style','button_style','header_style','navigation_style','card_style','input_style','density','theme_mode'] as const;
-function contrastRatio(a:string,b:string){const channel=(v:string)=>{const n=parseInt(v,16)/255;return n<=.03928?n/12.92:Math.pow((n+.055)/1.055,2.4)};const lum=(h:string)=>{const c=h.slice(1);return .2126*channel(c.slice(0,2))+.7152*channel(c.slice(2,4))+.0722*channel(c.slice(4,6))};const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
-function pickEditable(draft:VisualSettingsDraft){const out:Partial<VisualSettingsDraft>={};for(const key of editableKeys)out[key]=draft[key] as never;return out}
 
-export function VisualSettingsPanel(){
-  const {settings,loading,applyLocal,refresh}=useVisualTheme();
-  const [tab,setTab]=useState<Tab>('interfaces'); const [scope,setScope]=useState<VisualInterfaceScope>('login_student');
-  const [draft,setDraft]=useState<VisualSettingsDraft>(resolveVisualSettings(settings,'login_student')); const [saved,setSaved]=useState<VisualSettingsDraft>(resolveVisualSettings(settings,'login_student'));
-  const [saving,setSaving]=useState(false); const [uploading,setUploading]=useState<string|null>(null);
-  const globalBase=useMemo(()=>({...settings,interface_overrides:settings.interface_overrides}),[settings]);
-  useEffect(()=>{const next=resolveVisualSettings(settings,scope);setDraft(next);setSaved(next)},[settings,scope]);
-  const dirty=JSON.stringify(draft)!==JSON.stringify(saved); const contrast=contrastRatio(draft.text_color,draft.background_color);
-  const patch=(key:keyof VisualSettingsDraft,value:VisualSettingsDraft[typeof key])=>setDraft(current=>({...current,[key]:value}));
-  const loginRole=scope.startsWith('login_')?scope.replace('login_',''):null;
-  const basePreviewPath=scope.startsWith('login_')?`/login?preview_role=${loginRole}`:(scopes.find(s=>s[0]===scope)?.[2]??'/login');
-  const previewPath=`${basePreviewPath}${basePreviewPath.includes('?')?'&':'?'}visual_preview=1&visual_preview_scope=${scope}`;
-  const selectScope=(next:VisualInterfaceScope)=>{setScope(next);setTab('interfaces')};
-  const save=async()=>{if(!isHexColor(draft.primary_color)||!isHexColor(draft.background_color)||!isHexColor(draft.text_color)){toast.error('Revisa los colores antes de guardar.');return}if(contrast<3){toast.error('El contraste mínimo permitido es 3:1.');return}setSaving(true);try{const overrides={...(settings.interface_overrides??{})};overrides[scope]=pickEditable(draft);const next={...globalBase,interface_overrides:overrides};const result=await saveVisualSettings(next);applyLocal(result);const effective=resolveVisualSettings(result,scope);setDraft(effective);setSaved(effective);toast.success(`Cambios guardados para ${scopes.find(s=>s[0]===scope)?.[1]}.`)}catch(e){toast.error(e instanceof Error?e.message:'No se pudieron guardar los cambios')}finally{setSaving(false)}};
-  const reset=async()=>{if(!window.confirm('¿Restablecer toda la personalización visual?'))return;setSaving(true);try{const result=await resetVisualSettings();applyLocal(result);const effective=resolveVisualSettings(result,scope);setDraft(effective);setSaved(effective);await refresh();toast.success('Apariencia restablecida.')}catch(e){toast.error(e instanceof Error?e.message:'No se pudo restablecer.')}finally{setSaving(false)}};
-  const upload=async(kind:'logo'|'login_logo'|'favicon',file:File)=>{if(!file.type.startsWith('image/')){toast.error('Selecciona una imagen válida.');return}if(file.size>2*1024*1024){toast.error('La imagen supera 2 MB.');return}setUploading(kind);try{const url=await uploadBrandingImage(file);patch(kind==='logo'?'logo_url':kind==='login_logo'?'login_logo_url':'favicon_url',url);toast.success('Imagen cargada. Guarda para publicar.')}catch(e){toast.error(e instanceof Error?e.message:'No se pudo cargar la imagen.')}finally{setUploading(null)}};
-  const select=(label:string,value:string,list:string[][],onChange:(v:string)=>void)=><label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">{label}</span><select value={value}onChange={e=>onChange(e.target.value)}className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">{list.map(([v,l])=><option key={v}value={v}>{l}</option>)}</select></label>;
-  return <div className="space-y-6">
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-xs font-black uppercase tracking-[.2em] text-blue-700">Funciones → Personalización visual</p><h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900">Editor visual de toda la web</h1><p className="mt-1 max-w-3xl text-sm text-slate-600">Selecciona una interfaz, modifica sus elementos visuales y mira la página real en la vista previa. No permite editar código, HTML ni JavaScript.</p></div><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-3 py-2 text-xs font-black ${dirty?'bg-amber-50 text-amber-800':'bg-emerald-50 text-emerald-700'}`}>{dirty?'Cambios sin guardar':'Todo guardado'}</span><button type="button"disabled={!dirty||saving}onClick={()=>setDraft(saved)}className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold disabled:opacity-40">Cancelar</button><button type="button"disabled={saving}onClick={()=>void reset()}className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-40"><RotateCcw className="h-3.5 w-3.5"/>Restablecer</button><button type="button"disabled={!dirty||saving}onClick={()=>void save()}className="inline-flex items-center gap-2 rounded-xl bg-[var(--qb-primary)] px-4 py-2 text-xs font-black text-white shadow-lg disabled:opacity-50"><Save className="h-3.5 w-3.5"/>{saving?'Guardando…':'Guardar cambios'}</button></div></div>
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(430px,52%)]">
-      <div className="min-w-0 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm"><div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50 px-3 pt-3">{tabs.map(([id,label,Icon])=><button key={id}type="button"onClick={()=>setTab(id)}className={`inline-flex shrink-0 items-center gap-2 rounded-t-xl px-4 py-3 text-sm font-black ${tab===id?'bg-white text-blue-700 shadow-sm':'text-slate-500 hover:text-slate-800'}`}><Icon className="h-4 w-4"/>{label}</button>)}</div><div className="p-5 sm:p-7">
-        {tab==='interfaces'&&<div className="space-y-5"><div><h2 className="text-xl font-black text-slate-900">¿Qué interfaz quieres editar?</h2><p className="mt-1 text-sm text-slate-500">Cada opción guarda su propia personalización. Las interfaces sin cambios usan el tema global.</p></div><div className="grid gap-3 sm:grid-cols-2">{scopes.map(([id,label,path,description])=><button key={id}type="button"onClick={()=>selectScope(id)}className={`text-left rounded-2xl border p-4 transition ${scope===id?'border-blue-400 bg-blue-50 shadow-md':'border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm'}`}><div className="flex items-center justify-between"><span className="text-sm font-black text-slate-900">{label}</span><span className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">{path}</span></div><p className="mt-2 text-xs leading-5 text-slate-600">{description}</p><span className="mt-3 inline-flex items-center gap-1 text-xs font-black text-blue-700"><Eye className="h-3.5 w-3.5"/>Editar y previsualizar</span></button>)}</div><div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-xs leading-5 text-emerald-950"><ShieldCheck className="mr-2 inline h-4 w-4"/>Los cambios se almacenan por interfaz en Supabase y se aplican mediante variables visuales seguras.</div></div>}
-        {tab==='branding'&&<div className="space-y-6"><div><h2 className="text-lg font-black text-slate-900">Branding de {scopes.find(s=>s[0]===scope)?.[1]}</h2><p className="mt-1 text-sm text-slate-500">Puedes usar una marca diferente en cada experiencia.</p></div><label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">Nombre visual</span><input value={draft.app_name}onChange={e=>patch('app_name',e.target.value)}maxLength={60}className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"/></label><div className="grid gap-4 md:grid-cols-3">{([['logo','Logo principal','logo_url'],['login_logo','Logo de login','login_logo_url'],['favicon','Favicon','favicon_url']]as const).map(([kind,label,key])=><div key={kind}className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-black text-slate-700">{label}</p><div className="mt-3 grid h-24 place-items-center rounded-xl border border-dashed border-slate-300 bg-white">{draft[key]?<img src={draft[key]as string}alt={label}className="max-h-16 max-w-[75%] object-contain"/>:<ImagePlus className="h-8 w-8 text-slate-300"/>}</div><label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"><Upload className="h-3.5 w-3.5"/>{uploading===kind?'Cargando…':'Seleccionar imagen'}<input type="file"accept="image/png,image/jpeg,image/webp,image/x-icon"className="sr-only"disabled={Boolean(uploading)}onChange={e=>{const f=e.target.files?.[0];if(f)void upload(kind,f);e.currentTarget.value=''}}/></label></div>)}</div></div>}
-        {tab==='colors'&&<div className="space-y-5"><div><h2 className="text-lg font-black text-slate-900">Colores de {scopes.find(s=>s[0]===scope)?.[1]}</h2><p className="mt-1 text-sm text-slate-500">Edita toda la paleta usada por la interfaz seleccionada.</p></div><div className="grid gap-3 sm:grid-cols-2">{colorFields.map(([key,label])=><label key={key}className="rounded-2xl border border-slate-200 p-3"><span className="mb-2 block text-xs font-bold text-slate-600">{label}</span><div className="flex gap-2"><input type="color"value={draft[key]as string}onChange={e=>patch(key,e.target.value.toUpperCase()as never)}className="h-10 w-12 cursor-pointer rounded-lg border-0 p-0"/><input value={draft[key]as string}onChange={e=>patch(key,e.target.value.toUpperCase()as never)}maxLength={7}className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 font-mono text-sm font-bold"/></div></label>)}</div><div className={`rounded-2xl p-4 text-sm ${contrast<4.5?'border border-amber-200 bg-amber-50 text-amber-900':'border border-emerald-200 bg-emerald-50 text-emerald-900'}`}><b>Contraste: {contrast.toFixed(2)}:1</b> · Se bloquean combinaciones inferiores a 3:1.</div></div>}
-        {tab==='type'&&<div className="space-y-5"><div><h2 className="text-lg font-black text-slate-900">Tipografía y densidad</h2></div><div className="grid gap-4 md:grid-cols-2">{select('Fuente general',draft.font_family,[['Nunito','Nunito'],['Inter','Inter'],['Poppins','Poppins'],['Roboto','Roboto'],['system-ui','System UI']],v=>patch('font_family',v as never))}{select('Fuente de títulos',draft.heading_font,[['Nunito','Nunito'],['Inter','Inter'],['Poppins','Poppins'],['Roboto','Roboto'],['system-ui','System UI']],v=>patch('heading_font',v as never))}{select('Tema',draft.theme_mode,options.theme,v=>patch('theme_mode',v as never))}{select('Densidad',draft.density,options.density,v=>patch('density',v as never))}</div></div>}
-        {tab==='components'&&<div className="space-y-5"><div><h2 className="text-lg font-black text-slate-900">Botones, tarjetas, formularios y navegación</h2><p className="mt-1 text-sm text-slate-500">Estos controles modifican componentes reales mediante tokens seguros.</p></div><div className="grid gap-4 md:grid-cols-2">{select('Estilo de botones',draft.button_style,options.button,v=>patch('button_style',v as never))}{select('Radio de botones',draft.button_radius,options.radius,v=>patch('button_radius',v as never))}{select('Estilo de tarjetas',draft.card_style,options.card,v=>patch('card_style',v as never))}{select('Radio de tarjetas',draft.card_radius,options.radius,v=>patch('card_radius',v as never))}{select('Estilo de inputs',draft.input_style,options.input,v=>patch('input_style',v as never))}{select('Radio general',draft.border_radius,options.radius,v=>patch('border_radius',v as never))}{select('Sombras',draft.shadow_style,options.shadow,v=>patch('shadow_style',v as never))}{select('Encabezado',draft.header_style,options.header,v=>patch('header_style',v as never))}{select('Navegación',draft.navigation_style,options.navigation,v=>patch('navigation_style',v as never))}</div></div>}
-      </div></div>
-      <PreviewStudio scope={scope} previewPath={previewPath} draft={draft} saved={saved} />
+const EDITABLE_KEYS = [
+  'app_name','logo_url','favicon_url','login_logo_url','primary_color','secondary_color','accent_color','background_color',
+  'surface_color','text_color','muted_text_color','border_color','success_color','warning_color','danger_color','font_family',
+  'heading_font','border_radius','card_radius','button_radius','shadow_style','button_style','header_style','navigation_style',
+  'card_style','input_style','density','theme_mode',
+] as const;
+
+function pickEditable(draft: VisualSettingsDraft): Partial<VisualSettingsDraft> {
+  const result: Partial<VisualSettingsDraft> = {};
+  for (const key of EDITABLE_KEYS) result[key] = draft[key] as never;
+  result.element_overrides = draft.element_overrides ?? {};
+  return result;
+}
+
+function contrastRatio(a: string, b: string) {
+  const channel = (value: string) => { const n = Number.parseInt(value, 16) / 255; return n <= 0.03928 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4); };
+  const luminance = (hex: string) => { const c = hex.slice(1); return 0.2126 * channel(c.slice(0, 2)) + 0.7152 * channel(c.slice(2, 4)) + 0.0722 * channel(c.slice(4, 6)); };
+  const x = luminance(a); const y = luminance(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+export function VisualSettingsPanel() {
+  const { settings, loading, applyLocal, refresh } = useVisualTheme();
+  const [scope, setScope] = useState<VisualInterfaceScope>('login_student');
+  const [draft, setDraft] = useState<VisualSettingsDraft>(() => resolveVisualSettings(settings, 'login_student'));
+  const [saved, setSaved] = useState<VisualSettingsDraft>(() => resolveVisualSettings(settings, 'login_student'));
+  const [history, setHistory] = useState<VisualSettingsDraft[]>([]);
+  const [future, setFuture] = useState<VisualSettingsDraft[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [compare, setCompare] = useState(false);
+
+  const scopeInfo = useMemo(() => SCOPES.find((item) => item.id === scope) ?? SCOPES[0], [scope]);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const contrast = useMemo(() => {
+    if (!isHexColor(draft.text_color) || !isHexColor(draft.background_color)) return 0;
+    return contrastRatio(draft.text_color, draft.background_color);
+  }, [draft.background_color, draft.text_color]);
+
+  useEffect(() => {
+    const next = resolveVisualSettings(settings, scope);
+    setDraft(next);
+    setSaved(next);
+    setHistory([]);
+    setFuture([]);
+  }, [scope, settings]);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.data?.type !== 'quickbite-visual-element-edit' && event.data?.type !== 'quickbite-visual-element-reset') return;
+      if (event.data?.scope !== scope || !event.data?.settings) return;
+      const next = sanitizeVisualSettings(event.data.settings as Partial<VisualSettingsDraft>);
+      setDraft((current) => {
+        if (JSON.stringify(current) === JSON.stringify(next)) return current;
+        setHistory((items) => [...items.slice(-29), current]);
+        setFuture([]);
+        return next;
+      });
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [scope]);
+
+  const selectScope = (nextScope: VisualInterfaceScope) => setScope(nextScope);
+
+  const replaceDraft = (next: VisualSettingsDraft, addHistory = true) => {
+    setDraft((current) => {
+      if (JSON.stringify(current) === JSON.stringify(next)) return current;
+      if (addHistory) setHistory((items) => [...items.slice(-29), current]);
+      setFuture([]);
+      return next;
+    });
+  };
+
+  const undo = () => {
+    setHistory((items) => {
+      const previous = items[items.length - 1];
+      if (!previous) return items;
+      setFuture((futureItems) => [...futureItems, draft]);
+      setDraft(previous);
+      return items.slice(0, -1);
+    });
+  };
+
+  const redo = () => {
+    setFuture((items) => {
+      const next = items[items.length - 1];
+      if (!next) return items;
+      setHistory((historyItems) => [...historyItems, draft]);
+      setDraft(next);
+      return items.slice(0, -1);
+    });
+  };
+
+  const save = async () => {
+    if (!isHexColor(draft.primary_color) || !isHexColor(draft.background_color) || !isHexColor(draft.text_color)) {
+      toast.error('Revisa los colores antes de guardar.'); return;
+    }
+    if (contrast < 3) { toast.error('El contraste mínimo permitido es 3:1.'); return; }
+    setSaving(true);
+    try {
+      const overrides = { ...(settings.interface_overrides ?? {}) };
+      overrides[scope] = pickEditable(draft) as never;
+      const next = { ...settings, interface_overrides: overrides, element_overrides: settings.element_overrides ?? {} };
+      const result = await saveVisualSettings(next);
+      applyLocal(result);
+      const effective = resolveVisualSettings(result, scope);
+      setDraft(effective); setSaved(effective); setHistory([]); setFuture([]);
+      toast.success(`Cambios guardados para ${scopeInfo.label}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron guardar los cambios.');
+    } finally { setSaving(false); }
+  };
+
+  const reset = async () => {
+    if (!window.confirm('¿Restablecer toda la personalización visual?')) return;
+    setSaving(true);
+    try {
+      const result = await resetVisualSettings();
+      applyLocal(result);
+      const effective = resolveVisualSettings(result, scope);
+      setDraft(effective); setSaved(effective); setHistory([]); setFuture([]); await refresh();
+      toast.success('Apariencia restablecida.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo restablecer.');
+    } finally { setSaving(false); }
+  };
+
+  const loginRole = scope.startsWith('login_') ? scope.replace('login_', '') : null;
+  const basePreviewPath = loginRole ? `/login?preview_role=${loginRole}` : scopeInfo.path;
+  const previewPath = `${basePreviewPath}${basePreviewPath.includes('?') ? '&' : '?'}visual_preview=1&visual_preview_scope=${scope}`;
+
+  const copyPreview = async () => {
+    try { await navigator.clipboard.writeText(`${window.location.origin}${previewPath}`); toast.success('Ruta de preview copiada.'); }
+    catch { toast.error('No se pudo copiar la ruta.'); }
+  };
+
+  const patch = <K extends keyof VisualSettingsDraft>(key: K, value: VisualSettingsDraft[K]) => replaceDraft({ ...draft, [key]: value });
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-500"><WandSparkles className="h-4 w-4" /> Personalización</div>
+            <h1 className="mt-1 truncate text-2xl font-black text-slate-950">{scopeInfo.label}</h1>
+            <p className="mt-1 text-sm text-slate-500">{scopeInfo.description} Elige un elemento y haz triple clic para editarlo.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="block min-w-[250px]">
+              <span className="sr-only">Interfaz</span>
+              <select value={scope} onChange={(event) => selectScope(event.target.value as VisualInterfaceScope)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">
+                {SCOPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            </label>
+            <span className={`rounded-full px-3 py-2 text-xs font-black ${dirty ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-700'}`}>{dirty ? 'Borrador modificado' : 'Guardado'}</span>
+            <button type="button" disabled={!history.length} onClick={undo} className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30" aria-label="Deshacer"><Undo2 className="h-4 w-4" /></button>
+            <button type="button" disabled={!future.length} onClick={redo} className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30" aria-label="Rehacer"><Redo2 className="h-4 w-4" /></button>
+            <button type="button" disabled={!dirty || saving} onClick={() => setDraft(saved)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black disabled:opacity-30">Descartar</button>
+            <button type="button" disabled={!dirty || saving || loading} onClick={() => void save()} className="inline-flex items-center gap-2 rounded-xl bg-[var(--qb-primary)] px-4 py-2.5 text-xs font-black text-white shadow-sm disabled:opacity-40"><Save className="h-3.5 w-3.5" />{saving ? 'Guardando…' : 'Guardar'}</button>
+          </div>
+        </div>
+      </section>
+
+      <PreviewStudio
+        scope={scope}
+        previewPath={previewPath}
+        draft={draft}
+        saved={saved}
+        compare={compare}
+        onCompareChange={setCompare}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={history.length > 0}
+        canRedo={future.length > 0}
+        onCopy={copyPreview}
+      />
+
+      <details className="group rounded-[2rem] border border-slate-200 bg-white shadow-sm" open={false}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+          <div><p className="text-sm font-black text-slate-900">Ajustes base de la interfaz</p><p className="text-xs text-slate-500">Marca, paleta, tipografía y densidad. La edición de elementos se hace directamente en la preview.</p></div>
+          <span className="text-xs font-black text-slate-400 group-open:hidden">Mostrar</span><span className="hidden text-xs font-black text-slate-400 group-open:inline">Ocultar</span>
+        </summary>
+        <div className="grid gap-4 border-t border-slate-100 p-5 md:grid-cols-2 xl:grid-cols-4">
+          <label><span className="mb-1 block text-xs font-bold text-slate-600">Nombre</span><input value={draft.app_name} onChange={(event) => patch('app_name', event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm" /></label>
+          {([['primary_color','Primario'],['background_color','Fondo'],['surface_color','Superficie'],['text_color','Texto']] as const).map(([key,label]) => <label key={key}><span className="mb-1 block text-xs font-bold text-slate-600">{label}</span><div className="flex gap-2"><input type="color" value={draft[key]} onChange={(event) => patch(key, event.target.value.toUpperCase() as never)} className="size-10 cursor-pointer rounded-lg border p-1" /><input value={draft[key]} onChange={(event) => patch(key, event.target.value.toUpperCase() as never)} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 font-mono text-xs" /></div></label>)}
+          <label><span className="mb-1 block text-xs font-bold text-slate-600">Fuente</span><select value={draft.font_family} onChange={(event) => patch('font_family', event.target.value as never)} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"><option>Nunito</option><option>Inter</option><option>Poppins</option><option>Roboto</option><option>system-ui</option></select></label>
+          <label><span className="mb-1 block text-xs font-bold text-slate-600">Fuente de títulos</span><select value={draft.heading_font} onChange={(event) => patch('heading_font', event.target.value as never)} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"><option>Nunito</option><option>Inter</option><option>Poppins</option><option>Roboto</option><option>system-ui</option></select></label>
+          <label><span className="mb-1 block text-xs font-bold text-slate-600">Radio</span><select value={draft.border_radius} onChange={(event) => patch('border_radius', event.target.value as never)} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"><option value="sharp">Sin redondeo</option><option value="small">Pequeño</option><option value="medium">Medio</option><option value="large">Grande</option><option value="rounded">Píldora</option></select></label>
+          <label><span className="mb-1 block text-xs font-bold text-slate-600">Tema</span><select value={draft.theme_mode} onChange={(event) => patch('theme_mode', event.target.value as never)} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label>
+          <div className="flex items-end"><div className={`w-full rounded-xl p-3 text-xs font-bold ${contrast < 3 ? 'bg-red-50 text-red-700' : contrast < 4.5 ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-700'}`}>Contraste: {contrast ? `${contrast.toFixed(2)}:1` : '—'}</div></div>
+          <div className="flex items-end"><button type="button" onClick={() => void reset()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-xs font-black text-red-700"><RotateCcw className="h-3.5 w-3.5" /> Restablecer todo</button></div>
+        </div>
+      </details>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600">
+        <Check className="mr-2 inline h-4 w-4 text-emerald-600" /> La preview es una sesión aislada: los clics pueden ejecutar la navegación normal, pero las ediciones visuales solo se guardan al pulsar <b>Guardar</b>. No se permite modificar HTML, JavaScript, permisos, pagos, pedidos ni datos.
+        <span className="ml-2 inline-flex items-center gap-1 text-slate-400"><History className="h-3.5 w-3.5" />{history.length + future.length} pasos en el historial</span>
+      </div>
     </div>
-    {loading&&<div className="text-xs font-bold text-slate-500">Cargando configuración visual…</div>}
-  </div>;
+  );
 }
