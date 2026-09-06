@@ -1,0 +1,438 @@
+/* QuickBite semantic appearance system.
+ *
+ * The important rule here is that appearance is not an accent-color swap.
+ * Surfaces, text, borders, controls, navigation and elevation all consume
+ * the same semantic tokens. This follows the adaptive-color approach used by
+ * mature platform design systems: semantic roles first, raw colors second.
+ */
+
+:root {
+  color-scheme: light;
+  --qb-theme-bg: #F5F8F7;
+  --qb-theme-surface: #FFFFFF;
+  --qb-theme-surface-2: #F1F5F9;
+  --qb-theme-surface-3: #EAF0F7;
+  --qb-theme-text: #0F172A;
+  --qb-theme-text-secondary: #475569;
+  --qb-theme-text-muted: #64748B;
+  --qb-theme-border: rgba(15,23,42,.10);
+  --qb-theme-accent: #00B86B;
+  --qb-theme-accent-hover: #009E5D;
+  --qb-theme-accent-soft: rgba(0,184,107,.10);
+  --qb-theme-shadow: 0 12px 32px rgba(15,23,42,.08);
+  --qb-theme-sidebar: #1747B8;
+  --qb-theme-sidebar-surface: #123B9B;
+  --qb-theme-on-sidebar: #FFFFFF;
+  --qb-theme-overlay: rgba(15,23,42,.28);
+}
+
+:root[data-qb-theme="dark"],
+:root[data-qb-user-theme="dark"],
+:root[data-qb-resolved-theme="dark"],
+.dark {
+  color-scheme: dark;
+  --qb-theme-bg: #070D19;
+  --qb-theme-surface: #0D1628;
+  --qb-theme-surface-2: #111C30;
+  --qb-theme-surface-3: #16243A;
+  --qb-theme-text: #F5F7FA;
+  --qb-theme-text-secondary: #AAB7C9;
+  --qb-theme-text-muted: #718096;
+  --qb-theme-border: rgba(148,163,184,.16);
+  --qb-theme-accent: #00B86B;
+  --qb-theme-accent-hover: #12CC7C;
+  --qb-theme-accent-soft: rgba(0,184,107,.14);
+  --qb-theme-shadow: 0 18px 44px rgba(0,0,0,.28);
+  --qb-theme-sidebar: #0B1424;
+  --qb-theme-sidebar-surface: #0D1A2D;
+  --qb-theme-on-sidebar: #F5F7FA;
+  --qb-theme-overlay: rgba(0,0,0,.58);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Global canvas and native controls                                         */
+/* -------------------------------------------------------------------------- */
+
+html,
+body,
+#root {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+body {
+  transition: background-color .22s ease, color .22s ease;
+}
+
+:root[data-qb-theme="dark"] body,
+:root[data-qb-user-theme="dark"] body,
+:root[data-qb-resolved-theme="dark"] body,
+.dark body {
+  background-image:
+    radial-gradient(circle at 8% 4%, rgba(0,184,107,.055), transparent 32%),
+    radial-gradient(circle at 92% 8%, rgba(37,99,235,.055), transparent 34%) !important;
+}
+
+:root[data-qb-theme="light"] body,
+:root[data-qb-user-theme="light"] body {
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(20,184,166,.055), transparent 30%),
+    radial-gradient(circle at 92% 0%, rgba(37,99,235,.045), transparent 32%) !important;
+}
+
+::selection {
+  background: var(--qb-theme-accent-soft) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+:where(input, textarea, select) {
+  color-scheme: inherit;
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select, [data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"]) {
+  background: var(--qb-theme-surface-2) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+  caret-color: var(--qb-theme-text) !important;
+  box-shadow: none !important;
+}
+
+:where(input, textarea)::placeholder {
+  color: var(--qb-theme-text-muted) !important;
+  opacity: 1 !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Generic Tailwind compatibility                                             */
+/* -------------------------------------------------------------------------- */
+
+:root[data-qb-theme="dark"] :where(.bg-white, [class~="bg-white"], [class*="bg-white/"]),
+:root[data-qb-user-theme="dark"] :where(.bg-white, [class~="bg-white"], [class*="bg-white/"]),
+:root[data-qb-resolved-theme="dark"] :where(.bg-white, [class~="bg-white"], [class*="bg-white/"]),
+.dark :where(.bg-white, [class~="bg-white"], [class*="bg-white/"]) {
+  background-color: var(--qb-theme-surface) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100, [class*="bg-slate-50/"], [class*="bg-slate-100/"], [class*="bg-gray-50/"], [class*="bg-gray-100/"]),
+:root[data-qb-user-theme="dark"] :where(.bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100, [class*="bg-slate-50/"], [class*="bg-slate-100/"], [class*="bg-gray-50/"], [class*="bg-gray-100/"]),
+:root[data-qb-resolved-theme="dark"] :where(.bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100, [class*="bg-slate-50/"], [class*="bg-slate-100/"], [class*="bg-gray-50/"], [class*="bg-gray-100/"]),
+.dark :where(.bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100, [class*="bg-slate-50/"], [class*="bg-slate-100/"], [class*="bg-gray-50/"], [class*="bg-gray-100/"]) {
+  background-color: var(--qb-theme-surface-2) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700),
+:root[data-qb-user-theme="dark"] :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700),
+:root[data-qb-resolved-theme="dark"] :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700),
+.dark :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700) {
+  color: var(--qb-theme-text) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500, .text-gray-400),
+:root[data-qb-user-theme="dark"] :where(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500, .text-gray-400),
+:root[data-qb-resolved-theme="dark"] :where(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500, .text-gray-400),
+.dark :where(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500, .text-gray-400) {
+  color: var(--qb-theme-text-secondary) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.border-slate-50, .border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300, .border-white, [class*="border-white/"]),
+:root[data-qb-user-theme="dark"] :where(.border-slate-50, .border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300, .border-white, [class*="border-white/"]),
+:root[data-qb-resolved-theme="dark"] :where(.border-slate-50, .border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300, .border-white, [class*="border-white/"]),
+.dark :where(.border-slate-50, .border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300, .border-white, [class*="border-white/"]) {
+  border-color: var(--qb-theme-border) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cards / dialogs / menus: one elevation language                           */
+/* -------------------------------------------------------------------------- */
+
+[data-slot="card"],
+.qb-theme-card {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+:root[data-qb-theme="dark"] [data-slot="card"],
+:root[data-qb-user-theme="dark"] [data-slot="card"],
+:root[data-qb-resolved-theme="dark"] [data-slot="card"],
+.dark [data-slot="card"],
+:root[data-qb-theme="dark"] .qb-theme-card,
+:root[data-qb-user-theme="dark"] .qb-theme-card,
+:root[data-qb-resolved-theme="dark"] .qb-theme-card,
+.dark .qb-theme-card {
+  box-shadow: var(--qb-theme-shadow) !important;
+}
+
+:where([data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"], [role="dialog"], [role="menu"], [role="listbox"], [data-radix-popper-content-wrapper] > *) {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+:where([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"]) {
+  background: var(--qb-theme-overlay) !important;
+}
+
+:where([role="menuitem"], [role="option"]) {
+  color: var(--qb-theme-text-secondary) !important;
+}
+
+:where([role="menuitem"]:hover, [role="option"][data-highlighted], [data-highlighted]) {
+  background: var(--qb-theme-surface-3) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Login / authentication                                                     */
+/* -------------------------------------------------------------------------- */
+
+.qb-auth {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+.qb-auth::before {
+  opacity: .8;
+}
+
+.qb-auth-card {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border: 1px solid var(--qb-theme-border) !important;
+  box-shadow: var(--qb-theme-shadow) !important;
+}
+
+/* Do not allow a legacy visual override to turn a heading white on a light
+ * surface. The same semantic text role is used in both appearances. */
+.qb-auth-card :where(h1, h2, h3, h4, label) {
+  color: var(--qb-theme-text) !important;
+}
+
+.qb-auth-card :where(p, small, .text-sm, .text-xs) {
+  color: var(--qb-theme-text-secondary) !important;
+}
+
+.qb-auth-card :where(a) {
+  color: var(--qb-theme-accent) !important;
+}
+
+.qb-auth-card :where(input, select, textarea) {
+  background: var(--qb-theme-surface-2) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+.qb-auth-card :where(input:focus, select:focus, textarea:focus) {
+  border-color: var(--qb-theme-accent) !important;
+  box-shadow: 0 0 0 3px var(--qb-theme-accent-soft) !important;
+}
+
+.qb-auth-card :where([role="tablist"], .login-tabs) {
+  background: var(--qb-theme-surface-2) !important;
+  border: 1px solid var(--qb-theme-border) !important;
+}
+
+.qb-auth-card :where([role="tab"]) {
+  color: var(--qb-theme-text-secondary) !important;
+  background: transparent !important;
+}
+
+.qb-auth-card :where([role="tab"][aria-selected="true"]) {
+  color: var(--qb-theme-text) !important;
+  background: var(--qb-theme-surface) !important;
+  box-shadow: 0 2px 8px rgba(15,23,42,.08) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-auth-card :where([role="tab"][aria-selected="true"]),
+:root[data-qb-user-theme="dark"] .qb-auth-card :where([role="tab"][aria-selected="true"]),
+.dark .qb-auth-card :where([role="tab"][aria-selected="true"]) {
+  box-shadow: 0 4px 12px rgba(0,0,0,.22) !important;
+}
+
+.qb-auth-card :where(button[type="submit"], .qb-primary-action) {
+  background: var(--qb-theme-accent) !important;
+  color: #FFFFFF !important;
+  border-color: transparent !important;
+}
+
+.qb-auth-card :where(button[type="submit"], .qb-primary-action):hover {
+  background: var(--qb-theme-accent-hover) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Student shell                                                              */
+/* -------------------------------------------------------------------------- */
+
+.student-app,
+.student-main,
+.student-content {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+.student-header {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-bottom: 1px solid var(--qb-theme-border) !important;
+  box-shadow: none !important;
+}
+
+.student-tabs,
+.student-navigation {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+.student-app article,
+.student-app section[data-card],
+.student-app .qb-theme-card {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+/* Legacy cafeteria header/nav classes. Brand green is now reserved for
+ * actions and active states rather than painting an entire page chrome. */
+:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
+:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
+:root[data-qb-resolved-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
+.dark div:has(> header[class*="bg-[#166534]"]) > header {
+  background: linear-gradient(120deg, #0B1729, #0D2430) !important;
+  color: var(--qb-theme-text) !important;
+  border-bottom: 1px solid var(--qb-theme-border) !important;
+}
+
+:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
+:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
+:root[data-qb-resolved-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
+.dark div:has(> header[class*="bg-[#166534]"]) > nav {
+  background: rgba(13,22,40,.94) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+  backdrop-filter: blur(18px);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Admin shell                                                                */
+/* -------------------------------------------------------------------------- */
+
+.admin-shell,
+.admin-main {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+.admin-sidebar {
+  background: var(--qb-theme-sidebar) !important;
+  color: var(--qb-theme-on-sidebar) !important;
+  border-right: 1px solid var(--qb-theme-border) !important;
+}
+
+:root[data-qb-theme="dark"] .admin-sidebar,
+:root[data-qb-user-theme="dark"] .admin-sidebar,
+:root[data-qb-resolved-theme="dark"] .admin-sidebar,
+.dark .admin-sidebar {
+  background: linear-gradient(180deg, #0D1A2D 0%, #0A1322 100%) !important;
+  box-shadow: 14px 0 40px rgba(0,0,0,.18) !important;
+}
+
+.admin-sidebar .admin-nav-link {
+  color: rgba(255,255,255,.78) !important;
+}
+
+.admin-sidebar .admin-nav-link:hover {
+  background: rgba(255,255,255,.08) !important;
+  color: #FFFFFF !important;
+}
+
+.admin-sidebar .admin-nav-link[style*="background"],
+.admin-sidebar .admin-nav-link[data-active="true"] {
+  background: var(--qb-theme-accent-soft) !important;
+  color: var(--qb-theme-on-sidebar) !important;
+  box-shadow: inset 0 0 0 1px rgba(0,184,107,.22) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Common surfaces, banners, tables and empty states                         */
+/* -------------------------------------------------------------------------- */
+
+:where(table, thead, tbody, tr, th, td) {
+  border-color: var(--qb-theme-border) !important;
+}
+
+:where(th) {
+  background: var(--qb-theme-surface-2) !important;
+  color: var(--qb-theme-text-secondary) !important;
+}
+
+:where(td) {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+:where(.empty-state, [data-empty-state], .qb-empty-state) {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text-secondary) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+:where(.banner, [data-banner], .qb-banner) {
+  background: var(--qb-theme-surface-2) !important;
+  color: var(--qb-theme-text-secondary) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Accent policy: green means action/positive/selected, not the whole UI     */
+/* -------------------------------------------------------------------------- */
+
+:where(.text-emerald-600, .text-emerald-700, .text-green-600, .text-green-700) {
+  color: var(--qb-theme-accent) !important;
+}
+
+:where(.bg-emerald-600, .bg-emerald-700, .bg-green-600, .bg-green-700) {
+  background-color: var(--qb-theme-accent) !important;
+}
+
+:where(.border-emerald-500, .border-emerald-600, .border-green-500, .border-green-600) {
+  border-color: var(--qb-theme-accent) !important;
+}
+
+:where(.bg-emerald-50, .bg-green-50) {
+  background: var(--qb-theme-accent-soft) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Focus / hover / disabled states                                             */
+/* -------------------------------------------------------------------------- */
+
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--qb-theme-accent) !important;
+  outline-offset: 2px;
+}
+
+:where(button, a)[disabled],
+:where(button, a).disabled {
+  opacity: .52;
+}
+
+/* Keep glass selective: only navigation/floating chrome gets translucency. */
+:root[data-qb-theme="dark"] :where(.student-navigation, .floating-feature, .qb-glass),
+:root[data-qb-user-theme="dark"] :where(.student-navigation, .floating-feature, .qb-glass),
+:root[data-qb-resolved-theme="dark"] :where(.student-navigation, .floating-feature, .qb-glass),
+.dark :where(.student-navigation, .floating-feature, .qb-glass) {
+  background: color-mix(in srgb, var(--qb-theme-surface) 88%, transparent) !important;
+  border-color: var(--qb-theme-border) !important;
+  backdrop-filter: blur(18px) saturate(120%);
+}
+
+/* Never let a legacy white production lock survive in dark mode. */
+:root[data-qb-theme="dark"] .admin-production-preview,
+:root[data-qb-user-theme="dark"] .admin-production-preview,
+:root[data-qb-resolved-theme="dark"] .admin-production-preview,
+.dark .admin-production-preview {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
