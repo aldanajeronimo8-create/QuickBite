@@ -9,7 +9,8 @@ const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const VALID_SCOPES: VisualInterfaceScope[] = ['login_student','login_parent','login_admin','admin','student','parent'];
 const PRODUCTION_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: 'rgba(255,255,255,0.12)', accentForeground: '#FFFFFF', border: 'rgba(255,255,255,0.12)', ring: '#E0ECFF' };
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
-const ELEMENT_CSS_MAP: Record<keyof VisualElementStyle, string> = { backgroundColor: 'background-color', color: 'color', borderColor: 'border-color', borderRadius: 'border-radius', boxShadow: 'box-shadow', fontSize: 'font-size', fontWeight: 'font-weight', padding: 'padding', margin: 'margin', width: 'width', height: 'height', opacity: 'opacity', textAlign: 'text-align' };
+const ELEMENT_CSS_MAP: Record<Exclude<keyof VisualElementStyle, 'textContent'>, string> = { backgroundColor: 'background-color', color: 'color', borderColor: 'border-color', borderRadius: 'border-radius', boxShadow: 'box-shadow', fontSize: 'font-size', fontWeight: 'font-weight', padding: 'padding', margin: 'margin', width: 'width', height: 'height', opacity: 'opacity', textAlign: 'text-align' };
+const originalTextNodes = new WeakMap<HTMLElement, Map<Text, string>>();
 
 function getPathScope(pathname: string, search: string): VisualInterfaceScope | null {
   const params = new URLSearchParams(search);
@@ -90,6 +91,29 @@ function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfac
   link.href = settings.favicon_url || '/favicon.ico';
 }
 
+function replaceDirectText(element: HTMLElement, value: string) {
+  const nodes = Array.from(element.childNodes).filter((node): node is Text => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()));
+  if (nodes.length) {
+    const snapshots = originalTextNodes.get(element) ?? new Map<Text, string>();
+    nodes.forEach((node) => { if (!snapshots.has(node)) snapshots.set(node, node.textContent ?? ''); });
+    originalTextNodes.set(element, snapshots);
+    nodes[0].textContent = value;
+    nodes.slice(1).forEach((node) => { node.textContent = ''; });
+    return;
+  }
+  if (element.childElementCount === 0) {
+    const snapshots = originalTextNodes.get(element) ?? new Map<Text, string>();
+    originalTextNodes.set(element, snapshots);
+    element.textContent = value;
+  }
+}
+
+function restoreDirectText(element: HTMLElement) {
+  const snapshots = originalTextNodes.get(element);
+  if (!snapshots) return;
+  snapshots.forEach((value, node) => { if (node.isConnected) node.textContent = value; });
+}
+
 function applyElementOverrides(settings: VisualSettingsDraft, scope: VisualInterfaceScope) {
   if (typeof document === 'undefined') return;
   const id = 'quickbite-visual-element-overrides';
@@ -97,7 +121,12 @@ function applyElementOverrides(settings: VisualSettingsDraft, scope: VisualInter
   const overrides = settings.element_overrides ?? {};
   const css = Object.entries(overrides).map(([selector, rawStyle]) => {
     const safeStyle = sanitizeVisualElementStyle(rawStyle);
-    const declarations = Object.entries(safeStyle).map(([key, value]) => `${ELEMENT_CSS_MAP[key as keyof VisualElementStyle]}:${value} !important`).join(';');
+    const declarations = Object.entries(safeStyle).filter(([key]) => key !== 'textContent').map(([key, value]) => `${ELEMENT_CSS_MAP[key as Exclude<keyof VisualElementStyle, 'textContent'>]}:${value} !important`).join(';');
+    if (safeStyle.textContent !== undefined) {
+      try { document.querySelectorAll<HTMLElement>(selector).forEach((element) => replaceDirectText(element, safeStyle.textContent!)); } catch { /* invalid selector is already rejected during sanitization */ }
+    } else {
+      try { document.querySelectorAll<HTMLElement>(selector).forEach(restoreDirectText); } catch { /* ignore */ }
+    }
     return declarations ? `${selector.startsWith(ROOT_SELECTOR) ? selector : `${ROOT_SELECTOR}[data-qb-visual-preview-scope="${scope}"] ${selector}`}{${declarations}}` : '';
   }).filter(Boolean).join('\n');
   if (!css) { style?.remove(); return; }
@@ -117,13 +146,7 @@ function mergeElementEdit(current: VisualSettings, scope: VisualInterfaceScope, 
   const safe = sanitizeVisualElementStyle(styles);
   if (!selector || !Object.keys(safe).length) return current;
   const currentScope = current.interface_overrides?.[scope] ?? {};
-  return {
-    ...current,
-    interface_overrides: {
-      ...current.interface_overrides,
-      [scope]: { ...currentScope, element_overrides: { ...(currentScope.element_overrides ?? {}), [selector]: safe } },
-    },
-  };
+  return { ...current, interface_overrides: { ...current.interface_overrides, [scope]: { ...currentScope, element_overrides: { ...(currentScope.element_overrides ?? {}), [selector]: safe } } } };
 }
 
 function mergeElementReset(current: VisualSettings, scope: VisualInterfaceScope, selector: string): VisualSettings {
