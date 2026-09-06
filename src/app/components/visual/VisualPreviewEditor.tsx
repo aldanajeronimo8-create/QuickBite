@@ -206,10 +206,7 @@ export function VisualPreviewEditor({ scope }: Props) {
 
   const selectElement = (element: Element) => {
     const selector = buildSelector(element);
-    if (!selector) {
-      setMessage('No se pudo identificar este elemento.');
-      return;
-    }
+    if (!selector) { setMessage('No se pudo identificar este elemento.'); return; }
     setSelected({ element: element as VisualTarget, selector, label: describeElement(element), tag: element.tagName.toLowerCase() });
     setInspectedStyle(readComputedStyle(element));
     setDraftStyle({ ...(sessionOverridesRef.current[selector] ?? {}) });
@@ -310,7 +307,7 @@ export function VisualPreviewEditor({ scope }: Props) {
         <InspectorSection id="shape" title={`Forma y bordes · ${SHAPES.length} opciones`} openSection={openSection} setOpenSection={setOpenSection}><div className="grid grid-cols-3 gap-2">{SHAPES.map(([id, label, radius]) => <button key={id} type="button" onClick={() => commit({ borderRadius: radius })} className={`rounded-xl border p-2 text-center text-[10px] font-black ${selectedStyle.borderRadius === radius ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-300/40 dark:bg-emerald-500/10 dark:text-emerald-300' : 'qb-border qb-text-secondary'}`}><span className="mx-auto mb-1 block h-7 w-12 border qb-border qb-surface-muted" style={{ borderRadius: radius }} />{label}</button>)}</div><div className="mt-3"><FieldEditor field={{ key: 'borderRadius', label: 'Radio personalizado', type: 'text', hint: '0px, 12px, 999px, 20px 8px…' }} value={selectedStyle.borderRadius} onCommit={commit} /></div></InspectorSection>
         <InspectorSection id="text" title={isText ? 'Texto y tipografía' : 'Contenido y tipografía'} openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{TEXT_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>
         <InspectorSection id="colors" title="Colores y borde" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{COLOR_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>
-        <InspectorSection id="spacing" title="Espaciado" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{SPACING_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} /></div></InspectorSection>
+        <InspectorSection id="spacing" title="Espaciado" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{SPACING_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>
         <InspectorSection id="layout" title="Tamaño, posición y distribución" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{LAYOUT_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>
         {isMedia && <InspectorSection id="media" title="Multimedia" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{MEDIA_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>}
         <InspectorSection id="effects" title="Efectos y comportamiento visual" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{EFFECT_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>
