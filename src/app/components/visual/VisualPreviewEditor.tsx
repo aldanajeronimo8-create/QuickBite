@@ -54,11 +54,29 @@ function attrSelector(name: string, value: string) {
 
 function selectorMatchesOnlyElement(selector: string, element: HTMLElement) {
   try {
-    const matches = document.querySelectorAll(selector);
+    const matches = document.querySelectorAll<HTMLElement>(selector);
     return matches.length === 1 && matches[0] === element;
   } catch {
     return false;
   }
+}
+
+function getNthOfType(element: HTMLElement) {
+  if (!element.parentElement) return '';
+  const siblings = Array.from(element.parentElement.children).filter((child) => child.tagName === element.tagName);
+  return siblings.length > 1 ? `:nth-of-type(${siblings.indexOf(element) + 1})` : '';
+}
+
+function buildFallbackSelector(element: HTMLElement): string {
+  const parts: string[] = [];
+  let current: HTMLElement | null = element;
+  while (current && current !== document.documentElement && current !== document.body) {
+    parts.unshift(`${current.tagName.toLowerCase()}${getNthOfType(current)}`);
+    const candidate = parts.join(' > ');
+    if (selectorMatchesOnlyElement(candidate, element)) return candidate;
+    current = current.parentElement;
+  }
+  return parts.join(' > ');
 }
 
 function buildSelector(element: HTMLElement): string {
@@ -78,10 +96,7 @@ function buildSelector(element: HTMLElement): string {
     else if (id && !isDynamicId(id)) part += `#${cssEscape(id)}`;
     else if (name) part += attrSelector('name', name);
     else if (aria) part += attrSelector('aria-label', aria);
-    else if (current.parentElement) {
-      const siblings = Array.from(current.parentElement.children).filter((child) => child.tagName === current?.tagName);
-      if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(current) + 1})`;
-    }
+    else part += getNthOfType(current);
 
     parts.unshift(part);
     const candidate = parts.join(' > ');
@@ -89,7 +104,8 @@ function buildSelector(element: HTMLElement): string {
     current = current.parentElement;
   }
 
-  return parts.join(' > ');
+  const fallback = buildFallbackSelector(element);
+  return selectorMatchesOnlyElement(fallback, element) ? fallback : '';
 }
 
 function readVisibleText(element: HTMLElement): string {
@@ -174,6 +190,11 @@ export function VisualPreviewEditor({ scope }: Props) {
 
   const selectElement = (element: HTMLElement) => {
     const selector = buildSelector(element);
+    if (!selector || !selectorMatchesOnlyElement(selector, element)) {
+      setSelected(null);
+      setMessage('No se pudo crear un selector seguro para ese elemento.');
+      return;
+    }
     setSelected({ element, selector, label: describeElement(element) });
     setInspectedStyle(readComputedStyle(element));
     setDraftStyle({ ...(sessionOverridesRef.current[selector] ?? {}) });
