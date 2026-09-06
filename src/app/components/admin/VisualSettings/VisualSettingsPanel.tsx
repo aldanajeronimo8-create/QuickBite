@@ -60,6 +60,25 @@ const EDITABLE_KEYS = [
   'card_style','input_style','density','theme_mode',
 ] as const;
 
+const EDITOR_STATE_STORAGE_KEY = 'quickbite_visual_editor_state_v1';
+
+function readEditorState(): { scope: VisualInterfaceScope; previewRoute: string } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(EDITOR_STATE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<{ scope: VisualInterfaceScope; previewRoute: string }>;
+    if (!parsed.scope || !SCOPES.some((item) => item.id === parsed.scope)) return null;
+    const routes = PREVIEW_ROUTES[parsed.scope];
+    const previewRoute = typeof parsed.previewRoute === 'string' && routes.some((route) => route.path === parsed.previewRoute)
+      ? parsed.previewRoute
+      : routes[0].path;
+    return { scope: parsed.scope, previewRoute };
+  } catch {
+    return null;
+  }
+}
+
 function pickEditable(draft: VisualSettingsDraft): Partial<VisualSettingsDraft> {
   const result: Partial<VisualSettingsDraft> = {};
   for (const key of EDITABLE_KEYS) result[key] = draft[key] as never;
@@ -81,14 +100,16 @@ function buildPreviewPath(scope: VisualInterfaceScope, route: string) {
 
 export function VisualSettingsPanel() {
   const { settings, loading, applyLocal, refresh } = useVisualTheme();
-  const [scope, setScope] = useState<VisualInterfaceScope>('login_student');
-  const [draft, setDraft] = useState<VisualSettingsDraft>(() => resolveVisualSettings(settings, 'login_student'));
-  const [saved, setSaved] = useState<VisualSettingsDraft>(() => resolveVisualSettings(settings, 'login_student'));
+  const initialEditorState = useMemo(() => readEditorState(), []);
+  const initialScope = initialEditorState?.scope ?? 'login_student';
+  const [scope, setScope] = useState<VisualInterfaceScope>(initialScope);
+  const [draft, setDraft] = useState<VisualSettingsDraft>(() => resolveVisualSettings(settings, initialScope));
+  const [saved, setSaved] = useState<VisualSettingsDraft>(() => resolveVisualSettings(settings, initialScope));
   const [history, setHistory] = useState<VisualSettingsDraft[]>([]);
   const [future, setFuture] = useState<VisualSettingsDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const [compare, setCompare] = useState(false);
-  const [previewRoute, setPreviewRoute] = useState('/login');
+  const [previewRoute, setPreviewRoute] = useState(initialEditorState?.previewRoute ?? PREVIEW_ROUTES[initialScope][0].path);
 
   const scopeInfo = useMemo(() => SCOPES.find((item) => item.id === scope) ?? SCOPES[0], [scope]);
   const previewRoutes = PREVIEW_ROUTES[scope];
@@ -106,15 +127,23 @@ export function VisualSettingsPanel() {
     setSaved(next);
     setHistory([]);
     setFuture([]);
-    setPreviewRoute(PREVIEW_ROUTES[scope][0].path);
     setCompare(false);
-  }, [scope, settings]);
+  }, [scope, settings.updated_at]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.setItem(EDITOR_STATE_STORAGE_KEY, JSON.stringify({ scope, previewRoute: activePreviewRoute.path }));
+    } catch {
+      // Ignore unavailable sessionStorage.
+    }
+  }, [scope, activePreviewRoute.path]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.data?.type !== 'quickbite-visual-element-edit' && event.data?.type !== 'quickbite-visual-element-reset') return;
       if (event.data?.scope !== scope || !event.data?.settings) return;
-      const next = sanitizeVisualSettings(event.data.settings as Partial<VisualSettingsDraft>);
+      const next = resolveVisualSettings(sanitizeVisualSettings(event.data.settings as Partial<VisualSettingsDraft>), scope);
       setDraft((current) => {
         if (JSON.stringify(current) === JSON.stringify(next)) return current;
         setHistory((items) => [...items.slice(-29), current]);
@@ -126,7 +155,10 @@ export function VisualSettingsPanel() {
     return () => window.removeEventListener('message', onMessage);
   }, [scope]);
 
-  const selectScope = (nextScope: VisualInterfaceScope) => setScope(nextScope);
+  const selectScope = (nextScope: VisualInterfaceScope) => {
+    setScope(nextScope);
+    setPreviewRoute(PREVIEW_ROUTES[nextScope][0].path);
+  };
 
   const replaceDraft = (next: VisualSettingsDraft, addHistory = true) => {
     setDraft((current) => {
