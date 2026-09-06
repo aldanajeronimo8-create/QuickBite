@@ -1,0 +1,77 @@
+/* QuickBite dark-mode hardening for legacy student/admin utility classes. */
+:root[data-qb-theme="dark"] {
+  --qb-status-blue-bg: rgba(37,99,235,.16); --qb-status-blue-border: rgba(96,165,250,.28); --qb-status-blue-text: #bfdbfe;
+  --qb-status-green-bg: rgba(22,163,106,.16); --qb-status-green-border: rgba(52,211,153,.28); --qb-status-green-text: #bbf7d0;
+  --qb-status-amber-bg: rgba(217,119,6,.16); --qb-status-amber-border: rgba(251,191,36,.28); --qb-status-amber-text: #fde68a;
+  --qb-status-red-bg: rgba(220,38,38,.16); --qb-status-red-border: rgba(248,113,113,.28); --qb-status-red-text: #fecaca;
+  --qb-status-violet-bg: rgba(124,58,237,.16); --qb-status-violet-border: rgba(167,139,250,.28); --qb-status-violet-text: #ddd6fe;
+  --qb-status-rose-bg: rgba(225,29,72,.16); --qb-status-rose-border: rgba(251,113,133,.28); --qb-status-rose-text: #fecdd3;
+  --qb-status-cyan-bg: rgba(6,182,212,.14); --qb-status-cyan-border: rgba(103,232,249,.25); --qb-status-cyan-text: #a5f3fc;
+  --qb-status-purple-bg: rgba(147,51,234,.16); --qb-status-purple-border: rgba(192,132,252,.25); --qb-status-purple-text: #e9d5ff;
+  --qb-status-slate-bg: #16243a; --qb-status-slate-border: rgba(170,183,201,.2); --qb-status-slate-text: #aab7c9;
+}
+
+/* Neutral/pale surfaces used by both experiences. */
+:root[data-qb-theme="dark"] [class~="bg-white"],
+:root[data-qb-theme="dark"] [class~="bg-gray-50"],
+:root[data-qb-theme="dark"] [class~="bg-slate-50"],
+:root[data-qb-theme="dark"] [class~="bg-zinc-50"] { background-color: var(--qb-surface) !important; }
+:root[data-qb-theme="dark"] [class~="bg-gray-100"],
+:root[data-qb-theme="dark"] [class~="bg-slate-100"],
+:root[data-qb-theme="dark"] [class~="bg-zinc-100"] { background-color: var(--qb-surface-muted) !important; }
+:root[data-qb-theme="dark"] [class~="bg-gray-200"],
+:root[data-qb-theme="dark"] [class~="bg-slate-200"],
+:root[data-qb-theme="dark"] [class~="bg-zinc-200"] { background-color: var(--qb-surface-elevated) !important; }
+:root[data-qb-theme="dark"] [class*="bg-white/"] { background-color: color-mix(in srgb,var(--qb-surface) 82%,transparent) !important; }
+
+/* Text neutralization. */
+:root[data-qb-theme="dark"] [class~="text-gray-950"],:root[data-qb-theme="dark"] [class~="text-gray-900"],:root[data-qb-theme="dark"] [class~="text-gray-800"],:root[data-qb-theme="dark"] [class~="text-gray-700"],
+:root[data-qb-theme="dark"] [class~="text-slate-950"],:root[data-qb-theme="dark"] [class~="text-slate-900"],:root[data-qb-theme="dark"] [class~="text-slate-800"],:root[data-qb-theme="dark"] [class~="text-slate-700"] { color: var(--qb-text) !important; }
+:root[data-qb-theme="dark"] [class~="text-gray-600"],:root[data-qb-theme="dark"] [class~="text-gray-500"],:root[data-qb-theme="dark"] [class~="text-slate-600"],:root[data-qb-theme="dark"] [class~="text-slate-500"] { color: var(--qb-text-secondary) !important; }
+:root[data-qb-theme="dark"] [class~="text-gray-400"],:root[data-qb-theme="dark"] [class~="text-gray-300"],:root[data-qb-theme="dark"] [class~="text-slate-400"],:root[data-qb-theme="dark"] [class~="text-slate-300"] { color: var(--qb-text-muted) !important; }
+
+/* Borders/dividers. */
+:root[data-qb-theme="dark"] [class~="border-gray-100"],:root[data-qb-theme="dark"] [class~="border-gray-200"],:root[data-qb-theme="dark"] [class~="border-gray-300"],
+:root[data-qb-theme="dark"] [class~="border-slate-100"],:root[data-qb-theme="dark"] [class~="border-slate-200"],:root[data-qb-theme="dark"] [class~="border-slate-300"] { border-color: var(--qb-border) !important; }
+:root[data-qb-theme="dark"] [class~="divide-gray-200"] > :not([hidden]) ~ :not([hidden]),:root[data-qb-theme="dark"] [class~="divide-slate-200"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--qb-separator) !important; }
+
+/* Semantic status tints. Solid brand buttons remain untouched. */
+:root[data-qb-theme="dark"] [class~="bg-blue-50"],:root[data-qb-theme="dark"] [class~="bg-blue-50\/50"],:root[data-qb-theme="dark"] [class~="bg-blue-50\/60"],:root[data-qb-theme="dark"] [class~="bg-blue-50\/70"],:root[data-qb-theme="dark"] [class~="bg-blue-50\/80"],:root[data-qb-theme="dark"] [class~="bg-blue-100"] { background-color: var(--qb-status-blue-bg)!important; }
+:root[data-qb-theme="dark"] [class~="border-blue-100"],:root[data-qb-theme="dark"] [class~="border-blue-200"],:root[data-qb-theme="dark"] [class~="border-blue-300"] { border-color: var(--qb-status-blue-border)!important; }
+:root[data-qb-theme="dark"] [class~="text-blue-950"],:root[data-qb-theme="dark"] [class~="text-blue-900"],:root[data-qb-theme="dark"] [class~="text-blue-800"],:root[data-qb-theme="dark"] [class~="text-blue-700"] { color: var(--qb-status-blue-text)!important; }
+
+:root[data-qb-theme="dark"] [class~="bg-green-50"],:root[data-qb-theme="dark"] [class~="bg-green-50\/60"],:root[data-qb-theme="dark"] [class~="bg-green-50\/70"],:root[data-qb-theme="dark"] [class~="bg-green-100"],:root[data-qb-theme="dark"] [class~="bg-emerald-50"],:root[data-qb-theme="dark"] [class~="bg-emerald-50\/60"],:root[data-qb-theme="dark"] [class~="bg-emerald-50\/70"],:root[data-qb-theme="dark"] [class~="bg-emerald-100"] { background-color: var(--qb-status-green-bg)!important; }
+:root[data-qb-theme="dark"] [class~="border-green-100"],:root[data-qb-theme="dark"] [class~="border-green-200"],:root[data-qb-theme="dark"] [class~="border-emerald-100"],:root[data-qb-theme="dark"] [class~="border-emerald-200"] { border-color: var(--qb-status-green-border)!important; }
+:root[data-qb-theme="dark"] [class~="text-green-900"],:root[data-qb-theme="dark"] [class~="text-green-800"],:root[data-qb-theme="dark"] [class~="text-green-700"],:root[data-qb-theme="dark"] [class~="text-emerald-900"],:root[data-qb-theme="dark"] [class~="text-emerald-800"],:root[data-qb-theme="dark"] [class~="text-emerald-700"] { color: var(--qb-status-green-text)!important; }
+
+:root[data-qb-theme="dark"] [class~="bg-amber-50"],:root[data-qb-theme="dark"] [class~="bg-amber-100"] { background-color: var(--qb-status-amber-bg)!important; }
+:root[data-qb-theme="dark"] [class~="border-amber-100"],:root[data-qb-theme="dark"] [class~="border-amber-200"] { border-color: var(--qb-status-amber-border)!important; }
+:root[data-qb-theme="dark"] [class~="text-amber-900"],:root[data-qb-theme="dark"] [class~="text-amber-800"],:root[data-qb-theme="dark"] [class~="text-amber-700"] { color: var(--qb-status-amber-text)!important; }
+
+:root[data-qb-theme="dark"] [class~="bg-red-50"],:root[data-qb-theme="dark"] [class~="bg-red-100"] { background-color: var(--qb-status-red-bg)!important; }
+:root[data-qb-theme="dark"] [class~="border-red-100"],:root[data-qb-theme="dark"] [class~="border-red-200"] { border-color: var(--qb-status-red-border)!important; }
+:root[data-qb-theme="dark"] [class~="text-red-900"],:root[data-qb-theme="dark"] [class~="text-red-800"],:root[data-qb-theme="dark"] [class~="text-red-700"],:root[data-qb-theme="dark"] [class~="text-red-600"] { color: var(--qb-status-red-text)!important; }
+
+:root[data-qb-theme="dark"] [class~="bg-violet-50"],:root[data-qb-theme="dark"] [class~="bg-violet-100"],:root[data-qb-theme="dark"] [class~="bg-purple-50"],:root[data-qb-theme="dark"] [class~="bg-purple-100"] { background-color: var(--qb-status-violet-bg)!important; }
+:root[data-qb-theme="dark"] [class~="border-violet-100"],:root[data-qb-theme="dark"] [class~="border-violet-200"],:root[data-qb-theme="dark"] [class~="border-purple-100"],:root[data-qb-theme="dark"] [class~="border-purple-200"] { border-color: var(--qb-status-violet-border)!important; }
+:root[data-qb-theme="dark"] [class~="text-violet-900"],:root[data-qb-theme="dark"] [class~="text-violet-800"],:root[data-qb-theme="dark"] [class~="text-violet-700"],:root[data-qb-theme="dark"] [class~="text-purple-900"],:root[data-qb-theme="dark"] [class~="text-purple-800"],:root[data-qb-theme="dark"] [class~="text-purple-700"] { color: var(--qb-status-violet-text)!important; }
+
+:root[data-qb-theme="dark"] [class~="bg-rose-50"],:root[data-qb-theme="dark"] [class~="bg-rose-100"] { background-color: var(--qb-status-rose-bg)!important; }
+:root[data-qb-theme="dark"] [class~="border-rose-100"],:root[data-qb-theme="dark"] [class~="border-rose-200"] { border-color: var(--qb-status-rose-border)!important; }
+:root[data-qb-theme="dark"] [class~="text-rose-900"],:root[data-qb-theme="dark"] [class~="text-rose-800"],:root[data-qb-theme="dark"] [class~="text-rose-700"],:root[data-qb-theme="dark"] [class~="text-rose-600"] { color: var(--qb-status-rose-text)!important; }
+
+:root[data-qb-theme="dark"] [class~="bg-cyan-50"],:root[data-qb-theme="dark"] [class~="bg-cyan-100"] { background-color: var(--qb-status-cyan-bg)!important; }
+:root[data-qb-theme="dark"] [class~="border-cyan-100"],:root[data-qb-theme="dark"] [class~="border-cyan-200"] { border-color: var(--qb-status-cyan-border)!important; }
+:root[data-qb-theme="dark"] [class~="text-cyan-900"],:root[data-qb-theme="dark"] [class~="text-cyan-800"],:root[data-qb-theme="dark"] [class~="text-cyan-700"] { color: var(--qb-status-cyan-text)!important; }
+
+:root[data-qb-theme="dark"] [class~="bg-slate-700"],:root[data-qb-theme="dark"] [class~="bg-slate-800"] { background-color: var(--qb-status-slate-bg)!important; }
+
+/* Student Feature Center literal canvas and translucent panels. */
+:root[data-qb-theme="dark"] [class*="#f5f8f7"] { background-color: var(--qb-background)!important; background-image:none!important; }
+
+/* Inputs/selects/textareas with hard-coded light fills. */
+:root[data-qb-theme="dark"] input[class~="bg-white"],:root[data-qb-theme="dark"] select[class~="bg-white"],:root[data-qb-theme="dark"] textarea[class~="bg-white"] { background-color: var(--qb-surface-muted)!important; color:var(--qb-text)!important; }
+:root[data-qb-theme="dark"] input[class~="bg-slate-50"],:root[data-qb-theme="dark"] select[class~="bg-slate-50"],:root[data-qb-theme="dark"] textarea[class~="bg-slate-50"] { background-color: var(--qb-surface-muted)!important; color:var(--qb-text)!important; }
+
+/* Preserve readability on legacy translucent layouts. */
+:root[data-qb-theme="dark"] [class~="backdrop-blur-xl"],:root[data-qb-theme="dark"] [class~="backdrop-blur-2xl"] { --tw-backdrop-brightness: brightness(.9); }
