@@ -10,13 +10,10 @@ import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
 import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
 import { getVisualPreviewScope, isVisualPreviewMode, VisualThemeProvider } from './contexts/VisualThemeProvider';
+import { VisualPreviewEditor } from './components/visual/VisualPreviewEditor';
 
 function safeIsVisualPreviewMode(): boolean {
-  try {
-    return isVisualPreviewMode();
-  } catch {
-    return false;
-  }
+  try { return isVisualPreviewMode(); } catch { return false; }
 }
 
 function SessionRestorer() {
@@ -28,27 +25,18 @@ function SessionRestorer() {
         const context = getAuthContext();
         const supabaseClient = getSupabaseClientForContext(context);
         if (!supabaseClient) return;
-
         const { data, error } = await supabaseClient.auth.getSession();
         if (error) throw error;
         if (cancelled || !data.session?.user) return;
-
-        const { data: profile, error: profileError } = await supabaseClient
-          .from('profiles')
-          .select('id,role')
-          .eq('id', data.session.user.id)
-          .maybeSingle();
+        const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('id,role').eq('id', data.session.user.id).maybeSingle();
         if (profileError) throw profileError;
         if (cancelled || !profile) return;
-
         const pathname = window.location.pathname;
         if (pathname !== '/' && pathname !== '/login') return;
         if (context === 'admin' && canAccessAdmin(profile.role)) await router.navigate('/admin', { replace: true });
         else if (context === 'user' && canAccessParent(profile.role)) await router.navigate('/parent/family', { replace: true });
         else if (context === 'user' && canAccessStudent(profile.role)) await router.navigate('/menu', { replace: true });
-      } catch (error) {
-        console.warn('[QuickBite] No se pudo restaurar la sesión automáticamente.', error);
-      }
+      } catch (error) { console.warn('[QuickBite] No se pudo restaurar la sesión automáticamente.', error); }
     };
     void restore();
     return () => { cancelled = true; };
@@ -62,11 +50,7 @@ function PreviewSessionBootstrap() {
     const scope = getVisualPreviewScope();
     const role = scope === 'admin' || scope === 'login_admin' ? 'admin' : scope === 'parent' || scope === 'login_parent' ? 'parent' : 'student';
     const now = new Date().toISOString();
-    useAuthStore.setState({
-      user: { id: `visual-preview-${role}`, email: `${role}@preview.local`, full_name: `Vista previa ${role}`, role, ti: null, created_at: now },
-      session: { token: 'visual-preview' },
-      loading: false,
-    });
+    useAuthStore.setState({ user: { id: `visual-preview-${role}`, email: `${role}@preview.local`, full_name: `Vista previa ${role}`, role, ti: null, created_at: now }, session: { token: 'visual-preview' }, loading: false });
   }, []);
   return null;
 }
@@ -80,25 +64,14 @@ function AppContent() {
   const visualPreview = safeIsVisualPreviewMode();
   const hasSupabase = hasSupabaseConfig();
 
-  useEffect(() => {
-    if (hasSupabase && !visualPreview) void checkSession();
-  }, [checkSession, hasSupabase, visualPreview]);
-
-  useEffect(() => {
-    if (!hasSupabase || !user || visualPreview) return;
-    void loadData({ silent: true });
-  }, [hasSupabase, loadData, user, visualPreview]);
-
-  useEffect(() => {
-    if (!hasSupabase || !user || visualPreview) return;
-    const cleanupRealtime = subscribeRealtime();
-    return () => cleanupRealtime();
-  }, [hasSupabase, subscribeRealtime, user, visualPreview]);
+  useEffect(() => { if (hasSupabase && !visualPreview) void checkSession(); }, [checkSession, hasSupabase, visualPreview]);
+  useEffect(() => { if (!hasSupabase || !user || visualPreview) return; void loadData({ silent: true }); }, [hasSupabase, loadData, user, visualPreview]);
+  useEffect(() => { if (!hasSupabase || !user || visualPreview) return; const cleanupRealtime = subscribeRealtime(); return () => cleanupRealtime(); }, [hasSupabase, subscribeRealtime, user, visualPreview]);
 
   return (
     <ErrorBoundary>
       <VisualThemeProvider>
-        {needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><PreviewSessionBootstrap />{!visualPreview && <SessionRestorer />}</>}
+        {needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><PreviewSessionBootstrap />{visualPreview && <VisualPreviewEditor scope={getVisualPreviewScope() ?? 'student'} />}{!visualPreview && <SessionRestorer />}</>}
         <Toaster position="top-center" />
       </VisualThemeProvider>
     </ErrorBoundary>
