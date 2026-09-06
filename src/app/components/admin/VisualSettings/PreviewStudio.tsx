@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 import { Copy, ExternalLink, Eye, Monitor, RefreshCw, Redo2, Smartphone, Tablet, Undo2 } from 'lucide-react';
 import type { VisualInterfaceScope, VisualSettingsDraft } from '../../../../types/visualSettings';
 
@@ -17,12 +17,44 @@ type Props = {
   onCopy?: () => void;
 };
 
+type PreviewFrameProps = {
+  frameKey: string;
+  settings: VisualSettingsDraft;
+  label: string;
+  scope: VisualInterfaceScope;
+  previewPath: string;
+  frameStyle: React.CSSProperties;
+  refreshKey: number;
+  postTo: (frame: HTMLIFrameElement | null, settings: VisualSettingsDraft) => void;
+};
+
 const VIEWPORTS: Array<{ id: Viewport; label: string; width: number | 'full'; icon: typeof Monitor }> = [
   { id: 'desktop', label: 'Ordenador', width: 'full', icon: Monitor },
   { id: 'tablet', label: 'Tableta', width: 768, icon: Tablet },
   { id: 'mobile', label: 'Móvil', width: 390, icon: Smartphone },
 ];
 const STORAGE_KEY = 'quickbite_visual_preview_settings';
+
+const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(function PreviewFrame({ frameKey, settings, label, scope, previewPath, frameStyle, refreshKey, postTo }, ref) {
+  return (
+    <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-400/30" style={frameStyle}>
+      <div className="flex h-8 items-center gap-1 border-b border-slate-200 bg-slate-100 px-3">
+        <span className="size-2 rounded-full bg-slate-300" />
+        <span className="size-2 rounded-full bg-slate-300" />
+        <span className="size-2 rounded-full bg-slate-300" />
+        <span className="ml-2 truncate text-[9px] font-bold text-slate-400">{label}</span>
+      </div>
+      <iframe
+        key={`${refreshKey}-${frameKey}`}
+        ref={ref}
+        title={`${label} ${scope}`}
+        src={previewPath}
+        onLoad={(event) => postTo(event.currentTarget, settings)}
+        className="block h-[680px] w-full border-0 bg-white"
+      />
+    </div>
+  );
+});
 
 export function PreviewStudio({ scope, previewPath, draft, saved, compare = false, onCompareChange, canUndo = false, canRedo = false, onUndo, onRedo, onCopy }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -37,15 +69,26 @@ export function PreviewStudio({ scope, previewPath, draft, saved, compare = fals
   const postTo = (frame: HTMLIFrameElement | null, settings: VisualSettingsDraft) => {
     const target = frame?.contentWindow;
     if (!target) return;
-    try { target.postMessage({ type: 'quickbite-visual-preview', settings }, window.location.origin); } catch { /* iframe will also read localStorage */ }
+    try {
+      target.postMessage({ type: 'quickbite-visual-preview', settings }, window.location.origin);
+    } catch {
+      // iframe also reads localStorage
+    }
   };
 
   const postPreview = () => {
-    if (compare) { postTo(iframeRef.current, draft); postTo(savedIframeRef.current, saved); }
-    else postTo(iframeRef.current, activeSettings);
+    if (compare) {
+      postTo(iframeRef.current, draft);
+      postTo(savedIframeRef.current, saved);
+    } else {
+      postTo(iframeRef.current, activeSettings);
+    }
   };
 
-  useEffect(() => { postPreview(); }, [draft, saved, compare, mode]);
+  useEffect(() => {
+    postPreview();
+  }, [draft, saved, compare, mode]);
+
   useEffect(() => {
     const handleReady = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.data?.type !== 'quickbite-visual-preview-ready') return;
@@ -58,30 +101,53 @@ export function PreviewStudio({ scope, previewPath, draft, saved, compare = fals
 
   const refresh = () => setKey((value) => value + 1);
   const openFull = () => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(activeSettings)); } catch { /* optional */ }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(activeSettings));
+    } catch {
+      // optional
+    }
     window.open(previewPath, '_blank', 'noopener,noreferrer');
   };
   const copyPath = async () => {
-    if (onCopy) { onCopy(); return; }
-    try { await navigator.clipboard.writeText(`${window.location.origin}${previewPath}`); } catch { /* optional */ }
+    if (onCopy) {
+      onCopy();
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${previewPath}`);
+    } catch {
+      // optional
+    }
   };
 
-  const frameStyle = { width: selectedViewport.width === 'full' ? '100%' : `${selectedViewport.width}px`, maxWidth: '100%' };
-  const frame = (ref: RefObject<HTMLIFrameElement | null>, frameKey: string, settings: VisualSettingsDraft, label: string) => (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-400/30" style={frameStyle}>
-      <div className="flex h-8 items-center gap-1 border-b border-slate-200 bg-slate-100 px-3"><span className="size-2 rounded-full bg-slate-300" /><span className="size-2 rounded-full bg-slate-300" /><span className="size-2 rounded-full bg-slate-300" /><span className="ml-2 truncate text-[9px] font-bold text-slate-400">{label}</span></div>
-      <iframe key={`${key}-${frameKey}`} ref={ref as React.Ref<HTMLIFrameElement>} title={`${label} ${scope}`} src={previewPath} onLoad={() => postTo(ref.current, settings)} className="block h-[680px] w-full border-0 bg-white" />
-    </div>
-  );
+  const frameStyle = {
+    width: selectedViewport.width === 'full' ? '100%' : `${selectedViewport.width}px`,
+    maxWidth: '100%',
+  };
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-slate-900 bg-slate-950 shadow-xl">
       <div className="border-b border-white/10 bg-slate-950 px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400"><Eye className="h-4 w-4" /> Visual Studio</div><p className="mt-1 truncate text-sm font-bold text-white">{scope.replaceAll('_', ' ')}</p></div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+              <Eye className="h-4 w-4" /> Visual Studio
+            </div>
+            <p className="mt-1 truncate text-sm font-bold text-white">{scope.replaceAll('_', ' ')}</p>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center rounded-xl bg-white/5 p-1 ring-1 ring-white/10">{VIEWPORTS.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setViewport(id)} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-black transition ${viewport === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}><Icon className="h-3.5 w-3.5" /><span className="hidden sm:inline">{label}</span></button>)}</div>
-            <div className="flex items-center rounded-xl bg-white/5 p-1 ring-1 ring-white/10"><button type="button" onClick={() => setMode('draft')} className={`rounded-lg px-3 py-2 text-[11px] font-black ${mode === 'draft' ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}>Borrador</button><button type="button" onClick={() => setMode('saved')} className={`rounded-lg px-3 py-2 text-[11px] font-black ${mode === 'saved' ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}>Guardado</button></div>
+            <div className="flex items-center rounded-xl bg-white/5 p-1 ring-1 ring-white/10">
+              {VIEWPORTS.map(({ id, label, icon: Icon }) => (
+                <button key={id} type="button" onClick={() => setViewport(id)} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-black transition ${viewport === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}>
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center rounded-xl bg-white/5 p-1 ring-1 ring-white/10">
+              <button type="button" onClick={() => setMode('draft')} className={`rounded-lg px-3 py-2 text-[11px] font-black ${mode === 'draft' ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}>Borrador</button>
+              <button type="button" onClick={() => setMode('saved')} className={`rounded-lg px-3 py-2 text-[11px] font-black ${mode === 'saved' ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}>Guardado</button>
+            </div>
             <button type="button" disabled={!canUndo} onClick={onUndo} className="grid size-9 place-items-center rounded-xl bg-white/5 text-slate-300 ring-1 ring-white/10 disabled:opacity-30" aria-label="Deshacer"><Undo2 className="h-4 w-4" /></button>
             <button type="button" disabled={!canRedo} onClick={onRedo} className="grid size-9 place-items-center rounded-xl bg-white/5 text-slate-300 ring-1 ring-white/10 disabled:opacity-30" aria-label="Rehacer"><Redo2 className="h-4 w-4" /></button>
             <button type="button" onClick={() => onCompareChange?.(!compare)} className={`rounded-xl px-3 py-2 text-[11px] font-black ring-1 ring-white/10 ${compare ? 'bg-white text-slate-900' : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'}`}>{compare ? 'Salir de comparación' : 'Antes / Después'}</button>
@@ -90,12 +156,35 @@ export function PreviewStudio({ scope, previewPath, draft, saved, compare = fals
             <button type="button" onClick={openFull} className="grid size-9 place-items-center rounded-xl bg-white/5 text-slate-300 ring-1 ring-white/10 hover:bg-white/10 hover:text-white" aria-label="Ver en otra pestaña"><ExternalLink className="h-4 w-4" /></button>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-400"><span className="rounded-full bg-white/5 px-2.5 py-1">Interfaz real</span><span className="rounded-full bg-white/5 px-2.5 py-1">Sesión aislada</span>{dirty && <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-amber-200">Cambios sin guardar</span>}{compare && <span className="rounded-full bg-white/10 px-2.5 py-1 text-white">Comparando original y borrador</span>}</div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-400">
+          <span className="rounded-full bg-white/5 px-2.5 py-1">Interfaz real</span>
+          <span className="rounded-full bg-white/5 px-2.5 py-1">Sesión aislada</span>
+          {dirty && <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-amber-200">Cambios sin guardar</span>}
+          {compare && <span className="rounded-full bg-white/10 px-2.5 py-1 text-white">Comparando original y borrador</span>}
+        </div>
       </div>
-      <div className="bg-slate-200 p-3 sm:p-5"><div className={`mx-auto min-h-[520px] overflow-auto rounded-[1.5rem] bg-slate-300/70 p-3 shadow-inner sm:p-5 ${compare ? 'grid gap-5 xl:grid-cols-2' : 'flex justify-center'}`}>
-        {compare ? <><div className="min-w-0"><p className="mb-2 text-center text-[11px] font-black uppercase tracking-[0.15em] text-slate-500">Antes · Guardado</p>{frame(savedIframeRef, 'saved', saved, 'Guardado')}</div><div className="min-w-0"><p className="mb-2 text-center text-[11px] font-black uppercase tracking-[0.15em] text-slate-500">Después · Borrador</p>{frame(iframeRef, 'draft', draft, 'Borrador')}</div></> : frame(iframeRef, mode, activeSettings, mode === 'draft' ? 'Borrador' : 'Guardado')}
-      </div></div>
-      <div className="flex flex-col gap-2 border-t border-white/10 bg-slate-950 px-4 py-3 text-[11px] leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between sm:px-5"><span>1 clic ejecuta la acción normal. 3 clics abren el editor del elemento visual.</span><span className="font-black text-slate-300">{selectedViewport.width === 'full' ? 'Ancho adaptable' : `${selectedViewport.width}px`}</span></div>
+      <div className="bg-slate-200 p-3 sm:p-5">
+        <div className={`mx-auto min-h-[520px] overflow-auto rounded-[1.5rem] bg-slate-300/70 p-3 shadow-inner sm:p-5 ${compare ? 'grid gap-5 xl:grid-cols-2' : 'flex justify-center'}`}>
+          {compare ? (
+            <>
+              <div className="min-w-0">
+                <p className="mb-2 text-center text-[11px] font-black uppercase tracking-[0.15em] text-slate-500">Antes · Guardado</p>
+                <PreviewFrame ref={savedIframeRef} frameKey="saved" settings={saved} label="Guardado" scope={scope} previewPath={previewPath} frameStyle={frameStyle} refreshKey={key} postTo={postTo} />
+              </div>
+              <div className="min-w-0">
+                <p className="mb-2 text-center text-[11px] font-black uppercase tracking-[0.15em] text-slate-500">Después · Borrador</p>
+                <PreviewFrame ref={iframeRef} frameKey="draft" settings={draft} label="Borrador" scope={scope} previewPath={previewPath} frameStyle={frameStyle} refreshKey={key} postTo={postTo} />
+              </div>
+            </>
+          ) : (
+            <PreviewFrame ref={iframeRef} frameKey={mode} settings={activeSettings} label={mode === 'draft' ? 'Borrador' : 'Guardado'} scope={scope} previewPath={previewPath} frameStyle={frameStyle} refreshKey={key} postTo={postTo} />
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 border-t border-white/10 bg-slate-950 px-4 py-3 text-[11px] leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <span>1 clic ejecuta la acción normal. 3 clics abren el editor del elemento visual.</span>
+        <span className="font-black text-slate-300">{selectedViewport.width === 'full' ? 'Ancho adaptable' : `${selectedViewport.width}px`}</span>
+      </div>
     </section>
   );
 }
