@@ -132,7 +132,7 @@ const SHAPES = [
   ['pill', 'Píldora', '999px'], ['capsule', 'Cápsula', '32px'], ['oval', 'Ovalado', '50%'], ['squircle', 'Squircle', '22%'], ['arch', 'Arco', '32px 32px 8px 8px'],
   ['reverse-arch', 'Arco invertido', '8px 8px 32px 32px'], ['top', 'Curva superior', '24px 24px 4px 4px'], ['bottom', 'Curva inferior', '4px 4px 24px 24px'], ['cut', 'Corte suave', '18px 6px 18px 6px'],
   ['reverse-cut', 'Corte invertido', '6px 18px 6px 18px'], ['wide', 'Ancho suave', '12px 28px'], ['high', 'Alto suave', '28px 12px'], ['asymmetric', 'Asimétrico', '28px 10px 18px 36px'],
-  ['organic', 'Orgánico', '18px 30px 14px 26px'], ['rounded-side', 'Lados curvos', '22px 8px']
+  ['organic', 'Orgánico', '18px 30px 14px 26px'], ['rounded-side', 'Lados curvos', '22px 8px'], ['blob', 'Blob', '28px 14px 34px 20px']
 ] as const;
 
 function cssEscape(value: string) { try { return CSS.escape(value); } catch { return value.replace(/[^a-zA-Z0-9_-]/g, '\\$&'); } }
@@ -161,10 +161,7 @@ function buildSelector(element: Element) {
 }
 function readVisibleText(element: Element) { const direct = Array.from(element.childNodes).filter(node => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim())); if (direct.length) return direct.map(node => node.textContent?.trim() ?? '').join(' '); return element.childElementCount === 0 ? element.textContent?.trim() ?? '' : ''; }
 function toHex(value: string): string | undefined { if (value.startsWith('#') && value.length === 7) return value.toUpperCase(); const match = value.match(/^rgba?\(\s*(\d+)\s*[ ,]\s*(\d+)\s*[ ,]\s*(\d+)/i); if (!match) return undefined; return `#${[match[1], match[2], match[3]].map(part => Number(part).toString(16).padStart(2, '0')).join('')}`.toUpperCase(); }
-function readComputedStyle(element: Element): VisualElementStyle {
-  const s = window.getComputedStyle(element);
-  return sanitizeVisualElementStyle({ textContent: readVisibleText(element), backgroundColor: toHex(s.backgroundColor), backgroundImage: s.backgroundImage.startsWith('linear-gradient(') ? s.backgroundImage : undefined, color: toHex(s.color), borderColor: toHex(s.borderTopColor), borderStyle: s.borderTopStyle, borderWidth: s.borderTopWidth, borderRadius: s.borderRadius, boxShadow: s.boxShadow, fontFamily: s.fontFamily, fontSize: s.fontSize, fontWeight: s.fontWeight, lineHeight: s.lineHeight, letterSpacing: s.letterSpacing, textTransform: s.textTransform, textDecoration: s.textDecorationLine === 'none' ? 'none' : s.textDecorationLine.includes('line-through') ? 'line-through' : 'underline', textAlign: s.textAlign, padding: s.padding, paddingTop: s.paddingTop, paddingRight: s.paddingRight, paddingBottom: s.paddingBottom, paddingLeft: s.paddingLeft, margin: s.margin, marginTop: s.marginTop, marginRight: s.marginRight, marginBottom: s.marginBottom, marginLeft: s.marginLeft, width: s.width, minWidth: s.minWidth, maxWidth: s.maxWidth, height: s.height, minHeight: s.minHeight, maxHeight: s.maxHeight, opacity: s.opacity, display: s.display as VisualElementStyle['display'], position: s.position as VisualElementStyle['position'], top: s.top, right: s.right, bottom: s.bottom, left: s.left, zIndex: s.zIndex, flexDirection: s.flexDirection as VisualElementStyle['flexDirection'], justifyContent: s.justifyContent as VisualElementStyle['justifyContent'], alignItems: s.alignItems as VisualElementStyle['alignItems'], gap: s.gap, rowGap: s.rowGap, columnGap: s.columnGap, gridTemplateColumns: s.gridTemplateColumns, overflow: s.overflow as VisualElementStyle['overflow'], cursor: s.cursor as VisualElementStyle['cursor'], objectFit: s.objectFit as VisualElementStyle['objectFit'], transform: s.transform === 'none' ? 'none' : s.transform, transition: s.transition, filter: s.filter === 'none' ? 'none' : s.filter, backdropFilter: s.backdropFilter === 'none' ? 'none' : s.backdropFilter, outline: s.outline, outlineOffset: s.outlineOffset });
-}
+function readComputedStyle(element: Element): VisualElementStyle { const s = window.getComputedStyle(element); return sanitizeVisualElementStyle({ textContent: readVisibleText(element), backgroundColor: toHex(s.backgroundColor), backgroundImage: s.backgroundImage.startsWith('linear-gradient(') ? s.backgroundImage : undefined, color: toHex(s.color), borderColor: toHex(s.borderTopColor), borderStyle: s.borderTopStyle, borderWidth: s.borderTopWidth, borderRadius: s.borderRadius, boxShadow: s.boxShadow, fontFamily: s.fontFamily, fontSize: s.fontSize, fontWeight: s.fontWeight, lineHeight: s.lineHeight, letterSpacing: s.letterSpacing, textTransform: s.textTransform, textDecoration: s.textDecorationLine === 'none' ? 'none' : s.textDecorationLine.includes('line-through') ? 'line-through' : 'underline', textAlign: s.textAlign, padding: s.padding, paddingTop: s.paddingTop, paddingRight: s.paddingRight, paddingBottom: s.paddingBottom, paddingLeft: s.paddingLeft, margin: s.margin, marginTop: s.marginTop, marginRight: s.marginRight, marginBottom: s.marginBottom, marginLeft: s.marginLeft, width: s.width, minWidth: s.minWidth, maxWidth: s.maxWidth, height: s.height, minHeight: s.minHeight, maxHeight: s.maxHeight, opacity: s.opacity, display: s.display as VisualElementStyle['display'], position: s.position as VisualElementStyle['position'], top: s.top, right: s.right, bottom: s.bottom, left: s.left, zIndex: s.zIndex, flexDirection: s.flexDirection as VisualElementStyle['flexDirection'], justifyContent: s.justifyContent as VisualElementStyle['justifyContent'], alignItems: s.alignItems as VisualElementStyle['alignItems'], gap: s.gap, rowGap: s.rowGap, columnGap: s.columnGap, gridTemplateColumns: s.gridTemplateColumns, overflow: s.overflow as VisualElementStyle['overflow'], cursor: s.cursor as VisualElementStyle['cursor'], objectFit: s.objectFit as VisualElementStyle['objectFit'], transform: s.transform === 'none' ? 'none' : s.transform, transition: s.transition, filter: s.filter === 'none' ? 'none' : s.filter, backdropFilter: s.backdropFilter === 'none' ? 'none' : s.backdropFilter, outline: s.outline, outlineOffset: s.outlineOffset }); }
 function cloneOverrides(source: VisualSettingsDraft['element_overrides']) { return Object.fromEntries(Object.entries(source ?? {}).map(([selector, style]) => [selector, { ...style }])); }
 function getInitialOverrides(settings: ReturnType<typeof useVisualTheme>['settings'], scope: VisualInterfaceScope) { return cloneOverrides(settings.interface_overrides?.[scope]?.element_overrides ?? settings.element_overrides); }
 function describeElement(element: Element) { const tag = element.tagName.toLowerCase(); const text = readVisibleText(element).replace(/\s+/g, ' ').trim().slice(0, 70); const label = element.getAttribute('aria-label') || element.getAttribute('title') || text; const names: Record<string, string> = { button: 'Botón', a: 'Enlace', input: 'Campo', select: 'Selector', textarea: 'Área de texto', img: 'Imagen', video: 'Video', nav: 'Navegación', header: 'Cabecera', section: 'Sección', main: 'Contenedor', aside: 'Barra lateral', article: 'Tarjeta', div: 'Contenedor', span: 'Texto', p: 'Párrafo', h1: 'Título', h2: 'Título', h3: 'Título', h4: 'Título', h5: 'Título', h6: 'Título', li: 'Elemento de lista', ul: 'Lista', ol: 'Lista', table: 'Tabla', tr: 'Fila', td: 'Celda', th: 'Celda', svg: 'Icono', path: 'Trazo' }; return `${names[tag] ?? 'Elemento'}${label ? ` — “${label}”` : ''}`; }
@@ -192,18 +189,134 @@ export function VisualPreviewEditor({ scope }: Props) {
   const [message, setMessage] = useState('Modo diseño activo · haz clic sobre cualquier elemento para editarlo');
   const [designMode, setDesignMode] = useState(true);
   const [openSection, setOpenSection] = useState<SectionId | null>('presets');
-  const isButton = Boolean(selected && isButtonElement(selected.element)); const isMedia = Boolean(selected && isMediaElement(selected.element)); const isText = Boolean(selected && isTextElement(selected.element));
+
+  const isButton = Boolean(selected && isButtonElement(selected.element));
+  const isMedia = Boolean(selected && isMediaElement(selected.element));
+  const isText = Boolean(selected && isTextElement(selected.element));
   const selectedStyle = useMemo(() => selected ? { ...inspectedStyle, ...(sessionOverrides[selected.selector] ?? {}), ...draftStyle } : {}, [draftStyle, inspectedStyle, selected, sessionOverrides]);
   const hasCustomStyle = Boolean(selected && Object.keys(sessionOverrides[selected.selector] ?? {}).length);
+
   useEffect(() => { sessionOverridesRef.current = sessionOverrides; }, [sessionOverrides]);
-  const syncSessionOverrides = (nextOverrides: VisualSettingsDraft['element_overrides']) => { const cloned = cloneOverrides(nextOverrides); sessionOverridesRef.current = cloned; setSessionOverrides(cloned); };
-  const selectElement = (element: Element) => { const selector = buildSelector(element); if (!selector) { setMessage('No se pudo identificar este elemento.'); return; } setSelected({ element: element as VisualTarget, selector, label: describeElement(element), tag: element.tagName.toLowerCase() }); setInspectedStyle(readComputedStyle(element)); setDraftStyle({ ...(sessionOverridesRef.current[selector] ?? {}) }); setOpenSection(isButtonElement(element) ? 'button' : 'presets'); setMessage('Elemento seleccionado. Todas las propiedades están disponibles.'); };
-  useEffect(() => { const onPreviewMessage = (event: MessageEvent) => { if (event.origin !== window.location.origin || event.data?.type !== 'quickbite-visual-preview' || !event.data?.settings) return; const next = sanitizeVisualSettings(event.data.settings as Partial<VisualSettingsDraft>); syncSessionOverrides(next.element_overrides ?? {}); if (selected) setDraftStyle({ ...(next.element_overrides?.[selected.selector] ?? {}) }); }; window.addEventListener('message', onPreviewMessage); return () => window.removeEventListener('message', onPreviewMessage); }, [selected]);
-  useEffect(() => { const handleSelection = (event: MouseEvent) => { const rawTarget = event.target; if (!(rawTarget instanceof Element) || rawTarget.closest(PROTECTED_SELECTOR)) return; if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return; if (['SCRIPT', 'STYLE', 'LINK', 'META', 'NOSCRIPT'].includes(rawTarget.tagName)) return; if (!designMode) return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); selectElement(rawTarget); }; document.addEventListener('click', handleSelection, true); return () => document.removeEventListener('click', handleSelection, true); }, [designMode]);
-  useEffect(() => { if (!selected) return; const element = selected.element; const previous = new Map<string, string>(); Object.entries(draftStyle).forEach(([key, value]) => { if (!value || key === 'textContent') return; const property = key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`); previous.set(property, element.getAttribute('style') ?? ''); element instanceof HTMLElement ? element.style.setProperty(property, value, 'important') : element.setAttribute('style', `${element.getAttribute('style') ?? ''};${property}:${value} !important`); }); return () => { if (element instanceof HTMLElement) { previous.forEach((value, property) => { const prior = value; if (prior && prior.includes(`${property}:`)) element.setAttribute('style', prior); else element.style.removeProperty(property); }); } }; }, [draftStyle, selected]);
-  const buildDraftSettings = (nextOverrides: Record<string, VisualElementStyle>) => { const currentScope = settings.interface_overrides?.[scope] ?? {}; return sanitizeVisualSettings({ ...settings, element_overrides: settings.element_overrides ?? {}, interface_overrides: { ...(settings.interface_overrides ?? {}), [scope]: { ...currentScope, element_overrides: nextOverrides } } }); };
-  const notifyHost = (type: 'quickbite-visual-element-edit' | 'quickbite-visual-element-reset', fullSettings: VisualSettingsDraft, selector: string, styles?: VisualElementStyle) => { try { const target = window.parent !== window ? window.parent : window.opener; target?.postMessage({ type, scope, selector, ...(styles ? { styles } : {}), settings: fullSettings }, window.location.origin); } catch { /* optional */ } };
-  const commit = (patch: VisualElementStyle) => { if (!selected) return; const current = sessionOverridesRef.current[selected.selector] ?? {}; const next = sanitizeVisualElementStyle({ ...current, ...draftStyle, ...patch }); const nextOverrides = { ...sessionOverridesRef.current, [selected.selector]: next }; syncSessionOverrides(nextOverrides); setDraftStyle(next); notifyHost('quickbite-visual-element-edit', buildDraftSettings(nextOverrides), selected.selector, next); setMessage('Cambio aplicado a este elemento.'); };
-  const reset = () => { if (!selected) return; const next = { ...sessionOverridesRef.current }; delete next[selected.selector]; syncSessionOverrides(next); setDraftStyle({}); setInspectedStyle(readComputedStyle(selected.element)); notifyHost('quickbite-visual-element-reset', buildDraftSettings(next), selected.selector); setMessage('Elemento restaurado a sus valores originales.'); };
-  return <><div data-qb-visual-editor className="fixed left-4 top-4 z-[9998] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-white shadow-2xl backdrop-blur-xl"><div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/10"><Edit3 className="size-4" /></div><div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-300">Editor visual universal</p><p className="truncate text-xs font-bold">{message}</p></div><button type="button" onClick={() => setDesignMode(value => !value)} className={`shrink-0 rounded-xl px-3 py-2 text-[10px] font-black ${designMode ? 'bg-white text-slate-900' : 'bg-white/10 text-white hover:bg-white/15'}`}>{designMode ? 'Modo diseño' : 'Modo interactivo'}</button></div>{selected && <aside data-qb-visual-editor-panel className="fixed bottom-4 right-4 z-[9999] max-h-[calc(100vh-2rem)] w-[min(520px,calc(100vw-2rem))] overflow-hidden rounded-3xl border qb-border qb-surface shadow-2xl"><div className="flex items-start justify-between gap-3 border-b qb-border px-5 py-4"><div className="min-w-0"><div className="flex items-center gap-2"><Sparkles className="size-4 text-emerald-500" /><p className="truncate text-sm font-black qb-text">{selected.label}</p></div><p className="mt-1 truncate text-[10px] font-mono qb-text-muted" title={selected.selector}>{selected.selector}</p><div className="mt-2 flex flex-wrap gap-1.5"><span className="rounded-full qb-surface-elevated px-2 py-1 text-[9px] font-black qb-text-secondary">TAG: {selected.tag}</span><span className={`rounded-full px-2 py-1 text-[9px] font-black ${hasCustomStyle ? 'bg-emerald-500/15 text-emerald-500' : 'qb-surface-elevated qb-text-muted'}`}>{hasCustomStyle ? 'PERSONALIZADO' : 'VALOR ORIGINAL'}</span><span className="rounded-full bg-blue-500/10 px-2 py-1 text-[9px] font-black text-blue-500">EDITABLE</span></div></div><button type="button" onClick={() => setSelected(null)} className="rounded-xl p-2 qb-text-muted hover:bg-black/5 dark:hover:bg-white/5"><X className="size-4" /></button></div><div className="max-h-[calc(100vh-10rem)] space-y-2 overflow-y-auto p-4"><InspectorSection id="presets" title="Estilos rápidos · 20+ opciones" openSection={openSection} setOpenSection={setOpenSection}><p className="mb-3 text-[11px] leading-5 qb-text-secondary">Cada elemento puede probar estos estilos y después ajustar cualquier propiedad individual.</p><PresetGrid presets={UNIVERSAL_PRESETS} current={selectedStyle} onApply={commit} /></InspectorSection>{isButton && <InspectorSection id="button" title={`Botón / enlace · ${BUTTON_PRESETS.length} opciones`} openSection={openSection} setOpenSection={setOpenSection}><p className="mb-3 text-[11px] leading-5 qb-text-secondary">Los botones tienen más de 18 variantes y control independiente de tipografía.</p><PresetGrid presets={BUTTON_PRESETS} current={selectedStyle} onApply={commit} /></InspectorSection>}<InspectorSection id="shape" title="Forma y bordes" openSection={openSection} setOpenSection={setOpenSection}><div className="grid grid-cols-3 gap-2">{SHAPES.map(([id, label, radius]) => <button key={id} type="button" onClick={() => commit({ borderRadius: radius })} className={`rounded-xl border p-2 text-center text-[10px] font-black ${selectedStyle.borderRadius === radius ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-300/40 dark:bg-emerald-500/10 dark:text-emerald-300' : 'qb-border qb-text-secondary'}`}><span className="mx-auto mb-1 block h-7 w-12 border qb-border qb-surface-muted" style={{ borderRadius: radius }} />{label}</button>)}</div><div className="mt-3"><FieldEditor field={{ key: 'borderRadius', label: 'Radio personalizado', type: 'text', hint: '0px, 12px, 999px, 20px 8px…' }} value={selectedStyle.borderRadius} onCommit={commit} /></div></InspectorSection><InspectorSection id="text" title={isText ? 'Texto y tipografía' : 'Contenido y tipografía'} openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{TEXT_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection><InspectorSection id="colors" title="Colores y borde" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{COLOR_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection><InspectorSection id="spacing" title="Espaciado" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{SPACING_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} /></div></InspectorSection><InspectorSection id="layout" title="Tamaño, posición y distribución" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{LAYOUT_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>{isMedia && <InspectorSection id="media" title="Multimedia" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{MEDIA_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>}<InspectorSection id="effects" title="Efectos y comportamiento visual" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{EFFECT_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection><div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-3 text-[10px] leading-5 text-blue-500"><strong>Editor universal:</strong> cualquier elemento seleccionable recibe inspector completo y sus cambios se envían al editor padre.</div><div className="flex gap-2 pt-1"><button type="button" onClick={reset} className="flex flex-1 items-center justify-center gap-2 rounded-xl border qb-border qb-surface-muted px-3 py-2 text-xs font-black qb-text-secondary hover:brightness-95"><RotateCcw className="size-3.5" />Restaurar</button><button type="button" onClick={() => setSelected(null)} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white dark:bg-white dark:text-slate-950"><Check className="size-3.5" />Terminar</button></div></div></aside>}</>;
+
+  const syncSessionOverrides = (nextOverrides: VisualSettingsDraft['element_overrides']) => {
+    const cloned = cloneOverrides(nextOverrides);
+    sessionOverridesRef.current = cloned;
+    setSessionOverrides(cloned);
+  };
+
+  const selectElement = (element: Element) => {
+    const selector = buildSelector(element);
+    if (!selector) {
+      setMessage('No se pudo identificar este elemento.');
+      return;
+    }
+    setSelected({ element: element as VisualTarget, selector, label: describeElement(element), tag: element.tagName.toLowerCase() });
+    setInspectedStyle(readComputedStyle(element));
+    setDraftStyle({ ...(sessionOverridesRef.current[selector] ?? {}) });
+    setOpenSection(isButtonElement(element) ? 'button' : 'presets');
+    setMessage('Elemento seleccionado. Todas las propiedades están disponibles.');
+  };
+
+  useEffect(() => {
+    const onPreviewMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.data?.type !== 'quickbite-visual-preview' || !event.data?.settings) return;
+      const next = sanitizeVisualSettings(event.data.settings as Partial<VisualSettingsDraft>);
+      syncSessionOverrides(next.element_overrides ?? {});
+      if (selected) setDraftStyle({ ...(next.element_overrides?.[selected.selector] ?? {}) });
+    };
+    window.addEventListener('message', onPreviewMessage);
+    return () => window.removeEventListener('message', onPreviewMessage);
+  }, [selected]);
+
+  useEffect(() => {
+    const handleSelection = (event: MouseEvent) => {
+      const rawTarget = event.target;
+      if (!(rawTarget instanceof Element) || rawTarget.closest(PROTECTED_SELECTOR)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      if (['SCRIPT', 'STYLE', 'LINK', 'META', 'NOSCRIPT'].includes(rawTarget.tagName)) return;
+      if (!designMode) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      selectElement(rawTarget);
+    };
+    document.addEventListener('click', handleSelection, true);
+    return () => document.removeEventListener('click', handleSelection, true);
+  }, [designMode]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const element = selected.element;
+    const style = element.style;
+    const previous = new Map<string, string>();
+    Object.entries(draftStyle).forEach(([key, value]) => {
+      if (!value || key === 'textContent') return;
+      const property = key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+      previous.set(property, style.getPropertyValue(property));
+      style.setProperty(property, value, 'important');
+    });
+    return () => previous.forEach((value, property) => value ? style.setProperty(property, value) : style.removeProperty(property));
+  }, [draftStyle, selected]);
+
+  const buildDraftSettings = (nextOverrides: Record<string, VisualElementStyle>) => {
+    const currentScope = settings.interface_overrides?.[scope] ?? {};
+    return sanitizeVisualSettings({
+      ...settings,
+      element_overrides: settings.element_overrides ?? {},
+      interface_overrides: { ...(settings.interface_overrides ?? {}), [scope]: { ...currentScope, element_overrides: nextOverrides } },
+    });
+  };
+
+  const notifyHost = (type: 'quickbite-visual-element-edit' | 'quickbite-visual-element-reset', fullSettings: VisualSettingsDraft, selector: string, styles?: VisualElementStyle) => {
+    try {
+      const target = window.parent !== window ? window.parent : window.opener;
+      target?.postMessage({ type, scope, selector, ...(styles ? { styles } : {}), settings: fullSettings }, window.location.origin);
+    } catch { /* optional */ }
+  };
+
+  const commit = (patch: VisualElementStyle) => {
+    if (!selected) return;
+    const current = sessionOverridesRef.current[selected.selector] ?? {};
+    const next = sanitizeVisualElementStyle({ ...current, ...draftStyle, ...patch });
+    const nextOverrides = { ...sessionOverridesRef.current, [selected.selector]: next };
+    syncSessionOverrides(nextOverrides);
+    setDraftStyle(next);
+    notifyHost('quickbite-visual-element-edit', buildDraftSettings(nextOverrides), selected.selector, next);
+    setMessage('Cambio aplicado a este elemento.');
+  };
+
+  const reset = () => {
+    if (!selected) return;
+    const next = { ...sessionOverridesRef.current };
+    delete next[selected.selector];
+    syncSessionOverrides(next);
+    setDraftStyle({});
+    setInspectedStyle(readComputedStyle(selected.element));
+    notifyHost('quickbite-visual-element-reset', buildDraftSettings(next), selected.selector);
+    setMessage('Elemento restaurado a sus valores originales.');
+  };
+
+  return <>
+    <div data-qb-visual-editor className="fixed left-4 top-4 z-[9998] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-white shadow-2xl backdrop-blur-xl">
+      <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/10"><Edit3 className="size-4" /></div>
+      <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-300">Editor visual universal</p><p className="truncate text-xs font-bold">{message}</p></div>
+      <button type="button" onClick={() => setDesignMode(value => !value)} className={`shrink-0 rounded-xl px-3 py-2 text-[10px] font-black ${designMode ? 'bg-white text-slate-900' : 'bg-white/10 text-white hover:bg-white/15'}`}>{designMode ? 'Modo diseño' : 'Modo interactivo'}</button>
+    </div>
+    {selected && <aside data-qb-visual-editor-panel className="fixed bottom-4 right-4 z-[9999] max-h-[calc(100vh-2rem)] w-[min(520px,calc(100vw-2rem))] overflow-hidden rounded-3xl border qb-border qb-surface shadow-2xl">
+      <div className="flex items-start justify-between gap-3 border-b qb-border px-5 py-4"><div className="min-w-0"><div className="flex items-center gap-2"><Sparkles className="size-4 text-emerald-500" /><p className="truncate text-sm font-black qb-text">{selected.label}</p></div><p className="mt-1 truncate text-[10px] font-mono qb-text-muted" title={selected.selector}>{selected.selector}</p><div className="mt-2 flex flex-wrap gap-1.5"><span className="rounded-full qb-surface-elevated px-2 py-1 text-[9px] font-black qb-text-secondary">TAG: {selected.tag}</span><span className={`rounded-full px-2 py-1 text-[9px] font-black ${hasCustomStyle ? 'bg-emerald-500/15 text-emerald-500' : 'qb-surface-elevated qb-text-muted'}`}>{hasCustomStyle ? 'PERSONALIZADO' : 'VALOR ORIGINAL'}</span><span className="rounded-full bg-blue-500/10 px-2 py-1 text-[9px] font-black text-blue-500">EDITABLE</span></div></div><button type="button" onClick={() => setSelected(null)} className="rounded-xl p-2 qb-text-muted hover:bg-black/5 dark:hover:bg-white/5"><X className="size-4" /></button></div>
+      <div className="max-h-[calc(100vh-10rem)] space-y-2 overflow-y-auto p-4">
+        <InspectorSection id="presets" title={`Estilos rápidos · ${UNIVERSAL_PRESETS.length} opciones`} openSection={openSection} setOpenSection={setOpenSection}><p className="mb-3 text-[11px] leading-5 qb-text-secondary">Aplica un estilo base y continúa ajustando todas las propiedades del elemento seleccionado.</p><PresetGrid presets={UNIVERSAL_PRESETS} current={selectedStyle} onApply={commit} /></InspectorSection>
+        {isButton && <InspectorSection id="button" title={`Botón / enlace · ${BUTTON_PRESETS.length} opciones`} openSection={openSection} setOpenSection={setOpenSection}><p className="mb-3 text-[11px] leading-5 qb-text-secondary">Más de 18 variantes, más selector de tipografía independiente para este botón.</p><PresetGrid presets={BUTTON_PRESETS} current={selectedStyle} onApply={commit} /></InspectorSection>}
+        <InspectorSection id="shape" title={`Forma y bordes · ${SHAPES.length} opciones`} openSection={openSection} setOpenSection={setOpenSection}><div className="grid grid-cols-3 gap-2">{SHAPES.map(([id, label, radius]) => <button key={id} type="button" onClick={() => commit({ borderRadius: radius })} className={`rounded-xl border p-2 text-center text-[10px] font-black ${selectedStyle.borderRadius === radius ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-300/40 dark:bg-emerald-500/10 dark:text-emerald-300' : 'qb-border qb-text-secondary'}`}><span className="mx-auto mb-1 block h-7 w-12 border qb-border qb-surface-muted" style={{ borderRadius: radius }} />{label}</button>)}</div><div className="mt-3"><FieldEditor field={{ key: 'borderRadius', label: 'Radio personalizado', type: 'text', hint: '0px, 12px, 999px, 20px 8px…' }} value={selectedStyle.borderRadius} onCommit={commit} /></div></InspectorSection>
+        <InspectorSection id="text" title={isText ? 'Texto y tipografía' : 'Contenido y tipografía'} openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{TEXT_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>
+        <InspectorSection id="colors" title="Colores y borde" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{COLOR_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>
+        <InspectorSection id="spacing" title="Espaciado" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{SPACING_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} /></div></InspectorSection>
+        <InspectorSection id="layout" title="Tamaño, posición y distribución" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{LAYOUT_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>
+        {isMedia && <InspectorSection id="media" title="Multimedia" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{MEDIA_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>}
+        <InspectorSection id="effects" title="Efectos y comportamiento visual" openSection={openSection} setOpenSection={setOpenSection}><div className="space-y-3">{EFFECT_FIELDS.map(field => <FieldEditor key={String(field.key)} field={field} value={selectedStyle[field.key]} onCommit={commit} />)}</div></InspectorSection>
+        <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-3 text-[10px] leading-5 text-blue-500"><strong>Editor universal:</strong> cualquier elemento seleccionable recibe el inspector completo. Los cambios quedan asociados al selector único del elemento.</div>
+        <div className="flex gap-2 pt-1"><button type="button" onClick={reset} className="flex flex-1 items-center justify-center gap-2 rounded-xl border qb-border qb-surface-muted px-3 py-2 text-xs font-black qb-text-secondary hover:brightness-95"><RotateCcw className="size-3.5" />Restaurar</button><button type="button" onClick={() => setSelected(null)} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white dark:bg-white dark:text-slate-950"><Check className="size-3.5" />Terminar</button></div>
+      </div>
+    </aside>}
+  </>;
 }
