@@ -3,6 +3,7 @@
 @import './theme.css';
 @import './globals.css';
 @import './visual-theme.css';
+@import './user-theme.css';
 @import './admin-production-overrides.css';
 @import './admin-button-neutral.css';
 
