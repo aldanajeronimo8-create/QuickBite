@@ -4,7 +4,6 @@ import { useVisualTheme } from '../../contexts/VisualThemeProvider';
 import { sanitizeVisualElementStyle, type VisualElementStyle, type VisualInterfaceScope } from '../../../types/visualSettings';
 
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
-const ROOT_SELECTOR = 'html[data-qb-visual-preview="1"]';
 const PROTECTED_SELECTOR = '.admin-sidebar, [data-qb-visual-editor]';
 const CLICK_DELAY = 220;
 
@@ -28,7 +27,9 @@ const FIELDS: Field[] = [
   { key: 'textAlign', label: 'Alineación', type: 'select', options: ['left', 'center', 'right'] },
 ];
 
-function cssEscape(value: string): string { try { return CSS.escape(value); } catch { return value.replace(/[^a-zA-Z0-9_-]/g, '\\$&'); } }
+function cssEscape(value: string): string {
+  try { return CSS.escape(value); } catch { return value.replace(/[^a-zA-Z0-9_-]/g, '\\$&'); }
+}
 function isDynamicId(value: string) { return /^([0-9a-f]{8}-[0-9a-f-]{27,}|radix-|headlessui-|:r)/i.test(value) || /^\d+$/.test(value); }
 function attrSelector(name: string, value: string) { return `[${name}="${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`; }
 
@@ -74,8 +75,24 @@ function describeElement(element: HTMLElement): string {
 
 function readComputedStyle(element: HTMLElement): VisualElementStyle {
   const style = window.getComputedStyle(element);
-  return sanitizeVisualElementStyle({ textContent: readVisibleText(element), backgroundColor: toHex(style.backgroundColor), color: toHex(style.color), borderColor: toHex(style.borderTopColor), borderRadius: style.borderRadius, boxShadow: style.boxShadow, fontSize: style.fontSize, fontWeight: style.fontWeight, padding: style.padding, margin: style.margin, width: style.width, height: style.height, opacity: style.opacity, textAlign: style.textAlign });
+  return sanitizeVisualElementStyle({
+    textContent: readVisibleText(element),
+    backgroundColor: toHex(style.backgroundColor),
+    color: toHex(style.color),
+    borderColor: toHex(style.borderTopColor),
+    borderRadius: style.borderRadius,
+    boxShadow: style.boxShadow,
+    fontSize: style.fontSize,
+    fontWeight: style.fontWeight,
+    padding: style.padding,
+    margin: style.margin,
+    width: style.width,
+    height: style.height,
+    opacity: style.opacity,
+    textAlign: style.textAlign,
+  });
 }
+
 function toHex(value: string): string | undefined {
   const match = value.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
   if (!match) return /^#[0-9a-f]{6}$/i.test(value) ? value : undefined;
@@ -85,13 +102,31 @@ function toHex(value: string): string | undefined {
 export function VisualPreviewEditor({ scope }: Props) {
   const { settings } = useVisualTheme();
   const [selected, setSelected] = useState<Selected>(null);
+  // Only explicit per-element overrides belong here. Selection must never turn
+  // computed/inherited styles into overrides by itself.
   const [draftStyle, setDraftStyle] = useState<VisualElementStyle>({});
+  const [inspectedStyle, setInspectedStyle] = useState<VisualElementStyle>({});
   const [message, setMessage] = useState('1 clic ejecuta la acción · 3 clics editan el elemento');
   const [designMode, setDesignMode] = useState(false);
   const clickState = useRef<{ element: HTMLElement | null; count: number; timer: number | null }>({ element: null, count: 0, timer: null });
   const replayingClick = useRef(false);
   const existingOverrides = settings.element_overrides ?? {};
-  const selectedStyle = useMemo(() => selected ? { ...existingOverrides[selected.selector], ...draftStyle } : {}, [existingOverrides, selected, draftStyle]);
+
+  // The panel displays the effective current value (computed style + explicit
+  // override), while mutations contain only explicit values that the admin has
+  // actually changed.
+  const selectedStyle = useMemo(() => {
+    if (!selected) return {};
+    return { ...inspectedStyle, ...(existingOverrides[selected.selector] ?? {}), ...draftStyle };
+  }, [existingOverrides, inspectedStyle, selected, draftStyle]);
+
+  const selectElement = (element: HTMLElement) => {
+    const selector = buildSelector(element);
+    const override = existingOverrides[selector] ?? {};
+    setSelected({ element, selector, label: describeElement(element) });
+    setInspectedStyle(readComputedStyle(element));
+    setDraftStyle({ ...override });
+  };
 
   useEffect(() => {
     const handleSelection = (event: MouseEvent) => {
@@ -112,10 +147,8 @@ export function VisualPreviewEditor({ scope }: Props) {
 
       if (designMode) {
         event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-        const selector = buildSelector(editable);
-        setSelected({ element: editable, selector, label: describeElement(editable) });
-        setDraftStyle(existingOverrides[selector] ?? readComputedStyle(editable));
-        setMessage('Modo diseño: elemento seleccionado.');
+        selectElement(editable);
+        setMessage('Modo diseño: elemento inspeccionado sin modificarlo.');
         state.element = null; state.count = 0; state.timer = null;
         return;
       }
@@ -124,10 +157,8 @@ export function VisualPreviewEditor({ scope }: Props) {
       event.stopPropagation();
       if (state.count >= 3) {
         state.count = 0; state.timer = null; event.stopImmediatePropagation();
-        const selector = buildSelector(editable);
-        setSelected({ element: editable, selector, label: describeElement(editable) });
-        setDraftStyle(existingOverrides[selector] ?? readComputedStyle(editable));
-        setMessage('Elemento seleccionado: ajusta sus propiedades visuales.');
+        selectElement(editable);
+        setMessage('Elemento inspeccionado: sus valores actuales están cargados.');
         return;
       }
 
@@ -146,22 +177,25 @@ export function VisualPreviewEditor({ scope }: Props) {
     };
   }, [designMode, existingOverrides]);
 
+  // Apply only explicit overrides. Merely selecting an element therefore has
+  // no visual side effect, even when it inherits a global/interface theme.
   useEffect(() => {
     if (!selected) return;
     const el = selected.element;
     const previous = new Map<string, string>();
-    Object.entries(selectedStyle).forEach(([key, value]) => {
+    Object.entries(draftStyle).forEach(([key, value]) => {
       if (!value || key === 'textContent') return;
       const property = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
       previous.set(property, el.style.getPropertyValue(property));
       el.style.setProperty(property, value, 'important');
     });
     return () => previous.forEach((value, property) => value ? el.style.setProperty(property, value) : el.style.removeProperty(property));
-  }, [selected, selectedStyle]);
+  }, [selected, draftStyle]);
 
   const commit = (patch: VisualElementStyle) => {
     if (!selected) return;
-    const next = sanitizeVisualElementStyle({ ...selectedStyle, ...patch });
+    const currentOverride = existingOverrides[selected.selector] ?? {};
+    const next = sanitizeVisualElementStyle({ ...currentOverride, ...draftStyle, ...patch });
     setDraftStyle(next);
     const full = { ...(settings.element_overrides ?? {}), [selected.selector]: next };
     const payload = { type: 'quickbite-visual-element-edit', scope, selector: selected.selector, styles: next, settings: { ...settings, element_overrides: full } };
@@ -176,6 +210,7 @@ export function VisualPreviewEditor({ scope }: Props) {
     const next = { ...(settings.element_overrides ?? {}) };
     delete next[selected.selector];
     setDraftStyle({});
+    setInspectedStyle(readComputedStyle(selected.element));
     const payload = { type: 'quickbite-visual-element-reset', scope, selector: selected.selector, settings: { ...settings, element_overrides: next } };
     window.postMessage(payload, window.location.origin);
     window.opener?.postMessage(payload, window.location.origin);
@@ -191,7 +226,7 @@ export function VisualPreviewEditor({ scope }: Props) {
         <button type="button" onClick={() => setDesignMode((value) => !value)} className={`shrink-0 rounded-xl px-3 py-2 text-[10px] font-black ${designMode ? 'bg-white text-slate-900' : 'bg-white/10 text-white hover:bg-white/15'}`}>{designMode ? 'Modo diseño' : 'Interactivo'}</button>
       </div>
       {selected && <aside data-qb-visual-editor-panel className="fixed bottom-4 right-4 z-[9999] w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-[.16em] text-slate-500">Editar elemento</p><p className="mt-1 truncate text-sm font-black text-slate-900">{selected.label}</p><p className="mt-1 truncate text-[10px] text-slate-400">{selected.selector}</p></div><button type="button" onClick={() => setSelected(null)} className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200" aria-label="Cerrar"><X className="size-4" /></button></div>
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-[.16em] text-slate-500">Inspeccionar elemento</p><p className="mt-1 truncate text-sm font-black text-slate-900">{selected.label}</p><p className="mt-1 truncate text-[10px] text-slate-400">{selected.selector}</p><p className="mt-2 text-[10px] font-semibold text-slate-500">Los valores mostrados son los actuales. Nada se modifica hasta que cambies una propiedad.</p></div><button type="button" onClick={() => setSelected(null)} className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200" aria-label="Cerrar"><X className="size-4" /></button></div>
         <div className="max-h-[65vh] space-y-3 overflow-y-auto p-5">{FIELDS.map((field) => { const value = selectedStyle[field.key] ?? ''; if (field.key === 'textContent' && !value && selected.element.childElementCount > 0) return null; return <label key={field.key} className="block"><span className="mb-1 block text-xs font-black text-slate-600">{field.label}</span>{field.type === 'color' ? <div className="flex gap-2"><input type="color" value={typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : '#ffffff'} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="size-10 rounded-lg border border-slate-200 p-1" /><input value={String(value)} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm" /></div> : field.type === 'select' ? <select value={String(value)} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{field.options?.map((option) => <option key={option}>{option}</option>)}</select> : field.type === 'textarea' ? <textarea value={String(value)} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="min-h-20 w-full resize-y rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Texto visible" maxLength={500} /> : <input value={String(value)} onChange={(event) => commit({ [field.key]: event.target.value } as VisualElementStyle)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Auto" />}</label>; })}</div>
         <div className="flex items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4"><button type="button" onClick={reset} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700"><RotateCcw className="size-4" /> Restablecer</button><button type="button" onClick={() => { setSelected(null); setMessage(designMode ? 'Modo diseño: selecciona un elemento.' : '1 clic ejecuta la acción · 3 clics editan el elemento'); }} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white"><Check className="size-4" /> Listo</button></div>
       </aside>}
