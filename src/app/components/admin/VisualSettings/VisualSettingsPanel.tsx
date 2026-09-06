@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, ExternalLink, History, Monitor, RotateCcw, Save, Smartphone, Tablet, Undo2, Redo2, WandSparkles } from 'lucide-react';
+import { Check, History, RotateCcw, Save, Undo2, Redo2, WandSparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVisualTheme } from '../../../contexts/VisualThemeProvider';
 import { resetVisualSettings, saveVisualSettings } from '../../../../services/visualSettingsService';
@@ -205,14 +205,13 @@ export function VisualSettingsPanel() {
           <label><span className="mb-1 block text-xs font-bold text-slate-600">Radio</span><select value={draft.border_radius} onChange={(event) => patch('border_radius', event.target.value as never)} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"><option value="sharp">Sin redondeo</option><option value="small">Pequeño</option><option value="medium">Medio</option><option value="large">Grande</option><option value="rounded">Píldora</option></select></label>
           <label><span className="mb-1 block text-xs font-bold text-slate-600">Tema</span><select value={draft.theme_mode} onChange={(event) => patch('theme_mode', event.target.value as never)} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label>
           <div className="flex items-end"><div className={`w-full rounded-xl p-3 text-xs font-bold ${contrast < 3 ? 'bg-red-50 text-red-700' : contrast < 4.5 ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-700'}`}>Contraste: {contrast ? `${contrast.toFixed(2)}:1` : '—'}</div></div>
-          <div className="flex items-end"><button type="button" onClick={() => void reset()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-xs font-black text-red-700"><RotateCcw className="h-3.5 w-3.5" /> Restablecer todo</button></div>
         </div>
       </details>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600">
-        <Check className="mr-2 inline h-4 w-4 text-emerald-600" /> La preview es una sesión aislada: los clics pueden ejecutar la navegación normal, pero las ediciones visuales solo se guardan al pulsar <b>Guardar</b>. No se permite modificar HTML, JavaScript, permisos, pagos, pedidos ni datos.
-        <span className="ml-2 inline-flex items-center gap-1 text-slate-400"><History className="h-3.5 w-3.5" />{history.length + future.length} pasos en el historial</span>
-      </div>
+      <section className="flex flex-col gap-3 rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div><p className="text-sm font-black text-slate-900">Restablecer personalización</p><p className="text-xs text-slate-500">Recupera la configuración visual global predeterminada.</p></div>
+        <button type="button" disabled={saving} onClick={() => void reset()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700"><RotateCcw className="h-3.5 w-3.5" />Restablecer</button>
+      </section>
     </div>
   );
 }
