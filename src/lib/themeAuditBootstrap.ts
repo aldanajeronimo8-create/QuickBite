@@ -3,7 +3,7 @@ import { installDarkSurfaceAudit } from './themeAudit';
 export function startThemeAudit(): () => void {
   if (!import.meta.env.DEV || typeof document === 'undefined') return () => undefined;
 
-  let cleanup = () => undefined;
+  let cleanup: () => void = () => undefined;
   const sync = () => {
     cleanup();
     cleanup = installDarkSurfaceAudit();
