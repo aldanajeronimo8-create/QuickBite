@@ -1,6 +1,9 @@
-/* Global theme coherence layer.
- * This file is intentionally loaded last so legacy screen-specific CSS cannot
- * leave a page half-light/half-dark when the user selects dark mode.
+/* QuickBite semantic appearance system.
+ *
+ * The important rule here is that appearance is not an accent-color swap.
+ * Surfaces, text, borders, controls, navigation and elevation all consume
+ * the same semantic tokens. This follows the adaptive-color approach used by
+ * mature platform design systems: semantic roles first, raw colors second.
  */
 
 :root {
@@ -12,13 +15,20 @@
   --qb-theme-text: #0F172A;
   --qb-theme-text-secondary: #475569;
   --qb-theme-text-muted: #64748B;
-  --qb-theme-border: #E2E8F0;
+  --qb-theme-border: rgba(15,23,42,.10);
+  --qb-theme-accent: #00B86B;
+  --qb-theme-accent-hover: #009E5D;
+  --qb-theme-accent-soft: rgba(0,184,107,.10);
+  --qb-theme-shadow: 0 12px 32px rgba(15,23,42,.08);
   --qb-theme-sidebar: #1747B8;
-  --qb-theme-sidebar-accent: rgba(255,255,255,.12);
+  --qb-theme-sidebar-surface: #123B9B;
+  --qb-theme-on-sidebar: #FFFFFF;
+  --qb-theme-overlay: rgba(15,23,42,.28);
 }
 
 :root[data-qb-theme="dark"],
 :root[data-qb-user-theme="dark"],
+:root[data-qb-resolved-theme="dark"],
 .dark {
   color-scheme: dark;
   --qb-theme-bg: #070D19;
@@ -29,280 +39,399 @@
   --qb-theme-text-secondary: #AAB7C9;
   --qb-theme-text-muted: #718096;
   --qb-theme-border: rgba(148,163,184,.16);
+  --qb-theme-accent: #00B86B;
+  --qb-theme-accent-hover: #12CC7C;
+  --qb-theme-accent-soft: rgba(0,184,107,.14);
+  --qb-theme-shadow: 0 18px 44px rgba(0,0,0,.28);
   --qb-theme-sidebar: #0B1424;
-  --qb-theme-sidebar-accent: rgba(148,163,184,.12);
+  --qb-theme-sidebar-surface: #0D1A2D;
+  --qb-theme-on-sidebar: #F5F7FA;
+  --qb-theme-overlay: rgba(0,0,0,.58);
 }
 
-:root[data-qb-theme="dark"] html,
-:root[data-qb-user-theme="dark"] html,
-.dark html,
-:root[data-qb-theme="dark"] body,
-:root[data-qb-user-theme="dark"] body,
-.dark body,
-:root[data-qb-theme="dark"] #root,
-:root[data-qb-user-theme="dark"] #root,
-.dark #root {
+/* -------------------------------------------------------------------------- */
+/* Global canvas and native controls                                         */
+/* -------------------------------------------------------------------------- */
+
+html,
+body,
+#root {
   background: var(--qb-theme-bg) !important;
   color: var(--qb-theme-text) !important;
 }
 
+body {
+  transition: background-color .22s ease, color .22s ease;
+}
+
 :root[data-qb-theme="dark"] body,
 :root[data-qb-user-theme="dark"] body,
+:root[data-qb-resolved-theme="dark"] body,
 .dark body {
   background-image:
-    radial-gradient(circle at 8% 4%, rgba(0,184,107,.08), transparent 34%),
-    radial-gradient(circle at 92% 8%, rgba(37,99,235,.07), transparent 36%),
-    radial-gradient(circle at 66% 100%, rgba(20,184,166,.05), transparent 34%) !important;
+    radial-gradient(circle at 8% 4%, rgba(0,184,107,.055), transparent 32%),
+    radial-gradient(circle at 92% 8%, rgba(37,99,235,.055), transparent 34%) !important;
 }
 
-/* Generic component tokens. */
-:root[data-qb-theme="dark"] [data-slot="card"],
-:root[data-qb-user-theme="dark"] [data-slot="card"],
-.dark [data-slot="card"],
-:root[data-qb-theme="dark"] .qb-theme-card,
-:root[data-qb-user-theme="dark"] .qb-theme-card,
-.dark .qb-theme-card {
-  background: var(--qb-theme-surface) !important;
+:root[data-qb-theme="light"] body,
+:root[data-qb-user-theme="light"] body {
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(20,184,166,.055), transparent 30%),
+    radial-gradient(circle at 92% 0%, rgba(37,99,235,.045), transparent 32%) !important;
+}
+
+::selection {
+  background: var(--qb-theme-accent-soft) !important;
   color: var(--qb-theme-text) !important;
-  border-color: var(--qb-theme-border) !important;
-  box-shadow: 0 14px 34px rgba(0,0,0,.20) !important;
 }
 
-:root[data-qb-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
-:root[data-qb-theme="dark"] textarea,
-:root[data-qb-theme="dark"] select,
-:root[data-qb-user-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
-:root[data-qb-user-theme="dark"] textarea,
-:root[data-qb-user-theme="dark"] select,
-.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
-.dark textarea,
-.dark select,
-:root[data-qb-theme="dark"] [data-slot="input"],
-:root[data-qb-theme="dark"] [data-slot="textarea"],
-:root[data-qb-theme="dark"] [data-slot="select-trigger"],
-:root[data-qb-user-theme="dark"] [data-slot="input"],
-:root[data-qb-user-theme="dark"] [data-slot="textarea"],
-:root[data-qb-user-theme="dark"] [data-slot="select-trigger"],
-.dark [data-slot="input"],
-.dark [data-slot="textarea"],
-.dark [data-slot="select-trigger"] {
+:where(input, textarea, select) {
+  color-scheme: inherit;
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select, [data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"]) {
   background: var(--qb-theme-surface-2) !important;
   color: var(--qb-theme-text) !important;
   border-color: var(--qb-theme-border) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+  caret-color: var(--qb-theme-text) !important;
+  box-shadow: none !important;
 }
 
-:root[data-qb-theme="dark"] input::placeholder,
-:root[data-qb-theme="dark"] textarea::placeholder,
-:root[data-qb-user-theme="dark"] input::placeholder,
-:root[data-qb-user-theme="dark"] textarea::placeholder,
-.dark input::placeholder,
-.dark textarea::placeholder {
+:where(input, textarea)::placeholder {
   color: var(--qb-theme-text-muted) !important;
+  opacity: 1 !important;
 }
 
-:root[data-qb-theme="dark"] :where([class~="text-slate-950"],[class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"],[class~="text-gray-900"],[class~="text-gray-800"],[class~="text-gray-700"]),
-:root[data-qb-user-theme="dark"] :where([class~="text-slate-950"],[class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"],[class~="text-gray-900"],[class~="text-gray-800"],[class~="text-gray-700"]),
-.dark :where([class~="text-slate-950"],[class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"],[class~="text-gray-900"],[class~="text-gray-800"],[class~="text-gray-700"]) {
+/* -------------------------------------------------------------------------- */
+/* Generic Tailwind compatibility                                             */
+/* -------------------------------------------------------------------------- */
+
+:root[data-qb-theme="dark"] :where(.bg-white, [class~="bg-white"], [class*="bg-white/"]),
+:root[data-qb-user-theme="dark"] :where(.bg-white, [class~="bg-white"], [class*="bg-white/"]),
+:root[data-qb-resolved-theme="dark"] :where(.bg-white, [class~="bg-white"], [class*="bg-white/"]),
+.dark :where(.bg-white, [class~="bg-white"], [class*="bg-white/"]) {
+  background-color: var(--qb-theme-surface) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100, [class*="bg-slate-50/"], [class*="bg-slate-100/"], [class*="bg-gray-50/"], [class*="bg-gray-100/"]),
+:root[data-qb-user-theme="dark"] :where(.bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100, [class*="bg-slate-50/"], [class*="bg-slate-100/"], [class*="bg-gray-50/"], [class*="bg-gray-100/"]),
+:root[data-qb-resolved-theme="dark"] :where(.bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100, [class*="bg-slate-50/"], [class*="bg-slate-100/"], [class*="bg-gray-50/"], [class*="bg-gray-100/"]),
+.dark :where(.bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100, [class*="bg-slate-50/"], [class*="bg-slate-100/"], [class*="bg-gray-50/"], [class*="bg-gray-100/"]) {
+  background-color: var(--qb-theme-surface-2) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700),
+:root[data-qb-user-theme="dark"] :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700),
+:root[data-qb-resolved-theme="dark"] :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700),
+.dark :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700) {
   color: var(--qb-theme-text) !important;
 }
 
-:root[data-qb-theme="dark"] :where([class~="text-slate-600"],[class~="text-slate-500"],[class~="text-gray-600"],[class~="text-gray-500"]),
-:root[data-qb-user-theme="dark"] :where([class~="text-slate-600"],[class~="text-slate-500"],[class~="text-gray-600"],[class~="text-gray-500"]),
-.dark :where([class~="text-slate-600"],[class~="text-slate-500"],[class~="text-gray-600"],[class~="text-gray-500"]) {
+:root[data-qb-theme="dark"] :where(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500, .text-gray-400),
+:root[data-qb-user-theme="dark"] :where(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500, .text-gray-400),
+:root[data-qb-resolved-theme="dark"] :where(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500, .text-gray-400),
+.dark :where(.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500, .text-gray-400) {
   color: var(--qb-theme-text-secondary) !important;
 }
 
-:root[data-qb-theme="dark"] :where([class~="border-slate-100"],[class~="border-slate-200"],[class~="border-slate-300"],[class~="border-gray-200"],[class~="border-white"],[class*="border-white/"]),
-:root[data-qb-user-theme="dark"] :where([class~="border-slate-100"],[class~="border-slate-200"],[class~="border-slate-300"],[class~="border-gray-200"],[class~="border-white"],[class*="border-white/"]),
-.dark :where([class~="border-slate-100"],[class~="border-slate-200"],[class~="border-slate-300"],[class~="border-gray-200"],[class~="border-white"],[class*="border-white/"]) {
+:root[data-qb-theme="dark"] :where(.border-slate-50, .border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300, .border-white, [class*="border-white/"]),
+:root[data-qb-user-theme="dark"] :where(.border-slate-50, .border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300, .border-white, [class*="border-white/"]),
+:root[data-qb-resolved-theme="dark"] :where(.border-slate-50, .border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300, .border-white, [class*="border-white/"]),
+.dark :where(.border-slate-50, .border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300, .border-white, [class*="border-white/"]) {
   border-color: var(--qb-theme-border) !important;
 }
 
-/* Student experience: remove the permanently bright green header/nav treatment. */
-:root[data-qb-theme="dark"] .student-app,
-:root[data-qb-user-theme="dark"] .student-app,
-.dark .student-app,
-:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]),
-:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]),
-.dark div:has(> header[class*="bg-[#166534]"]) {
-  background: var(--qb-theme-bg) !important;
-  color: var(--qb-theme-text) !important;
-}
+/* -------------------------------------------------------------------------- */
+/* Cards / dialogs / menus: one elevation language                           */
+/* -------------------------------------------------------------------------- */
 
-:root[data-qb-theme="dark"] .student-header,
-:root[data-qb-user-theme="dark"] .student-header,
-.dark .student-header,
-:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
-:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
-.dark div:has(> header[class*="bg-[#166534]"]) > header {
-  background: linear-gradient(120deg, #0B1729, #0D2430) !important;
-  color: var(--qb-theme-text) !important;
-  border-bottom: 1px solid var(--qb-theme-border) !important;
-  box-shadow: 0 10px 30px rgba(0,0,0,.24) !important;
-}
-
-:root[data-qb-theme="dark"] .student-tabs,
-:root[data-qb-user-theme="dark"] .student-tabs,
-.dark .student-tabs,
-:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
-:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
-.dark div:has(> header[class*="bg-[#166534]"]) > nav {
-  background: rgba(13,22,40,.92) !important;
-  color: var(--qb-theme-text) !important;
-  border-color: var(--qb-theme-border) !important;
-  box-shadow: 0 12px 28px rgba(0,0,0,.22) !important;
-  backdrop-filter: blur(18px);
-}
-
-:root[data-qb-theme="dark"] .student-app article,
-:root[data-qb-user-theme="dark"] .student-app article,
-.dark .student-app article,
-:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) article,
-:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) article,
-.dark div:has(> header[class*="bg-[#166534]"]) article {
-  background: var(--qb-theme-surface) !important;
-  color: var(--qb-theme-text) !important;
-  border-color: var(--qb-theme-border) !important;
-  box-shadow: 0 12px 28px rgba(0,0,0,.20) !important;
-}
-
-/* Admin experience: preserve the blue identity, but give it a dark-native shell. */
-:root[data-qb-theme="dark"] .admin-shell,
-:root[data-qb-user-theme="dark"] .admin-shell,
-.dark .admin-shell {
-  background: var(--qb-theme-bg) !important;
-  color: var(--qb-theme-text) !important;
-}
-
-:root[data-qb-theme="dark"] .admin-sidebar,
-:root[data-qb-user-theme="dark"] .admin-sidebar,
-.dark .admin-sidebar {
-  background: #0B1424 !important;
-  background-image: linear-gradient(180deg, #0D1A2D 0%, #0A1322 100%) !important;
-  color: #F5F7FA !important;
-  border-right: 1px solid rgba(148,163,184,.12) !important;
-  box-shadow: 14px 0 40px rgba(0,0,0,.18) !important;
-}
-
-:root[data-qb-theme="dark"] .admin-sidebar .admin-nav-link,
-:root[data-qb-user-theme="dark"] .admin-sidebar .admin-nav-link,
-.dark .admin-sidebar .admin-nav-link {
-  color: #AAB7C9 !important;
-}
-
-:root[data-qb-theme="dark"] .admin-sidebar .admin-nav-link[style*="background"],
-:root[data-qb-user-theme="dark"] .admin-sidebar .admin-nav-link[style*="background"],
-.dark .admin-sidebar .admin-nav-link[style*="background"] {
-  background: rgba(0,184,107,.14) !important;
-  color: #F5F7FA !important;
-  box-shadow: inset 0 0 0 1px rgba(0,184,107,.22) !important;
-}
-
-:root[data-qb-theme="dark"] .admin-main,
-:root[data-qb-user-theme="dark"] .admin-main,
-.dark .admin-main {
-  background: var(--qb-theme-bg) !important;
-  color: var(--qb-theme-text) !important;
-}
-
-/* Portals and overlays must follow the same surface hierarchy. */
-:root[data-qb-theme="dark"] [data-radix-popper-content-wrapper] > *,
-:root[data-qb-user-theme="dark"] [data-radix-popper-content-wrapper] > *,
-.dark [data-radix-popper-content-wrapper] > *,
-:root[data-qb-theme="dark"] [data-slot="dialog-content"],
-:root[data-qb-user-theme="dark"] [data-slot="dialog-content"],
-.dark [data-slot="dialog-content"],
-:root[data-qb-theme="dark"] [data-slot="alert-dialog-content"],
-:root[data-qb-user-theme="dark"] [data-slot="alert-dialog-content"],
-.dark [data-slot="alert-dialog-content"],
-:root[data-qb-theme="dark"] [data-slot="sheet-content"],
-:root[data-qb-user-theme="dark"] [data-slot="sheet-content"],
-.dark [data-slot="sheet-content"],
-:root[data-qb-theme="dark"] [data-slot="drawer-content"],
-:root[data-qb-user-theme="dark"] [data-slot="drawer-content"],
-.dark [data-slot="drawer-content"] {
+[data-slot="card"],
+.qb-theme-card {
   background: var(--qb-theme-surface) !important;
   color: var(--qb-theme-text) !important;
   border-color: var(--qb-theme-border) !important;
 }
 
-:root[data-qb-theme="dark"] [data-radix-popper-content-wrapper] [data-highlighted],
-:root[data-qb-user-theme="dark"] [data-radix-popper-content-wrapper] [data-highlighted],
-.dark [data-radix-popper-content-wrapper] [data-highlighted] {
+:root[data-qb-theme="dark"] [data-slot="card"],
+:root[data-qb-user-theme="dark"] [data-slot="card"],
+:root[data-qb-resolved-theme="dark"] [data-slot="card"],
+.dark [data-slot="card"],
+:root[data-qb-theme="dark"] .qb-theme-card,
+:root[data-qb-user-theme="dark"] .qb-theme-card,
+:root[data-qb-resolved-theme="dark"] .qb-theme-card,
+.dark .qb-theme-card {
+  box-shadow: var(--qb-theme-shadow) !important;
+}
+
+:where([data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"], [role="dialog"], [role="menu"], [role="listbox"], [data-radix-popper-content-wrapper] > *) {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+:where([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"]) {
+  background: var(--qb-theme-overlay) !important;
+}
+
+:where([role="menuitem"], [role="option"]) {
+  color: var(--qb-theme-text-secondary) !important;
+}
+
+:where([role="menuitem"]:hover, [role="option"][data-highlighted], [data-highlighted]) {
   background: var(--qb-theme-surface-3) !important;
   color: var(--qb-theme-text) !important;
 }
 
-/* Login/account glass surfaces become translucent dark glass instead of white glass. */
-:root[data-qb-theme="dark"] .qb-auth,
-:root[data-qb-user-theme="dark"] .qb-auth,
-.dark .qb-auth {
+/* -------------------------------------------------------------------------- */
+/* Login / authentication                                                     */
+/* -------------------------------------------------------------------------- */
+
+.qb-auth {
   background: var(--qb-theme-bg) !important;
   color: var(--qb-theme-text) !important;
 }
 
-:root[data-qb-theme="dark"] .qb-auth::before,
-:root[data-qb-user-theme="dark"] .qb-auth::before,
-.dark .qb-auth::before {
-  background: linear-gradient(140deg, rgba(255,255,255,.035), transparent 45%) !important;
+.qb-auth::before {
+  opacity: .8;
 }
 
-:root[data-qb-theme="dark"] .qb-auth-card,
-:root[data-qb-user-theme="dark"] .qb-auth-card,
-.dark .qb-auth-card {
-  background: rgba(13,22,40,.84) !important;
+.qb-auth-card {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border: 1px solid var(--qb-theme-border) !important;
+  box-shadow: var(--qb-theme-shadow) !important;
+}
+
+/* Do not allow a legacy visual override to turn a heading white on a light
+ * surface. The same semantic text role is used in both appearances. */
+.qb-auth-card :where(h1, h2, h3, h4, label) {
+  color: var(--qb-theme-text) !important;
+}
+
+.qb-auth-card :where(p, small, .text-sm, .text-xs) {
+  color: var(--qb-theme-text-secondary) !important;
+}
+
+.qb-auth-card :where(a) {
+  color: var(--qb-theme-accent) !important;
+}
+
+.qb-auth-card :where(input, select, textarea) {
+  background: var(--qb-theme-surface-2) !important;
   color: var(--qb-theme-text) !important;
   border-color: var(--qb-theme-border) !important;
-  box-shadow: 0 24px 60px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.03) !important;
 }
 
-:root[data-qb-theme="dark"] .qb-auth-card h2,
-:root[data-qb-theme="dark"] .qb-auth-card label,
-:root[data-qb-user-theme="dark"] .qb-auth-card h2,
-:root[data-qb-user-theme="dark"] .qb-auth-card label,
-.dark .qb-auth-card h2,
-.dark .qb-auth-card label {
-  color: #F5F7FA !important;
+.qb-auth-card :where(input:focus, select:focus, textarea:focus) {
+  border-color: var(--qb-theme-accent) !important;
+  box-shadow: 0 0 0 3px var(--qb-theme-accent-soft) !important;
 }
 
-:root[data-qb-theme="dark"] .qb-auth-card p:not([class*="text-red"]),
-:root[data-qb-user-theme="dark"] .qb-auth-card p:not([class*="text-red"]),
-.dark .qb-auth-card p:not([class*="text-red"]) {
-  color: #AAB7C9 !important;
+.qb-auth-card :where([role="tablist"], .login-tabs) {
+  background: var(--qb-theme-surface-2) !important;
+  border: 1px solid var(--qb-theme-border) !important;
 }
 
-/* Floating Functions/customization controls stay in-theme. */
-:root[data-qb-theme="dark"] [data-testid="admin-feature-center"],
-:root[data-qb-user-theme="dark"] [data-testid="admin-feature-center"],
-.dark [data-testid="admin-feature-center"] {
-  color: var(--qb-theme-text);
+.qb-auth-card :where([role="tab"]) {
+  color: var(--qb-theme-text-secondary) !important;
+  background: transparent !important;
 }
 
-:root[data-qb-theme="dark"] .fixed button,
-:root[data-qb-user-theme="dark"] .fixed button,
-.dark .fixed button {
-  border-color: var(--qb-theme-border);
+.qb-auth-card :where([role="tab"][aria-selected="true"]) {
+  color: var(--qb-theme-text) !important;
+  background: var(--qb-theme-surface) !important;
+  box-shadow: 0 2px 8px rgba(15,23,42,.08) !important;
 }
 
-/* Avoid harsh white selection/scroll chrome in dark mode. */
-:root[data-qb-theme="dark"] ::selection,
-:root[data-qb-user-theme="dark"] ::selection,
-.dark ::selection {
-  background: rgba(0,184,107,.28);
-  color: #F5F7FA;
+:root[data-qb-theme="dark"] .qb-auth-card :where([role="tab"][aria-selected="true"]),
+:root[data-qb-user-theme="dark"] .qb-auth-card :where([role="tab"][aria-selected="true"]),
+.dark .qb-auth-card :where([role="tab"][aria-selected="true"]) {
+  box-shadow: 0 4px 12px rgba(0,0,0,.22) !important;
 }
 
-:root[data-qb-theme="dark"] :focus-visible,
-:root[data-qb-user-theme="dark"] :focus-visible,
-.dark :focus-visible {
-  outline-color: rgba(0,184,107,.55) !important;
+.qb-auth-card :where(button[type="submit"], .qb-primary-action) {
+  background: var(--qb-theme-accent) !important;
+  color: #FFFFFF !important;
+  border-color: transparent !important;
 }
 
-/* Explicitly replace the old admin-production white portal lock in dark mode. */
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast],
-:root[data-qb-user-theme="dark"][data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast],
-.dark[data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast] {
+.qb-auth-card :where(button[type="submit"], .qb-primary-action):hover {
+  background: var(--qb-theme-accent-hover) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Student shell                                                              */
+/* -------------------------------------------------------------------------- */
+
+.student-app,
+.student-main,
+.student-content {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+.student-header {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-bottom: 1px solid var(--qb-theme-border) !important;
+  box-shadow: none !important;
+}
+
+.student-tabs,
+.student-navigation {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+.student-app article,
+.student-app section[data-card],
+.student-app .qb-theme-card {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+/* Legacy cafeteria header/nav classes. Brand green is now reserved for
+ * actions and active states rather than painting an entire page chrome. */
+:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
+:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
+:root[data-qb-resolved-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
+.dark div:has(> header[class*="bg-[#166534]"]) > header {
+  background: linear-gradient(120deg, #0B1729, #0D2430) !important;
+  color: var(--qb-theme-text) !important;
+  border-bottom: 1px solid var(--qb-theme-border) !important;
+}
+
+:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
+:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
+:root[data-qb-resolved-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
+.dark div:has(> header[class*="bg-[#166534]"]) > nav {
+  background: rgba(13,22,40,.94) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+  backdrop-filter: blur(18px);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Admin shell                                                                */
+/* -------------------------------------------------------------------------- */
+
+.admin-shell,
+.admin-main {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+.admin-sidebar {
+  background: var(--qb-theme-sidebar) !important;
+  color: var(--qb-theme-on-sidebar) !important;
+  border-right: 1px solid var(--qb-theme-border) !important;
+}
+
+:root[data-qb-theme="dark"] .admin-sidebar,
+:root[data-qb-user-theme="dark"] .admin-sidebar,
+:root[data-qb-resolved-theme="dark"] .admin-sidebar,
+.dark .admin-sidebar {
+  background: linear-gradient(180deg, #0D1A2D 0%, #0A1322 100%) !important;
+  box-shadow: 14px 0 40px rgba(0,0,0,.18) !important;
+}
+
+.admin-sidebar .admin-nav-link {
+  color: rgba(255,255,255,.78) !important;
+}
+
+.admin-sidebar .admin-nav-link:hover {
+  background: rgba(255,255,255,.08) !important;
+  color: #FFFFFF !important;
+}
+
+.admin-sidebar .admin-nav-link[style*="background"],
+.admin-sidebar .admin-nav-link[data-active="true"] {
+  background: var(--qb-theme-accent-soft) !important;
+  color: var(--qb-theme-on-sidebar) !important;
+  box-shadow: inset 0 0 0 1px rgba(0,184,107,.22) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Common surfaces, banners, tables and empty states                         */
+/* -------------------------------------------------------------------------- */
+
+:where(table, thead, tbody, tr, th, td) {
+  border-color: var(--qb-theme-border) !important;
+}
+
+:where(th) {
+  background: var(--qb-theme-surface-2) !important;
+  color: var(--qb-theme-text-secondary) !important;
+}
+
+:where(td) {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+:where(.empty-state, [data-empty-state], .qb-empty-state) {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text-secondary) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+:where(.banner, [data-banner], .qb-banner) {
+  background: var(--qb-theme-surface-2) !important;
+  color: var(--qb-theme-text-secondary) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Accent policy: green means action/positive/selected, not the whole UI     */
+/* -------------------------------------------------------------------------- */
+
+:where(.text-emerald-600, .text-emerald-700, .text-green-600, .text-green-700) {
+  color: var(--qb-theme-accent) !important;
+}
+
+:where(.bg-emerald-600, .bg-emerald-700, .bg-green-600, .bg-green-700) {
+  background-color: var(--qb-theme-accent) !important;
+}
+
+:where(.border-emerald-500, .border-emerald-600, .border-green-500, .border-green-600) {
+  border-color: var(--qb-theme-accent) !important;
+}
+
+:where(.bg-emerald-50, .bg-green-50) {
+  background: var(--qb-theme-accent-soft) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Focus / hover / disabled states                                             */
+/* -------------------------------------------------------------------------- */
+
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--qb-theme-accent) !important;
+  outline-offset: 2px;
+}
+
+:where(button, a)[disabled],
+:where(button, a).disabled {
+  opacity: .52;
+}
+
+/* Keep glass selective: only navigation/floating chrome gets translucency. */
+:root[data-qb-theme="dark"] :where(.student-navigation, .floating-feature, .qb-glass),
+:root[data-qb-user-theme="dark"] :where(.student-navigation, .floating-feature, .qb-glass),
+:root[data-qb-resolved-theme="dark"] :where(.student-navigation, .floating-feature, .qb-glass),
+.dark :where(.student-navigation, .floating-feature, .qb-glass) {
+  background: color-mix(in srgb, var(--qb-theme-surface) 88%, transparent) !important;
+  border-color: var(--qb-theme-border) !important;
+  backdrop-filter: blur(18px) saturate(120%);
+}
+
+/* Never let a legacy white production lock survive in dark mode. */
+:root[data-qb-theme="dark"] .admin-production-preview,
+:root[data-qb-user-theme="dark"] .admin-production-preview,
+:root[data-qb-resolved-theme="dark"] .admin-production-preview,
+.dark .admin-production-preview {
   background: var(--qb-theme-surface) !important;
   color: var(--qb-theme-text) !important;
   border-color: var(--qb-theme-border) !important;
