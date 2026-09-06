@@ -1,0 +1,309 @@
+/* Global theme coherence layer.
+ * This file is intentionally loaded last so legacy screen-specific CSS cannot
+ * leave a page half-light/half-dark when the user selects dark mode.
+ */
+
+:root {
+  color-scheme: light;
+  --qb-theme-bg: #F5F8F7;
+  --qb-theme-surface: #FFFFFF;
+  --qb-theme-surface-2: #F1F5F9;
+  --qb-theme-surface-3: #EAF0F7;
+  --qb-theme-text: #0F172A;
+  --qb-theme-text-secondary: #475569;
+  --qb-theme-text-muted: #64748B;
+  --qb-theme-border: #E2E8F0;
+  --qb-theme-sidebar: #1747B8;
+  --qb-theme-sidebar-accent: rgba(255,255,255,.12);
+}
+
+:root[data-qb-theme="dark"],
+:root[data-qb-user-theme="dark"],
+.dark {
+  color-scheme: dark;
+  --qb-theme-bg: #070D19;
+  --qb-theme-surface: #0D1628;
+  --qb-theme-surface-2: #111C30;
+  --qb-theme-surface-3: #16243A;
+  --qb-theme-text: #F5F7FA;
+  --qb-theme-text-secondary: #AAB7C9;
+  --qb-theme-text-muted: #718096;
+  --qb-theme-border: rgba(148,163,184,.16);
+  --qb-theme-sidebar: #0B1424;
+  --qb-theme-sidebar-accent: rgba(148,163,184,.12);
+}
+
+:root[data-qb-theme="dark"] html,
+:root[data-qb-user-theme="dark"] html,
+.dark html,
+:root[data-qb-theme="dark"] body,
+:root[data-qb-user-theme="dark"] body,
+.dark body,
+:root[data-qb-theme="dark"] #root,
+:root[data-qb-user-theme="dark"] #root,
+.dark #root {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+:root[data-qb-theme="dark"] body,
+:root[data-qb-user-theme="dark"] body,
+.dark body {
+  background-image:
+    radial-gradient(circle at 8% 4%, rgba(0,184,107,.08), transparent 34%),
+    radial-gradient(circle at 92% 8%, rgba(37,99,235,.07), transparent 36%),
+    radial-gradient(circle at 66% 100%, rgba(20,184,166,.05), transparent 34%) !important;
+}
+
+/* Generic component tokens. */
+:root[data-qb-theme="dark"] [data-slot="card"],
+:root[data-qb-user-theme="dark"] [data-slot="card"],
+.dark [data-slot="card"],
+:root[data-qb-theme="dark"] .qb-theme-card,
+:root[data-qb-user-theme="dark"] .qb-theme-card,
+.dark .qb-theme-card {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.20) !important;
+}
+
+:root[data-qb-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+:root[data-qb-theme="dark"] textarea,
+:root[data-qb-theme="dark"] select,
+:root[data-qb-user-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+:root[data-qb-user-theme="dark"] textarea,
+:root[data-qb-user-theme="dark"] select,
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+.dark textarea,
+.dark select,
+:root[data-qb-theme="dark"] [data-slot="input"],
+:root[data-qb-theme="dark"] [data-slot="textarea"],
+:root[data-qb-theme="dark"] [data-slot="select-trigger"],
+:root[data-qb-user-theme="dark"] [data-slot="input"],
+:root[data-qb-user-theme="dark"] [data-slot="textarea"],
+:root[data-qb-user-theme="dark"] [data-slot="select-trigger"],
+.dark [data-slot="input"],
+.dark [data-slot="textarea"],
+.dark [data-slot="select-trigger"] {
+  background: var(--qb-theme-surface-2) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+:root[data-qb-theme="dark"] input::placeholder,
+:root[data-qb-theme="dark"] textarea::placeholder,
+:root[data-qb-user-theme="dark"] input::placeholder,
+:root[data-qb-user-theme="dark"] textarea::placeholder,
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--qb-theme-text-muted) !important;
+}
+
+:root[data-qb-theme="dark"] :where([class~="text-slate-950"],[class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"],[class~="text-gray-900"],[class~="text-gray-800"],[class~="text-gray-700"]),
+:root[data-qb-user-theme="dark"] :where([class~="text-slate-950"],[class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"],[class~="text-gray-900"],[class~="text-gray-800"],[class~="text-gray-700"]),
+.dark :where([class~="text-slate-950"],[class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"],[class~="text-gray-900"],[class~="text-gray-800"],[class~="text-gray-700"]) {
+  color: var(--qb-theme-text) !important;
+}
+
+:root[data-qb-theme="dark"] :where([class~="text-slate-600"],[class~="text-slate-500"],[class~="text-gray-600"],[class~="text-gray-500"]),
+:root[data-qb-user-theme="dark"] :where([class~="text-slate-600"],[class~="text-slate-500"],[class~="text-gray-600"],[class~="text-gray-500"]),
+.dark :where([class~="text-slate-600"],[class~="text-slate-500"],[class~="text-gray-600"],[class~="text-gray-500"]) {
+  color: var(--qb-theme-text-secondary) !important;
+}
+
+:root[data-qb-theme="dark"] :where([class~="border-slate-100"],[class~="border-slate-200"],[class~="border-slate-300"],[class~="border-gray-200"],[class~="border-white"],[class*="border-white/"]),
+:root[data-qb-user-theme="dark"] :where([class~="border-slate-100"],[class~="border-slate-200"],[class~="border-slate-300"],[class~="border-gray-200"],[class~="border-white"],[class*="border-white/"]),
+.dark :where([class~="border-slate-100"],[class~="border-slate-200"],[class~="border-slate-300"],[class~="border-gray-200"],[class~="border-white"],[class*="border-white/"]) {
+  border-color: var(--qb-theme-border) !important;
+}
+
+/* Student experience: remove the permanently bright green header/nav treatment. */
+:root[data-qb-theme="dark"] .student-app,
+:root[data-qb-user-theme="dark"] .student-app,
+.dark .student-app,
+:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]),
+:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]),
+.dark div:has(> header[class*="bg-[#166534]"]) {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+:root[data-qb-theme="dark"] .student-header,
+:root[data-qb-user-theme="dark"] .student-header,
+.dark .student-header,
+:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
+:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header,
+.dark div:has(> header[class*="bg-[#166534]"]) > header {
+  background: linear-gradient(120deg, #0B1729, #0D2430) !important;
+  color: var(--qb-theme-text) !important;
+  border-bottom: 1px solid var(--qb-theme-border) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.24) !important;
+}
+
+:root[data-qb-theme="dark"] .student-tabs,
+:root[data-qb-user-theme="dark"] .student-tabs,
+.dark .student-tabs,
+:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
+:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav,
+.dark div:has(> header[class*="bg-[#166534]"]) > nav {
+  background: rgba(13,22,40,.92) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.22) !important;
+  backdrop-filter: blur(18px);
+}
+
+:root[data-qb-theme="dark"] .student-app article,
+:root[data-qb-user-theme="dark"] .student-app article,
+.dark .student-app article,
+:root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) article,
+:root[data-qb-user-theme="dark"] div:has(> header[class*="bg-[#166534]"]) article,
+.dark div:has(> header[class*="bg-[#166534]"]) article {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.20) !important;
+}
+
+/* Admin experience: preserve the blue identity, but give it a dark-native shell. */
+:root[data-qb-theme="dark"] .admin-shell,
+:root[data-qb-user-theme="dark"] .admin-shell,
+.dark .admin-shell {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+:root[data-qb-theme="dark"] .admin-sidebar,
+:root[data-qb-user-theme="dark"] .admin-sidebar,
+.dark .admin-sidebar {
+  background: #0B1424 !important;
+  background-image: linear-gradient(180deg, #0D1A2D 0%, #0A1322 100%) !important;
+  color: #F5F7FA !important;
+  border-right: 1px solid rgba(148,163,184,.12) !important;
+  box-shadow: 14px 0 40px rgba(0,0,0,.18) !important;
+}
+
+:root[data-qb-theme="dark"] .admin-sidebar .admin-nav-link,
+:root[data-qb-user-theme="dark"] .admin-sidebar .admin-nav-link,
+.dark .admin-sidebar .admin-nav-link {
+  color: #AAB7C9 !important;
+}
+
+:root[data-qb-theme="dark"] .admin-sidebar .admin-nav-link[style*="background"],
+:root[data-qb-user-theme="dark"] .admin-sidebar .admin-nav-link[style*="background"],
+.dark .admin-sidebar .admin-nav-link[style*="background"] {
+  background: rgba(0,184,107,.14) !important;
+  color: #F5F7FA !important;
+  box-shadow: inset 0 0 0 1px rgba(0,184,107,.22) !important;
+}
+
+:root[data-qb-theme="dark"] .admin-main,
+:root[data-qb-user-theme="dark"] .admin-main,
+.dark .admin-main {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+/* Portals and overlays must follow the same surface hierarchy. */
+:root[data-qb-theme="dark"] [data-radix-popper-content-wrapper] > *,
+:root[data-qb-user-theme="dark"] [data-radix-popper-content-wrapper] > *,
+.dark [data-radix-popper-content-wrapper] > *,
+:root[data-qb-theme="dark"] [data-slot="dialog-content"],
+:root[data-qb-user-theme="dark"] [data-slot="dialog-content"],
+.dark [data-slot="dialog-content"],
+:root[data-qb-theme="dark"] [data-slot="alert-dialog-content"],
+:root[data-qb-user-theme="dark"] [data-slot="alert-dialog-content"],
+.dark [data-slot="alert-dialog-content"],
+:root[data-qb-theme="dark"] [data-slot="sheet-content"],
+:root[data-qb-user-theme="dark"] [data-slot="sheet-content"],
+.dark [data-slot="sheet-content"],
+:root[data-qb-theme="dark"] [data-slot="drawer-content"],
+:root[data-qb-user-theme="dark"] [data-slot="drawer-content"],
+.dark [data-slot="drawer-content"] {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
+
+:root[data-qb-theme="dark"] [data-radix-popper-content-wrapper] [data-highlighted],
+:root[data-qb-user-theme="dark"] [data-radix-popper-content-wrapper] [data-highlighted],
+.dark [data-radix-popper-content-wrapper] [data-highlighted] {
+  background: var(--qb-theme-surface-3) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+/* Login/account glass surfaces become translucent dark glass instead of white glass. */
+:root[data-qb-theme="dark"] .qb-auth,
+:root[data-qb-user-theme="dark"] .qb-auth,
+.dark .qb-auth {
+  background: var(--qb-theme-bg) !important;
+  color: var(--qb-theme-text) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-auth::before,
+:root[data-qb-user-theme="dark"] .qb-auth::before,
+.dark .qb-auth::before {
+  background: linear-gradient(140deg, rgba(255,255,255,.035), transparent 45%) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-auth-card,
+:root[data-qb-user-theme="dark"] .qb-auth-card,
+.dark .qb-auth-card {
+  background: rgba(13,22,40,.84) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.03) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-auth-card h2,
+:root[data-qb-theme="dark"] .qb-auth-card label,
+:root[data-qb-user-theme="dark"] .qb-auth-card h2,
+:root[data-qb-user-theme="dark"] .qb-auth-card label,
+.dark .qb-auth-card h2,
+.dark .qb-auth-card label {
+  color: #F5F7FA !important;
+}
+
+:root[data-qb-theme="dark"] .qb-auth-card p:not([class*="text-red"]),
+:root[data-qb-user-theme="dark"] .qb-auth-card p:not([class*="text-red"]),
+.dark .qb-auth-card p:not([class*="text-red"]) {
+  color: #AAB7C9 !important;
+}
+
+/* Floating Functions/customization controls stay in-theme. */
+:root[data-qb-theme="dark"] [data-testid="admin-feature-center"],
+:root[data-qb-user-theme="dark"] [data-testid="admin-feature-center"],
+.dark [data-testid="admin-feature-center"] {
+  color: var(--qb-theme-text);
+}
+
+:root[data-qb-theme="dark"] .fixed button,
+:root[data-qb-user-theme="dark"] .fixed button,
+.dark .fixed button {
+  border-color: var(--qb-theme-border);
+}
+
+/* Avoid harsh white selection/scroll chrome in dark mode. */
+:root[data-qb-theme="dark"] ::selection,
+:root[data-qb-user-theme="dark"] ::selection,
+.dark ::selection {
+  background: rgba(0,184,107,.28);
+  color: #F5F7FA;
+}
+
+:root[data-qb-theme="dark"] :focus-visible,
+:root[data-qb-user-theme="dark"] :focus-visible,
+.dark :focus-visible {
+  outline-color: rgba(0,184,107,.55) !important;
+}
+
+/* Explicitly replace the old admin-production white portal lock in dark mode. */
+:root[data-qb-theme="dark"][data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast],
+:root[data-qb-user-theme="dark"][data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast],
+.dark[data-qb-visual-preview-scope="admin"] .toaster [data-sonner-toast] {
+  background: var(--qb-theme-surface) !important;
+  color: var(--qb-theme-text) !important;
+  border-color: var(--qb-theme-border) !important;
+}
