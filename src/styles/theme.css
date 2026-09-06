@@ -260,6 +260,49 @@
 .qb-border { border-color: var(--qb-border); }
 .qb-separator { border-color: var(--qb-separator); }
 
+/* Compatibility bridge for legacy literal utilities. This keeps the theme
+ * centralized while old screens migrate to semantic qb-* / Tailwind tokens. */
+:root[data-qb-theme="dark"] [class~="bg-white"],
+:root[data-qb-theme="dark"] [class~="bg-gray-50"],
+:root[data-qb-theme="dark"] [class~="bg-slate-50"] { background-color: var(--qb-surface) !important; }
+
+:root[data-qb-theme="dark"] [class~="bg-gray-100"],
+:root[data-qb-theme="dark"] [class~="bg-slate-100"] { background-color: var(--qb-surface-muted) !important; }
+
+:root[data-qb-theme="dark"] [class~="bg-gray-200"],
+:root[data-qb-theme="dark"] [class~="bg-slate-200"] { background-color: var(--qb-surface-elevated) !important; }
+
+:root[data-qb-theme="dark"] [class~="text-gray-900"],
+:root[data-qb-theme="dark"] [class~="text-slate-900"],
+:root[data-qb-theme="dark"] [class~="text-gray-800"],
+:root[data-qb-theme="dark"] [class~="text-slate-800"],
+:root[data-qb-theme="dark"] [class~="text-gray-700"],
+:root[data-qb-theme="dark"] [class~="text-slate-700"] { color: var(--qb-text) !important; }
+
+:root[data-qb-theme="dark"] [class~="text-gray-600"],
+:root[data-qb-theme="dark"] [class~="text-slate-600"],
+:root[data-qb-theme="dark"] [class~="text-gray-500"],
+:root[data-qb-theme="dark"] [class~="text-slate-500"] { color: var(--qb-text-secondary) !important; }
+
+:root[data-qb-theme="dark"] [class~="text-gray-400"],
+:root[data-qb-theme="dark"] [class~="text-slate-400"],
+:root[data-qb-theme="dark"] [class~="text-gray-300"],
+:root[data-qb-theme="dark"] [class~="text-slate-300"] { color: var(--qb-text-muted) !important; }
+
+:root[data-qb-theme="dark"] [class~="border-gray-100"],
+:root[data-qb-theme="dark"] [class~="border-slate-100"],
+:root[data-qb-theme="dark"] [class~="border-gray-200"],
+:root[data-qb-theme="dark"] [class~="border-slate-200"] { border-color: var(--qb-border) !important; }
+
+:root[data-qb-theme="dark"] [class~="divide-gray-200"] > :not([hidden]) ~ :not([hidden]),
+:root[data-qb-theme="dark"] [class~="divide-slate-200"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--qb-separator) !important; }
+
+:root[data-qb-theme="dark"] [class~="bg-white\/50"] { background-color: color-mix(in srgb, var(--qb-surface) 50%, transparent) !important; }
+:root[data-qb-theme="dark"] [class~="bg-white\/75"] { background-color: color-mix(in srgb, var(--qb-surface) 75%, transparent) !important; }
+:root[data-qb-theme="dark"] [class~="bg-white\/80"] { background-color: color-mix(in srgb, var(--qb-surface) 80%, transparent) !important; }
+:root[data-qb-theme="dark"] [class~="bg-white\/90"] { background-color: color-mix(in srgb, var(--qb-surface) 90%, transparent) !important; }
+:root[data-qb-theme="dark"] [class~="bg-white\/95"] { background-color: color-mix(in srgb, var(--qb-surface) 95%, transparent) !important; }
+
 .dark .qb-page,
 .dark .qb-surface,
 .dark .qb-surface-muted,
