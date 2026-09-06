@@ -7,10 +7,8 @@ const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
 const ROOT_SELECTOR = 'html[data-qb-visual-preview="1"]';
 const PROTECTED_SELECTOR = '.admin-sidebar, [data-qb-visual-editor]';
 const CLICK_DELAY = 220;
-const TRIPLE_WINDOW = 650;
 
 type Props = { scope: VisualInterfaceScope };
-
 type Selected = { element: HTMLElement; selector: string } | null;
 
 const FIELDS: Array<{ key: keyof VisualElementStyle; label: string; type: 'color' | 'text' | 'select'; options?: string[] }> = [
@@ -73,7 +71,7 @@ function readComputedStyle(element: HTMLElement): VisualElementStyle {
     color: toHex(style.color),
     borderColor: toHex(style.borderTopColor),
     borderRadius: style.borderRadius,
-    boxShadow: style.boxShadow === 'none' ? 'none' : style.boxShadow.replace(/rgba?\(/, 'rgba(').replace(/\)/, ')'),
+    boxShadow: style.boxShadow,
     fontSize: style.fontSize,
     fontWeight: style.fontWeight,
     padding: style.padding,
@@ -91,22 +89,13 @@ function toHex(value: string): string | undefined {
   return `#${[1, 2, 3].map((index) => Number(match[index]).toString(16).padStart(2, '0')).join('')}`;
 }
 
-function styleToCss(style: VisualElementStyle): string {
-  const entries: Array<[string, string | undefined]> = [
-    ['background-color', style.backgroundColor], ['color', style.color], ['border-color', style.borderColor],
-    ['border-radius', style.borderRadius], ['box-shadow', style.boxShadow], ['font-size', style.fontSize],
-    ['font-weight', style.fontWeight], ['padding', style.padding], ['margin', style.margin], ['width', style.width],
-    ['height', style.height], ['opacity', style.opacity], ['text-align', style.textAlign],
-  ];
-  return entries.filter(([, value]) => value).map(([name, value]) => `${name}:${value} !important`).join(';');
-}
-
 export function VisualPreviewEditor({ scope }: Props) {
   const { settings } = useVisualTheme();
   const [selected, setSelected] = useState<Selected>(null);
   const [draftStyle, setDraftStyle] = useState<VisualElementStyle>({});
   const [message, setMessage] = useState('Triple clic para editar cualquier elemento');
-  const clickState = useRef<{ element: HTMLElement | null; count: number; timer: number | null; }>({ element: null, count: 0, timer: null });
+  const clickState = useRef<{ element: HTMLElement | null; count: number; timer: number | null }>({ element: null, count: 0, timer: null });
+  const replayingClick = useRef(false);
 
   const existingOverrides = settings.element_overrides ?? {};
   const selectedStyle = useMemo(() => selected ? { ...existingOverrides[selected.selector], ...draftStyle } : {}, [existingOverrides, selected, draftStyle]);
@@ -114,11 +103,11 @@ export function VisualPreviewEditor({ scope }: Props) {
   useEffect(() => {
     const handleSelection = (event: MouseEvent) => {
       const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      if (target.closest(PROTECTED_SELECTOR)) return;
-      if (target.closest('[data-qb-visual-editor-panel]')) return;
+      if (!(target instanceof HTMLElement) || replayingClick.current) return;
+      if (target.closest(PROTECTED_SELECTOR) || target.closest('[data-qb-visual-editor-panel]')) return;
       const editable = target.closest('button, a, input, select, textarea, label, [role], [tabindex], div, section, header, nav, main, aside, footer, form, article, img, p, h1, h2, h3, h4, h5, h6, span') as HTMLElement | null;
       if (!editable || editable === document.body || editable === document.documentElement) return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
 
       const state = clickState.current;
       const same = state.element === editable;
@@ -142,12 +131,12 @@ export function VisualPreviewEditor({ scope }: Props) {
       state.timer = window.setTimeout(() => {
         const current = clickState.current;
         if (current.element !== editable || current.count < 1) return;
-        current.element.click();
+        replayingClick.current = true;
+        try { editable.click(); } finally { window.setTimeout(() => { replayingClick.current = false; }, 0); }
         current.element = null;
         current.count = 0;
         current.timer = null;
       }, CLICK_DELAY);
-
       if (state.count > 1) event.preventDefault();
     };
 
@@ -201,7 +190,6 @@ export function VisualPreviewEditor({ scope }: Props) {
         <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/10"><Edit3 className="size-4" /></div>
         <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.18em] text-blue-300">Editor visual</p><p className="truncate text-xs font-bold">{message}</p></div>
       </div>
-
       {selected && (
         <aside data-qb-visual-editor-panel className="fixed bottom-4 right-4 z-[9999] w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
           <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
