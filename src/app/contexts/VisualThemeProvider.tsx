@@ -154,7 +154,9 @@ function applyElementOverrides(settings: VisualSettingsDraft, scope: VisualInter
   if (typeof document === 'undefined') return;
   const id = 'quickbite-visual-element-overrides';
   let style = document.getElementById(id) as HTMLStyleElement | null;
-  const overrides = settings.element_overrides ?? {};
+  const baseOverrides = settings.element_overrides ?? {};
+  const scopedOverrides = settings.interface_overrides?.[scope]?.element_overrides ?? {};
+  const overrides = { ...baseOverrides, ...scopedOverrides };
   const css = Object.entries(overrides).map(([selector, rawStyle]) => {
     const safeStyle = sanitizeVisualElementStyle(rawStyle);
     const declarations = Object.entries(safeStyle)
@@ -233,7 +235,10 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     return () => observer.disconnect();
   }, []);
 
-  const effectiveSettings = useMemo(() => preview ?? resolveVisualSettings(settings, scope), [preview, settings, scope]);
+  const effectiveSettings = useMemo(() => {
+    if (preview) return resolveVisualSettings(preview, scope);
+    return resolveVisualSettings(settings, scope);
+  }, [preview, settings, scope]);
 
   useEffect(() => {
     const storedOverride = settings.interface_overrides?.[scope];
