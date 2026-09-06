@@ -47,12 +47,11 @@ export function UserThemePreference() {
   const [mode, setMode] = useState<ThemeMode>('light');
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [open, setOpen] = useState(false);
 
   const authenticated = Boolean(user && user.id && !user.id.startsWith('visual-preview-') && !isVisualPreviewMode());
   const options = useMemo(() => [
-    { value: 'light' as const, label: 'Claro', description: 'Interfaz clara', icon: Sun },
-    { value: 'dark' as const, label: 'Oscuro', description: 'Interfaz oscura', icon: Moon },
+    { value: 'light' as const, label: 'Claro', description: 'Fondo claro y alto contraste', icon: Sun },
+    { value: 'dark' as const, label: 'Oscuro', description: 'Fondo oscuro y cómodo para la vista', icon: Moon },
   ], []);
 
   useEffect(() => {
@@ -99,7 +98,7 @@ export function UserThemePreference() {
     try {
       const { error } = await requireSupabaseClient().rpc('set_my_theme_preference', { p_theme_mode: next });
       if (error) throw error;
-      setOpen(false);
+      toast.success(`Apariencia cambiada a modo ${next === 'dark' ? 'oscuro' : 'claro'}.`);
     } catch (error) {
       setMode(previous);
       applyUserTheme(previous, settings);
@@ -110,43 +109,42 @@ export function UserThemePreference() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[70]">
-      {open && (
-        <div className="mb-3 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95">
-          <div className="px-3 pb-2 pt-2">
-            <p className="text-xs font-black uppercase tracking-[.16em] text-slate-500 dark:text-slate-400">Apariencia</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Solo afecta tu propia cuenta.</p>
+    <section className="rounded-[2rem] border border-slate-200/80 bg-white/80 p-6 shadow-xl backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/75 sm:p-7">
+      <div className="flex flex-col gap-5">
+        <div className="flex items-start gap-3">
+          <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-700">
+            {mode === 'dark' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </div>
-          <div className="grid gap-1">
-            {options.map(({ value, label, description, icon: Icon }) => {
-              const active = mode === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void changeMode(value)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${active ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800/70'} disabled:cursor-wait disabled:opacity-60`}
-                >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700"><Icon className="h-4 w-4" /></span>
-                  <span className="min-w-0 flex-1"><span className="block text-sm font-black text-slate-900 dark:text-white">{label}</span><span className="block text-[11px] text-slate-500 dark:text-slate-400">{description}</span></span>
-                  {active && <Check className="h-4 w-4 text-emerald-600" />}
-                </button>
-              );
-            })}
+          <div>
+            <p className="text-xs font-black uppercase tracking-[.18em] text-emerald-700 dark:text-emerald-400">Preferencia personal</p>
+            <h2 className="mt-1 text-xl font-black text-slate-900 dark:text-white">Apariencia de la App</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">Elige cómo quieres ver QuickBite. Este ajuste solo afecta a tu cuenta y no modifica la personalización global.</p>
           </div>
         </div>
-      )}
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-label={`Apariencia: modo ${mode === 'dark' ? 'oscuro' : 'claro'}`}
-        className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/90 px-4 py-3 text-sm font-black text-slate-800 shadow-xl backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-200 dark:border-slate-700 dark:bg-slate-900/90 dark:text-white dark:focus:ring-slate-700"
-      >
-        {mode === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-        {mode === 'dark' ? 'Oscuro' : 'Claro'}
-      </button>
-    </div>
+
+        <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Apariencia de la App">
+          {options.map(({ value, label, description, icon: Icon }) => {
+            const active = mode === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                disabled={saving}
+                onClick={() => void changeMode(value)}
+                className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-4 focus:ring-emerald-100 dark:focus:ring-emerald-950 ${active ? 'border-emerald-500 bg-emerald-50 shadow-sm dark:border-emerald-400 dark:bg-emerald-950/40' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-800/80 dark:hover:border-slate-600 dark:hover:bg-slate-800'} disabled:cursor-wait disabled:opacity-60`}
+              >
+                <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${active ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700'}`}><Icon className="h-5 w-5" /></span>
+                <span className="min-w-0 flex-1"><span className="block text-sm font-black text-slate-900 dark:text-white">{label}</span><span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{description}</span></span>
+                {active && <Check className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Preferencia actual: <span className="font-black text-slate-700 dark:text-slate-200">{mode === 'dark' ? 'Modo oscuro' : 'Modo claro'}</span></p>
+      </div>
+    </section>
   );
 }
