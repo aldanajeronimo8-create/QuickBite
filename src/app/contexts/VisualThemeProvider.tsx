@@ -27,21 +27,6 @@ const VALID_SCOPES: VisualInterfaceScope[] = ['login_student', 'login_parent', '
 const PRODUCTION_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: 'rgba(255,255,255,0.12)', accentForeground: '#FFFFFF', border: 'rgba(255,255,255,0.12)', ring: '#E0ECFF' };
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
 const ROOT_SELECTOR = ':root';
-const ELEMENT_CSS_MAP: Record<Exclude<keyof VisualElementStyle, 'textContent'>, string> = {
-  backgroundColor: 'background-color',
-  color: 'color',
-  borderColor: 'border-color',
-  borderRadius: 'border-radius',
-  boxShadow: 'box-shadow',
-  fontSize: 'font-size',
-  fontWeight: 'font-weight',
-  padding: 'padding',
-  margin: 'margin',
-  width: 'width',
-  height: 'height',
-  opacity: 'opacity',
-  textAlign: 'text-align',
-};
 const originalTextNodes = new WeakMap<HTMLElement, Map<Text, string>>();
 
 function getPathScope(pathname: string, search: string): VisualInterfaceScope | null {
@@ -174,7 +159,7 @@ function applyElementOverrides(settings: VisualSettingsDraft, scope: VisualInter
     const safeStyle = sanitizeVisualElementStyle(rawStyle);
     const declarations = Object.entries(safeStyle)
       .filter(([key]) => key !== 'textContent')
-      .map(([key, value]) => `${ELEMENT_CSS_MAP[key as Exclude<keyof VisualElementStyle, 'textContent'>]}:${value} !important`)
+      .map(([key, value]) => `${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${value} !important`)
       .join(';');
 
     if (safeStyle.textContent !== undefined) {
@@ -271,11 +256,6 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
         setPreview(null);
         return;
       }
-
-      // Element edits are drafts. The admin panel owns the draft state and only
-      // persists it when its explicit Guardar action calls saveVisualSettings.
-      // The iframe preview may still receive the draft so the visual change is immediate,
-      // but the provider's persisted `settings` state is never mutated by element edits.
       if ((data.type === 'quickbite-visual-element-edit' || data.type === 'quickbite-visual-element-reset') && isVisualPreviewMode() && data.settings && typeof data.settings === 'object') {
         setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));
       }
