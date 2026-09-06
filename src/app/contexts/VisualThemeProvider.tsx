@@ -9,6 +9,7 @@ const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const VALID_SCOPES: VisualInterfaceScope[] = ['login_student','login_parent','login_admin','admin','student','parent'];
 const PRODUCTION_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: 'rgba(255,255,255,0.12)', accentForeground: '#FFFFFF', border: 'rgba(255,255,255,0.12)', ring: '#E0ECFF' };
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
+const ROOT_SELECTOR = ':root';
 const ELEMENT_CSS_MAP: Record<Exclude<keyof VisualElementStyle, 'textContent'>, string> = { backgroundColor: 'background-color', color: 'color', borderColor: 'border-color', borderRadius: 'border-radius', boxShadow: 'box-shadow', fontSize: 'font-size', fontWeight: 'font-weight', padding: 'padding', margin: 'margin', width: 'width', height: 'height', opacity: 'opacity', textAlign: 'text-align' };
 const originalTextNodes = new WeakMap<HTMLElement, Map<Text, string>>();
 
