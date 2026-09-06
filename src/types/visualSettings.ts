@@ -20,9 +20,27 @@ export type InputStyle = typeof INPUT_STYLES[number];
 export type Density = typeof DENSITY_OPTIONS[number];
 export type ThemeMode = typeof THEME_MODES[number];
 
-export const VISUAL_INTERFACE_SCOPES = ['login_student', 'login_parent', 'login_admin', 'admin', 'student', 'parent'] as const;
+export const VISUAL_INTERFACE_SCOPES = ['login_student', 'login_parent', 'login_admin', 'student', 'parent', 'admin'] as const;
 export type VisualInterfaceScope = typeof VISUAL_INTERFACE_SCOPES[number];
-export type VisualInterfaceOverrides = Partial<Record<VisualInterfaceScope, Partial<VisualSettingsDraft>>>;
+
+export type VisualElementStyle = Partial<{
+  backgroundColor: string;
+  color: string;
+  borderColor: string;
+  borderRadius: string;
+  boxShadow: string;
+  fontSize: string;
+  fontWeight: '400' | '500' | '600' | '700' | '800' | '900';
+  padding: string;
+  margin: string;
+  width: string;
+  height: string;
+  opacity: string;
+  textAlign: 'left' | 'center' | 'right';
+}>;
+export type VisualElementOverrides = Record<string, VisualElementStyle>;
+export type VisualInterfaceOverride = Partial<Omit<VisualSettingsDraft, 'interface_overrides'>>;
+export type VisualInterfaceOverrides = Partial<Record<VisualInterfaceScope, VisualInterfaceOverride>>;
 
 export interface VisualSettings {
   id: boolean;
@@ -55,6 +73,7 @@ export interface VisualSettings {
   density: Density;
   theme_mode: ThemeMode;
   interface_overrides: VisualInterfaceOverrides;
+  element_overrides: VisualElementOverrides;
   updated_at: string;
   updated_by: string | null;
 }
@@ -64,15 +83,44 @@ export type VisualSettingsDraft = Omit<VisualSettings, 'id' | 'updated_at' | 'up
 export const DEFAULT_VISUAL_SETTINGS: VisualSettingsDraft = {
   app_name: 'QuickBite', logo_url: null, favicon_url: null, login_logo_url: null,
   primary_color: '#16A36A', secondary_color: '#E0ECFF', accent_color: '#14B8A6', background_color: '#F5F8F7', surface_color: '#FFFFFF', text_color: '#0F172A', muted_text_color: '#475569', border_color: '#E2E8F0', success_color: '#16A36A', warning_color: '#D97706', danger_color: '#DC2626',
-  font_family: 'Nunito', heading_font: 'Nunito', border_radius: 'medium', card_radius: 'large', button_radius: 'medium', shadow_style: 'subtle', button_style: 'solid', header_style: 'standard', navigation_style: 'solid', card_style: 'elevated', input_style: 'outlined', density: 'normal', theme_mode: 'light', interface_overrides: {},
+  font_family: 'Nunito', heading_font: 'Nunito', border_radius: 'medium', card_radius: 'large', button_radius: 'medium', shadow_style: 'subtle', button_style: 'solid', header_style: 'standard', navigation_style: 'solid', card_style: 'elevated', input_style: 'outlined', density: 'normal', theme_mode: 'light', interface_overrides: {}, element_overrides: {},
 };
 
 export function isHexColor(value: string): boolean { return /^#[0-9A-Fa-f]{6}$/.test(value); }
+const SAFE_CSS_VALUE = /^-?(?:\d+(?:\.\d+)?)(?:px|rem|em|%|vh|vw)?$/;
+const SAFE_OPACITY = /^(?:0|0?\.\d+|1)$/;
+const SAFE_SHADOW = /^(?:none|0 0 \d{1,3}px rgba\(\d{1,3}, \d{1,3}, \d{1,3}, 0?\.?\d{0,2}\)|\d{1,3}px \d{1,3}px \d{1,3}px rgba\(\d{1,3}, \d{1,3}, \d{1,3}, 0?\.?\d{0,2}\))$/;
+const ELEMENT_STYLE_KEYS = ['backgroundColor','color','borderColor','borderRadius','boxShadow','fontSize','fontWeight','padding','margin','width','height','opacity','textAlign'] as const;
 
-function sanitizeOverride(value: unknown): Partial<VisualSettingsDraft> {
+export function sanitizeVisualElementStyle(value: unknown): VisualElementStyle {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const source = value as Record<string, unknown>;
-  const result: Partial<VisualSettingsDraft> = {};
+  const result: VisualElementStyle = {};
+  for (const key of ['backgroundColor','color','borderColor'] as const) if (typeof source[key] === 'string' && isHexColor(source[key])) result[key] = source[key].toUpperCase();
+  for (const key of ['borderRadius','fontSize','padding','margin','width','height'] as const) if (typeof source[key] === 'string' && SAFE_CSS_VALUE.test(source[key])) result[key] = source[key];
+  if (typeof source.boxShadow === 'string' && SAFE_SHADOW.test(source.boxShadow)) result.boxShadow = source.boxShadow;
+  if (source.fontWeight === '400' || source.fontWeight === '500' || source.fontWeight === '600' || source.fontWeight === '700' || source.fontWeight === '800' || source.fontWeight === '900') result.fontWeight = source.fontWeight;
+  if (typeof source.opacity === 'string' && SAFE_OPACITY.test(source.opacity)) result.opacity = source.opacity;
+  if (source.textAlign === 'left' || source.textAlign === 'center' || source.textAlign === 'right') result.textAlign = source.textAlign;
+  return result;
+}
+
+export function sanitizeVisualElementOverrides(value: unknown): VisualElementOverrides {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const source = value as Record<string, unknown>;
+  const result: VisualElementOverrides = {};
+  for (const [selector, style] of Object.entries(source)) {
+    if (!selector || selector.length > 900 || /[{};]/.test(selector)) continue;
+    const safe = sanitizeVisualElementStyle(style);
+    if (Object.keys(safe).some((key) => (ELEMENT_STYLE_KEYS as readonly string[]).includes(key))) result[selector] = safe;
+  }
+  return result;
+}
+
+function sanitizeOverride(value: unknown): VisualInterfaceOverride {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const source = value as Record<string, unknown>;
+  const result: VisualInterfaceOverride = {};
   const colors = ['primary_color','secondary_color','accent_color','background_color','surface_color','text_color','muted_text_color','border_color','success_color','warning_color','danger_color'] as const;
   for (const key of colors) if (typeof source[key] === 'string' && isHexColor(source[key])) result[key] = source[key];
   if (typeof source.app_name === 'string' && source.app_name.trim().length <= 60 && source.app_name.trim()) result.app_name = source.app_name.trim();
@@ -90,6 +138,7 @@ function sanitizeOverride(value: unknown): Partial<VisualSettingsDraft> {
   if (INPUT_STYLES.includes(source.input_style as InputStyle)) result.input_style = source.input_style as InputStyle;
   if (DENSITY_OPTIONS.includes(source.density as Density)) result.density = source.density as Density;
   if (THEME_MODES.includes(source.theme_mode as ThemeMode)) result.theme_mode = source.theme_mode as ThemeMode;
+  if (source.element_overrides) result.element_overrides = sanitizeVisualElementOverrides(source.element_overrides);
   return result;
 }
 
@@ -104,8 +153,8 @@ export function sanitizeVisualSettings(value: Partial<VisualSettingsDraft> | nul
   if (ALLOWED_FONTS.includes(source.heading_font as AllowedFont)) result.heading_font = source.heading_font as AllowedFont;
   if (RADIUS_OPTIONS.includes(source.border_radius as RadiusOption)) result.border_radius = source.border_radius as RadiusOption;
   if (RADIUS_OPTIONS.includes(source.card_radius as RadiusOption)) result.card_radius = source.card_radius as RadiusOption;
-  if (RADIUS_OPTIONS.includes(source.button_radius as RadiusOption)) result.button_radius = source.button_radius as ButtonRadiusOption;
-  if (SHADOW_OPTIONS.includes(source.shadow_style as ShadowStyle)) result.shadow_style = source.shadow_style as ShadowRadiusOption;
+  if (RADIUS_OPTIONS.includes(source.button_radius as RadiusOption)) result.button_radius = source.button_radius as RadiusOption;
+  if (SHADOW_OPTIONS.includes(source.shadow_style as ShadowStyle)) result.shadow_style = source.shadow_style as ShadowStyle;
   if (BUTTON_STYLES.includes(source.button_style as ButtonStyle)) result.button_style = source.button_style as ButtonStyle;
   if (HEADER_STYLES.includes(source.header_style as HeaderStyle)) result.header_style = source.header_style as HeaderStyle;
   if (NAVIGATION_STYLES.includes(source.navigation_style as NavigationStyle)) result.navigation_style = source.navigation_style as NavigationStyle;
@@ -113,6 +162,7 @@ export function sanitizeVisualSettings(value: Partial<VisualSettingsDraft> | nul
   if (INPUT_STYLES.includes(source.input_style as InputStyle)) result.input_style = source.input_style as InputStyle;
   if (DENSITY_OPTIONS.includes(source.density as Density)) result.density = source.density as Density;
   if (THEME_MODES.includes(source.theme_mode as ThemeMode)) result.theme_mode = source.theme_mode as ThemeMode;
+  result.element_overrides = sanitizeVisualElementOverrides(source.element_overrides);
   const rawOverrides = source.interface_overrides;
   if (rawOverrides && typeof rawOverrides === 'object' && !Array.isArray(rawOverrides)) {
     const safeOverrides: VisualInterfaceOverrides = {};
@@ -125,7 +175,7 @@ export function sanitizeVisualSettings(value: Partial<VisualSettingsDraft> | nul
 export function resolveVisualSettings(settings: VisualSettings | VisualSettingsDraft, scope: VisualInterfaceScope): VisualSettingsDraft {
   const base = sanitizeVisualSettings(settings);
   const override = base.interface_overrides?.[scope] ?? {};
-  return sanitizeVisualSettings({ ...base, ...override, interface_overrides: base.interface_overrides });
+  return sanitizeVisualSettings({ ...base, ...override, element_overrides: override.element_overrides ?? base.element_overrides, interface_overrides: base.interface_overrides });
 }
 
 export function radiusToCss(value: RadiusOption): string { return { sharp: '0px', small: '0.375rem', medium: '0.75rem', large: '1rem', rounded: '999px' }[value]; }
@@ -136,6 +186,3 @@ export function getVisualCssVariables(settings: VisualSettingsDraft): Record<str
   const secondaryForeground = settings.secondary_color.toLowerCase() === '#e0ecff' ? '#1747B8' : '#FFFFFF';
   return {'--qb-primary':settings.primary_color,'--qb-secondary':settings.secondary_color,'--qb-accent':settings.accent_color,'--qb-background':dark?'#070B14':settings.background_color,'--qb-surface':dark?'#0F172A':settings.surface_color,'--qb-text':dark?'#F8FAFC':settings.text_color,'--qb-text-secondary':dark?'#CBD5E1':settings.muted_text_color,'--qb-text-muted':dark?'#94A3B8':settings.muted_text_color,'--qb-border':dark?'#334155':settings.border_color,'--qb-success':settings.success_color,'--qb-warning':settings.warning_color,'--qb-error':settings.danger_color,'--qb-radius':radius,'--qb-card-radius':cardRadius,'--qb-button-radius':buttonRadius,'--qb-shadow':shadowToCss(settings.shadow_style),'--qb-density-spacing':density.spacing,'--qb-control-height':density.controlHeight,'--qb-font-family':settings.font_family==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.font_family}", ui-sans-serif, system-ui, sans-serif`,'--qb-heading-font':settings.heading_font==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.heading_font}", ui-sans-serif, system-ui, sans-serif`,'--background':dark?'#070B14':settings.background_color,'--foreground':dark?'#F8FAFC':settings.text_color,'--card':dark?'#0F172A':settings.surface_color,'--card-foreground':dark?'#F8FAFC':settings.text_color,'--popover':dark?'#0F172A':settings.surface_color,'--popover-foreground':dark?'#F8FAFC':settings.text_color,'--primary':settings.primary_color,'--primary-foreground':'#FFFFFF','--secondary':settings.secondary_color,'--secondary-foreground':secondaryForeground,'--accent':settings.accent_color,'--accent-foreground':'#FFFFFF','--destructive':settings.danger_color,'--destructive-foreground':'#FFFFFF','--border':dark?'#334155':settings.border_color,'--input':dark?'#1E293B':settings.surface_color,'--input-background':dark?'#1E293B':settings.surface_color,'--muted-foreground':dark?'#CBD5E1':settings.muted_text_color,'--ring':settings.primary_color,'--radius':radius,'--sidebar':'#1747B8','--sidebar-foreground':'#FFFFFF','--sidebar-primary':'#2563EB','--sidebar-primary-foreground':'#FFFFFF','--sidebar-accent':'rgba(255,255,255,0.12)','--sidebar-accent-foreground':'#FFFFFF','--sidebar-border':'rgba(255,255,255,0.12)','--sidebar-ring':'#E0ECFF'};
 }
-
-type ButtonRadiusOption = RadiusOption;
-type ShadowRadiusOption = ShadowStyle;
