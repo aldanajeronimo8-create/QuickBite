@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { requireSupabaseClient } from '../../../lib/supabase';
 import { useStudentContextStore } from '../../../store/studentContextStore';
+import { UserThemePreference } from '../../components/UserThemePreference';
 
 type Profile = {
   id: string;
@@ -103,6 +104,8 @@ export function StudentAccountPage() {
       <header className="flex items-center justify-between gap-3"><Link to="/student/features" className="inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-black shadow-sm ring-1 ring-slate-200"><ArrowLeft className="h-4 w-4"/>Funciones</Link><button type="button" onClick={() => void load()} className="rounded-full bg-white/85 p-3 shadow-sm ring-1 ring-slate-200" aria-label="Actualizar Mi cuenta"><RefreshCw className="h-4 w-4"/></button></header>
 
       <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-2xl sm:p-8"><div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between"><div className="flex min-w-0 items-center gap-4"><div className="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200"><UserCircle className="h-8 w-8"/></div><div className="min-w-0"><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-700">QuickBite Student</p><h1 className="mt-1 truncate text-3xl font-black">Mi cuenta</h1><p className="mt-1 truncate text-sm text-slate-600">{displayName} · {displayEmail}</p></div></div><div className="flex flex-wrap gap-2">{consent?.student_acknowledged && <StatusBadge ok label="Aviso leído"/>}{consent?.guardian_authorized && <StatusBadge ok label="Tutor autorizado"/>}{consent?.revoked_at ? <StatusBadge ok={false} label="Autorización revocada"/> : null}</div></div></section>
+
+      <UserThemePreference showControl />
 
       <section className="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl"><div className="flex items-center gap-3"><IdCard className="h-6 w-6 text-blue-700"/><div><h2 className="text-xl font-black">Datos de registro</h2><p className="text-sm text-slate-500">Todos los datos principales registrados al crear la cuenta del estudiante.</p></div></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><DataCard label="Nombre completo" value={profile.full_name ?? consent?.student_name ?? ''} icon={UserCircle}/><DataCard label="Correo del estudiante" value={displayEmail} icon={Mail}/><DataCard label="T.I. (Tarjeta de identidad)" value={profile.ti ?? ''} icon={IdCard}/><DataCard label="Grado / curso" value={profile.grade ?? ''} icon={FileText}/><DataCard label="Código de estudiante" value={profile.student_code ?? ''} icon={ShieldCheck}/><DataCard label="ID interno de cuenta" value={profile.id} icon={ShieldCheck}/></div></section>
 
