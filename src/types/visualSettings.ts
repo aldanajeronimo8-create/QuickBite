@@ -145,61 +145,29 @@ export function sanitizeVisualSettings(value: Partial<VisualSettingsDraft> | nul
   if (INPUT_STYLES.includes(source.input_style as InputStyle)) result.input_style = source.input_style as InputStyle;
   if (DENSITY_OPTIONS.includes(source.density as Density)) result.density = source.density as Density;
   if (THEME_MODES.includes(source.theme_mode as ThemeMode)) result.theme_mode = source.theme_mode as ThemeMode;
-  result.interface_overrides = Object.fromEntries(Object.entries(source.interface_overrides ?? {}).map(([scope, override]) => [scope, sanitizeOverride(override)])) as VisualInterfaceOverrides;
   result.element_overrides = sanitizeVisualElementOverrides(source.element_overrides);
+  if (source.interface_overrides && typeof source.interface_overrides === 'object' && !Array.isArray(source.interface_overrides)) { const safe: VisualInterfaceOverrides = {}; for (const scope of VISUAL_INTERFACE_SCOPES) safe[scope] = sanitizeOverride((source.interface_overrides as Record<string, unknown>)[scope]); result.interface_overrides = safe; }
   return result;
 }
-
-export function resolveVisualSettings(settings: VisualSettingsDraft, scope: VisualInterfaceScope): VisualSettingsDraft {
-  const override = settings.interface_overrides?.[scope];
-  if (!override) return sanitizeVisualSettings(settings);
-  const { interface_overrides: _ignored, element_overrides: overrideElements, ...rest } = override;
-  const merged = {
-    ...settings,
-    ...rest,
-    element_overrides: { ...(settings.element_overrides ?? {}), ...(overrideElements ?? {}) },
-    interface_overrides: settings.interface_overrides,
+export function resolveVisualSettings(settings: VisualSettings | VisualSettingsDraft, scope: VisualInterfaceScope): VisualSettingsDraft {
+  const base = sanitizeVisualSettings(settings);
+  const override = base.interface_overrides?.[scope] ?? {};
+  const mergedElementOverrides = {
+    ...(base.element_overrides ?? {}),
+    ...((override.element_overrides as VisualElementOverrides | undefined) ?? {}),
   };
-  return sanitizeVisualSettings(merged);
+  return sanitizeVisualSettings({
+    ...base,
+    ...override,
+    element_overrides: mergedElementOverrides,
+    interface_overrides: base.interface_overrides,
+  });
 }
-
+export function radiusToCss(value: RadiusOption): string { return { sharp:'0px', small:'0.375rem', medium:'0.75rem', large:'1rem', rounded:'999px' }[value]; }
+export function shadowToCss(value: ShadowStyle): string { return { none:'none', subtle:'0 2px 10px rgba(15, 23, 42, 0.06)', normal:'0 8px 24px rgba(15, 23, 42, 0.10)', elevated:'0 18px 45px rgba(15, 23, 42, 0.16)' }[value]; }
+export function densityToCss(value: Density): { spacing: string; controlHeight: string } { return { compact:{spacing:'0.75rem',controlHeight:'2.5rem'}, normal:{spacing:'1rem',controlHeight:'2.75rem'}, comfortable:{spacing:'1.25rem',controlHeight:'3rem'} }[value]; }
 export function getVisualCssVariables(settings: VisualSettingsDraft): Record<string, string> {
-  const radius = {
-    sharp: '0px', small: '0.375rem', medium: '0.75rem', large: '1rem', rounded: '1.5rem',
-  }[settings.border_radius];
-  const cardRadius = {
-    sharp: '0px', small: '0.5rem', medium: '0.75rem', large: '1rem', rounded: '1.5rem',
-  }[settings.card_radius];
-  const buttonRadius = {
-    sharp: '0px', small: '0.5rem', medium: '0.75rem', large: '1rem', rounded: '9999px',
-  }[settings.button_radius];
-  const shadow = {
-    none: 'none', subtle: '0 2px 10px rgba(15,23,42,0.06)', normal: '0 8px 24px rgba(15,23,42,0.10)', elevated: '0 16px 40px rgba(15,23,42,0.14)',
-  }[settings.shadow_style];
-  return {
-    '--qb-primary': settings.primary_color,
-    '--qb-secondary': settings.secondary_color,
-    '--qb-accent': settings.accent_color,
-    '--qb-background': settings.background_color,
-    '--qb-surface': settings.surface_color,
-    '--qb-text': settings.text_color,
-    '--qb-text-secondary': settings.muted_text_color,
-    '--qb-text-muted': settings.muted_text_color,
-    '--qb-border': settings.border_color,
-    '--qb-success': settings.success_color,
-    '--qb-warning': settings.warning_color,
-    '--qb-error': settings.danger_color,
-    '--qb-radius': radius,
-    '--qb-card-radius': cardRadius,
-    '--qb-button-radius': buttonRadius,
-    '--qb-shadow': shadow,
-    '--qb-font-family': settings.font_family === 'system-ui' ? 'ui-sans-serif, system-ui, sans-serif' : `${settings.font_family}, ui-sans-serif, system-ui, sans-serif`,
-    '--qb-heading-font': settings.heading_font === 'system-ui' ? 'ui-sans-serif, system-ui, sans-serif' : `${settings.heading_font}, ui-sans-serif, system-ui, sans-serif`,
-    '--qb-density-spacing': settings.density === 'compact' ? '0.75rem' : settings.density === 'comfortable' ? '1.25rem' : '1rem',
-    '--qb-control-height': settings.density === 'compact' ? '2.5rem' : settings.density === 'comfortable' ? '3rem' : '2.75rem',
-    '--qb-header-style': settings.header_style,
-    '--qb-navigation-style': settings.navigation_style,
-    '--qb-card-style': settings.card_style,
-    '--qb-input-style': settings.input_style,
-  };
+  const radius = radiusToCss(settings.border_radius), cardRadius = radiusToCss(settings.card_radius), buttonRadius = radiusToCss(settings.button_radius), density = densityToCss(settings.density), dark = settings.theme_mode === 'dark';
+  const secondaryForeground = settings.secondary_color.toLowerCase() === '#e0ecff' ? '#1747B8' : '#FFFFFF';
+  return {'--qb-primary':settings.primary_color,'--qb-secondary':settings.secondary_color,'--qb-accent':settings.accent_color,'--qb-background':dark?'#070B14':settings.background_color,'--qb-surface':dark?'#0F172A':settings.surface_color,'--qb-text':dark?'#F8FAFC':settings.text_color,'--qb-text-secondary':dark?'#CBD5E1':settings.muted_text_color,'--qb-text-muted':dark?'#94A3B8':settings.muted_text_color,'--qb-border':dark?'#334155':settings.border_color,'--qb-success':settings.success_color,'--qb-warning':settings.warning_color,'--qb-error':settings.danger_color,'--qb-radius':radius,'--qb-card-radius':cardRadius,'--qb-button-radius':buttonRadius,'--qb-shadow':shadowToCss(settings.shadow_style),'--qb-density-spacing':density.spacing,'--qb-control-height':density.controlHeight,'--qb-font-family':settings.font_family==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.font_family}", ui-sans-serif, system-ui, sans-serif`,'--qb-heading-font':settings.heading_font==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.heading_font}", ui-sans-serif, system-ui, sans-serif`,'--background':dark?'#070B14':settings.background_color,'--foreground':dark?'#F8FAFC':settings.text_color,'--card':dark?'#0F172A':settings.surface_color,'--card-foreground':dark?'#F8FAFC':settings.text_color,'--popover':dark?'#0F172A':settings.surface_color,'--popover-foreground':dark?'#F8FAFC':settings.text_color,'--primary':settings.primary_color,'--primary-foreground':'#FFFFFF','--secondary':settings.secondary_color,'--secondary-foreground':secondaryForeground,'--accent':settings.accent_color,'--accent-foreground':'#FFFFFF','--destructive':settings.danger_color,'--destructive-foreground':'#FFFFFF','--border':dark?'#334155':settings.border_color,'--input':dark?'#334155':settings.border_color,'--ring':settings.accent_color,'--sidebar':'#1747B8','--sidebar-foreground':'#FFFFFF','--sidebar-primary':'#2563EB','--sidebar-primary-foreground':'#FFFFFF','--sidebar-accent':'rgba(255,255,255,0.12)','--sidebar-accent-foreground':'#FFFFFF','--sidebar-border':'rgba(255,255,255,0.12)','--sidebar-ring':'#E0ECFF'};
 }
