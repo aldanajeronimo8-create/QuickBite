@@ -8,7 +8,7 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon']);
 
 function databasePayload(draft: VisualSettingsDraft) {
-  const payload = { ...sanitizeVisualSettings(draft) };
+  const payload = sanitizeVisualSettings(draft) as Omit<VisualSettingsDraft, 'element_overrides'> & { element_overrides?: VisualSettingsDraft['element_overrides'] };
   delete payload.element_overrides;
   return payload;
 }
