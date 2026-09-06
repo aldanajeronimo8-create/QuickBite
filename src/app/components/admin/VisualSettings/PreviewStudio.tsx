@@ -70,7 +70,7 @@ export function PreviewStudio({ scope, previewPath, draft, saved, compare = fals
   const frame = (ref: RefObject<HTMLIFrameElement | null>, frameKey: string, settings: VisualSettingsDraft, label: string) => (
     <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-400/30" style={frameStyle}>
       <div className="flex h-8 items-center gap-1 border-b border-slate-200 bg-slate-100 px-3"><span className="size-2 rounded-full bg-slate-300" /><span className="size-2 rounded-full bg-slate-300" /><span className="size-2 rounded-full bg-slate-300" /><span className="ml-2 truncate text-[9px] font-bold text-slate-400">{label}</span></div>
-      <iframe key={`${key}-${frameKey}`} ref={ref} title={`${label} ${scope}`} src={previewPath} onLoad={() => postTo(ref.current, settings)} className="block h-[680px] w-full border-0 bg-white" />
+      <iframe key={`${key}-${frameKey}`} ref={ref as React.Ref<HTMLIFrameElement>} title={`${label} ${scope}`} src={previewPath} onLoad={() => postTo(ref.current, settings)} className="block h-[680px] w-full border-0 bg-white" />
     </div>
   );
 
