@@ -52,9 +52,19 @@ function attrSelector(name: string, value: string) {
   return `[${name}="${escaped}"]`;
 }
 
+function selectorMatchesOnlyElement(selector: string, element: HTMLElement) {
+  try {
+    const matches = document.querySelectorAll(selector);
+    return matches.length === 1 && matches[0] === element;
+  } catch {
+    return false;
+  }
+}
+
 function buildSelector(element: HTMLElement): string {
   const parts: string[] = [];
   let current: HTMLElement | null = element;
+
   while (current && current !== document.documentElement && current !== document.body) {
     let part = current.tagName.toLowerCase();
     const testId = current.getAttribute('data-testid');
@@ -62,6 +72,7 @@ function buildSelector(element: HTMLElement): string {
     const name = current.getAttribute('name');
     const aria = current.getAttribute('aria-label');
     const id = current.id;
+
     if (testId) part += attrSelector('data-testid', testId);
     else if (slot) part += attrSelector('data-slot', slot);
     else if (id && !isDynamicId(id)) part += `#${cssEscape(id)}`;
@@ -71,10 +82,13 @@ function buildSelector(element: HTMLElement): string {
       const siblings = Array.from(current.parentElement.children).filter((child) => child.tagName === current?.tagName);
       if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(current) + 1})`;
     }
+
     parts.unshift(part);
-    if (testId || slot || (id && !isDynamicId(id)) || name || aria) break;
+    const candidate = parts.join(' > ');
+    if (selectorMatchesOnlyElement(candidate, element)) return candidate;
     current = current.parentElement;
   }
+
   return parts.join(' > ');
 }
 
@@ -128,12 +142,17 @@ function cloneOverrides(source: VisualSettingsDraft['element_overrides']) {
   return Object.fromEntries(Object.entries(source ?? {}).map(([selector, style]) => [selector, { ...style }]));
 }
 
+function getInitialOverrides(settings: ReturnType<typeof useVisualTheme>['settings'], scope: VisualInterfaceScope) {
+  const scoped = settings.interface_overrides?.[scope]?.element_overrides;
+  return cloneOverrides(scoped ?? settings.element_overrides);
+}
+
 export function VisualPreviewEditor({ scope }: Props) {
   const { settings } = useVisualTheme();
   const [selected, setSelected] = useState<Selected>(null);
   const [draftStyle, setDraftStyle] = useState<VisualElementStyle>({});
   const [inspectedStyle, setInspectedStyle] = useState<VisualElementStyle>({});
-  const [sessionOverrides, setSessionOverrides] = useState(() => cloneOverrides(settings.element_overrides));
+  const [sessionOverrides, setSessionOverrides] = useState(() => getInitialOverrides(settings, scope));
   const sessionOverridesRef = useRef(sessionOverrides);
   const [message, setMessage] = useState('1 clic ejecuta la acción · 3 clics editan el elemento');
   const [designMode, setDesignMode] = useState(false);
@@ -166,7 +185,6 @@ export function VisualPreviewEditor({ scope }: Props) {
       if (!event.data?.settings || typeof event.data.settings !== 'object') return;
       const next = sanitizeVisualSettings(event.data.settings as Partial<VisualSettingsDraft>);
       const incoming = next.element_overrides ?? {};
-      if (JSON.stringify(incoming) === JSON.stringify(sessionOverridesRef.current)) return;
       syncSessionOverrides(incoming);
       if (selected) setDraftStyle({ ...(incoming[selected.selector] ?? {}) });
     };
@@ -291,10 +309,7 @@ export function VisualPreviewEditor({ scope }: Props) {
 
   return (
     <>
-      <div
-        data-qb-visual-editor
-        className="fixed left-4 top-4 z-[9998] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl bg-slate-950/90 px-4 py-3 text-white shadow-2xl backdrop-blur"
-      >
+      <div data-qb-visual-editor className="fixed left-4 top-4 z-[9998] flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl bg-slate-950/90 px-4 py-3 text-white shadow-2xl backdrop-blur">
         <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/10"><Edit3 className="size-4" /></div>
         <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-300">Editor visual</p><p className="truncate text-xs font-bold">{message}</p></div>
         <button type="button" onClick={() => setDesignMode((value) => !value)} className={`shrink-0 rounded-xl px-3 py-2 text-[10px] font-black ${designMode ? 'bg-white text-slate-900' : 'bg-white/10 text-white hover:bg-white/15'}`}>
