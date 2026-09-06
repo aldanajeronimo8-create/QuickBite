@@ -7,6 +7,12 @@ const BRANDING_BUCKET = 'quickbite-branding';
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon']);
 
+function databasePayload(draft: VisualSettingsDraft) {
+  const safe = sanitizeVisualSettings(draft);
+  const { element_overrides: _elementOverrides, ...payload } = safe;
+  return payload;
+}
+
 export async function loadVisualSettings(client: SupabaseClient = requireSupabaseClient()): Promise<VisualSettings> {
   const { data, error } = await client.from(TABLE).select('*').eq('id', true).maybeSingle();
   if (error) throw error;
@@ -16,7 +22,8 @@ export async function loadVisualSettings(client: SupabaseClient = requireSupabas
 
 export async function saveVisualSettings(draft: VisualSettingsDraft, client: SupabaseClient = requireSupabaseClient()): Promise<VisualSettings> {
   const safe = sanitizeVisualSettings(draft);
-  const { data, error } = await client.from(TABLE).update(safe).eq('id', true).select('*').single();
+  const payload = databasePayload(safe);
+  const { data, error } = await client.from(TABLE).update(payload).eq('id', true).select('*').single();
   if (error) throw error;
   const saved = sanitizeVisualSettings((data ?? safe) as Partial<VisualSettingsDraft>);
   return { ...saved, id: true, updated_at: typeof data?.updated_at === 'string' ? data.updated_at : new Date().toISOString(), updated_by: typeof data?.updated_by === 'string' ? data.updated_by : null };
