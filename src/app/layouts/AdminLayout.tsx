@@ -12,8 +12,8 @@ import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 import { requireSupabaseClient } from '../../lib/supabase';
 import { isVisualPreviewMode } from '../contexts/VisualThemeProvider';
 
-const primaryColor = '#1747B8';
-const navigationAccent = '#E0ECFF';
+const primaryColor = 'var(--qb-primary, #1747B8)';
+const navigationAccent = 'var(--qb-secondary, #E0ECFF)';
 type AdminSection = 'dashboard' | 'orders' | 'payments' | 'wallet' | 'inventory' | 'menu' | 'verification' | 'users' | 'loyalty' | 'reports' | 'history' | 'system' | 'features';
 type AdminNotification = { id: string; section: AdminSection; title: string; body: string; entity_type: string | null; entity_id: string | null; created_at: string; read_at: string | null };
 
@@ -134,7 +134,7 @@ export function AdminLayout() {
   const sidebarWidth = sidebarCollapsed ? 'lg:w-20' : 'lg:w-64';
   const mainMargin = sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64';
 
-  return <div className="admin-shell min-h-screen" style={{ background: '#F8FAFC' }}>
+  return <div className="admin-shell min-h-screen" style={{ background: 'var(--qb-background, #F8FAFC)' }}>
     {mobileSidebarOpen && <button type="button" aria-label="Cerrar menú" className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" onClick={() => setMobileSidebarOpen(false)} />}
     <aside className={`admin-sidebar fixed left-0 top-0 z-40 flex h-full w-72 flex-col shadow-xl transition-[width,transform] duration-200 ${sidebarWidth} ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ backgroundColor: primaryColor, backgroundImage: 'none' }}>
       <div className={`px-5 pb-5 pt-7 ${sidebarContentCollapsed ? 'lg:px-3' : ''}`}><div className={`flex items-center ${sidebarContentCollapsed ? 'justify-center' : 'gap-3'}`}><QuickBiteLogo className="h-10 w-10 shrink-0 rounded-xl shadow-md" alt="QuickBite Administración" />{!sidebarContentCollapsed && <div className="min-w-0"><p className="text-base font-bold leading-tight text-white">QuickBite Admin</p><p className="text-xs" style={{ color: '#93C5FD' }}>Panel de control</p></div>}<button type="button" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} className="ml-auto hidden rounded-full p-2 text-blue-100 hover:bg-white/10 lg:inline-flex" aria-label={sidebarCollapsed ? 'Expandir menú lateral' : 'Colapsar menú'} title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}><Menu className="h-5 w-5" /></button><button type="button" className="ml-auto rounded-full p-2 text-blue-100 hover:bg-white/10 lg:hidden" onClick={() => setMobileSidebarOpen(false)} aria-label="Cerrar menú lateral"><X className="h-5 w-5" /></button></div></div>
