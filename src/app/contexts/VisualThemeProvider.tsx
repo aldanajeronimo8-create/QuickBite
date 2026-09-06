@@ -1,17 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { hasSupabaseConfig } from '../../config/appConfig';
 import { requireSupabaseClient } from '../../lib/supabase';
+import { getThemeRuntimeVariables, isWhiteSurfaceColor, resolveThemeMode, type ResolvedThemeMode } from '../../lib/themeEngine';
+import { useAuthStore } from '../../store/authStore';
 import { loadVisualSettings } from '../../services/visualSettingsService';
 import {
   DEFAULT_VISUAL_SETTINGS,
-  getVisualCssVariables,
   resolveVisualSettings,
   sanitizeVisualElementStyle,
   sanitizeVisualSettings,
-  type VisualElementStyle,
   type VisualInterfaceScope,
   type VisualSettings,
   type VisualSettingsDraft,
+  type ThemeMode,
 } from '../../types/visualSettings';
 
 type VisualThemeContextValue = {
@@ -20,13 +21,15 @@ type VisualThemeContextValue = {
   error: string | null;
   refresh: () => Promise<void>;
   applyLocal: (draft: VisualSettingsDraft) => void;
+  userThemeMode: ThemeMode | null;
+  userThemeLoading: boolean;
+  setUserThemeMode: (mode: ThemeMode) => Promise<void>;
+  resolvedThemeMode: ResolvedThemeMode;
 };
 
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const VALID_SCOPES: VisualInterfaceScope[] = ['login_student', 'login_parent', 'login_admin', 'admin', 'student', 'parent'];
-const PRODUCTION_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: 'rgba(255,255,255,0.12)', accentForeground: '#FFFFFF', border: 'rgba(255,255,255,0.12)', ring: '#E0ECFF' };
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
-const ROOT_SELECTOR = ':root';
 const originalTextNodes = new WeakMap<HTMLElement, Map<Text, string>>();
 
 function getPathScope(pathname: string, search: string): VisualInterfaceScope | null {
@@ -86,23 +89,13 @@ export function getVisualInterfaceScope(): VisualInterfaceScope {
   return 'student';
 }
 
-function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfaceScope, active: boolean) {
+function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfaceScope, active: boolean, mode: ResolvedThemeMode) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  Object.entries(getVisualCssVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value));
-  root.style.setProperty('--sidebar', PRODUCTION_SIDEBAR.sidebar);
-  root.style.setProperty('--sidebar-foreground', PRODUCTION_SIDEBAR.foreground);
-  root.style.setProperty('--sidebar-primary', PRODUCTION_SIDEBAR.primary);
-  root.style.setProperty('--sidebar-primary-foreground', PRODUCTION_SIDEBAR.primaryForeground);
-  root.style.setProperty('--sidebar-accent', PRODUCTION_SIDEBAR.accent);
-  root.style.setProperty('--sidebar-accent-foreground', PRODUCTION_SIDEBAR.accentForeground);
-  root.style.setProperty('--sidebar-border', PRODUCTION_SIDEBAR.border);
-  root.style.setProperty('--sidebar-ring', PRODUCTION_SIDEBAR.ring);
-  root.style.setProperty('--qb-header-style', settings.header_style);
-  root.style.setProperty('--qb-navigation-style', settings.navigation_style);
-  root.style.setProperty('--qb-card-style', settings.card_style);
-  root.style.setProperty('--qb-input-style', settings.input_style);
-  root.dataset.qbTheme = settings.theme_mode;
+  Object.entries(getThemeRuntimeVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value));
+
+  root.dataset.qbTheme = mode;
+  root.dataset.qbAppearancePreference = settings.theme_mode;
   root.dataset.qbButtonStyle = settings.button_style;
   root.dataset.qbCardStyle = settings.card_style;
   root.dataset.qbInputStyle = settings.input_style;
@@ -111,7 +104,9 @@ function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfac
   root.dataset.qbVisualPreview = isVisualPreviewMode() ? '1' : '0';
   root.dataset.qbVisualPreviewScope = scope;
   root.dataset.qbVisualActive = active ? '1' : '0';
-  root.classList.toggle('dark', settings.theme_mode === 'dark');
+  root.classList.toggle('dark', mode === 'dark');
+  root.style.setProperty('color-scheme', mode);
+
   document.title = settings.app_name;
   let link = document.querySelector<HTMLLinkElement>('link[data-quickbite-favicon]');
   if (!link) {
@@ -125,21 +120,14 @@ function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfac
 
 function replaceDirectText(element: HTMLElement, value: string) {
   const nodes = Array.from(element.childNodes).filter((node): node is Text => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()));
-  if (nodes.length) {
-    const snapshots = originalTextNodes.get(element) ?? new Map<Text, string>();
-    nodes.forEach((node) => {
-      if (!snapshots.has(node)) snapshots.set(node, node.textContent ?? '');
-    });
-    originalTextNodes.set(element, snapshots);
-    nodes[0].textContent = value;
-    nodes.slice(1).forEach((node) => { node.textContent = ''; });
-    return;
-  }
-  if (element.childElementCount === 0) {
-    const snapshots = originalTextNodes.get(element) ?? new Map<Text, string>();
-    originalTextNodes.set(element, snapshots);
-    element.textContent = value;
-  }
+  if (!nodes.length) return;
+  const snapshots = originalTextNodes.get(element) ?? new Map<Text, string>();
+  nodes.forEach((node) => {
+    if (!snapshots.has(node)) snapshots.set(node, node.textContent ?? '');
+  });
+  originalTextNodes.set(element, snapshots);
+  nodes[0].textContent = value;
+  nodes.slice(1).forEach((node) => { node.textContent = ''; });
 }
 
 function restoreDirectText(element: HTMLElement) {
@@ -150,31 +138,35 @@ function restoreDirectText(element: HTMLElement) {
   });
 }
 
-function applyElementOverrides(settings: VisualSettingsDraft, scope: VisualInterfaceScope) {
+function applyElementOverrides(settings: VisualSettingsDraft, scope: VisualInterfaceScope, mode: ResolvedThemeMode) {
   if (typeof document === 'undefined') return;
   const id = 'quickbite-visual-element-overrides';
   let style = document.getElementById(id) as HTMLStyleElement | null;
   const baseOverrides = settings.element_overrides ?? {};
   const scopedOverrides = settings.interface_overrides?.[scope]?.element_overrides ?? {};
   const overrides = { ...baseOverrides, ...scopedOverrides };
+
   const css = Object.entries(overrides).map(([selector, rawStyle]) => {
     const safeStyle = sanitizeVisualElementStyle(rawStyle);
-    const declarations = Object.entries(safeStyle)
+    const themeSafeStyle = { ...safeStyle };
+    if (mode === 'dark' && isWhiteSurfaceColor(themeSafeStyle.backgroundColor)) delete themeSafeStyle.backgroundColor;
+
+    const declarations = Object.entries(themeSafeStyle)
       .filter(([key]) => key !== 'textContent')
       .map(([key, value]) => `${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${value} !important`)
       .join(';');
 
-    if (safeStyle.textContent !== undefined) {
-      try { document.querySelectorAll<HTMLElement>(selector).forEach((element) => replaceDirectText(element, safeStyle.textContent!)); }
-      catch { /* invalid selector is rejected during sanitization */ }
+    if (themeSafeStyle.textContent !== undefined) {
+      try { document.querySelectorAll<HTMLElement>(selector).forEach((element) => replaceDirectText(element, themeSafeStyle.textContent!)); }
+      catch { /* invalid selectors are filtered by the sanitizer */ }
     } else {
       try { document.querySelectorAll<HTMLElement>(selector).forEach(restoreDirectText); }
       catch { /* ignore */ }
     }
 
-    return declarations
-      ? `${selector.startsWith(ROOT_SELECTOR) ? selector : `${ROOT_SELECTOR}[data-qb-visual-preview-scope="${scope}"] ${selector}`}{${declarations}}`
-      : '';
+    if (!declarations) return '';
+    const selectorRoot = selector.startsWith(':root') ? selector : `:root[data-qb-visual-preview-scope="${scope}"] ${selector}`;
+    return `${selectorRoot}{${declarations}}`;
   }).filter(Boolean).join('\n');
 
   if (!css) {
@@ -205,11 +197,17 @@ function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings):
 }
 
 export function VisualThemeProvider({ children }: { children: ReactNode }) {
+  const user = useAuthStore((state) => state.user);
   const [settings, setSettings] = useState<VisualSettings>({ ...DEFAULT_VISUAL_SETTINGS, id: true, updated_at: new Date(0).toISOString(), updated_by: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<VisualSettingsDraft | null>(readStoredPreview);
   const [scope, setScope] = useState<VisualInterfaceScope>(getVisualInterfaceScope);
+  const [userThemeMode, setUserThemeModeState] = useState<ThemeMode | null>(null);
+  const [userThemeLoading, setUserThemeLoading] = useState(false);
+  const [prefersDark, setPrefersDark] = useState(false);
+
+  const authenticated = Boolean(user && user.id && !user.id.startsWith('visual-preview-') && !isVisualPreviewMode());
 
   const refresh = useCallback(async () => {
     if (!hasSupabaseConfig() || isVisualPreviewMode()) return;
@@ -231,28 +229,64 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     const sync = () => setScope(getVisualInterfaceScope());
     sync();
     const observer = new MutationObserver(sync);
-    observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'data-qb-interface'] });
-    return () => observer.disconnect();
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-qb-interface'] });
+    window.addEventListener('popstate', sync);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('popstate', sync);
+    };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => setPrefersDark(media.matches);
+    sync();
+    media.addEventListener?.('change', sync);
+    return () => media.removeEventListener?.('change', sync);
+  }, []);
+
+  useEffect(() => {
+    if (!authenticated) {
+      setUserThemeModeState(null);
+      return;
+    }
+    let cancelled = false;
+    setUserThemeLoading(true);
+    const load = async () => {
+      try {
+        const { data, error: rpcError } = await requireSupabaseClient().rpc('get_my_theme_preference');
+        if (rpcError) throw rpcError;
+        if (!cancelled) setUserThemeModeState(data === 'dark' || data === 'system' ? data : 'light');
+      } catch {
+        if (!cancelled) setUserThemeModeState(null);
+      } finally {
+        if (!cancelled) setUserThemeLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [authenticated, user?.id]);
+
   const effectiveSettings = useMemo(() => {
-    if (preview) return resolveVisualSettings(preview, scope);
-    return resolveVisualSettings(settings, scope);
-  }, [preview, settings, scope]);
+    const base = preview ? resolveVisualSettings(preview, scope) : resolveVisualSettings(settings, scope);
+    return userThemeMode ? { ...base, theme_mode: userThemeMode } : base;
+  }, [preview, scope, settings, userThemeMode]);
+
+  const resolvedThemeMode = resolveThemeMode(effectiveSettings.theme_mode, prefersDark);
 
   useEffect(() => {
     const storedOverride = settings.interface_overrides?.[scope];
     const active = Boolean(preview) || isVisualPreviewMode() || Boolean(storedOverride && Object.keys(storedOverride).length);
-    applyDocumentTheme(effectiveSettings, scope, active);
-    applyElementOverrides(effectiveSettings, scope);
-  }, [effectiveSettings, preview, scope, settings.interface_overrides]);
+    applyDocumentTheme(effectiveSettings, scope, active, resolvedThemeMode);
+    applyElementOverrides(effectiveSettings, scope, resolvedThemeMode);
+  }, [effectiveSettings, preview, scope, settings.interface_overrides, resolvedThemeMode]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || !event.data) return;
       const data = event.data as { type?: string; settings?: unknown };
-
       if (data.type === 'quickbite-visual-preview' && data.settings && typeof data.settings === 'object') {
         setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));
         return;
@@ -265,16 +299,11 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
         setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));
       }
     };
-
     const onStorage = (event: StorageEvent) => {
       if (event.key !== PREVIEW_STORAGE_KEY) return;
-      try {
-        setPreview(event.newValue ? sanitizeVisualSettings(JSON.parse(event.newValue) as Partial<VisualSettingsDraft>) : null);
-      } catch {
-        setPreview(null);
-      }
+      try { setPreview(event.newValue ? sanitizeVisualSettings(JSON.parse(event.newValue) as Partial<VisualSettingsDraft>) : null); }
+      catch { setPreview(null); }
     };
-
     window.addEventListener('message', onMessage);
     window.addEventListener('storage', onStorage);
     return () => {
@@ -288,15 +317,6 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     try { window.opener.postMessage({ type: 'quickbite-visual-preview-ready' }, window.location.origin); }
     catch { /* ignore */ }
   }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || settings.theme_mode !== 'system') return;
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const sync = () => { if (!preview) document.documentElement.classList.toggle('dark', media.matches); };
-    sync();
-    media.addEventListener?.('change', sync);
-    return () => media.removeEventListener?.('change', sync);
-  }, [preview, settings.theme_mode]);
 
   useEffect(() => {
     if (!hasSupabaseConfig() || isVisualPreviewMode()) return;
@@ -313,8 +333,24 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setUserThemeMode = useCallback(async (next: ThemeMode) => {
+    if (!authenticated || userThemeLoading) return;
+    const previous = userThemeMode;
+    setUserThemeModeState(next);
+    setUserThemeLoading(true);
+    try {
+      const { error: rpcError } = await requireSupabaseClient().rpc('set_my_theme_preference', { p_theme_mode: next });
+      if (rpcError) throw rpcError;
+    } catch (error) {
+      setUserThemeModeState(previous);
+      throw error instanceof Error ? error : new Error('No se pudo guardar la preferencia de apariencia.');
+    } finally {
+      setUserThemeLoading(false);
+    }
+  }, [authenticated, userThemeLoading, userThemeMode]);
+
   const applyLocal = useCallback((draft: VisualSettingsDraft) => setSettings((previous) => toStoredSettings(draft, previous)), []);
-  const value = useMemo(() => ({ settings, loading, error, refresh, applyLocal }), [applyLocal, error, loading, refresh, settings]);
+  const value = useMemo(() => ({ settings, loading, error, refresh, applyLocal, userThemeMode, userThemeLoading, setUserThemeMode, resolvedThemeMode }), [applyLocal, error, loading, refresh, resolvedThemeMode, setUserThemeMode, settings, userThemeLoading, userThemeMode]);
 
   return <VisualThemeContext.Provider value={value}>{children}</VisualThemeContext.Provider>;
 }

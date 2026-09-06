@@ -97,7 +97,6 @@ export function PreviewStudio({
   canRedo = false,
   onUndo,
   onRedo,
-  onCopy: _onCopy,
 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const savedIframeRef = useRef<HTMLIFrameElement | null>(null);
