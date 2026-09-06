@@ -9,7 +9,6 @@
   --qb-blue-dark: #1747b8;
   --qb-blue-light: #e0ecff;
   --qb-turquoise: #14b8a6;
-
   --qb-primary: #16A36A;
   --qb-secondary: #E0ECFF;
   --qb-accent: #14B8A6;
@@ -26,7 +25,6 @@
   --qb-control-height: 2.75rem;
   --qb-font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
   --qb-heading-font: "Nunito", ui-sans-serif, system-ui, sans-serif;
-
   --background: #F5F8F7;
   --foreground: #0F172A;
   --card: #FFFFFF;
@@ -56,7 +54,6 @@
   --chart-4: var(--qb-warning);
   --chart-5: var(--qb-error);
   --radius: 0.5rem;
-
   --sidebar: #1747B8;
   --sidebar-foreground: #FFFFFF;
   --sidebar-primary: #2563EB;
@@ -65,7 +62,6 @@
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: rgba(255,255,255,0.12);
   --sidebar-ring: #E0ECFF;
-
   --text-base: 1rem;
   --text-lg: 1.125rem;
   --text-xl: 1.25rem;
@@ -84,7 +80,6 @@
   --qb-border: var(--qb-light-border, #E2E8F0);
   --qb-separator: var(--qb-light-border, #E2E8F0);
   --qb-overlay: rgba(15, 23, 42, 0.48);
-
   --background: var(--qb-background);
   --foreground: var(--qb-text);
   --card: var(--qb-surface);
@@ -121,7 +116,6 @@
   --qb-border: rgba(170, 183, 201, 0.20);
   --qb-separator: rgba(170, 183, 201, 0.12);
   --qb-overlay: rgba(0, 0, 0, 0.62);
-
   --background: var(--qb-background);
   --foreground: var(--qb-text);
   --card: var(--qb-surface-muted);
@@ -222,12 +216,7 @@
 
 @layer base {
   * { @apply border-border outline-ring/50; }
-
-  html {
-    font-size: var(--font-size);
-    background: var(--qb-background, var(--background));
-  }
-
+  html { font-size: var(--font-size); background: var(--qb-background, var(--background)); }
   body {
     @apply bg-background text-foreground;
     font-family: var(--qb-font-family);
@@ -236,7 +225,6 @@
     color: var(--qb-text, var(--foreground));
     transition: background-color 180ms ease, color 180ms ease;
   }
-
   h1 { font-size: var(--text-2xl); font-weight: var(--font-weight-medium); line-height: 1.5; }
   h2 { font-size: var(--text-xl); font-weight: var(--font-weight-medium); line-height: 1.5; }
   h3 { font-size: var(--text-lg); font-weight: var(--font-weight-medium); line-height: 1.5; }
@@ -244,12 +232,9 @@
   label { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
   button { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
   input, select, textarea { font-size: var(--text-base); font-weight: var(--font-weight-normal); line-height: 1.5; }
-
   ::selection { background: color-mix(in srgb, var(--qb-primary) 24%, transparent); color: var(--qb-text); }
 }
 
-/* Semantic surfaces. Components should prefer these classes/tokens over
- * literal background utilities so the appearance contract remains stable. */
 .qb-page { background: var(--qb-background); color: var(--qb-text); }
 .qb-surface { background: var(--qb-surface); color: var(--qb-text); }
 .qb-surface-muted { background: var(--qb-surface-muted); color: var(--qb-text); }
@@ -260,15 +245,14 @@
 .qb-border { border-color: var(--qb-border); }
 .qb-separator { border-color: var(--qb-separator); }
 
-/* Compatibility bridge for legacy literal utilities. This keeps the theme
- * centralized while old screens migrate to semantic qb-* / Tailwind tokens. */
+/* Temporary compatibility bridge for screens still using literal Tailwind
+ * colors. It is scoped to the user's resolved theme and keeps all translation
+ * rules in the central theme engine stylesheet rather than per-page patches. */
 :root[data-qb-theme="dark"] [class~="bg-white"],
 :root[data-qb-theme="dark"] [class~="bg-gray-50"],
 :root[data-qb-theme="dark"] [class~="bg-slate-50"] { background-color: var(--qb-surface) !important; }
-
 :root[data-qb-theme="dark"] [class~="bg-gray-100"],
 :root[data-qb-theme="dark"] [class~="bg-slate-100"] { background-color: var(--qb-surface-muted) !important; }
-
 :root[data-qb-theme="dark"] [class~="bg-gray-200"],
 :root[data-qb-theme="dark"] [class~="bg-slate-200"] { background-color: var(--qb-surface-elevated) !important; }
 
@@ -278,12 +262,10 @@
 :root[data-qb-theme="dark"] [class~="text-slate-800"],
 :root[data-qb-theme="dark"] [class~="text-gray-700"],
 :root[data-qb-theme="dark"] [class~="text-slate-700"] { color: var(--qb-text) !important; }
-
 :root[data-qb-theme="dark"] [class~="text-gray-600"],
 :root[data-qb-theme="dark"] [class~="text-slate-600"],
 :root[data-qb-theme="dark"] [class~="text-gray-500"],
 :root[data-qb-theme="dark"] [class~="text-slate-500"] { color: var(--qb-text-secondary) !important; }
-
 :root[data-qb-theme="dark"] [class~="text-gray-400"],
 :root[data-qb-theme="dark"] [class~="text-slate-400"],
 :root[data-qb-theme="dark"] [class~="text-gray-300"],
@@ -293,21 +275,28 @@
 :root[data-qb-theme="dark"] [class~="border-slate-100"],
 :root[data-qb-theme="dark"] [class~="border-gray-200"],
 :root[data-qb-theme="dark"] [class~="border-slate-200"] { border-color: var(--qb-border) !important; }
-
 :root[data-qb-theme="dark"] [class~="divide-gray-200"] > :not([hidden]) ~ :not([hidden]),
 :root[data-qb-theme="dark"] [class~="divide-slate-200"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--qb-separator) !important; }
 
 :root[data-qb-theme="dark"] [class~="bg-white\/50"] { background-color: color-mix(in srgb, var(--qb-surface) 50%, transparent) !important; }
+:root[data-qb-theme="dark"] [class~="bg-white\/60"] { background-color: color-mix(in srgb, var(--qb-surface) 60%, transparent) !important; }
+:root[data-qb-theme="dark"] [class~="bg-white\/70"] { background-color: color-mix(in srgb, var(--qb-surface) 70%, transparent) !important; }
 :root[data-qb-theme="dark"] [class~="bg-white\/75"] { background-color: color-mix(in srgb, var(--qb-surface) 75%, transparent) !important; }
 :root[data-qb-theme="dark"] [class~="bg-white\/80"] { background-color: color-mix(in srgb, var(--qb-surface) 80%, transparent) !important; }
+:root[data-qb-theme="dark"] [class~="bg-white\/85"] { background-color: color-mix(in srgb, var(--qb-surface) 85%, transparent) !important; }
 :root[data-qb-theme="dark"] [class~="bg-white\/90"] { background-color: color-mix(in srgb, var(--qb-surface) 90%, transparent) !important; }
 :root[data-qb-theme="dark"] [class~="bg-white\/95"] { background-color: color-mix(in srgb, var(--qb-surface) 95%, transparent) !important; }
+
+:root[data-qb-theme="dark"] [class*="#f5f8f7"],
+:root[data-qb-theme="dark"] [class*="#F5F8F7"] { background-color: var(--qb-background) !important; }
+:root[data-qb-theme="dark"] [class~="border-white\/60"],
+:root[data-qb-theme="dark"] [class~="border-white\/70"],
+:root[data-qb-theme="dark"] [class~="border-white\/80"] { border-color: var(--qb-border) !important; }
 
 .dark .qb-page,
 .dark .qb-surface,
 .dark .qb-surface-muted,
 .dark .qb-surface-elevated { transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease; }
-
 button, input, select, textarea, [role="button"] {
   transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
