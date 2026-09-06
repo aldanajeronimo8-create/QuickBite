@@ -2,361 +2,64 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { hasSupabaseConfig } from '../../config/appConfig';
 import { requireSupabaseClient } from '../../lib/supabase';
 import { getThemeRuntimeVariables, isWhiteSurfaceColor, resolveThemeMode, type ResolvedThemeMode } from '../../lib/themeEngine';
+import { parseVisualVariantKey, VISUAL_VIEWPORTS } from '../../lib/visualEditorVariants';
 import { useAuthStore } from '../../store/authStore';
 import { loadVisualSettings } from '../../services/visualSettingsService';
-import {
-  DEFAULT_VISUAL_SETTINGS,
-  resolveVisualSettings,
-  sanitizeVisualElementStyle,
-  sanitizeVisualSettings,
-  type VisualInterfaceScope,
-  type VisualSettings,
-  type VisualSettingsDraft,
-  type ThemeMode,
-} from '../../types/visualSettings';
+import { DEFAULT_VISUAL_SETTINGS, resolveVisualSettings, sanitizeVisualElementStyle, sanitizeVisualSettings, type VisualInterfaceScope, type VisualSettings, type VisualSettingsDraft, type ThemeMode } from '../../types/visualSettings';
 
-type VisualThemeContextValue = {
-  settings: VisualSettings;
-  loading: boolean;
-  error: string | null;
-  refresh: () => Promise<void>;
-  applyLocal: (draft: VisualSettingsDraft) => void;
-  userThemeMode: ThemeMode | null;
-  userThemeLoading: boolean;
-  setUserThemeMode: (mode: ThemeMode) => Promise<void>;
-  resolvedThemeMode: ResolvedThemeMode;
-};
-
+type VisualThemeContextValue = { settings: VisualSettings; loading: boolean; error: string | null; refresh: () => Promise<void>; applyLocal: (draft: VisualSettingsDraft) => void; userThemeMode: ThemeMode | null; userThemeLoading: boolean; setUserThemeMode: (mode: ThemeMode) => Promise<void>; resolvedThemeMode: ResolvedThemeMode };
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
-const VALID_SCOPES: VisualInterfaceScope[] = ['login_student', 'login_parent', 'login_admin', 'admin', 'student', 'parent'];
+const VALID_SCOPES: VisualInterfaceScope[] = ['login_student','login_parent','login_admin','admin','student','parent'];
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
 const originalTextNodes = new WeakMap<HTMLElement, Map<Text, string>>();
 
-function getPathScope(pathname: string, search: string): VisualInterfaceScope | null {
-  const params = new URLSearchParams(search);
-  const previewRole = params.get('preview_role');
-  if ((pathname === '/' || pathname === '/login') && (previewRole === 'student' || previewRole === 'parent' || previewRole === 'admin')) {
-    return `login_${previewRole}` as VisualInterfaceScope;
-  }
-  if (pathname.startsWith('/admin')) return 'admin';
-  if (pathname.startsWith('/parent')) return 'parent';
-  if (pathname.startsWith('/menu') || pathname.startsWith('/student')) return 'student';
-  return null;
-}
+function getPathScope(pathname: string, search: string): VisualInterfaceScope | null { const params = new URLSearchParams(search); const previewRole = params.get('preview_role'); if ((pathname === '/' || pathname === '/login') && (previewRole === 'student' || previewRole === 'parent' || previewRole === 'admin')) return `login_${previewRole}` as VisualInterfaceScope; if (pathname.startsWith('/admin')) return 'admin'; if (pathname.startsWith('/parent')) return 'parent'; if (pathname.startsWith('/menu') || pathname.startsWith('/student')) return 'student'; return null; }
+export function getVisualPreviewScope(): VisualInterfaceScope | null { if (typeof window === 'undefined') return null; const direct = getPathScope(window.location.pathname, window.location.search); if (direct) return direct; try { if (window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance')) return getPathScope(window.location.pathname, window.location.search); } catch { return null; } return null; }
+export function isVisualPreviewMode(): boolean { if (typeof window === 'undefined') return false; const params = new URLSearchParams(window.location.search); if (params.get('visual_preview') === '1' && Boolean(getVisualPreviewScope())) return true; try { return window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance') && Boolean(getVisualPreviewScope()); } catch { return false; } }
+export function getVisualInterfaceScope(): VisualInterfaceScope { const previewScope = getVisualPreviewScope(); if (previewScope && (isVisualPreviewMode() || new URLSearchParams(window.location.search).has('visual_preview_scope'))) return previewScope; if (typeof document !== 'undefined') { const explicit = document.querySelector<HTMLElement>('[data-qb-interface]')?.dataset.qbInterface; if (explicit && VALID_SCOPES.includes(explicit as VisualInterfaceScope)) return explicit as VisualInterfaceScope; const auth = document.querySelector<HTMLElement>('.qb-auth'); if (auth?.classList.contains('qb-auth--admin')) return 'login_admin'; if (Array.from(document.querySelectorAll('h3')).some((node) => /iniciar sesión como padre/i.test(node.textContent ?? ''))) return 'login_parent'; } if (typeof window !== 'undefined') { const path = window.location.pathname; if (path === '/' || path === '/login') return 'login_student'; if (path.startsWith('/admin')) return 'admin'; if (path.startsWith('/parent')) return 'parent'; if (path.startsWith('/menu') || path.startsWith('/student')) return 'student'; } return 'student'; }
 
-export function getVisualPreviewScope(): VisualInterfaceScope | null {
-  if (typeof window === 'undefined') return null;
-  const direct = getPathScope(window.location.pathname, window.location.search);
-  if (direct) return direct;
-  try {
-    if (window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance')) {
-      return getPathScope(window.location.pathname, window.location.search);
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-export function isVisualPreviewMode(): boolean {
-  if (typeof window === 'undefined') return false;
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('visual_preview') === '1' && Boolean(getVisualPreviewScope())) return true;
-  try {
-    return window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance') && Boolean(getVisualPreviewScope());
-  } catch {
-    return false;
-  }
-}
-
-export function getVisualInterfaceScope(): VisualInterfaceScope {
-  const previewScope = getVisualPreviewScope();
-  if (previewScope && (isVisualPreviewMode() || new URLSearchParams(window.location.search).has('visual_preview_scope'))) return previewScope;
-  if (typeof document !== 'undefined') {
-    const explicit = document.querySelector<HTMLElement>('[data-qb-interface]')?.dataset.qbInterface;
-    if (explicit && VALID_SCOPES.includes(explicit as VisualInterfaceScope)) return explicit as VisualInterfaceScope;
-    const auth = document.querySelector<HTMLElement>('.qb-auth');
-    if (auth?.classList.contains('qb-auth--admin')) return 'login_admin';
-    if (Array.from(document.querySelectorAll('h3')).some((node) => /iniciar sesión como padre/i.test(node.textContent ?? ''))) return 'login_parent';
-  }
-  if (typeof window !== 'undefined') {
-    const path = window.location.pathname;
-    if (path === '/' || path === '/login') return 'login_student';
-    if (path.startsWith('/admin')) return 'admin';
-    if (path.startsWith('/parent')) return 'parent';
-    if (path.startsWith('/menu') || path.startsWith('/student')) return 'student';
-  }
-  return 'student';
-}
-
-function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfaceScope, active: boolean, mode: ResolvedThemeMode) {
-  if (typeof document === 'undefined') return;
-  const root = document.documentElement;
-  Object.entries(getThemeRuntimeVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value));
-
-  root.dataset.qbTheme = mode;
-  root.dataset.qbAppearancePreference = settings.theme_mode;
-  root.dataset.qbButtonStyle = settings.button_style;
-  root.dataset.qbCardStyle = settings.card_style;
-  root.dataset.qbInputStyle = settings.input_style;
-  root.dataset.qbHeaderStyle = settings.header_style;
-  root.dataset.qbNavigationStyle = settings.navigation_style;
-  root.dataset.qbVisualPreview = isVisualPreviewMode() ? '1' : '0';
-  root.dataset.qbVisualPreviewScope = scope;
-  root.dataset.qbVisualActive = active ? '1' : '0';
-  root.classList.toggle('dark', mode === 'dark');
-  root.style.setProperty('color-scheme', mode);
-
-  document.title = settings.app_name;
-  let link = document.querySelector<HTMLLinkElement>('link[data-quickbite-favicon]');
-  if (!link) {
-    link = document.createElement('link');
-    link.rel = 'icon';
-    link.dataset.quickbiteFavicon = 'true';
-    document.head.appendChild(link);
-  }
-  link.href = settings.favicon_url || '/favicon.ico';
-}
-
-function replaceDirectText(element: HTMLElement, value: string) {
-  const nodes = Array.from(element.childNodes).filter((node): node is Text => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()));
-  if (!nodes.length) return;
-  const snapshots = originalTextNodes.get(element) ?? new Map<Text, string>();
-  nodes.forEach((node) => {
-    if (!snapshots.has(node)) snapshots.set(node, node.textContent ?? '');
-  });
-  originalTextNodes.set(element, snapshots);
-  nodes[0].textContent = value;
-  nodes.slice(1).forEach((node) => { node.textContent = ''; });
-}
-
-function restoreDirectText(element: HTMLElement) {
-  const snapshots = originalTextNodes.get(element);
-  if (!snapshots) return;
-  snapshots.forEach((value, node) => {
-    if (node.isConnected) node.textContent = value;
-  });
-}
+function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfaceScope, active: boolean, mode: ResolvedThemeMode) { if (typeof document === 'undefined') return; const root = document.documentElement; Object.entries(getThemeRuntimeVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value)); root.dataset.qbTheme = mode; root.dataset.qbAppearancePreference = settings.theme_mode; root.dataset.qbButtonStyle = settings.button_style; root.dataset.qbCardStyle = settings.card_style; root.dataset.qbInputStyle = settings.input_style; root.dataset.qbHeaderStyle = settings.header_style; root.dataset.qbNavigationStyle = settings.navigation_style; root.dataset.qbVisualPreview = isVisualPreviewMode() ? '1' : '0'; root.dataset.qbVisualPreviewScope = scope; root.dataset.qbVisualActive = active ? '1' : '0'; root.classList.toggle('dark', mode === 'dark'); root.style.setProperty('color-scheme', mode); document.title = settings.app_name; let link = document.querySelector<HTMLLinkElement>('link[data-quickbite-favicon]'); if (!link) { link = document.createElement('link'); link.rel = 'icon'; link.dataset.quickbiteFavicon = 'true'; document.head.appendChild(link); } link.href = settings.favicon_url || '/favicon.ico'; }
+function replaceDirectText(element: HTMLElement, value: string) { const nodes = Array.from(element.childNodes).filter((node): node is Text => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim())); if (!nodes.length) return; const snapshots = originalTextNodes.get(element) ?? new Map<Text,string>(); nodes.forEach((node) => { if (!snapshots.has(node)) snapshots.set(node, node.textContent ?? ''); }); originalTextNodes.set(element, snapshots); nodes[0].textContent = value; nodes.slice(1).forEach((node) => { node.textContent = ''; }); }
+function restoreDirectText(element: HTMLElement) { const snapshots = originalTextNodes.get(element); if (!snapshots) return; snapshots.forEach((value,node) => { if (node.isConnected) node.textContent = value; }); }
+function stateSelector(scope: VisualInterfaceScope, selector: string, state: string) { const base = selector.startsWith(':root') ? selector : `:root[data-qb-visual-preview-scope=\"${scope}\"] ${selector}`; switch (state) { case 'hover': return `${base}:hover`; case 'active': return `${base}:active`; case 'focus': return `${base}:focus-visible`; case 'disabled': return `${base}:disabled,${base}[aria-disabled=\"true\"]`; default: return base; } }
 
 function applyElementOverrides(settings: VisualSettingsDraft, scope: VisualInterfaceScope, mode: ResolvedThemeMode) {
   if (typeof document === 'undefined') return;
-  const id = 'quickbite-visual-element-overrides';
-  let style = document.getElementById(id) as HTMLStyleElement | null;
-  const baseOverrides = settings.element_overrides ?? {};
-  const scopedOverrides = settings.interface_overrides?.[scope]?.element_overrides ?? {};
-  const overrides = { ...baseOverrides, ...scopedOverrides };
-
-  const css = Object.entries(overrides).map(([selector, rawStyle]) => {
-    const safeStyle = sanitizeVisualElementStyle(rawStyle);
-    const themeSafeStyle = { ...safeStyle };
-    if (mode === 'dark' && isWhiteSurfaceColor(themeSafeStyle.backgroundColor)) delete themeSafeStyle.backgroundColor;
-
-    const declarations = Object.entries(themeSafeStyle)
-      .filter(([key]) => key !== 'textContent')
-      .map(([key, value]) => `${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${value} !important`)
-      .join(';');
-
-    if (themeSafeStyle.textContent !== undefined) {
-      try { document.querySelectorAll<HTMLElement>(selector).forEach((element) => replaceDirectText(element, themeSafeStyle.textContent!)); }
-      catch { /* invalid selectors are filtered by the sanitizer */ }
-    } else {
-      try { document.querySelectorAll<HTMLElement>(selector).forEach(restoreDirectText); }
-      catch { /* ignore */ }
-    }
-
-    if (!declarations) return '';
-    const selectorRoot = selector.startsWith(':root') ? selector : `:root[data-qb-visual-preview-scope="${scope}"] ${selector}`;
-    return `${selectorRoot}{${declarations}}`;
-  }).filter(Boolean).join('\n');
-
-  if (!css) {
-    style?.remove();
-    return;
-  }
-  if (!style) {
-    style = document.createElement('style');
-    style.id = id;
-    style.dataset.qbVisualElementOverrides = 'true';
-    document.head.appendChild(style);
-  }
-  style.textContent = css;
+  const id = 'quickbite-visual-element-overrides'; let style = document.getElementById(id) as HTMLStyleElement | null;
+  const overrides = { ...(settings.element_overrides ?? {}), ...(settings.interface_overrides?.[scope]?.element_overrides ?? {}) };
+  const css: string[] = [];
+  Object.entries(overrides).forEach(([key, rawStyle]) => {
+    const parsed = parseVisualVariantKey(key); const safe = sanitizeVisualElementStyle(rawStyle); const themeSafe = { ...safe };
+    if (mode === 'dark' && isWhiteSurfaceColor(themeSafe.backgroundColor)) delete themeSafe.backgroundColor;
+    if (parsed.viewport === 'base' && parsed.state === 'default' && themeSafe.textContent !== undefined) { try { document.querySelectorAll<HTMLElement>(parsed.selector).forEach((element) => replaceDirectText(element, themeSafe.textContent!)); } catch { /* resilient */ } }
+    else if (parsed.viewport === 'base' && parsed.state === 'default') { try { document.querySelectorAll<HTMLElement>(parsed.selector).forEach(restoreDirectText); } catch { /* resilient */ } }
+    const declarations = Object.entries(themeSafe).filter(([property]) => property !== 'textContent').map(([property,value]) => `${property.replace(/[A-Z]/g,(letter)=>`-${letter.toLowerCase()}`)}:${value} !important`).join(';');
+    if (!declarations) return;
+    const rule = `${stateSelector(scope, parsed.selector, parsed.state)}{${declarations}}`;
+    const viewport = VISUAL_VIEWPORTS.find((item) => item.id === parsed.viewport); css.push(viewport?.query ? `@media ${viewport.query}{${rule}}` : rule);
+  });
+  if (!css.length) { style?.remove(); return; }
+  if (!style) { style = document.createElement('style'); style.id = id; style.dataset.qbVisualElementOverrides = 'true'; document.head.appendChild(style); }
+  style.textContent = css.join('\n');
 }
-
-function readStoredPreview(): VisualSettingsDraft | null {
-  if (typeof window === 'undefined' || !isVisualPreviewMode()) return null;
-  try {
-    const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
-    return raw ? sanitizeVisualSettings(JSON.parse(raw) as Partial<VisualSettingsDraft>) : null;
-  } catch {
-    return null;
-  }
-}
-
-function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings {
-  return { ...draft, id: true, updated_at: previous.updated_at, updated_by: previous.updated_by };
-}
+function readStoredPreview(): VisualSettingsDraft | null { if (typeof window === 'undefined' || !isVisualPreviewMode()) return null; try { const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY); return raw ? sanitizeVisualSettings(JSON.parse(raw) as Partial<VisualSettingsDraft>) : null; } catch { return null; } }
+function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings { return { ...draft, id: true, updated_at: previous.updated_at, updated_by: previous.updated_by }; }
 
 export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
-  const [settings, setSettings] = useState<VisualSettings>({ ...DEFAULT_VISUAL_SETTINGS, id: true, updated_at: new Date(0).toISOString(), updated_by: null });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<VisualSettingsDraft | null>(readStoredPreview);
-  const [scope, setScope] = useState<VisualInterfaceScope>(getVisualInterfaceScope);
-  const [userThemeMode, setUserThemeModeState] = useState<ThemeMode | null>(null);
-  const [userThemeLoading, setUserThemeLoading] = useState(false);
-  const [prefersDark, setPrefersDark] = useState(false);
-
-  const authenticated = Boolean(user && user.id && !user.id.startsWith('visual-preview-') && !isVisualPreviewMode());
-
-  const refresh = useCallback(async () => {
-    if (!hasSupabaseConfig() || isVisualPreviewMode()) return;
-    setLoading(true);
-    try {
-      setSettings(await loadVisualSettings());
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cargar la configuración visual.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const sync = () => setScope(getVisualInterfaceScope());
-    sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-qb-interface'] });
-    window.addEventListener('popstate', sync);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('popstate', sync);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const sync = () => setPrefersDark(media.matches);
-    sync();
-    media.addEventListener?.('change', sync);
-    return () => media.removeEventListener?.('change', sync);
-  }, []);
-
-  useEffect(() => {
-    if (!authenticated) {
-      setUserThemeModeState(null);
-      return;
-    }
-    let cancelled = false;
-    setUserThemeLoading(true);
-    const load = async () => {
-      try {
-        const { data, error: rpcError } = await requireSupabaseClient().rpc('get_my_theme_preference');
-        if (rpcError) throw rpcError;
-        if (!cancelled) setUserThemeModeState(data === 'dark' || data === 'system' ? data : 'light');
-      } catch {
-        if (!cancelled) setUserThemeModeState(null);
-      } finally {
-        if (!cancelled) setUserThemeLoading(false);
-      }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, [authenticated, user?.id]);
-
-  const effectiveSettings = useMemo(() => {
-    const base = preview ? resolveVisualSettings(preview, scope) : resolveVisualSettings(settings, scope);
-    return userThemeMode ? { ...base, theme_mode: userThemeMode } : base;
-  }, [preview, scope, settings, userThemeMode]);
-
-  const resolvedThemeMode = resolveThemeMode(effectiveSettings.theme_mode, prefersDark);
-
-  useEffect(() => {
-    const storedOverride = settings.interface_overrides?.[scope];
-    const active = Boolean(preview) || isVisualPreviewMode() || Boolean(storedOverride && Object.keys(storedOverride).length);
-    applyDocumentTheme(effectiveSettings, scope, active, resolvedThemeMode);
-    applyElementOverrides(effectiveSettings, scope, resolvedThemeMode);
-  }, [effectiveSettings, preview, scope, settings.interface_overrides, resolvedThemeMode]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin || !event.data) return;
-      const data = event.data as { type?: string; settings?: unknown };
-      if (data.type === 'quickbite-visual-preview' && data.settings && typeof data.settings === 'object') {
-        setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));
-        return;
-      }
-      if (data.type === 'quickbite-visual-preview-clear') {
-        setPreview(null);
-        return;
-      }
-      if ((data.type === 'quickbite-visual-element-edit' || data.type === 'quickbite-visual-element-reset') && isVisualPreviewMode() && data.settings && typeof data.settings === 'object') {
-        setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));
-      }
-    };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key !== PREVIEW_STORAGE_KEY) return;
-      try { setPreview(event.newValue ? sanitizeVisualSettings(JSON.parse(event.newValue) as Partial<VisualSettingsDraft>) : null); }
-      catch { setPreview(null); }
-    };
-    window.addEventListener('message', onMessage);
-    window.addEventListener('storage', onStorage);
-    return () => {
-      window.removeEventListener('message', onMessage);
-      window.removeEventListener('storage', onStorage);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !isVisualPreviewMode() || !window.opener) return;
-    try { window.opener.postMessage({ type: 'quickbite-visual-preview-ready' }, window.location.origin); }
-    catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    if (!hasSupabaseConfig() || isVisualPreviewMode()) return;
-    try {
-      const client = requireSupabaseClient();
-      const channel = client.channel('quickbite-visual-settings')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_visual_settings' }, (payload) => {
-          if (payload.new && typeof payload.new === 'object') void loadVisualSettings(client).then(setSettings).catch(() => undefined);
-        })
-        .subscribe();
-      return () => { void channel.unsubscribe(); };
-    } catch {
-      return undefined;
-    }
-  }, []);
-
-  const setUserThemeMode = useCallback(async (next: ThemeMode) => {
-    if (!authenticated || userThemeLoading) return;
-    const previous = userThemeMode;
-    setUserThemeModeState(next);
-    setUserThemeLoading(true);
-    try {
-      const { error: rpcError } = await requireSupabaseClient().rpc('set_my_theme_preference', { p_theme_mode: next });
-      if (rpcError) throw rpcError;
-    } catch (error) {
-      setUserThemeModeState(previous);
-      throw error instanceof Error ? error : new Error('No se pudo guardar la preferencia de apariencia.');
-    } finally {
-      setUserThemeLoading(false);
-    }
-  }, [authenticated, userThemeLoading, userThemeMode]);
-
-  const applyLocal = useCallback((draft: VisualSettingsDraft) => setSettings((previous) => toStoredSettings(draft, previous)), []);
-  const value = useMemo(() => ({ settings, loading, error, refresh, applyLocal, userThemeMode, userThemeLoading, setUserThemeMode, resolvedThemeMode }), [applyLocal, error, loading, refresh, resolvedThemeMode, setUserThemeMode, settings, userThemeLoading, userThemeMode]);
-
-  return <VisualThemeContext.Provider value={value}>{children}</VisualThemeContext.Provider>;
+  const [settings,setSettings] = useState<VisualSettings>({ ...DEFAULT_VISUAL_SETTINGS,id:true,updated_at:new Date(0).toISOString(),updated_by:null }); const [loading,setLoading]=useState(false); const [error,setError]=useState<string|null>(null); const [preview,setPreview]=useState<VisualSettingsDraft|null>(readStoredPreview); const [scope,setScope]=useState<VisualInterfaceScope>(getVisualInterfaceScope); const [userThemeMode,setUserThemeModeState]=useState<ThemeMode|null>(null); const [userThemeLoading,setUserThemeLoading]=useState(false); const [prefersDark,setPrefersDark]=useState(false);
+  const authenticated=Boolean(user&&user.id&&!user.id.startsWith('visual-preview-')&&!isVisualPreviewMode());
+  const refresh=useCallback(async()=>{ if(!hasSupabaseConfig()||isVisualPreviewMode()) return; setLoading(true); try{setSettings(await loadVisualSettings());setError(null);}catch(err){setError(err instanceof Error?err.message:'No se pudo cargar la configuración visual.');}finally{setLoading(false);} },[]);
+  useEffect(()=>{void refresh();},[refresh]);
+  useEffect(()=>{if(typeof document==='undefined')return;const sync=()=>setScope(getVisualInterfaceScope());sync();const observer=new MutationObserver(sync);observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['data-qb-interface']});window.addEventListener('popstate',sync);return()=>{observer.disconnect();window.removeEventListener('popstate',sync);};},[]);
+  useEffect(()=>{if(typeof window==='undefined')return;const media=window.matchMedia('(prefers-color-scheme: dark)');const sync=()=>setPrefersDark(media.matches);sync();media.addEventListener?.('change',sync);return()=>media.removeEventListener?.('change',sync);},[]);
+  useEffect(()=>{if(!authenticated){setUserThemeModeState(null);return;}let cancelled=false;setUserThemeLoading(true);const load=async()=>{try{const {data,error:rpcError}=await requireSupabaseClient().rpc('get_my_theme_preference');if(rpcError)throw rpcError;if(!cancelled)setUserThemeModeState(data==='dark'||data==='system'?data:'light');}catch{if(!cancelled)setUserThemeModeState(null);}finally{if(!cancelled)setUserThemeLoading(false);}};void load();return()=>{cancelled=true;};},[authenticated,user?.id]);
+  const effectiveSettings=useMemo(()=>{const base=preview?resolveVisualSettings(preview,scope):resolveVisualSettings(settings,scope);return userThemeMode?{...base,theme_mode:userThemeMode}:base;},[preview,scope,settings,userThemeMode]); const resolvedThemeMode=resolveThemeMode(effectiveSettings.theme_mode,prefersDark);
+  useEffect(()=>{const storedOverride=settings.interface_overrides?.[scope];const active=Boolean(preview)||isVisualPreviewMode()||Boolean(storedOverride&&Object.keys(storedOverride).length);applyDocumentTheme(effectiveSettings,scope,active,resolvedThemeMode);applyElementOverrides(effectiveSettings,scope,resolvedThemeMode);},[effectiveSettings,preview,scope,settings.interface_overrides,resolvedThemeMode]);
+  useEffect(()=>{if(typeof window==='undefined')return;const onMessage=(event:MessageEvent)=>{if(event.origin!==window.location.origin||!event.data)return;const data=event.data as {type?:string;settings?:unknown};if(data.type==='quickbite-visual-preview'&&data.settings&&typeof data.settings==='object'){setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));return;}if(data.type==='quickbite-visual-preview-clear'){setPreview(null);return;}if((data.type==='quickbite-visual-element-edit'||data.type==='quickbite-visual-element-reset')&&isVisualPreviewMode()&&data.settings&&typeof data.settings==='object')setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));};const onStorage=(event:StorageEvent)=>{if(event.key!==PREVIEW_STORAGE_KEY)return;try{setPreview(event.newValue?sanitizeVisualSettings(JSON.parse(event.newValue) as Partial<VisualSettingsDraft>):null);}catch{setPreview(null);}};window.addEventListener('message',onMessage);window.addEventListener('storage',onStorage);return()=>{window.removeEventListener('message',onMessage);window.removeEventListener('storage',onStorage);};},[]);
+  useEffect(()=>{if(typeof window==='undefined'||!isVisualPreviewMode()||!window.opener)return;try{window.opener.postMessage({type:'quickbite-visual-preview-ready'},window.location.origin);}catch{/* ignore */}},[]);
+  useEffect(()=>{if(!hasSupabaseConfig()||isVisualPreviewMode())return;try{const client=requireSupabaseClient();const channel=client.channel('quickbite-visual-settings').on('postgres_changes',{event:'*',schema:'public',table:'app_visual_settings'},(payload)=>{if(payload.new&&typeof payload.new==='object')void loadVisualSettings(client).then(setSettings).catch(()=>undefined);}).subscribe();return()=>{void channel.unsubscribe();};}catch{return undefined;}},[]);
+  const setUserThemeMode=useCallback(async(next:ThemeMode)=>{if(!authenticated||userThemeLoading)return;const previous=userThemeMode;setUserThemeModeState(next);setUserThemeLoading(true);try{const {error:rpcError}=await requireSupabaseClient().rpc('set_my_theme_preference',{p_theme_mode:next});if(rpcError)throw rpcError;}catch(error){setUserThemeModeState(previous);throw error instanceof Error?error:new Error('No se pudo guardar la preferencia de apariencia.');}finally{setUserThemeLoading(false);}},[authenticated,userThemeLoading,userThemeMode]);
+  const applyLocal=useCallback((draft:VisualSettingsDraft)=>setSettings((previous)=>toStoredSettings(draft,previous)),[]); const value=useMemo(()=>({settings,loading,error,refresh,applyLocal,userThemeMode,userThemeLoading,setUserThemeMode,resolvedThemeMode}),[applyLocal,error,loading,refresh,resolvedThemeMode,setUserThemeMode,settings,userThemeLoading,userThemeMode]); return <VisualThemeContext.Provider value={value}>{children}</VisualThemeContext.Provider>;
 }
-
-export function useVisualTheme(): VisualThemeContextValue {
-  const context = useContext(VisualThemeContext);
-  if (!context) throw new Error('useVisualTheme debe utilizarse dentro de VisualThemeProvider.');
-  return context;
-}
+export function useVisualTheme(): VisualThemeContextValue { const context=useContext(VisualThemeContext); if(!context)throw new Error('useVisualTheme debe utilizarse dentro de VisualThemeProvider.'); return context; }
