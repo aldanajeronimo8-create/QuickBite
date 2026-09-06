@@ -24,6 +24,7 @@ export const VISUAL_INTERFACE_SCOPES = ['login_student', 'login_parent', 'login_
 export type VisualInterfaceScope = typeof VISUAL_INTERFACE_SCOPES[number];
 
 export type VisualElementStyle = Partial<{
+  textContent: string;
   backgroundColor: string;
   color: string;
   borderColor: string;
@@ -90,12 +91,14 @@ export function isHexColor(value: string): boolean { return /^#[0-9A-Fa-f]{6}$/.
 const SAFE_CSS_VALUE = /^-?(?:\d+(?:\.\d+)?)(?:px|rem|em|%|vh|vw)?$/;
 const SAFE_OPACITY = /^(?:0|0?\.\d+|1)$/;
 const SAFE_SHADOW = /^(?:none|0 0 \d{1,3}px rgba\(\d{1,3}, \d{1,3}, \d{1,3}, 0?\.?\d{0,2}\)|\d{1,3}px \d{1,3}px \d{1,3}px rgba\(\d{1,3}, \d{1,3}, \d{1,3}, 0?\.?\d{0,2}\))$/;
-const ELEMENT_STYLE_KEYS = ['backgroundColor','color','borderColor','borderRadius','boxShadow','fontSize','fontWeight','padding','margin','width','height','opacity','textAlign'] as const;
+const CSS_ELEMENT_STYLE_KEYS = ['backgroundColor','color','borderColor','borderRadius','boxShadow','fontSize','fontWeight','padding','margin','width','height','opacity','textAlign'] as const;
+const ELEMENT_OVERRIDE_KEYS = ['textContent', ...CSS_ELEMENT_STYLE_KEYS] as const;
 
 export function sanitizeVisualElementStyle(value: unknown): VisualElementStyle {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const source = value as Record<string, unknown>;
   const result: VisualElementStyle = {};
+  if (typeof source.textContent === 'string' && source.textContent.length <= 500 && !/[\u0000-\u001F\u007F]/.test(source.textContent)) result.textContent = source.textContent;
   for (const key of ['backgroundColor','color','borderColor'] as const) if (typeof source[key] === 'string' && isHexColor(source[key])) result[key] = source[key].toUpperCase();
   for (const key of ['borderRadius','fontSize','padding','margin','width','height'] as const) if (typeof source[key] === 'string' && SAFE_CSS_VALUE.test(source[key])) result[key] = source[key];
   if (typeof source.boxShadow === 'string' && SAFE_SHADOW.test(source.boxShadow)) result.boxShadow = source.boxShadow;
@@ -112,7 +115,7 @@ export function sanitizeVisualElementOverrides(value: unknown): VisualElementOve
   for (const [selector, style] of Object.entries(source)) {
     if (!selector || selector.length > 900 || /[{};]/.test(selector)) continue;
     const safe = sanitizeVisualElementStyle(style);
-    if (Object.keys(safe).some((key) => (ELEMENT_STYLE_KEYS as readonly string[]).includes(key))) result[selector] = safe;
+    if (Object.keys(safe).some((key) => (ELEMENT_OVERRIDE_KEYS as readonly string[]).includes(key))) result[selector] = safe;
   }
   return result;
 }
@@ -184,5 +187,5 @@ export function densityToCss(value: Density): { spacing: string; controlHeight: 
 export function getVisualCssVariables(settings: VisualSettingsDraft): Record<string, string> {
   const radius = radiusToCss(settings.border_radius), cardRadius = radiusToCss(settings.card_radius), buttonRadius = radiusToCss(settings.button_radius), density = densityToCss(settings.density), dark = settings.theme_mode === 'dark';
   const secondaryForeground = settings.secondary_color.toLowerCase() === '#e0ecff' ? '#1747B8' : '#FFFFFF';
-  return {'--qb-primary':settings.primary_color,'--qb-secondary':settings.secondary_color,'--qb-accent':settings.accent_color,'--qb-background':dark?'#070B14':settings.background_color,'--qb-surface':dark?'#0F172A':settings.surface_color,'--qb-text':dark?'#F8FAFC':settings.text_color,'--qb-text-secondary':dark?'#CBD5E1':settings.muted_text_color,'--qb-text-muted':dark?'#94A3B8':settings.muted_text_color,'--qb-border':dark?'#334155':settings.border_color,'--qb-success':settings.success_color,'--qb-warning':settings.warning_color,'--qb-error':settings.danger_color,'--qb-radius':radius,'--qb-card-radius':cardRadius,'--qb-button-radius':buttonRadius,'--qb-shadow':shadowToCss(settings.shadow_style),'--qb-density-spacing':density.spacing,'--qb-control-height':density.controlHeight,'--qb-font-family':settings.font_family==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.font_family}", ui-sans-serif, system-ui, sans-serif`,'--qb-heading-font':settings.heading_font==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.heading_font}", ui-sans-serif, system-ui, sans-serif`,'--background':dark?'#070B14':settings.background_color,'--foreground':dark?'#F8FAFC':settings.text_color,'--card':dark?'#0F172A':settings.surface_color,'--card-foreground':dark?'#F8FAFC':settings.text_color,'--popover':dark?'#0F172A':settings.surface_color,'--popover-foreground':dark?'#F8FAFC':settings.text_color,'--primary':settings.primary_color,'--primary-foreground':'#FFFFFF','--secondary':settings.secondary_color,'--secondary-foreground':secondaryForeground,'--accent':settings.accent_color,'--accent-foreground':'#FFFFFF','--destructive':settings.danger_color,'--destructive-foreground':'#FFFFFF','--border':dark?'#334155':settings.border_color,'--input':dark?'#1E293B':settings.surface_color,'--input-background':dark?'#1E293B':settings.surface_color,'--muted-foreground':dark?'#CBD5E1':settings.muted_text_color,'--ring':settings.primary_color,'--radius':radius,'--sidebar':'#1747B8','--sidebar-foreground':'#FFFFFF','--sidebar-primary':'#2563EB','--sidebar-primary-foreground':'#FFFFFF','--sidebar-accent':'rgba(255,255,255,0.12)','--sidebar-accent-foreground':'#FFFFFF','--sidebar-border':'rgba(255,255,255,0.12)','--sidebar-ring':'#E0ECFF'};
+  return {'--qb-primary':settings.primary_color,'--qb-secondary':settings.secondary_color,'--qb-accent':settings.accent_color,'--qb-background':dark?'#070B14':settings.background_color,'--qb-surface':dark?'#0F172A':settings.surface_color,'--qb-text':dark?'#F8FAFC':settings.text_color,'--qb-text-secondary':dark?'#CBD5E1':settings.muted_text_color,'--qb-text-muted':dark?'#94A3B8':settings.muted_text_color,'--qb-border':dark?'#334155':settings.border_color,'--qb-success':settings.success_color,'--qb-warning':settings.warning_color,'--qb-error':settings.danger_color,'--qb-radius':radius,'--qb-card-radius':cardRadius,'--qb-button-radius':buttonRadius,'--qb-shadow':shadowToCss(settings.shadow_style),'--qb-density-spacing':density.spacing,'--qb-control-height':density.controlHeight,'--qb-font-family':settings.font_family==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.font_family}", ui-sans-serif, system-ui, sans-serif`,'--qb-heading-font':settings.heading_font==='system-ui'?'ui-sans-serif, system-ui, sans-serif':`"${settings.heading_font}", ui-sans-serif, system-ui, sans-serif`,'--background':dark?'#070B14':settings.background_color,'--foreground':dark?'#F8FAFC':settings.text_color,'--card':dark?'#0F172A':settings.surface_color,'--card-foreground':dark?'#F8FAFC':settings.text_color,'--popover':dark?'#0F172A':settings.surface_color,'--popover-foreground':dark?'#F8FAFC':settings.text_color,'--primary':settings.primary_color,'--primary-foreground':'#FFFFFF','--secondary':settings.secondary_color,'--secondary-foreground':secondaryForeground,'--accent':settings.accent_color,'--accent-foreground':'#FFFFFF','--destructive':settings.danger_color,'--destructive-foreground':'#FFFFFF','--border':dark?'#334155':settings.border_color,'--input':dark?'#334155':settings.border_color,'--ring':settings.accent_color,'--sidebar':'#1747B8','--sidebar-foreground':'#FFFFFF','--sidebar-primary':'#2563EB','--sidebar-primary-foreground':'#FFFFFF','--sidebar-accent':'rgba(255,255,255,0.12)','--sidebar-accent-foreground':'#FFFFFF','--sidebar-border':'rgba(255,255,255,0.12)','--sidebar-ring':'#E0ECFF'};
 }
