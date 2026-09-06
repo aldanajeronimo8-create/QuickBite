@@ -154,3 +154,42 @@
     display: none !important;
   }
 }
+
+/* Explicit blue utility classes used for structural metadata in Admin.
+ * These surfaces are not theme actions and must not become the visual Admin primary. */
+.admin-shell table tbody td:nth-child(2) .bg-blue-50.text-blue-700 {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+}
+
+.admin-shell table tbody td:nth-child(3) > .bg-blue-50.text-blue-700 {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+}
+
+.admin-shell [class*="border-l-4"][class*="bg-blue-50"][class*="border-blue-500"] {
+  background: #F8FAFC !important;
+  border-left-color: #CBD5E1 !important;
+  color: #475569 !important;
+}
+
+.admin-shell [class*="border-l-4"][class*="bg-blue-50"][class*="border-blue-500"] strong {
+  color: #334155 !important;
+}
+
+/* The report-period badge is informational metadata, not a primary action. */
+.admin-shell section.rounded-3xl .flex.flex-wrap.gap-2.text-sm > span:first-child.bg-blue-50 {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+}
+
+/* Feature-center icon tiles stay neutral; the Admin primary remains reserved for real actions. */
+.admin-shell [data-testid="admin-feature-center"] [class*="bg-blue-50"][class*="text-blue-700"] {
+  background: #F1F5F9 !important;
+  color: #475569 !important;
+}
+
+.admin-shell [data-testid="admin-feature-center"] .group:hover [class*="bg-blue-50"][class*="text-blue-700"] {
+  background: #E2E8F0 !important;
+  color: #334155 !important;
+}
