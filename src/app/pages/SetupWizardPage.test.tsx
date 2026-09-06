@@ -1,10 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { VisualThemeProvider } from '../contexts/VisualThemeProvider';
 import { SetupWizardPage } from './SetupWizardPage';
 
 describe('SetupWizardPage', () => {
   it('explains the required first-run configuration', () => {
-    render(<SetupWizardPage />);
+    render(
+      <VisualThemeProvider>
+        <SetupWizardPage />
+      </VisualThemeProvider>,
+    );
 
     expect(screen.getByRole('heading', { name: /configuración inicial/i })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'QuickBite' })).toBeInTheDocument();
