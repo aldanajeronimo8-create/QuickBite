@@ -2,13 +2,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { hasSupabaseConfig } from '../../config/appConfig';
 import { requireSupabaseClient } from '../../lib/supabase';
 import { loadVisualSettings } from '../../services/visualSettingsService';
-import { DEFAULT_VISUAL_SETTINGS, getVisualCssVariables, resolveVisualSettings, sanitizeVisualSettings, type VisualInterfaceScope, type VisualSettings, type VisualSettingsDraft } from '../../types/visualSettings';
+import { DEFAULT_VISUAL_SETTINGS, getVisualCssVariables, resolveVisualSettings, sanitizeVisualElementStyle, sanitizeVisualSettings, type VisualElementStyle, type VisualInterfaceScope, type VisualSettings, type VisualSettingsDraft } from '../../types/visualSettings';
 
-type VisualThemeContextValue = { settings: VisualSettings; loading: boolean; error: string | null; refresh: () => Promise<void>; applyLocal: (draft: VisualSettingsDraft) => void; };
+type VisualThemeContextValue = { settings: VisualSettings; loading: boolean; error: string | null; refresh: () => Promise<void>; applyLocal: (draft: VisualSettingsDraft) => void };
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const VALID_SCOPES: VisualInterfaceScope[] = ['login_student','login_parent','login_admin','admin','student','parent'];
 const PRODUCTION_SIDEBAR = { sidebar: '#1747B8', foreground: '#FFFFFF', primary: '#2563EB', primaryForeground: '#FFFFFF', accent: 'rgba(255,255,255,0.12)', accentForeground: '#FFFFFF', border: 'rgba(255,255,255,0.12)', ring: '#E0ECFF' };
 const PREVIEW_STORAGE_KEY = 'quickbite_visual_preview_settings';
+const ELEMENT_CSS_MAP: Record<keyof VisualElementStyle, string> = { backgroundColor: 'background-color', color: 'color', borderColor: 'border-color', borderRadius: 'border-radius', boxShadow: 'box-shadow', fontSize: 'font-size', fontWeight: 'font-weight', padding: 'padding', margin: 'margin', width: 'width', height: 'height', opacity: 'opacity', textAlign: 'text-align' };
 
 function getPathScope(pathname: string, search: string): VisualInterfaceScope | null {
   const params = new URLSearchParams(search);
@@ -24,9 +25,8 @@ export function getVisualPreviewScope(): VisualInterfaceScope | null {
   if (typeof window === 'undefined') return null;
   const direct = getPathScope(window.location.pathname, window.location.search);
   if (direct) return direct;
-  try {
-    if (window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance')) return getPathScope(window.location.pathname, window.location.search);
-  } catch { return null; }
+  try { if (window.top !== window.self && window.parent.location.pathname.startsWith('/admin/appearance')) return getPathScope(window.location.pathname, window.location.search); }
+  catch { return null; }
   return null;
 }
 
@@ -62,9 +62,6 @@ function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfac
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   Object.entries(getVisualCssVariables(settings)).forEach(([name, value]) => root.style.setProperty(name, value));
-
-  // Keep only the administrative shell/sidebar locked to production.
-  // The main Admin interface must still receive the saved guided override.
   root.style.setProperty('--sidebar', PRODUCTION_SIDEBAR.sidebar);
   root.style.setProperty('--sidebar-foreground', PRODUCTION_SIDEBAR.foreground);
   root.style.setProperty('--sidebar-primary', PRODUCTION_SIDEBAR.primary);
@@ -73,7 +70,6 @@ function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfac
   root.style.setProperty('--sidebar-accent-foreground', PRODUCTION_SIDEBAR.accentForeground);
   root.style.setProperty('--sidebar-border', PRODUCTION_SIDEBAR.border);
   root.style.setProperty('--sidebar-ring', PRODUCTION_SIDEBAR.ring);
-
   root.style.setProperty('--qb-header-style', settings.header_style);
   root.style.setProperty('--qb-navigation-style', settings.navigation_style);
   root.style.setProperty('--qb-card-style', settings.card_style);
@@ -94,15 +90,49 @@ function applyDocumentTheme(settings: VisualSettingsDraft, scope: VisualInterfac
   link.href = settings.favicon_url || '/favicon.ico';
 }
 
+function applyElementOverrides(settings: VisualSettingsDraft, scope: VisualInterfaceScope) {
+  if (typeof document === 'undefined') return;
+  const id = 'quickbite-visual-element-overrides';
+  let style = document.getElementById(id) as HTMLStyleElement | null;
+  const overrides = settings.element_overrides ?? {};
+  const css = Object.entries(overrides).map(([selector, rawStyle]) => {
+    const safeStyle = sanitizeVisualElementStyle(rawStyle);
+    const declarations = Object.entries(safeStyle).map(([key, value]) => `${ELEMENT_CSS_MAP[key as keyof VisualElementStyle]}:${value} !important`).join(';');
+    return declarations ? `${selector.startsWith(ROOT_SELECTOR) ? selector : `${ROOT_SELECTOR}[data-qb-visual-preview-scope="${scope}"] ${selector}`}{${declarations}}` : '';
+  }).filter(Boolean).join('\n');
+  if (!css) { style?.remove(); return; }
+  if (!style) { style = document.createElement('style'); style.id = id; style.dataset.qbVisualElementOverrides = 'true'; document.head.appendChild(style); }
+  style.textContent = css;
+}
+
 function readStoredPreview(): VisualSettingsDraft | null {
   if (typeof window === 'undefined' || !isVisualPreviewMode()) return null;
-  try {
-    const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
-    return raw ? sanitizeVisualSettings(JSON.parse(raw) as Partial<VisualSettingsDraft>) : null;
-  } catch { return null; }
+  try { const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY); return raw ? sanitizeVisualSettings(JSON.parse(raw) as Partial<VisualSettingsDraft>) : null; }
+  catch { return null; }
 }
 
 function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings { return { ...draft, id: true, updated_at: previous.updated_at, updated_by: previous.updated_by }; }
+
+function mergeElementEdit(current: VisualSettings, scope: VisualInterfaceScope, selector: string, styles: unknown): VisualSettings {
+  const safe = sanitizeVisualElementStyle(styles);
+  if (!selector || !Object.keys(safe).length) return current;
+  const currentScope = current.interface_overrides?.[scope] ?? {};
+  return {
+    ...current,
+    interface_overrides: {
+      ...current.interface_overrides,
+      [scope]: { ...currentScope, element_overrides: { ...(currentScope.element_overrides ?? {}), [selector]: safe } },
+    },
+  };
+}
+
+function mergeElementReset(current: VisualSettings, scope: VisualInterfaceScope, selector: string): VisualSettings {
+  const currentScope = current.interface_overrides?.[scope];
+  if (!currentScope?.element_overrides?.[selector]) return current;
+  const elementOverrides = { ...currentScope.element_overrides };
+  delete elementOverrides[selector];
+  return { ...current, interface_overrides: { ...current.interface_overrides, [scope]: { ...currentScope, element_overrides: elementOverrides } } };
+}
 
 export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<VisualSettings>({ ...DEFAULT_VISUAL_SETTINGS, id: true, updated_at: new Date(0).toISOString(), updated_by: null });
@@ -114,7 +144,7 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     if (!hasSupabaseConfig() || isVisualPreviewMode()) return;
     setLoading(true);
-    try { const next = await loadVisualSettings(); setSettings(next); setError(null); }
+    try { setSettings(await loadVisualSettings()); setError(null); }
     catch (err) { setError(err instanceof Error ? err.message : 'No se pudo cargar la configuración visual.'); }
     finally { setLoading(false); }
   }, []);
@@ -129,26 +159,29 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     return () => observer.disconnect();
   }, []);
 
-  const effectiveSettings = useMemo(() => {
-    // Preview always wins. Otherwise the selected interface resolves its own
-    // scoped override over the global production configuration.
-    if (preview) return preview;
-    return resolveVisualSettings(settings, scope);
-  }, [preview, settings, scope]);
+  const effectiveSettings = useMemo(() => preview ?? resolveVisualSettings(settings, scope), [preview, settings, scope]);
 
   useEffect(() => {
     const storedOverride = settings.interface_overrides?.[scope];
     const active = Boolean(preview) || isVisualPreviewMode() || Boolean(storedOverride && Object.keys(storedOverride).length);
     applyDocumentTheme(effectiveSettings, scope, active);
+    applyElementOverrides(effectiveSettings, scope);
   }, [effectiveSettings, preview, scope, settings.interface_overrides]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || !event.data) return;
-      if (event.data.type === 'quickbite-visual-preview' && event.data.settings && typeof event.data.settings === 'object') {
-        setPreview(sanitizeVisualSettings(event.data.settings as Partial<VisualSettingsDraft>));
-      } else if (event.data.type === 'quickbite-visual-preview-clear') setPreview(null);
+      const data = event.data as { type?: string; settings?: unknown; scope?: VisualInterfaceScope; selector?: string; styles?: unknown };
+      if (data.type === 'quickbite-visual-preview' && data.settings && typeof data.settings === 'object') setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));
+      else if (data.type === 'quickbite-visual-preview-clear') setPreview(null);
+      else if (data.type === 'quickbite-visual-element-edit' && data.scope && data.selector) {
+        setSettings((current) => mergeElementEdit(current, data.scope!, data.selector!, data.styles));
+        if (isVisualPreviewMode() && data.settings && typeof data.settings === 'object') setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));
+      } else if (data.type === 'quickbite-visual-element-reset' && data.scope && data.selector) {
+        setSettings((current) => mergeElementReset(current, data.scope!, data.selector!));
+        if (isVisualPreviewMode() && data.settings && typeof data.settings === 'object') setPreview(sanitizeVisualSettings(data.settings as Partial<VisualSettingsDraft>));
+      }
     };
     const onStorage = (event: StorageEvent) => {
       if (event.key !== PREVIEW_STORAGE_KEY) return;
@@ -160,36 +193,30 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     return () => { window.removeEventListener('message', onMessage); window.removeEventListener('storage', onStorage); };
   }, []);
 
-  // The guided editor opens the real application in a separate window.
-  // Signal readiness so the editor can immediately push the current draft.
   useEffect(() => {
     if (typeof window === 'undefined' || !isVisualPreviewMode() || !window.opener) return;
-    try {
-      window.opener.postMessage({ type: 'quickbite-visual-preview-ready' }, window.location.origin);
-    } catch { /* popup may deny cross-window messaging */ }
+    try { window.opener.postMessage({ type: 'quickbite-visual-preview-ready' }, window.location.origin); } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || settings.theme_mode !== 'system') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const sync = () => { if (!preview) document.documentElement.classList.toggle('dark', media.matches); };
-    sync();
-    media.addEventListener?.('change', sync);
-    return () => media.removeEventListener?.('change', sync);
+    sync(); media.addEventListener?.('change', sync); return () => media.removeEventListener?.('change', sync);
   }, [preview, settings.theme_mode]);
 
   useEffect(() => {
     if (!hasSupabaseConfig() || isVisualPreviewMode()) return;
     try {
       const client = requireSupabaseClient();
-      const channel = client.channel('quickbite-visual-settings').on('postgres_changes', { event: '*', schema: 'public', table: 'app_visual_settings' }, payload => {
+      const channel = client.channel('quickbite-visual-settings').on('postgres_changes', { event: '*', schema: 'public', table: 'app_visual_settings' }, (payload) => {
         if (payload.new && typeof payload.new === 'object') void loadVisualSettings(client).then(setSettings).catch(() => undefined);
       }).subscribe();
       return () => { void channel.unsubscribe(); };
     } catch { return undefined; }
   }, []);
 
-  const applyLocal = useCallback((draft: VisualSettingsDraft) => setSettings(previous => toStoredSettings(draft, previous)), []);
+  const applyLocal = useCallback((draft: VisualSettingsDraft) => setSettings((previous) => toStoredSettings(draft, previous)), []);
   const value = useMemo(() => ({ settings, loading, error, refresh, applyLocal }), [applyLocal, error, loading, refresh, settings]);
   return <VisualThemeContext.Provider value={value}>{children}</VisualThemeContext.Provider>;
 }
