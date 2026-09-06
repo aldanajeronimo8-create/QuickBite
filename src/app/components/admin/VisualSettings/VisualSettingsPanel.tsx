@@ -7,6 +7,7 @@ import { isHexColor, resolveVisualSettings, sanitizeVisualSettings, type VisualI
 import { PreviewStudio } from './PreviewStudio';
 
 type ScopeInfo = { id: VisualInterfaceScope; label: string; path: string; description: string };
+type PreviewRoute = { path: string; label: string; description: string };
 const SCOPES: ScopeInfo[] = [
   { id: 'login_student', label: 'Login · Estudiante', path: '/login', description: 'Inicio de sesión del estudiante.' },
   { id: 'login_parent', label: 'Login · Padre', path: '/login', description: 'Inicio de sesión del padre de familia.' },
@@ -15,6 +16,42 @@ const SCOPES: ScopeInfo[] = [
   { id: 'student', label: 'Panel · Estudiante', path: '/menu', description: 'Toda la experiencia del estudiante.' },
   { id: 'parent', label: 'Panel · Padre', path: '/parent/family', description: 'Toda la experiencia del padre de familia.' },
 ];
+
+const PREVIEW_ROUTES: Record<VisualInterfaceScope, PreviewRoute[]> = {
+  login_student: [{ path: '/login', label: 'Inicio de sesión', description: 'Pantalla de acceso del estudiante.' }],
+  login_parent: [{ path: '/login', label: 'Inicio de sesión', description: 'Pantalla de acceso del padre.' }],
+  login_admin: [{ path: '/login', label: 'Inicio de sesión', description: 'Pantalla de acceso administrativa.' }],
+  admin: [
+    { path: '/admin', label: 'Dashboard', description: 'Resumen general y actividad.' },
+    { path: '/admin/orders', label: 'Pedidos', description: 'Gestión y seguimiento de pedidos.' },
+    { path: '/admin/payments', label: 'Pagos', description: 'Pagos y validaciones.' },
+    { path: '/admin/wallet', label: 'Recargas de saldo', description: 'Recargas y movimientos de saldo.' },
+    { path: '/admin/inventory', label: 'Inventario', description: 'Stock y disponibilidad.' },
+    { path: '/admin/menu', label: 'Menú', description: 'Productos y categorías.' },
+    { path: '/admin/verification', label: 'Verificación', description: 'Validación de pedidos y entregas.' },
+    { path: '/admin/users', label: 'Usuarios', description: 'Gestión de cuentas y roles.' },
+    { path: '/admin/loyalty', label: 'Puntos y premios', description: 'Programa de fidelización.' },
+    { path: '/admin/reports', label: 'Informes', description: 'Reportes y métricas.' },
+    { path: '/admin/history', label: 'Historial', description: 'Histórico de actividad.' },
+    { path: '/admin/system', label: 'Sistema', description: 'Configuración y mantenimiento.' },
+    { path: '/admin/features', label: 'Funciones', description: 'Centro de funcionalidades.' },
+  ],
+  student: [
+    { path: '/menu', label: 'Menú', description: 'Compra y navegación principal.' },
+    { path: '/student/features', label: 'Funciones', description: 'Centro de funcionalidades.' },
+    { path: '/student/order-windows', label: 'Ventanas de pedido', description: 'Horarios disponibles.' },
+    { path: '/student/account', label: 'Cuenta', description: 'Perfil del estudiante.' },
+    { path: '/student/wallet', label: 'Saldo', description: 'Billetera y saldo.' },
+    { path: '/student/history', label: 'Historial', description: 'Pedidos anteriores.' },
+    { path: '/student/rewards', label: 'Premios', description: 'Recompensas y puntos.' },
+    { path: '/student/favorites', label: 'Favoritos', description: 'Productos guardados.' },
+    { path: '/student/notifications', label: 'Notificaciones', description: 'Avisos del sistema.' },
+    { path: '/student/link-code', label: 'Código de vinculación', description: 'Vinculación con familia.' },
+  ],
+  parent: [
+    { path: '/parent/family', label: 'Familia', description: 'Vista principal del padre.' },
+  ],
+};
 
 const EDITABLE_KEYS = [
   'app_name','logo_url','favicon_url','login_logo_url','primary_color','secondary_color','accent_color','background_color',
@@ -36,6 +73,12 @@ function contrastRatio(a: string, b: string) {
   const x = luminance(a); const y = luminance(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
+function buildPreviewPath(scope: VisualInterfaceScope, route: string) {
+  const loginRole = scope.startsWith('login_') ? scope.replace('login_', '') : null;
+  const basePath = loginRole ? `/login?preview_role=${loginRole}` : route;
+  return `${basePath}${basePath.includes('?') ? '&' : '?'}visual_preview=1&visual_preview_scope=${scope}`;
+}
+
 export function VisualSettingsPanel() {
   const { settings, loading, applyLocal, refresh } = useVisualTheme();
   const [scope, setScope] = useState<VisualInterfaceScope>('login_student');
@@ -45,8 +88,12 @@ export function VisualSettingsPanel() {
   const [future, setFuture] = useState<VisualSettingsDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const [compare, setCompare] = useState(false);
+  const [previewRoute, setPreviewRoute] = useState('/login');
 
   const scopeInfo = useMemo(() => SCOPES.find((item) => item.id === scope) ?? SCOPES[0], [scope]);
+  const previewRoutes = PREVIEW_ROUTES[scope];
+  const activePreviewRoute = previewRoutes.find((item) => item.path === previewRoute) ?? previewRoutes[0];
+  const previewPath = buildPreviewPath(scope, activePreviewRoute.path);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const contrast = useMemo(() => {
     if (!isHexColor(draft.text_color) || !isHexColor(draft.background_color)) return 0;
@@ -59,6 +106,8 @@ export function VisualSettingsPanel() {
     setSaved(next);
     setHistory([]);
     setFuture([]);
+    setPreviewRoute(PREVIEW_ROUTES[scope][0].path);
+    setCompare(false);
   }, [scope, settings]);
 
   useEffect(() => {
@@ -142,10 +191,6 @@ export function VisualSettingsPanel() {
     } finally { setSaving(false); }
   };
 
-  const loginRole = scope.startsWith('login_') ? scope.replace('login_', '') : null;
-  const basePreviewPath = loginRole ? `/login?preview_role=${loginRole}` : scopeInfo.path;
-  const previewPath = `${basePreviewPath}${basePreviewPath.includes('?') ? '&' : '?'}visual_preview=1&visual_preview_scope=${scope}`;
-
   const copyPreview = async () => {
     try { await navigator.clipboard.writeText(`${window.location.origin}${previewPath}`); toast.success('Ruta de preview copiada.'); }
     catch { toast.error('No se pudo copiar la ruta.'); }
@@ -160,7 +205,7 @@ export function VisualSettingsPanel() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-500"><WandSparkles className="h-4 w-4" /> Personalización</div>
             <h1 className="mt-1 truncate text-2xl font-black text-slate-950">{scopeInfo.label}</h1>
-            <p className="mt-1 text-sm text-slate-500">{scopeInfo.description} Elige un elemento y haz triple clic para editarlo.</p>
+            <p className="mt-1 text-sm text-slate-500">{scopeInfo.description} Elige la sección desde la barra de previsualización y edita directamente sobre la interfaz real.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="block min-w-[250px]"><span className="sr-only">Interfaz</span><select value={scope} onChange={(event) => selectScope(event.target.value as VisualInterfaceScope)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-100">{SCOPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
@@ -172,6 +217,31 @@ export function VisualSettingsPanel() {
           </div>
         </div>
       </section>
+
+      {previewRoutes.length > 1 && (
+        <section className="rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+          <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Sección de la interfaz</p>
+              <p className="mt-1 text-xs text-slate-500">La selección cambia la ruta que se renderiza dentro de la preview sin cambiar el alcance de personalización.</p>
+            </div>
+            <span className="text-xs font-black text-slate-700">{activePreviewRoute.label}</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {previewRoutes.map((route) => (
+              <button
+                key={route.path}
+                type="button"
+                onClick={() => setPreviewRoute(route.path)}
+                className={`shrink-0 rounded-xl border px-3 py-2 text-left transition ${previewRoute === route.path ? 'border-slate-900 bg-slate-950 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'}`}
+              >
+                <span className="block text-xs font-black">{route.label}</span>
+                <span className={`mt-0.5 block text-[10px] ${previewRoute === route.path ? 'text-slate-300' : 'text-slate-400'}`}>{route.description}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <PreviewStudio
         scope={scope}
@@ -201,7 +271,7 @@ export function VisualSettingsPanel() {
         </div>
       </details>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600"><Check className="mr-2 inline h-4 w-4 text-emerald-600" /> La preview es una sesión aislada: los clics pueden ejecutar la navegación normal, pero las ediciones visuales solo se guardan al pulsar <b>Guardar</b>. No se permite modificar HTML, JavaScript, permisos, pagos, pedidos ni datos.<span className="ml-2 inline-flex items-center gap-1 text-slate-400"><History className="h-3.5 w-3.5" />{history.length + future.length} pasos en el historial</span></div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600"><Check className="mr-2 inline h-4 w-4 text-emerald-600" /> La preview reproduce la ruta seleccionada de la interfaz dentro de una sesión aislada. Los cambios visuales siguen siendo borrador hasta pulsar <b>Guardar</b>. No se permite modificar HTML, JavaScript, permisos, pagos, pedidos ni datos.<span className="ml-2 inline-flex items-center gap-1 text-slate-400"><History className="h-3.5 w-3.5" />{history.length + future.length} pasos en el historial</span></div>
     </div>
   );
 }
