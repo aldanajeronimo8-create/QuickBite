@@ -1,2 +1,3 @@
 Force Production deployment through the configured QuickBite Vercel Deploy Hook after CI succeeds.
 Trigger validation for latest main visual-editor fix.
+Hook redeploy marker: 2026-09-05T19:00:00-05:00
