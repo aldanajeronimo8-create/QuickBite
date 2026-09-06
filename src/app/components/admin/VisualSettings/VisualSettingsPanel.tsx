@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, History, RotateCcw, Save, WandSparkles } from 'lucide-react';
+import { Check, History, RotateCcw, Save, Undo2, Redo2, WandSparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVisualTheme } from '../../../contexts/VisualThemeProvider';
 import { resetVisualSettings, saveVisualSettings } from '../../../../services/visualSettingsService';
