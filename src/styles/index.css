@@ -7,6 +7,7 @@
 @import './admin-button-neutral.css';
 @import './dark-mode-hardening.css';
 @import './student-theme-token-contract.css';
+@import './student-dark-reference.css';
 
 /* Student navigation: collapse the green header while scrolling down and bring the tab bar to the top. */
 @supports (animation-timeline: scroll()) {
