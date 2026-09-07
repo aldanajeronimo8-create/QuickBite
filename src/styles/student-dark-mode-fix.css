@@ -1,7 +1,10 @@
-/* Final Student dark-mode/layout hardening.
- * Scoped to the Student experience so Admin/Parent surfaces are untouched.
+/* Student-only dark mode hardening.
+ * The StudentMenuPage has a distinctive sticky green header, so the rules below
+ * are scoped from that DOM anchor instead of relying on the Visual Editor scope.
+ * Admin and other interfaces are intentionally left outside this selector tree.
  */
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] {
+
+:root[data-qb-theme="dark"] {
   --qb-student-bg-final: #070d19;
   --qb-student-surface-final: #111a2e;
   --qb-student-surface-raised-final: #162238;
@@ -12,100 +15,121 @@
   --qb-student-muted-final: #94a3b8;
 }
 
-/* 1. Full-viewport dark coverage. */
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"],
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] body,
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] #root,
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] .qb-admin-preview-shell,
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] .qb-admin-preview-shell > .min-h-screen.bg-slate-50 {
+/* 1. Full viewport canvas. */
+:root[data-qb-theme="dark"] html,
+:root[data-qb-theme="dark"] body,
+:root[data-qb-theme="dark"] #root {
   background-color: var(--qb-student-bg-final) !important;
 }
 
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] body {
+/* The Student menu's own page wrapper. */
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) {
+  background-color: var(--qb-student-bg-final) !important;
   color: var(--qb-student-text-final);
 }
 
-/* 2. One shared horizontal grid for tabs and content. */
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] nav.sticky {
-  width: min(calc(100% - 2.5rem), 72rem) !important;
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main {
+  background-color: var(--qb-student-bg-final) !important;
+  color: var(--qb-student-text-final) !important;
+}
+
+/* 2. Tabs stay inside the same 6xl content grid and can scroll horizontally
+ * on narrow screens instead of increasing the page width. */
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > nav.sticky {
+  width: min(calc(100% - 2rem), 72rem) !important;
   max-width: 72rem !important;
   margin-left: auto !important;
   margin-right: auto !important;
   box-sizing: border-box !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none;
 }
 
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] nav.sticky button {
-  min-width: 0;
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > nav.sticky::-webkit-scrollbar {
+  display: none;
 }
 
-/* 3. Floating feature button: keep it above content, but give the page
- * enough bottom clearance so the last product row is never hidden. */
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] .qb-feature-fab {
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > nav.sticky button {
+  min-width: 0 !important;
+  flex: 1 1 0 !important;
+  white-space: nowrap !important;
+}
+
+/* 3. Floating feature actions must not sit on top of product cards. */
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main {
+  padding-bottom: 8rem !important;
+}
+
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) .qb-feature-fab {
   left: max(1rem, calc((100vw - 72rem) / 2 + 1rem)) !important;
   bottom: max(1rem, env(safe-area-inset-bottom)) !important;
   z-index: 40 !important;
 }
 
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] main {
-  padding-bottom: 7rem;
+/* If the feature control is rendered as a fixed button without the helper
+ * class, keep fixed Student action buttons clear of the card grid. */
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main button.fixed:not([aria-label="Abrir carrito"]) {
+  z-index: 40 !important;
 }
 
-/* 4. Product cards and image/placeholder areas always use a dark surface. */
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] article[class~="bg-white"] {
+/* 4. Product cards never fall back to white when an image is missing. */
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main article,
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main article[class~="bg-white"] {
   background-color: var(--qb-student-surface-final) !important;
   border-color: var(--qb-student-border-final) !important;
   color: var(--qb-student-text-final) !important;
-  box-shadow: none !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24) !important;
 }
 
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] article img {
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main article img {
   background-color: var(--qb-student-surface-raised-final) !important;
 }
 
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] article [class~="bg-white/90"] {
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main article [class~="bg-white/90"] {
   background-color: rgba(17, 26, 46, 0.92) !important;
   color: #cbd5e1 !important;
 }
 
-/* Cart and other white surfaces inside Student also follow the same contract. */
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] section[class~="bg-white"],
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] section [class~="bg-white"],
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] [role="dialog"] {
+/* Other Student surfaces such as the cart and dialogs use the same elevation. */
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main section[class~="bg-white"],
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main section [class~="bg-white"],
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) [role="dialog"] {
   background-color: var(--qb-student-surface-final) !important;
   color: var(--qb-student-text-final) !important;
   border-color: var(--qb-student-border-final) !important;
 }
 
-/* 5. Calm the neon green selection and keep elevation readable. */
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] nav [class~="bg-green-600"] {
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main [class~="bg-slate-100"] {
+  background-color: var(--qb-student-surface-raised-final) !important;
+}
+
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main [class~="bg-slate-50"] {
+  background-color: var(--qb-student-surface-final) !important;
+}
+
+/* 5. Replace the neon green active-tab treatment with a restrained brand green. */
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > nav.sticky [class~="bg-green-600"] {
   background-color: var(--qb-student-accent-final) !important;
   color: #ffffff !important;
   box-shadow: none !important;
 }
 
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] nav [class~="hover:bg-green-50"]:hover {
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > nav.sticky [class~="hover:bg-green-50"]:hover {
   background-color: rgba(16, 185, 129, 0.09) !important;
   color: #f8fafc !important;
 }
 
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] main [class~="bg-green-50"],
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] main [class~="bg-[#DCFCE7]"] {
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main [class~="bg-green-50"],
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) > main [class~="bg-[#DCFCE7]"] {
   background-color: var(--qb-student-accent-soft-final) !important;
   color: #a7f3d0 !important;
   border-color: rgba(16, 185, 129, 0.28) !important;
 }
 
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] main [class~="bg-slate-100"] {
-  background-color: var(--qb-student-surface-raised-final) !important;
-}
-
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] main [class~="bg-slate-50"] {
-  background-color: var(--qb-student-surface-final) !important;
-}
-
-/* The cart's fixed bar remains usable above the page without covering the
- * bottom row because main has matching bottom clearance. */
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] .fixed.bottom-4.left-4.right-4 {
+/* Fixed cart remains above content, with enough page clearance to avoid
+ * hiding the final product row. */
+:root[data-qb-theme="dark"] div:has(> header.sticky[class*="bg-[#166534]"]) .fixed.bottom-4.left-4.right-4 {
   bottom: max(1rem, env(safe-area-inset-bottom)) !important;
   z-index: 30 !important;
 }
