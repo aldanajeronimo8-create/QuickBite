@@ -1,0 +1,79 @@
+/* Semantic compatibility contract for the student experience.
+ * Legacy Tailwind utility names remain valid, but their visual values now come
+ * from QuickBite theme tokens so light/dark mode and the Visual Editor stay in sync. */
+:root {
+  --qb-brand-solid: var(--qb-primary);
+  --qb-brand-strong: var(--qb-green-dark, #087a50);
+  --qb-brand-soft: color-mix(in srgb, var(--qb-primary) 12%, var(--qb-surface));
+  --qb-brand-text: color-mix(in srgb, var(--qb-primary) 72%, var(--qb-text));
+  --qb-brand-border: color-mix(in srgb, var(--qb-primary) 34%, var(--qb-border));
+}
+
+:root[data-qb-theme="dark"] {
+  /* Dark mode intentionally tones the brand down instead of using neon green. */
+  --qb-brand-solid: color-mix(in srgb, var(--qb-primary) 62%, var(--qb-background));
+  --qb-brand-strong: color-mix(in srgb, var(--qb-primary) 48%, var(--qb-background));
+  --qb-brand-soft: color-mix(in srgb, var(--qb-primary) 16%, var(--qb-surface));
+  --qb-brand-text: color-mix(in srgb, #d1fae5 78%, var(--qb-primary));
+  --qb-brand-border: color-mix(in srgb, var(--qb-primary) 34%, var(--qb-border));
+}
+
+/* Solid brand surfaces. */
+[class~="bg-green-500"],
+[class~="bg-green-600"],
+[class~="bg-emerald-500"],
+[class~="bg-emerald-600"] { background-color: var(--qb-brand-solid) !important; }
+
+[class~="bg-green-700"],
+[class~="bg-emerald-700"] { background-color: var(--qb-brand-strong) !important; }
+
+/* The StudentMenuPage legacy header uses a literal hex green. */
+[class~="bg-[#166534]"] { background-color: var(--qb-brand-strong) !important; }
+
+/* Brand gradients follow the same semantic colors. */
+[class~="from-green-600"][class~="to-green-700"],
+[class~="from-emerald-600"][class~="to-emerald-700"] {
+  background-image: linear-gradient(90deg, var(--qb-brand-solid), var(--qb-brand-strong)) !important;
+}
+
+/* Brand soft surfaces and legacy category pills. */
+[class~="bg-green-50"],
+[class~="bg-emerald-50"],
+[class~="bg-green-100"],
+[class~="bg-emerald-100"],
+[class~="bg-[#DCFCE7]"] { background-color: var(--qb-brand-soft) !important; }
+
+/* Brand text. */
+[class~="text-green-800"],
+[class~="text-green-700"],
+[class~="text-emerald-800"],
+[class~="text-emerald-700"] { color: var(--qb-brand-text) !important; }
+
+/* Brand borders/rings. */
+[class~="border-green-200"],
+[class~="border-green-300"],
+[class~="border-emerald-200"],
+[class~="border-emerald-300"] { border-color: var(--qb-brand-border) !important; }
+
+/* Interactive states must track the same tokens too. */
+[class~="hover:bg-green-700"]:hover,
+[class~="hover:bg-emerald-700"]:hover { background-color: var(--qb-brand-strong) !important; }
+
+[class~="hover:bg-green-50"]:hover,
+[class~="hover:bg-emerald-50"]:hover { background-color: var(--qb-brand-soft) !important; }
+
+/* The inactive Menu/Historial tabs use the semantic secondary text token. */
+:root[data-qb-theme="dark"] [class~="text-slate-600"] { color: var(--qb-text-secondary) !important; }
+:root[data-qb-theme="dark"] [class~="text-gray-300"],
+:root[data-qb-theme="dark"] [class~="text-slate-300"] { color: var(--qb-text-muted) !important; }
+
+/* Light/dark input contract. */
+:root[data-qb-theme="dark"] input,
+:root[data-qb-theme="dark"] textarea,
+:root[data-qb-theme="dark"] select {
+  color: var(--qb-text) !important;
+}
+
+:root[data-qb-theme="dark"] [class~="placeholder:text-slate-400"]::placeholder,
+:root[data-qb-theme="dark"] input::placeholder,
+:root[data-qb-theme="dark"] textarea::placeholder { color: var(--qb-text-muted) !important; }
