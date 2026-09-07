@@ -15,7 +15,6 @@
  * Legacy dark-mode patch layers are intentionally not imported here.
  */
 @import './dark-mode-final.css';
-@import './student-menu-light-fix.css';
 
 /* Student navigation: collapse the green header while scrolling down and bring the tab bar to the top. */
 @supports (animation-timeline: scroll()) {
