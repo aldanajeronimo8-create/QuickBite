@@ -77,3 +77,52 @@
 :root[data-qb-theme="dark"] [class~="placeholder:text-slate-400"]::placeholder,
 :root[data-qb-theme="dark"] input::placeholder,
 :root[data-qb-theme="dark"] textarea::placeholder { color: var(--qb-text-muted) !important; }
+
+/* Exact dark-mode reference treatment for the five remaining StudentMenu surfaces. */
+:root[data-qb-theme="dark"] header.sticky[class*="bg-[#166534]"] {
+  background: var(--qb-background) !important;
+  border-bottom: 1px solid var(--qb-border) !important;
+  box-shadow: none !important;
+}
+
+:root[data-qb-theme="dark"] header.sticky [class~="bg-gradient-to-r"][class~="from-green-600"][class~="to-green-700"] {
+  background-image: none !important;
+  background-color: #111a2e !important;
+  border: 1px solid rgba(51, 65, 85, 0.8) !important;
+  box-shadow: none !important;
+}
+
+:root[data-qb-theme="dark"] header.sticky [class~="bg-white/15"] {
+  background-color: #111a2e !important;
+  border: 1px solid rgba(51, 65, 85, 0.8) !important;
+}
+
+:root[data-qb-theme="dark"] main {
+  background-color: var(--qb-background) !important;
+}
+
+:root[data-qb-theme="dark"] nav.sticky[class*="bg-white"] {
+  background-color: #111a2e !important;
+  border: 1px solid rgba(51, 65, 85, 0.8) !important;
+  box-shadow: none !important;
+}
+
+:root[data-qb-theme="dark"] nav.sticky button[class~="text-slate-600"] {
+  color: var(--qb-text-secondary) !important;
+}
+
+:root[data-qb-theme="dark"] nav.sticky button[class~="text-slate-600"]:hover {
+  color: var(--qb-text) !important;
+  background-color: rgba(30, 41, 59, 0.7) !important;
+}
+
+:root[data-qb-theme="dark"] main input[class~="bg-white"] {
+  background-color: #111a2e !important;
+  color: #fff !important;
+  border-color: rgba(51, 65, 85, 0.8) !important;
+  box-shadow: none !important;
+}
+
+:root[data-qb-theme="dark"] main input[class~="bg-white"]::placeholder {
+  color: #64748b !important;
+}
