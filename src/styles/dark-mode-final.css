@@ -57,7 +57,6 @@ html.dark #__next {
   background-image: none !important;
 }
 
-/* Protect the viewport even when app content is shorter than the screen. */
 html[data-qb-theme="dark"] body::before,
 html.dark body::before {
   content: "";
@@ -68,13 +67,11 @@ html.dark body::before {
   pointer-events: none;
 }
 
-/* Root-level wrappers must not paint a light canvas. */
 html[data-qb-theme="dark"] #root > *,
 html.dark #root > * {
   background-color: transparent;
 }
 
-/* Common light Tailwind backgrounds become dark surfaces. */
 html[data-qb-theme="dark"] :where(.bg-white, .bg-gray-50, .bg-slate-50, .bg-zinc-50),
 html.dark :where(.bg-white, .bg-gray-50, .bg-slate-50, .bg-zinc-50) {
   background-color: #121A2F !important;
@@ -90,7 +87,6 @@ html.dark :where(.bg-gray-200, .bg-slate-200, .bg-zinc-200) {
   background-color: #16243A !important;
 }
 
-/* Semantic cards and surfaces. */
 html[data-qb-theme="dark"] :where([data-slot="card"], .qb-theme-card, .qb-surface),
 html.dark :where([data-slot="card"], .qb-theme-card, .qb-surface) {
   background: #121A2F !important;
@@ -100,13 +96,11 @@ html.dark :where([data-slot="card"], .qb-theme-card, .qb-surface) {
   backdrop-filter: none !important;
 }
 
-/* Page containers inherit the root canvas unless they deliberately define a surface. */
 html[data-qb-theme="dark"] :where(main, section, .min-h-screen),
 html.dark :where(main, section, .min-h-screen) {
   background-color: transparent;
 }
 
-/* Text contrast. */
 html[data-qb-theme="dark"] :where(
   .text-gray-950, .text-gray-900, .text-gray-800, .text-gray-700,
   .text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700,
@@ -142,7 +136,6 @@ html.dark :where(
   color: #718096 !important;
 }
 
-/* Forms. */
 html[data-qb-theme="dark"] :where(
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
   textarea, select, [data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"]
@@ -163,7 +156,6 @@ html.dark :where(input, textarea)::placeholder {
   opacity: 1 !important;
 }
 
-/* Navigation / chrome. */
 html[data-qb-theme="dark"] :where(header, nav, aside, footer),
 html.dark :where(header, nav, aside, footer) {
   border-color: rgba(148, 163, 184, 0.18) !important;
@@ -185,7 +177,6 @@ html.dark :where(nav, [role="tablist"], .student-tabs, .student-navigation) {
   border-color: rgba(148, 163, 184, 0.18) !important;
 }
 
-/* Dialogs / dropdowns / sheets. */
 html[data-qb-theme="dark"] :where(
   [role="dialog"], [role="menu"], [role="listbox"],
   [data-slot="dialog-content"], [data-slot="alert-dialog-content"],
@@ -201,7 +192,6 @@ html.dark :where(
   border-color: rgba(148, 163, 184, 0.18) !important;
 }
 
-/* Tables. */
 html[data-qb-theme="dark"] :where(table, thead, tbody, tr, th, td),
 html.dark :where(table, thead, tbody, tr, th, td) {
   border-color: rgba(148, 163, 184, 0.18) !important;
@@ -219,7 +209,6 @@ html.dark :where(td) {
   color: #F5F7FA !important;
 }
 
-/* Soft semantic states remain recognizable without white panels. */
 html[data-qb-theme="dark"] :where(.bg-green-50, .bg-green-100, .bg-emerald-50, .bg-emerald-100),
 html.dark :where(.bg-green-50, .bg-green-100, .bg-emerald-50, .bg-emerald-100) {
   background: #092620 !important;
@@ -237,4 +226,99 @@ html[data-qb-theme="dark"] :where(button, a, input, select, textarea):focus-visi
 html.dark :where(button, a, input, select, textarea):focus-visible {
   outline: 2px solid #10B981 !important;
   outline-offset: 2px;
+}
+
+/* Student menu: neutralize the legacy green/white utility classes without changing its behavior. */
+html[data-qb-theme="dark"] header.sticky[class*="bg-[#166534]"],
+html.dark header.sticky[class*="bg-[#166534]"] {
+  background: #121A2F !important;
+  background-image: none !important;
+  color: #F5F7FA !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+html[data-qb-theme="dark"] header.sticky[class*="bg-[#166534]"] .bg-gradient-to-r,
+html.dark header.sticky[class*="bg-[#166534]"] .bg-gradient-to-r {
+  background: #131B2E !important;
+  background-image: none !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+}
+
+html[data-qb-theme="dark"] header.sticky[class*="bg-[#166534]"] :where(.bg-white\/15, .bg-white\/20),
+html.dark header.sticky[class*="bg-[#166534]"] :where(.bg-white\/15, .bg-white\/20) {
+  background: #0D1628 !important;
+  color: #AAB7C9 !important;
+}
+
+html[data-qb-theme="dark"] header.sticky[class*="bg-[#166534]"] .text-green-100,
+html.dark header.sticky[class*="bg-[#166534]"] .text-green-100 {
+  color: #AAB7C9 !important;
+}
+
+html[data-qb-theme="dark"] nav.sticky[class*="top-[244px]"],
+html.dark nav.sticky[class*="top-[244px]"] {
+  background: #131B2E !important;
+  color: #F5F7FA !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24) !important;
+}
+
+html[data-qb-theme="dark"] nav.sticky[class*="top-[244px]"] button:not(.bg-green-600),
+html.dark nav.sticky[class*="top-[244px]"] button:not(.bg-green-600) {
+  color: #AAB7C9 !important;
+}
+
+html[data-qb-theme="dark"] nav.sticky[class*="top-[244px]"] button:hover:not(.bg-green-600),
+html.dark nav.sticky[class*="top-[244px]"] button:hover:not(.bg-green-600) {
+  background: #16243A !important;
+}
+
+html[data-qb-theme="dark"] main input.bg-white,
+html.dark main input.bg-white {
+  background: #0D1628 !important;
+  color: #F5F7FA !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+html[data-qb-theme="dark"] main :where(.bg-slate-100, .bg-slate-200),
+html.dark main :where(.bg-slate-100, .bg-slate-200) {
+  background: #0D1628 !important;
+  color: #AAB7C9 !important;
+}
+
+html[data-qb-theme="dark"] main article.bg-white,
+html.dark main article.bg-white {
+  background: #121A2F !important;
+  color: #F5F7FA !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24) !important;
+}
+
+html[data-qb-theme="dark"] main article.bg-white .text-green-800,
+html.dark main article.bg-white .text-green-800 {
+  color: #34D399 !important;
+}
+
+html[data-qb-theme="dark"] main article.bg-white .text-slate-600,
+html[data-qb-theme="dark"] main article.bg-white .text-slate-700,
+html.dark main article.bg-white .text-slate-600,
+html.dark main article.bg-white .text-slate-700 {
+  color: #AAB7C9 !important;
+}
+
+html[data-qb-theme="dark"] main article.bg-white .bg-green-50,
+html.dark main article.bg-white .bg-green-50 {
+  background: #092620 !important;
+}
+
+html[data-qb-theme="dark"] main article.bg-white :where(.bg-white\/90),
+html.dark main article.bg-white :where(.bg-white\/90) {
+  background: rgba(22, 36, 58, 0.94) !important;
+  color: #F5F7FA !important;
+}
+
+html[data-qb-theme="dark"] .fixed.inset-0.z-40 section,
+html.dark .fixed.inset-0.z-40 section {
+  background: #121A2F !important;
+  color: #F5F7FA !important;
 }
