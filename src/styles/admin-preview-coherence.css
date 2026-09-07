@@ -1,0 +1,146 @@
+/* Administrative student-preview contract.
+ * Scope is intentionally limited to the student screen opened from Admin,
+ * so normal student and parent experiences keep their existing light/dark behavior.
+ */
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell {
+  --qb-preview-canvas: #070D19;
+  --qb-preview-surface: #111A2E;
+  --qb-preview-elevated: #16243A;
+  --qb-preview-text: #F5F7FA;
+  --qb-preview-secondary: #AAB7C9;
+  --qb-preview-muted: #718096;
+  --qb-preview-border: rgba(148, 163, 184, 0.18);
+  --qb-preview-accent-soft: #092620;
+  min-height: 100vh;
+  background: var(--qb-preview-canvas);
+  color: var(--qb-preview-text);
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell header.sticky {
+  background: var(--qb-preview-canvas) !important;
+  border-color: var(--qb-preview-border) !important;
+  box-shadow: none !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell header.sticky div[class*="bg-gradient-to-r"] {
+  background: var(--qb-preview-surface) !important;
+  border: 1px solid var(--qb-preview-border);
+  box-shadow: none !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell header.sticky div[class*="bg-white/15"] {
+  background: color-mix(in srgb, var(--qb-preview-surface) 92%, transparent) !important;
+  border: 1px solid var(--qb-preview-border);
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell header.sticky div[class*="bg-white/10"],
+:root[data-qb-theme="dark"] .qb-admin-preview-shell header.sticky div[class*="bg-white/20"],
+:root[data-qb-theme="dark"] .qb-admin-preview-shell header.sticky button[class*="bg-white/10"] {
+  background: rgba(17, 26, 46, 0.88) !important;
+  border-color: var(--qb-preview-border) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell header.sticky [class*="bg-white"]:not(button) {
+  background: var(--qb-preview-surface) !important;
+  color: var(--qb-preview-text) !important;
+  border-color: var(--qb-preview-border) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell nav.sticky {
+  background: var(--qb-preview-surface) !important;
+  border: 1px solid var(--qb-preview-border) !important;
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.22) !important;
+  color: var(--qb-preview-text);
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell nav.sticky button {
+  color: var(--qb-preview-secondary);
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell nav.sticky button:hover {
+  background: rgba(22, 36, 58, 0.86);
+  color: var(--qb-preview-text);
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell nav.sticky button[class*="bg-green-600"] {
+  background: #16A36A !important;
+  color: #fff !important;
+  box-shadow: 0 8px 20px rgba(22, 163, 106, 0.22) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main {
+  background: var(--qb-preview-canvas);
+  color: var(--qb-preview-text);
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main input,
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main textarea {
+  background: var(--qb-preview-surface) !important;
+  color: var(--qb-preview-text) !important;
+  border-color: var(--qb-preview-border) !important;
+  box-shadow: none;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main input::placeholder,
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main textarea::placeholder {
+  color: var(--qb-preview-muted) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main article {
+  background: var(--qb-preview-surface) !important;
+  color: var(--qb-preview-text);
+  border-color: var(--qb-preview-border) !important;
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.18);
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main [class*="bg-slate-100"],
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main [class*="bg-slate-50"] {
+  background: var(--qb-preview-elevated) !important;
+  color: var(--qb-preview-secondary) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main [class*="bg-\[#DCFCE7\]"] {
+  background: var(--qb-preview-accent-soft) !important;
+  color: #A7F3D0 !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main [class*="border-slate-200"],
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main [class*="border-slate-300"] {
+  border-color: var(--qb-preview-border) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main [class*="text-slate-600"],
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main [class*="text-slate-700"],
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main [class*="text-slate-800"] {
+  color: var(--qb-preview-secondary) !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main [class*="text-green-800"] {
+  color: #A7F3D0 !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main button[class*="bg-green-600"],
+:root[data-qb-theme="dark"] .qb-admin-preview-shell main button[class*="bg-emerald-600"] {
+  color: #fff !important;
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell .qb-feature-fab {
+  background: rgba(15, 23, 42, 0.90) !important;
+  border-color: rgba(71, 85, 105, 0.60) !important;
+  color: #fff !important;
+  box-shadow: 0 20px 45px rgba(2, 6, 23, 0.32);
+  backdrop-filter: blur(14px);
+}
+
+:root[data-qb-theme="dark"] .qb-admin-preview-shell .qb-feature-fab:hover {
+  background: rgba(30, 41, 59, 0.95) !important;
+  border-color: rgba(16, 185, 129, 0.50) !important;
+}
+
+@media (max-width: 640px) {
+  :root[data-qb-theme="dark"] .qb-admin-preview-shell .qb-feature-fab {
+    left: 1rem;
+    bottom: 1rem;
+  }
+}
