@@ -40,7 +40,7 @@ function applyElementOverrides(settings: VisualSettingsDraft, scope: VisualInter
   });
   if (!css.length) { style?.remove(); return; }
   if (!style) { style = document.createElement('style'); style.id = id; style.dataset.qbVisualElementOverrides = 'true'; document.head.appendChild(style); }
-  style.textContent = css.join('\n');
+  style.textContent = `@layer components {\n${css.join('\n')}\n}`;
 }
 function readStoredPreview(): VisualSettingsDraft | null { if (typeof window === 'undefined' || !isVisualPreviewMode()) return null; try { const raw = window.localStorage.getItem(PREVIEW_STORAGE_KEY); return raw ? sanitizeVisualSettings(JSON.parse(raw) as Partial<VisualSettingsDraft>) : null; } catch { return null; } }
 function toStoredSettings(draft: VisualSettingsDraft, previous: VisualSettings): VisualSettings { return { ...draft, id: true, updated_at: previous.updated_at, updated_by: previous.updated_by }; }
