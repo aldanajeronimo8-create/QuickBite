@@ -1,85 +1,109 @@
-/* QuickBite — single final dark-mode authority.
- * Loaded last so legacy Tailwind/light utility classes cannot leak a white canvas.
- * The theme engine uses data-qb-theme on <html>; .dark is supported as a compatibility fallback.
- */
+/* =========================================================
+   QUICKBITE — DARK MODE FINAL AUTHORITY
+   Global canvas: #0D111D
+   Surfaces: #121A2F / #16243A
+   Loaded last so light/legacy utility classes cannot leak into
+   the viewport when Dark Mode is active.
+   ========================================================= */
 
 html[data-qb-theme="dark"],
 html.dark {
   color-scheme: dark;
-  background: #070d19 !important;
-  --qb-background: #070d19;
-  --qb-surface: #111a2e;
-  --qb-surface-muted: #0d1628;
-  --qb-surface-elevated: #16243a;
-  --qb-text: #f5f7fa;
-  --qb-text-secondary: #aab7c9;
+  min-height: 100%;
+  background: #0D111D !important;
+
+  --qb-background: #0D111D;
+  --qb-surface: #121A2F;
+  --qb-surface-muted: #0D1628;
+  --qb-surface-elevated: #16243A;
+  --qb-text: #F5F7FA;
+  --qb-text-secondary: #AAB7C9;
   --qb-text-muted: #718096;
   --qb-border: rgba(148, 163, 184, 0.18);
   --qb-separator: rgba(148, 163, 184, 0.12);
   --qb-overlay: rgba(0, 0, 0, 0.62);
-  --background: #070d19;
-  --foreground: #f5f7fa;
-  --card: #111a2e;
-  --card-foreground: #f5f7fa;
-  --popover: #16243a;
-  --popover-foreground: #f5f7fa;
-  --muted: #16243a;
-  --muted-foreground: #aab7c9;
+
+  --background: #0D111D;
+  --foreground: #F5F7FA;
+  --card: #121A2F;
+  --card-foreground: #F5F7FA;
+  --popover: #16243A;
+  --popover-foreground: #F5F7FA;
+  --muted: #16243A;
+  --muted-foreground: #AAB7C9;
   --border: rgba(148, 163, 184, 0.18);
-  --input: #0d1628;
-  --input-background: #0d1628;
-  --ring: #16a36a;
+  --input: #0D1628;
+  --input-background: #0D1628;
+  --ring: #16A36A;
 }
 
 html[data-qb-theme="dark"] body,
-html[data-qb-theme="dark"] #root,
-html.dark body,
-html.dark #root {
-  min-height: 100%;
-  background: #070d19 !important;
+html.dark body {
+  margin: 0 !important;
+  min-width: 100%;
+  min-height: 100vh;
+  background: #0D111D !important;
   background-image: none !important;
-  color: #f5f7fa !important;
+  color: #F5F7FA !important;
 }
 
-/* Any root-level wrapper that otherwise paints the viewport white. */
+html[data-qb-theme="dark"] #root,
+html.dark #root,
+html[data-qb-theme="dark"] #__next,
+html.dark #__next {
+  min-width: 100%;
+  min-height: 100vh;
+  background: #0D111D !important;
+  background-image: none !important;
+}
+
+/* Protect the viewport even when app content is shorter than the screen. */
+html[data-qb-theme="dark"] body::before,
+html.dark body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -9999;
+  background: #0D111D;
+  pointer-events: none;
+}
+
+/* Root-level wrappers must not paint a light canvas. */
 html[data-qb-theme="dark"] #root > *,
 html.dark #root > * {
   background-color: transparent;
 }
 
-/* Semantic surfaces. */
-html[data-qb-theme="dark"] :where(
-  .bg-white,
-  .bg-gray-50,
-  .bg-slate-50,
-  .bg-zinc-50
-),
-html.dark :where(
-  .bg-white,
-  .bg-gray-50,
-  .bg-slate-50,
-  .bg-zinc-50
-) {
-  background-color: #111a2e !important;
+/* Common light Tailwind backgrounds become dark surfaces. */
+html[data-qb-theme="dark"] :where(.bg-white, .bg-gray-50, .bg-slate-50, .bg-zinc-50),
+html.dark :where(.bg-white, .bg-gray-50, .bg-slate-50, .bg-zinc-50) {
+  background-color: #121A2F !important;
 }
 
 html[data-qb-theme="dark"] :where(.bg-gray-100, .bg-slate-100, .bg-zinc-100),
 html.dark :where(.bg-gray-100, .bg-slate-100, .bg-zinc-100) {
-  background-color: #0d1628 !important;
+  background-color: #0D1628 !important;
 }
 
 html[data-qb-theme="dark"] :where(.bg-gray-200, .bg-slate-200, .bg-zinc-200),
 html.dark :where(.bg-gray-200, .bg-slate-200, .bg-zinc-200) {
-  background-color: #16243a !important;
+  background-color: #16243A !important;
 }
 
+/* Semantic cards and surfaces. */
 html[data-qb-theme="dark"] :where([data-slot="card"], .qb-theme-card, .qb-surface),
 html.dark :where([data-slot="card"], .qb-theme-card, .qb-surface) {
-  background: #111a2e !important;
-  color: #f5f7fa !important;
+  background: #121A2F !important;
+  color: #F5F7FA !important;
   border-color: rgba(148, 163, 184, 0.18) !important;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24) !important;
   backdrop-filter: none !important;
+}
+
+/* Page containers inherit the root canvas unless they deliberately define a surface. */
+html[data-qb-theme="dark"] :where(main, section, .min-h-screen),
+html.dark :where(main, section, .min-h-screen) {
+  background-color: transparent;
 }
 
 /* Text contrast. */
@@ -92,7 +116,9 @@ html.dark :where(
   .text-gray-950, .text-gray-900, .text-gray-800, .text-gray-700,
   .text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700,
   .text-zinc-950, .text-zinc-900, .text-zinc-800, .text-zinc-700
-) { color: #f5f7fa !important; }
+) {
+  color: #F5F7FA !important;
+}
 
 html[data-qb-theme="dark"] :where(
   .text-gray-600, .text-gray-500, .text-slate-600, .text-slate-500,
@@ -101,7 +127,9 @@ html[data-qb-theme="dark"] :where(
 html.dark :where(
   .text-gray-600, .text-gray-500, .text-slate-600, .text-slate-500,
   .text-zinc-600, .text-zinc-500
-) { color: #aab7c9 !important; }
+) {
+  color: #AAB7C9 !important;
+}
 
 html[data-qb-theme="dark"] :where(
   .text-gray-400, .text-gray-300, .text-slate-400, .text-slate-300,
@@ -110,7 +138,9 @@ html[data-qb-theme="dark"] :where(
 html.dark :where(
   .text-gray-400, .text-gray-300, .text-slate-400, .text-slate-300,
   .text-zinc-400, .text-zinc-300
-) { color: #718096 !important; }
+) {
+  color: #718096 !important;
+}
 
 /* Forms. */
 html[data-qb-theme="dark"] :where(
@@ -121,8 +151,8 @@ html.dark :where(
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
   textarea, select, [data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"]
 ) {
-  background-color: #0d1628 !important;
-  color: #f5f7fa !important;
+  background-color: #0D1628 !important;
+  color: #F5F7FA !important;
   border-color: rgba(148, 163, 184, 0.18) !important;
   box-shadow: none !important;
 }
@@ -133,7 +163,7 @@ html.dark :where(input, textarea)::placeholder {
   opacity: 1 !important;
 }
 
-/* Navigation, headers and sidebars: dark chrome, not a green/white slab. */
+/* Navigation / chrome. */
 html[data-qb-theme="dark"] :where(header, nav, aside, footer),
 html.dark :where(header, nav, aside, footer) {
   border-color: rgba(148, 163, 184, 0.18) !important;
@@ -141,17 +171,17 @@ html.dark :where(header, nav, aside, footer) {
 
 html[data-qb-theme="dark"] :where(.student-header, .admin-header, .admin-sidebar),
 html.dark :where(.student-header, .admin-header, .admin-sidebar) {
-  background: #0d1628 !important;
+  background: #0D1628 !important;
   background-image: none !important;
-  color: #f5f7fa !important;
+  color: #F5F7FA !important;
   border-color: rgba(148, 163, 184, 0.18) !important;
   box-shadow: none !important;
 }
 
 html[data-qb-theme="dark"] :where(nav, [role="tablist"], .student-tabs, .student-navigation),
 html.dark :where(nav, [role="tablist"], .student-tabs, .student-navigation) {
-  background: #111a2e !important;
-  color: #f5f7fa !important;
+  background: #121A2F !important;
+  color: #F5F7FA !important;
   border-color: rgba(148, 163, 184, 0.18) !important;
 }
 
@@ -166,8 +196,8 @@ html.dark :where(
   [data-slot="dialog-content"], [data-slot="alert-dialog-content"],
   [data-slot="sheet-content"], [data-slot="drawer-content"]
 ) {
-  background: #111a2e !important;
-  color: #f5f7fa !important;
+  background: #121A2F !important;
+  color: #F5F7FA !important;
   border-color: rgba(148, 163, 184, 0.18) !important;
 }
 
@@ -179,39 +209,32 @@ html.dark :where(table, thead, tbody, tr, th, td) {
 
 html[data-qb-theme="dark"] :where(th),
 html.dark :where(th) {
-  background: #0d1628 !important;
-  color: #aab7c9 !important;
+  background: #0D1628 !important;
+  color: #AAB7C9 !important;
 }
 
 html[data-qb-theme="dark"] :where(td),
 html.dark :where(td) {
-  background: #111a2e !important;
-  color: #f5f7fa !important;
+  background: #121A2F !important;
+  color: #F5F7FA !important;
 }
 
-/* Soft semantic colors remain recognizable without producing white panels. */
+/* Soft semantic states remain recognizable without white panels. */
 html[data-qb-theme="dark"] :where(.bg-green-50, .bg-green-100, .bg-emerald-50, .bg-emerald-100),
 html.dark :where(.bg-green-50, .bg-green-100, .bg-emerald-50, .bg-emerald-100) {
   background: #092620 !important;
-  color: #a7f3d0 !important;
+  color: #A7F3D0 !important;
   border-color: rgba(16, 185, 129, 0.28) !important;
 }
 
-/* Preserve strong CTA buttons. */
-html[data-qb-theme="dark"] :where(.bg-green-600, .bg-green-700, .bg-emerald-600, .bg-emerald-700),
-html.dark :where(.bg-green-600, .bg-green-700, .bg-emerald-600, .bg-emerald-700) {
-  color: #ffffff !important;
-}
-
-/* Selection / focus. */
 html[data-qb-theme="dark"] ::selection,
 html.dark ::selection {
   background: rgba(16, 185, 129, 0.24) !important;
-  color: #f5f7fa !important;
+  color: #F5F7FA !important;
 }
 
 html[data-qb-theme="dark"] :where(button, a, input, select, textarea):focus-visible,
 html.dark :where(button, a, input, select, textarea):focus-visible {
-  outline: 2px solid #10b981 !important;
+  outline: 2px solid #10B981 !important;
   outline-offset: 2px;
 }
