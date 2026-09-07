@@ -25,3 +25,6 @@
  * Note that we hoist @imports using a PostCSS plugin, so this can contain @imports e.g. for fonts.
  */
 @import './src/styles/globals.css';
+
+/* Dark mode authority — MUST remain the final stylesheet import. */
+@import './src/styles/dark-mode-final.css';
