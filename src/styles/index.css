@@ -9,6 +9,7 @@
 @import './dark-mode-hardening.css';
 @import './student-theme-token-contract.css';
 @import './student-dark-reference.css';
+@import './student-dark-mode-fix.css';
 @import './global-dark-mode-coherence.css';
 @import './admin-preview-coherence.css';
 
