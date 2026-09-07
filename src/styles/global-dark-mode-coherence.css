@@ -1,0 +1,205 @@
+/* QuickBite global Dark Mode coherence layer.
+ * This is intentionally the last visual layer so legacy Tailwind utilities
+ * cannot leave mixed white/green chrome across Student, Parent, Admin and Auth.
+ * Action buttons may remain emerald; page chrome and surfaces do not. */
+
+:root[data-qb-theme="dark"] {
+  --qb-dark-bg: #070D19;
+  --qb-dark-surface: #111A2E;
+  --qb-dark-surface-2: #0D1628;
+  --qb-dark-surface-3: #16243A;
+  --qb-dark-text: #F5F7FA;
+  --qb-dark-secondary: #AAB7C9;
+  --qb-dark-muted: #718096;
+  --qb-dark-border: rgba(148,163,184,.18);
+  --qb-dark-accent-soft: #092620;
+  --qb-dark-overlay: rgba(0,0,0,.62);
+}
+
+/* Global canvas: no light page can leak around the main shell. */
+:root[data-qb-theme="dark"],
+:root[data-qb-theme="dark"] body,
+:root[data-qb-theme="dark"] #root {
+  background-color: var(--qb-dark-bg) !important;
+  color: var(--qb-dark-text) !important;
+}
+
+:root[data-qb-theme="dark"] body {
+  background-image:
+    radial-gradient(circle at 8% 4%, rgba(16,185,129,.04), transparent 32%),
+    radial-gradient(circle at 92% 8%, rgba(37,99,235,.04), transparent 34%) !important;
+}
+
+/* Structural shells use the same dark canvas. */
+:root[data-qb-theme="dark"] :where(main, .student-app, .student-main, .student-content, .admin-shell, .admin-main, .qb-auth) {
+  background-color: var(--qb-dark-bg) !important;
+  color: var(--qb-dark-text) !important;
+}
+
+/* White/surface utilities on real containers become semantic surfaces.
+ * Buttons are excluded so CTA buttons can stay emerald. */
+:root[data-qb-theme="dark"] :where(main, section, article, nav, aside, header, footer, form, dialog, div)[class~="bg-white"]:not(button),
+:root[data-qb-theme="dark"] :where(main, section, article, nav, aside, header, footer, form, dialog, div)[class~="bg-white/50"],
+:root[data-qb-theme="dark"] :where(main, section, article, nav, aside, header, footer, form, dialog, div)[class~="bg-white/70"],
+:root[data-qb-theme="dark"] :where(main, section, article, nav, aside, header, footer, form, dialog, div)[class~="bg-white/80"] {
+  background-color: var(--qb-dark-surface) !important;
+}
+
+:root[data-qb-theme="dark"] :where(main, section, article, nav, aside, header, footer, form, dialog, div)[class~="bg-slate-50"],
+:root[data-qb-theme="dark"] :where(main, section, article, nav, aside, header, footer, form, dialog, div)[class~="bg-slate-100"],
+:root[data-qb-theme="dark"] :where(main, section, article, nav, aside, header, footer, form, dialog, div)[class~="bg-gray-50"],
+:root[data-qb-theme="dark"] :where(main, section, article, nav, aside, header, footer, form, dialog, div)[class~="bg-gray-100"] {
+  background-color: var(--qb-dark-surface-2) !important;
+}
+
+/* Large page chrome must never stay bright green. */
+:root[data-qb-theme="dark"] header,
+:root[data-qb-theme="dark"] .student-header,
+:root[data-qb-theme="dark"] .admin-header {
+  background-color: var(--qb-dark-bg) !important;
+  background-image: none !important;
+  color: var(--qb-dark-text) !important;
+  border-bottom: 1px solid var(--qb-dark-border) !important;
+  box-shadow: none !important;
+}
+
+:root[data-qb-theme="dark"] header :where([class~="bg-gradient-to-r"], [class*="from-green-"], [class*="from-emerald-"]) {
+  background-image: none !important;
+  background-color: var(--qb-dark-surface) !important;
+  border: 1px solid var(--qb-dark-border) !important;
+  box-shadow: none !important;
+}
+
+/* Header glass chips/wallet blocks become muted navy. */
+:root[data-qb-theme="dark"] header :where([class~="bg-white/10"], [class~="bg-white/15"], [class~="bg-white/20"]) {
+  background-color: rgba(255,255,255,.035) !important;
+  border-color: var(--qb-dark-border) !important;
+}
+
+:root[data-qb-theme="dark"] header :where([class~="bg-white"]):not(button) {
+  background-color: var(--qb-dark-accent-soft) !important;
+  color: #A7F3D0 !important;
+  border: 1px solid rgba(16,185,129,.30) !important;
+}
+
+/* Navigation capsules and secondary navigation surfaces. */
+:root[data-qb-theme="dark"] :where(nav, [role="tablist"], .student-tabs, .student-navigation) {
+  background-color: var(--qb-dark-surface) !important;
+  color: var(--qb-dark-text) !important;
+  border-color: var(--qb-dark-border) !important;
+  box-shadow: none !important;
+}
+
+:root[data-qb-theme="dark"] :where(nav, [role="tablist"]) button:not([class*="bg-green-"]):not([class*="bg-emerald-"]) {
+  color: var(--qb-dark-secondary) !important;
+  background-color: transparent !important;
+}
+
+:root[data-qb-theme="dark"] :where(nav, [role="tablist"]) button:not([class*="bg-green-"]):not([class*="bg-emerald-"]):hover {
+  color: var(--qb-dark-text) !important;
+  background-color: rgba(30,41,59,.70) !important;
+}
+
+/* Search/form controls are always on a dark surface in Dark Mode. */
+:root[data-qb-theme="dark"] :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select, [data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"]) {
+  background-color: var(--qb-dark-surface) !important;
+  color: var(--qb-dark-text) !important;
+  border-color: var(--qb-dark-border) !important;
+  box-shadow: none !important;
+}
+
+:root[data-qb-theme="dark"] :where(input, textarea)::placeholder {
+  color: #64748B !important;
+  opacity: 1 !important;
+}
+
+/* Common neutral text utilities. */
+:root[data-qb-theme="dark"] :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700) {
+  color: var(--qb-dark-text) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.text-slate-600, .text-slate-500, .text-gray-600, .text-gray-500) {
+  color: var(--qb-dark-secondary) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.text-slate-400, .text-slate-300, .text-gray-400, .text-gray-300) {
+  color: var(--qb-dark-muted) !important;
+}
+
+/* Neutral borders/rings become slate instead of pale gray. */
+:root[data-qb-theme="dark"] :where(.border-slate-50, .border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300, .ring-slate-200) {
+  border-color: var(--qb-dark-border) !important;
+  --tw-ring-color: var(--qb-dark-border) !important;
+}
+
+/* Soft green states are restrained; selected/action controls remain green. */
+:root[data-qb-theme="dark"] :where(.bg-green-50, .bg-green-100, .bg-emerald-50, .bg-emerald-100) {
+  background-color: var(--qb-dark-accent-soft) !important;
+  color: #A7F3D0 !important;
+  border-color: rgba(16,185,129,.28) !important;
+}
+
+/* Keep selected/primary controls clearly actionable without flooding the UI. */
+:root[data-qb-theme="dark"] :where(.bg-green-600, .bg-emerald-600, .bg-green-700, .bg-emerald-700) {
+  box-shadow: none;
+}
+
+/* Dialogs, sheets, popovers, menus and overlays share the same surface system. */
+:root[data-qb-theme="dark"] :where([role="dialog"], [role="menu"], [role="listbox"], [data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"]) {
+  background-color: var(--qb-dark-surface) !important;
+  color: var(--qb-dark-text) !important;
+  border-color: var(--qb-dark-border) !important;
+}
+
+:root[data-qb-theme="dark"] :where([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"], [class*="fixed"][class*="bg-slate-950/"]) {
+  background-color: var(--qb-dark-overlay) !important;
+}
+
+:root[data-qb-theme="dark"] :where(table, thead, tbody, tr, th, td) {
+  border-color: var(--qb-dark-border) !important;
+}
+
+:root[data-qb-theme="dark"] :where(th) {
+  background-color: var(--qb-dark-surface-2) !important;
+  color: var(--qb-dark-secondary) !important;
+}
+
+:root[data-qb-theme="dark"] :where(td) {
+  background-color: var(--qb-dark-surface) !important;
+  color: var(--qb-dark-text) !important;
+}
+
+/* Auth and generic cards explicitly follow the same surface hierarchy. */
+:root[data-qb-theme="dark"] :where(.qb-auth-card, [data-slot="card"], .qb-theme-card) {
+  background-color: var(--qb-dark-surface) !important;
+  color: var(--qb-dark-text) !important;
+  border-color: var(--qb-dark-border) !important;
+  box-shadow: 0 18px 44px rgba(0,0,0,.28) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.qb-auth-card h1, .qb-auth-card h2, .qb-auth-card h3, .qb-auth-card label) {
+  color: var(--qb-dark-text) !important;
+}
+
+:root[data-qb-theme="dark"] :where(.qb-auth-card p, .qb-auth-card small) {
+  color: var(--qb-dark-secondary) !important;
+}
+
+/* Accessibility and interaction. */
+:root[data-qb-theme="dark"] :where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #10B981 !important;
+  outline-offset: 2px;
+}
+
+:root[data-qb-theme="dark"] :where(button, a)[disabled],
+:root[data-qb-theme="dark"] :where(button, a).disabled {
+  opacity: .52;
+}
+
+/* Legacy literal page backgrounds such as slate-50/square shells. */
+:root[data-qb-theme="dark"] [style*="background: white"],
+:root[data-qb-theme="dark"] [style*="background-color: white"],
+:root[data-qb-theme="dark"] [style*="background:#fff"],
+:root[data-qb-theme="dark"] [style*="background-color:#fff"] {
+  background: var(--qb-dark-surface) !important;
+}
