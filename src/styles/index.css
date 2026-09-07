@@ -2,16 +2,18 @@
 @import './tailwind.css';
 @import './theme.css';
 @import './globals.css';
-@import './dark-mode-css-authority.css';
 @import './visual-theme.css';
 @import './admin-production-overrides.css';
 @import './admin-button-neutral.css';
-@import './dark-mode-hardening.css';
 @import './student-theme-token-contract.css';
 @import './student-dark-reference.css';
-@import './student-dark-mode-fix.css';
-@import './global-dark-mode-coherence.css';
 @import './admin-preview-coherence.css';
+
+/*
+ * QuickBite dark mode architecture:
+ * dark-mode-final.css is the single final authority.
+ * Legacy dark-mode patch layers are intentionally not imported here.
+ */
 @import './dark-mode-final.css';
 
 /* Student navigation: collapse the green header while scrolling down and bring the tab bar to the top. */
