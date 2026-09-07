@@ -12,6 +12,7 @@
 @import './student-dark-mode-fix.css';
 @import './global-dark-mode-coherence.css';
 @import './admin-preview-coherence.css';
+@import './dark-mode-final.css';
 
 /* Student navigation: collapse the green header while scrolling down and bring the tab bar to the top. */
 @supports (animation-timeline: scroll()) {
