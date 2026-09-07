@@ -15,7 +15,9 @@
 /* 1. Full-viewport dark coverage. */
 :root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"],
 :root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] body,
-:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] #root {
+:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] #root,
+:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] .qb-admin-preview-shell,
+:root[data-qb-theme="dark"][data-qb-visual-preview-scope="student"] .qb-admin-preview-shell > .min-h-screen.bg-slate-50 {
   background-color: var(--qb-student-bg-final) !important;
 }
 
