@@ -1,0 +1,165 @@
+@layer components {
+  :root[data-qb-theme="dark"] {
+    --qb-dark-canvas: #070D19;
+    --qb-dark-surface: #111A2E;
+    --qb-dark-surface-2: #0D1628;
+    --qb-dark-elevated: #16243A;
+    --qb-dark-text: #F5F7FA;
+    --qb-dark-secondary: #AAB7C9;
+    --qb-dark-muted: #718096;
+    --qb-dark-border: rgba(148, 163, 184, 0.18);
+    --qb-dark-accent-soft: #092620;
+  }
+
+  :root[data-qb-theme="dark"] html,
+  :root[data-qb-theme="dark"] body {
+    background: var(--qb-dark-canvas) !important;
+    color: var(--qb-dark-text) !important;
+  }
+
+  :root[data-qb-theme="dark"] body {
+    background-image: none !important;
+  }
+
+  :root[data-qb-theme="dark"] ::selection {
+    background: rgba(16, 185, 129, 0.22) !important;
+    color: var(--qb-dark-text) !important;
+  }
+
+  :root[data-qb-theme="dark"] .student-app,
+  :root[data-qb-theme="dark"] .student-main,
+  :root[data-qb-theme="dark"] .student-content,
+  :root[data-qb-theme="dark"] .admin-shell,
+  :root[data-qb-theme="dark"] .admin-main,
+  :root[data-qb-theme="dark"] .qb-auth,
+  :root[data-qb-theme="dark"] .qb-auth--student,
+  :root[data-qb-theme="dark"] .qb-auth--admin {
+    background: var(--qb-dark-canvas) !important;
+    background-image: none !important;
+    color: var(--qb-dark-text) !important;
+  }
+
+  :root[data-qb-theme="dark"] .student-header,
+  :root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header {
+    background: var(--qb-dark-canvas) !important;
+    background-image: none !important;
+    border-color: var(--qb-dark-border) !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24) !important;
+  }
+
+  :root[data-qb-theme="dark"] .student-header > div > div:last-child,
+  :root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > header > div > div:last-child {
+    background: var(--qb-dark-surface) !important;
+    border-color: var(--qb-dark-border) !important;
+    box-shadow: none !important;
+  }
+
+  :root[data-qb-theme="dark"] .student-tabs,
+  :root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav {
+    background: var(--qb-dark-surface) !important;
+    border-color: var(--qb-dark-border) !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  :root[data-qb-theme="dark"] .student-tabs button,
+  :root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) > nav button {
+    color: var(--qb-dark-secondary) !important;
+  }
+
+  :root[data-qb-theme="dark"] .student-app input:not([data-slot="input"]),
+  :root[data-qb-theme="dark"] .student-app textarea,
+  :root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) input:not([data-slot="input"]),
+  :root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) textarea,
+  :root[data-qb-theme="dark"] [data-slot="input"],
+  :root[data-qb-theme="dark"] [data-slot="textarea"],
+  :root[data-qb-theme="dark"] [data-slot="select-trigger"] {
+    background: var(--qb-dark-surface-2) !important;
+    color: var(--qb-dark-text) !important;
+    border-color: var(--qb-dark-border) !important;
+    box-shadow: none !important;
+  }
+
+  :root[data-qb-theme="dark"] .student-app article,
+  :root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) article,
+  :root[data-qb-theme="dark"] [data-slot="card"],
+  :root[data-qb-theme="dark"] .admin-main [data-slot="card"],
+  :root[data-qb-theme="dark"] .student-register-card,
+  :root[data-qb-theme="dark"] .student-cart-panel {
+    background: var(--qb-dark-surface) !important;
+    color: var(--qb-dark-text) !important;
+    border-color: var(--qb-dark-border) !important;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24) !important;
+    backdrop-filter: none !important;
+  }
+
+  :root[data-qb-theme="dark"] .student-app article:hover,
+  :root[data-qb-theme="dark"] div:has(> header[class*="bg-[#166534]"]) article:hover,
+  :root[data-qb-theme="dark"] .admin-main [data-slot="card"]:hover {
+    border-color: rgba(16, 185, 129, 0.28) !important;
+    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.28) !important;
+  }
+
+  :root[data-qb-theme="dark"] .qb-auth-brand > span,
+  :root[data-qb-theme="dark"] .qb-auth-switch,
+  :root[data-qb-theme="dark"] .qb-auth-card,
+  :root[data-qb-theme="dark"] .admin-mobile-header {
+    background: var(--qb-dark-surface) !important;
+    color: var(--qb-dark-text) !important;
+    border-color: var(--qb-dark-border) !important;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28) !important;
+    backdrop-filter: none !important;
+  }
+
+  :root[data-qb-theme="dark"] .qb-auth-brand h1,
+  :root[data-qb-theme="dark"] .qb-auth-card h2,
+  :root[data-qb-theme="dark"] .qb-auth-card label,
+  :root[data-qb-theme="dark"] .student-register-card h2,
+  :root[data-qb-theme="dark"] .student-register-card h3,
+  :root[data-qb-theme="dark"] .student-register-card label,
+  :root[data-qb-theme="dark"] .admin-main h1,
+  :root[data-qb-theme="dark"] .admin-main h2,
+  :root[data-qb-theme="dark"] .admin-main h3 {
+    color: var(--qb-dark-text) !important;
+  }
+
+  :root[data-qb-theme="dark"] .qb-auth-brand p,
+  :root[data-qb-theme="dark"] .qb-auth-card p,
+  :root[data-qb-theme="dark"] .student-register-card p,
+  :root[data-qb-theme="dark"] .admin-main table thead th {
+    color: var(--qb-dark-secondary) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell .admin-sidebar {
+    background: var(--qb-dark-surface-2) !important;
+    background-image: none !important;
+    border-color: var(--qb-dark-border) !important;
+    box-shadow: 12px 0 30px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-main .bg-slate-50,
+  :root[data-qb-theme="dark"] .admin-main .bg-gray-50,
+  :root[data-qb-theme="dark"] .admin-main .bg-blue-50,
+  :root[data-qb-theme="dark"] .admin-main .bg-green-50,
+  :root[data-qb-theme="dark"] .qb-auth-card [data-slot="input"],
+  :root[data-qb-theme="dark"] .student-register-card [data-slot="input"],
+  :root[data-qb-theme="dark"] .student-register-card [data-slot="textarea"] {
+    background: var(--qb-dark-surface-2) !important;
+    color: var(--qb-dark-text) !important;
+    border-color: var(--qb-dark-border) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-main table thead {
+    background: var(--qb-dark-surface-2) !important;
+  }
+
+  :root[data-qb-theme="dark"] .qb-auth-card .relative > svg,
+  :root[data-qb-theme="dark"] .qb-auth-card button:not([data-slot="button"]) {
+    color: var(--qb-dark-secondary) !important;
+  }
+
+  :root[data-qb-theme="dark"] .student-app button[class*="bg-green-600"],
+  :root[data-qb-theme="dark"] .admin-main button[class*="bg-green-600"] {
+    background: #0f8f65 !important;
+    color: #f5f7fa !important;
+  }
+}
