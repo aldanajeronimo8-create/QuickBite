@@ -1,0 +1,210 @@
+/* QuickBite Admin — dark visual harmony layer */
+
+@layer base {
+  :root[data-qb-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  html:has(.admin-shell[data-theme="dark"]),
+  body:has(.admin-shell) {
+    background: #0b1220;
+  }
+}
+
+@layer components {
+  :root[data-qb-theme="dark"] .admin-shell {
+    --admin-bg: #0b1220;
+    --admin-surface: #111a2b;
+    --admin-surface-2: #162238;
+    --admin-surface-3: #1b2a43;
+    --admin-border: #26364f;
+    --admin-border-soft: rgba(148, 163, 184, 0.16);
+    --admin-text: #e8eef7;
+    --admin-muted: #94a3b8;
+    --admin-primary: #3b82f6;
+    --admin-primary-soft: rgba(59, 130, 246, 0.14);
+    --admin-success: #34d399;
+    --admin-warning: #fbbf24;
+    --admin-danger: #f87171;
+
+    background: var(--admin-bg) !important;
+    color: var(--admin-text) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell,
+  :root[data-qb-theme="dark"] .admin-shell main,
+  :root[data-qb-theme="dark"] .admin-shell section {
+    background-color: transparent;
+  }
+
+  /* Main surfaces: eliminate the scattered white cards produced by light-mode utilities. */
+  :root[data-qb-theme="dark"] .admin-shell [data-slot="card"],
+  :root[data-qb-theme="dark"] .admin-shell .bg-white,
+  :root[data-qb-theme="dark"] .admin-shell .bg-white\/95,
+  :root[data-qb-theme="dark"] .admin-shell .bg-white\/90,
+  :root[data-qb-theme="dark"] .admin-shell .bg-white\/80,
+  :root[data-qb-theme="dark"] .admin-shell .bg-white\/70,
+  :root[data-qb-theme="dark"] .admin-shell .bg-white\/60 {
+    background: var(--admin-surface) !important;
+    border-color: var(--admin-border) !important;
+    color: var(--admin-text) !important;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell .bg-slate-50,
+  :root[data-qb-theme="dark"] .admin-shell .bg-slate-100,
+  :root[data-qb-theme="dark"] .admin-shell .bg-gray-50,
+  :root[data-qb-theme="dark"] .admin-shell .bg-gray-100 {
+    background: var(--admin-surface-2) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell .bg-slate-900,
+  :root[data-qb-theme="dark"] .admin-shell .bg-slate-950 {
+    background: #080e19 !important;
+  }
+
+  /* Typography */
+  :root[data-qb-theme="dark"] .admin-shell .text-slate-950,
+  :root[data-qb-theme="dark"] .admin-shell .text-slate-900,
+  :root[data-qb-theme="dark"] .admin-shell .text-slate-800,
+  :root[data-qb-theme="dark"] .admin-shell .text-slate-700,
+  :root[data-qb-theme="dark"] .admin-shell .text-gray-900,
+  :root[data-qb-theme="dark"] .admin-shell .text-gray-800,
+  :root[data-qb-theme="dark"] .admin-shell .text-gray-700 {
+    color: var(--admin-text) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell .text-slate-600,
+  :root[data-qb-theme="dark"] .admin-shell .text-slate-500,
+  :root[data-qb-theme="dark"] .admin-shell .text-gray-600,
+  :root[data-qb-theme="dark"] .admin-shell .text-gray-500,
+  :root[data-qb-theme="dark"] .admin-shell .text-slate-400 {
+    color: var(--admin-muted) !important;
+  }
+
+  /* Borders and dividers */
+  :root[data-qb-theme="dark"] .admin-shell .border-slate-200,
+  :root[data-qb-theme="dark"] .admin-shell .border-slate-300,
+  :root[data-qb-theme="dark"] .admin-shell .border-gray-200,
+  :root[data-qb-theme="dark"] .admin-shell .border-gray-300,
+  :root[data-qb-theme="dark"] .admin-shell .border-white,
+  :root[data-qb-theme="dark"] .admin-shell [data-slot="card"] {
+    border-color: var(--admin-border) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell hr {
+    border-color: var(--admin-border-soft) !important;
+  }
+
+  /* Inputs, selects and textareas */
+  :root[data-qb-theme="dark"] .admin-shell input,
+  :root[data-qb-theme="dark"] .admin-shell textarea,
+  :root[data-qb-theme="dark"] .admin-shell select,
+  :root[data-qb-theme="dark"] .admin-shell [data-slot="input"],
+  :root[data-qb-theme="dark"] .admin-shell [data-slot="textarea"],
+  :root[data-qb-theme="dark"] .admin-shell [data-slot="select-trigger"] {
+    background: var(--admin-surface-2) !important;
+    color: var(--admin-text) !important;
+    border-color: var(--admin-border) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell input::placeholder,
+  :root[data-qb-theme="dark"] .admin-shell textarea::placeholder {
+    color: #718096 !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell input:focus,
+  :root[data-qb-theme="dark"] .admin-shell textarea:focus,
+  :root[data-qb-theme="dark"] .admin-shell [data-slot="select-trigger"]:focus-visible {
+    border-color: var(--admin-primary) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16) !important;
+  }
+
+  /* Menus, dialogs, popovers and dropdowns */
+  :root[data-qb-theme="dark"] .admin-shell [data-slot="select-content"],
+  :root[data-qb-theme="dark"] .admin-shell [role="dialog"],
+  :root[data-qb-theme="dark"] .admin-shell [role="menu"] {
+    background: var(--admin-surface-2) !important;
+    color: var(--admin-text) !important;
+    border-color: var(--admin-border) !important;
+    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.38) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell [role="option"]:hover,
+  :root[data-qb-theme="dark"] .admin-shell [role="menuitem"]:hover {
+    background: var(--admin-surface-3) !important;
+  }
+
+  /* Buttons that were designed with light backgrounds. Keep semantic colored actions intact. */
+  :root[data-qb-theme="dark"] .admin-shell button.bg-white,
+  :root[data-qb-theme="dark"] .admin-shell button.bg-slate-50,
+  :root[data-qb-theme="dark"] .admin-shell button.bg-slate-100 {
+    background: var(--admin-surface-2) !important;
+    color: var(--admin-text) !important;
+    border-color: var(--admin-border) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell button:hover:not(:disabled).bg-white,
+  :root[data-qb-theme="dark"] .admin-shell button:hover:not(:disabled).bg-slate-50,
+  :root[data-qb-theme="dark"] .admin-shell button:hover:not(:disabled).bg-slate-100 {
+    background: var(--admin-surface-3) !important;
+  }
+
+  /* Keep the admin brand/sidebar deliberately blue; only soften its contrast. */
+  :root[data-qb-theme="dark"] .admin-shell .admin-sidebar {
+    background: linear-gradient(180deg, #102a5c 0%, #0d2147 52%, #0a1934 100%) !important;
+    border-right: 1px solid rgba(96, 165, 250, 0.18);
+    box-shadow: 12px 0 35px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell .admin-nav-link:not([style*="rgba(255,255,255,0.13)"]) {
+    color: #bfdbfe !important;
+  }
+
+  /* Tables */
+  :root[data-qb-theme="dark"] .admin-shell table {
+    color: var(--admin-text) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell thead,
+  :root[data-qb-theme="dark"] .admin-shell th {
+    background: #0f192a !important;
+    color: #a9b8cc !important;
+    border-color: var(--admin-border) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell td {
+    border-color: var(--admin-border-soft) !important;
+  }
+
+  :root[data-qb-theme="dark"] .admin-shell tbody tr:hover {
+    background: rgba(59, 130, 246, 0.055) !important;
+  }
+
+  /* Common status/background utilities: preserve meaning while reducing neon contrast. */
+  :root[data-qb-theme="dark"] .admin-shell .bg-blue-50 { background: rgba(59, 130, 246, 0.12) !important; }
+  :root[data-qb-theme="dark"] .admin-shell .bg-green-50 { background: rgba(52, 211, 153, 0.10) !important; }
+  :root[data-qb-theme="dark"] .admin-shell .bg-amber-50 { background: rgba(251, 191, 36, 0.10) !important; }
+  :root[data-qb-theme="dark"] .admin-shell .bg-red-50 { background: rgba(248, 113, 113, 0.10) !important; }
+  :root[data-qb-theme="dark"] .admin-shell .bg-purple-50 { background: rgba(168, 85, 247, 0.10) !important; }
+  :root[data-qb-theme="dark"] .admin-shell .bg-indigo-50 { background: rgba(99, 102, 241, 0.10) !important; }
+
+  :root[data-qb-theme="dark"] .admin-shell .text-blue-700,
+  :root[data-qb-theme="dark"] .admin-shell .text-blue-600 { color: #60a5fa !important; }
+  :root[data-qb-theme="dark"] .admin-shell .text-green-700,
+  :root[data-qb-theme="dark"] .admin-shell .text-green-600 { color: #6ee7b7 !important; }
+  :root[data-qb-theme="dark"] .admin-shell .text-amber-700,
+  :root[data-qb-theme="dark"] .admin-shell .text-amber-600 { color: #fcd34d !important; }
+  :root[data-qb-theme="dark"] .admin-shell .text-red-700,
+  :root[data-qb-theme="dark"] .admin-shell .text-red-600 { color: #fca5a5 !important; }
+
+  /* Scrollbars */
+  :root[data-qb-theme="dark"] .admin-shell ::-webkit-scrollbar { width: 9px; height: 9px; }
+  :root[data-qb-theme="dark"] .admin-shell ::-webkit-scrollbar-track { background: transparent; }
+  :root[data-qb-theme="dark"] .admin-shell ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 999px;
+    border: 2px solid var(--admin-bg);
+  }
+}
