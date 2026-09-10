@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/index.css';
+import './styles/admin-dark.css';
 import App from './app/App';
 import { startThemeAudit } from './lib/themeAuditBootstrap';
 
