@@ -1,0 +1,4 @@
+-- Nutrition already lives in public.product_nutrition.
+-- This migration is kept aligned with the production migration history,
+-- but the duplicate columns on public.products are intentionally removed
+-- by the following migration.
