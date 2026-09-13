@@ -25,7 +25,6 @@ const Stars = ({ value, onChange, interactive = false }: { value: number; onChan
 export function StudentReviewsPage() {
   const navigate = useNavigate();
   const activeStudent = useStudentContextStore((state) => state.activeStudent);
-  const [products, setProducts] = useState<Product[]>([]);
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [summaries, setSummaries] = useState<RatingSummary[]>([]);
@@ -42,19 +41,15 @@ export function StudentReviewsPage() {
     setLoading(true);
     try {
       const client = requireSupabaseClient();
-      const [{ data: productsData, error: productsError }, { data: orderData, error: ordersError }, { data: reviewsData, error: reviewsError }, { data: summaryData, error: summaryError }] = await Promise.all([
-        client.from('products').select('id,name,image_url,price,description,category_id,stock,available,created_at').order('name'),
+      const [{ data: orderData, error: ordersError }, { data: reviewsData, error: reviewsError }, { data: summaryData, error: summaryError }] = await Promise.all([
         client.from('orders').select('id,created_at,status,order_items(product_id,products(id,name,image_url))').eq('user_id', studentId).eq('status', 'delivered').order('created_at', { ascending: false }),
         client.from('product_reviews').select('id,product_id,order_id,stars,comment,status,created_at,products(name,image_url)').eq('student_id', studentId).order('created_at', { ascending: false }),
         client.from('product_review_summary').select('product_id,average_stars,review_count'),
       ]);
-      if (productsError) throw productsError;
       if (ordersError) throw ordersError;
       if (reviewsError) throw reviewsError;
       if (summaryError) throw summaryError;
 
-      const productList = (productsData ?? []) as Product[];
-      setProducts(productList);
       const rows: PurchaseRow[] = [];
       for (const order of (orderData ?? []) as Array<{ id: string; created_at: string; order_items?: Array<{ product_id: string; products?: Pick<Product, 'id' | 'name' | 'image_url'> | null }> }>) {
         for (const item of order.order_items ?? []) {
@@ -76,7 +71,6 @@ export function StudentReviewsPage() {
 
   const reviewedKeys = useMemo(() => new Set(reviews.map((review) => `${review.order_id}:${review.product_id}`)), [reviews]);
   const reviewablePurchases = useMemo(() => purchases.filter((purchase) => !reviewedKeys.has(`${purchase.order_id}:${purchase.product_id}`)), [purchases, reviewedKeys]);
-
   const summaryByProduct = useMemo(() => new Map(summaries.map((summary) => [summary.product_id, summary])), [summaries]);
 
   const submit = async () => {
@@ -130,7 +124,7 @@ export function StudentReviewsPage() {
         <section className="qb-surface rounded-3xl border qb-border p-5">
           <h2 className="qb-text text-xl font-black">Mis reseñas</h2>
           <div className="mt-4 space-y-3">
-            {reviews.map((review) => <article key={review.id} className="rounded-2xl border qb-border bg-white/60 p-4 dark:bg-slate-900/30"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><p className="qb-text font-black">{review.product?.name ?? 'Producto'}</p><p className="qb-text-secondary text-xs">{new Date(review.created_at).toLocaleDateString('es-CO')}</p></div><div className="flex items-center gap-3"><Stars value={review.stars}/><span className="rounded-full px-3 py-1 text-xs font-black ${review.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : review.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}">{review.status === 'approved' ? 'Publicada' : review.status === 'rejected' ? 'Rechazada' : 'Pendiente'}</span></div></div>{review.comment && <p className="qb-text-secondary mt-3 text-sm">“{review.comment}”</p>}</article>)}
+            {reviews.map((review) => <article key={review.id} className="rounded-2xl border qb-border bg-white/60 p-4 dark:bg-slate-900/30"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><p className="qb-text font-black">{review.product?.name ?? 'Producto'}</p><p className="qb-text-secondary text-xs">{new Date(review.created_at).toLocaleDateString('es-CO')}</p></div><div className="flex items-center gap-3"><Stars value={review.stars}/><span className={`rounded-full px-3 py-1 text-xs font-black ${review.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300' : review.status === 'rejected' ? 'bg-rose-100 text-rose-700 dark:bg-rose-400/10 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300'}`}>{review.status === 'approved' ? 'Publicada' : review.status === 'rejected' ? 'Rechazada' : 'Pendiente'}</span></div></div>{review.comment && <p className="qb-text-secondary mt-3 text-sm">“{review.comment}”</p>}</article>)}
             {reviews.length === 0 && <p className="qb-text-secondary py-4 text-sm">Todavía no has enviado reseñas.</p>}
           </div>
         </section>
