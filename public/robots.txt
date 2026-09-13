@@ -8,12 +8,16 @@ Disallow: /student
 Disallow: /student/
 Disallow: /parent
 Disallow: /parent/
+Disallow: /login
+Disallow: /login/
 Disallow: /register
 Disallow: /register/
 Disallow: /register-student
 Disallow: /register-student/
 Disallow: /register-parent
 Disallow: /register-parent/
+Disallow: /verify-order
+Disallow: /verify-order/
 Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /setup
