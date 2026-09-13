@@ -1,0 +1,196 @@
+/* QuickBite Phase 0 — visual hardening.
+   This file is intentionally loaded after the final dark-mode layer.
+   It standardizes shared semantic surfaces without changing feature behavior. */
+
+:root {
+  --qb-page-background: #f5f8f7;
+  --qb-page-text: #0f172a;
+  --qb-panel: #ffffff;
+  --qb-panel-muted: #f8fafc;
+  --qb-panel-elevated: #ffffff;
+  --qb-panel-border: rgba(15, 23, 42, 0.08);
+  --qb-field-background: #ffffff;
+  --qb-field-border: rgba(37, 99, 235, 0.18);
+}
+
+html[data-qb-theme="light"],
+html:not(.dark):not([data-qb-theme="dark"]) {
+  color-scheme: light;
+}
+
+html[data-qb-theme="dark"],
+html.dark {
+  --qb-page-background: #0d111d;
+  --qb-page-text: #f5f7fa;
+  --qb-panel: #121a2f;
+  --qb-panel-muted: #0d1628;
+  --qb-panel-elevated: #16243a;
+  --qb-panel-border: rgba(148, 163, 184, 0.18);
+  --qb-field-background: #0d1628;
+  --qb-field-border: rgba(148, 163, 184, 0.18);
+}
+
+/* Root canvas and generic semantic wrappers. */
+html[data-qb-theme="dark"],
+html.dark {
+  background: var(--qb-page-background) !important;
+}
+
+html[data-qb-theme="dark"] body,
+html.dark body,
+html[data-qb-theme="dark"] #root,
+html.dark #root {
+  background: var(--qb-page-background) !important;
+  color: var(--qb-page-text) !important;
+}
+
+/* Newer QuickBite surfaces always resolve from semantic tokens. */
+html[data-qb-theme="dark"] .qb-page,
+html.dark .qb-page {
+  background: var(--qb-page-background) !important;
+  color: var(--qb-page-text) !important;
+}
+
+html[data-qb-theme="dark"] .qb-surface,
+html.dark .qb-surface {
+  background: var(--qb-panel) !important;
+  border-color: var(--qb-panel-border) !important;
+  color: var(--qb-page-text) !important;
+}
+
+html[data-qb-theme="dark"] .qb-surface-muted,
+html.dark .qb-surface-muted {
+  background: var(--qb-panel-muted) !important;
+  border-color: var(--qb-panel-border) !important;
+  color: var(--qb-page-text) !important;
+}
+
+html[data-qb-theme="dark"] .qb-surface-elevated,
+html.dark .qb-surface-elevated {
+  background: var(--qb-panel-elevated) !important;
+  border-color: var(--qb-panel-border) !important;
+  color: var(--qb-page-text) !important;
+}
+
+html[data-qb-theme="dark"] .qb-border,
+html.dark .qb-border {
+  border-color: var(--qb-panel-border) !important;
+}
+
+html[data-qb-theme="dark"] .qb-text,
+html.dark .qb-text {
+  color: #f5f7fa !important;
+}
+
+html[data-qb-theme="dark"] .qb-text-secondary,
+html.dark .qb-text-secondary {
+  color: #aab7c9 !important;
+}
+
+html[data-qb-theme="dark"] .qb-text-muted,
+html.dark .qb-text-muted {
+  color: #718096 !important;
+}
+
+/* Admin shell: eliminate the last white canvas/card leaks. */
+html[data-qb-theme="dark"] .admin-shell,
+html.dark .admin-shell {
+  background: var(--qb-page-background) !important;
+  color: var(--qb-page-text) !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell main,
+html.dark .admin-shell main {
+  background: transparent !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell :where([class*="bg-white"], [class*="bg-slate-50"], [class*="bg-gray-50"]),
+html.dark .admin-shell :where([class*="bg-white"], [class*="bg-slate-50"], [class*="bg-gray-50"]) {
+  background-color: var(--qb-panel) !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell :where([class*="bg-slate-100"], [class*="bg-gray-100"], [class*="bg-zinc-100"]),
+html.dark .admin-shell :where([class*="bg-slate-100"], [class*="bg-gray-100"], [class*="bg-zinc-100"]) {
+  background-color: var(--qb-panel-muted) !important;
+}
+
+/* Keep the navigation intentionally branded while harmonizing its interior. */
+html[data-qb-theme="dark"] .admin-sidebar,
+html.dark .admin-sidebar {
+  background: #0b1220 !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell [data-slot="card"],
+html.dark .admin-shell [data-slot="card"] {
+  background: var(--qb-panel) !important;
+  border-color: var(--qb-panel-border) !important;
+}
+
+/* Fields and tables use the same semantic hierarchy everywhere. */
+html[data-qb-theme="dark"] .admin-shell :where(input, textarea, select),
+html.dark .admin-shell :where(input, textarea, select) {
+  background: var(--qb-field-background) !important;
+  color: #f5f7fa !important;
+  border-color: var(--qb-field-border) !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell :where(th),
+html.dark .admin-shell :where(th) {
+  background: var(--qb-panel-muted) !important;
+  color: #aab7c9 !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell :where(td),
+html.dark .admin-shell :where(td) {
+  background: var(--qb-panel) !important;
+  color: #f5f7fa !important;
+}
+
+/* Dialogs/sheets/popovers must not return to light mode. */
+html[data-qb-theme="dark"] :where(
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [role="dialog"],
+  [role="menu"],
+  [role="listbox"]
+),
+html.dark :where(
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [role="dialog"],
+  [role="menu"],
+  [role="listbox"]
+) {
+  background: var(--qb-panel) !important;
+  color: #f5f7fa !important;
+  border-color: var(--qb-panel-border) !important;
+}
+
+/* Mobile: never let the sidebar/backdrop create a visible light gutter. */
+html[data-qb-theme="dark"] .admin-shell,
+html.dark .admin-shell {
+  overflow-x: hidden;
+}
+
+@media (max-width: 1023px) {
+  html[data-qb-theme="dark"] .admin-sidebar,
+  html.dark .admin-sidebar {
+    width: min(18rem, 88vw) !important;
+  }
+}
+
+/* Respect reduced motion while preserving the existing navigation behavior. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
