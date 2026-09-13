@@ -10,22 +10,26 @@ const pending = new Map<string, Promise<RatingSummary | null>>();
 async function loadRating(productId: string) {
   if (cache.has(productId)) return cache.get(productId) ?? null;
   if (pending.has(productId)) return pending.get(productId)!;
-  const request = requireSupabaseClient()
-    .from('product_review_summary')
-    .select('average_stars,review_count')
-    .eq('product_id', productId)
-    .maybeSingle()
-    .then(({ data, error }) => {
+
+  const request = (async () => {
+    try {
+      const { data, error } = await requireSupabaseClient()
+        .from('product_review_summary')
+        .select('average_stars,review_count')
+        .eq('product_id', productId)
+        .maybeSingle();
       if (error) throw error;
       const rating = data ? { average_stars: Number(data.average_stars ?? 0), review_count: Number(data.review_count ?? 0) } : null;
       cache.set(productId, rating);
       return rating;
-    })
-    .catch(() => {
+    } catch {
       cache.set(productId, null);
       return null;
-    })
-    .finally(() => pending.delete(productId));
+    } finally {
+      pending.delete(productId);
+    }
+  })();
+
   pending.set(productId, request);
   return request;
 }
