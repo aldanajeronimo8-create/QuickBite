@@ -12,7 +12,7 @@ import { StudentRewardsPanel } from '../../components/student/StudentRewardsPane
 import { useLoyalty } from '../../hooks/useLoyalty';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
-import { CheckCircle2, ChevronDown, ChevronRight, Clock3, CreditCard, History, Home, LogOut, Minus, PackageCheck, Plus, ReceiptText, Search, ShoppingCart, Star, Utensils, XCircle } from 'lucide-react';
+import { Apple, CheckCircle2, ChevronDown, ChevronRight, Clock3, CreditCard, Filter, History, Home, Leaf, LogOut, Minus, PackageCheck, Plus, ReceiptText, Search, ShoppingCart, Star, Utensils, XCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { canAccessStudent } from '../../../lib/access';
 import { QuickBiteLogo } from '../../components/brand/QuickBiteLogo';
@@ -20,8 +20,21 @@ import { useStudentContextStore } from '../../../store/studentContextStore';
 
 type Tab = 'menu' | 'orders' | 'rewards';
 type PayStep = 'cart' | 'payment' | 'receipt';
+type NutritionFilter = 'all' | 'healthy' | 'vegetarian' | 'complete' | 'excludeAllergens';
 interface CartItem extends Product { qty: number; }
 interface Student { id: string; name: string; grade: string; email?: string; }
+interface ProductNutrition {
+  product_id: string;
+  calories: number | null;
+  protein_g: number | null;
+  carbohydrates_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  ingredients: string | null;
+  allergens: string | null;
+  vegetarian: boolean;
+  healthy_choice: boolean;
+}
 const fmt = (n: number) => n.toLocaleString('es-CO');
 const paymentOptions = [
   { value: 'nequi', label: 'Nequi', hint: 'Pago digital pendiente de aprobación', accent: 'bg-fuchsia-500' },
@@ -35,6 +48,18 @@ const CONTAINER = 'mx-auto w-full max-w-5xl px-4';
 const SURFACE = 'border border-slate-200 bg-white dark:border-slate-800 dark:bg-[#131B2E]';
 const INNER = 'border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-[#0D111D]';
 const MUTED_TEXT = 'text-slate-600 dark:text-slate-400';
+
+function parseAllergens(value: string | null | undefined): string[] {
+  return (value ?? '')
+    .split(/[,;|]/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function hasNutritionData(row?: ProductNutrition): boolean {
+  if (!row) return false;
+  return [row.calories, row.protein_g, row.carbohydrates_g, row.fat_g, row.fiber_g].some((value) => value !== null && value !== undefined);
+}
 
 export function StudentMenuPage() {
   const navigate = useNavigate();
@@ -52,6 +77,10 @@ export function StudentMenuPage() {
   const [tip, setTip] = useState('');
   const [lastReceipt, setLastReceipt] = useState<{ orderNumber: string; reference: string; pickup: string; paidWithCredits: boolean } | null>(null);
   const [redeemingRewardId, setRedeemingRewardId] = useState<string | null>(null);
+  const [nutritionByProduct, setNutritionByProduct] = useState<Record<string, ProductNutrition>>({});
+  const [nutritionFilter, setNutritionFilter] = useState<NutritionFilter>('all');
+  const [excludedAllergens, setExcludedAllergens] = useState<string[]>([]);
+  const [showAllergenOptions, setShowAllergenOptions] = useState(false);
   const processedCartAction = useRef<string | null>(null);
 
   const activeStudent = useStudentContextStore((state) => state.activeStudent);
@@ -90,6 +119,29 @@ export function StudentMenuPage() {
     return () => { active = false; };
   }, [activeStudent, loadData, navigate]);
 
+  useEffect(() => {
+    if (!student) return;
+    let active = true;
+    async function loadNutrition() {
+      try {
+        const { data, error } = await requireSupabaseClient()
+          .from('product_nutrition')
+          .select('product_id,calories,protein_g,carbohydrates_g,fat_g,fiber_g,ingredients,allergens,vegetarian,healthy_choice');
+        if (error) throw error;
+        if (!active) return;
+        const next: Record<string, ProductNutrition> = {};
+        (data ?? []).forEach((row) => {
+          next[row.product_id] = row as ProductNutrition;
+        });
+        setNutritionByProduct(next);
+      } catch (error) {
+        if (active) toast.error(getErrorMessage(error, 'No se pudo cargar la información nutricional.'));
+      }
+    }
+    void loadNutrition();
+    return () => { active = false; };
+  }, [student]);
+
   const myOrders = useMemo(() => (student ? orders.filter((o) => o.user_id === student.id) : []), [orders, student]);
   const loyalty = useLoyalty(student?.id, orders);
   const rewardsEnabled = loyalty.enabled;
@@ -101,11 +153,26 @@ export function StudentMenuPage() {
     : [['menu', Home, 'Menú'], ['orders', History, 'Historial']] as const;
   const activeTab: Tab = !rewardsEnabled && tab === 'rewards' ? 'menu' : tab;
 
+  const availableAllergens = useMemo(() => {
+    const unique = new Set<string>();
+    Object.values(nutritionByProduct).forEach((row) => parseAllergens(row.allergens).forEach((allergen) => unique.add(allergen)));
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'es'));
+  }, [nutritionByProduct]);
+
   const availableProducts = useMemo(() => products.filter((p) => {
     const byCat = selectedCat ? p.category_id === selectedCat : true;
     const byQuery = `${p.name} ${p.description ?? ''}`.toLowerCase().includes(query.toLowerCase());
-    return p.available && p.stock > 0 && byCat && byQuery;
-  }), [products, selectedCat, query]);
+    const nutrition = nutritionByProduct[p.id];
+    let byNutrition = true;
+    if (nutritionFilter === 'healthy') byNutrition = nutrition?.healthy_choice === true;
+    if (nutritionFilter === 'vegetarian') byNutrition = nutrition?.vegetarian === true;
+    if (nutritionFilter === 'complete') byNutrition = hasNutritionData(nutrition);
+    if (nutritionFilter === 'excludeAllergens') {
+      const allergens = parseAllergens(nutrition?.allergens);
+      byNutrition = nutrition !== undefined && (excludedAllergens.length === 0 ? allergens.length === 0 : !excludedAllergens.some((selected) => allergens.includes(selected)));
+    }
+    return p.available && p.stock > 0 && byCat && byQuery && byNutrition;
+  }), [products, selectedCat, query, nutritionByProduct, nutritionFilter, excludedAllergens]);
 
   useEffect(() => {
     setCart((currentCart) => {
@@ -268,6 +335,11 @@ export function StudentMenuPage() {
     }
   };
 
+  const toggleAllergen = (allergen: string) => {
+    setExcludedAllergens((current) => current.includes(allergen) ? current.filter((item) => item !== allergen) : [...current, allergen]);
+    setNutritionFilter('excludeAllergens');
+  };
+
   if (!student) return null;
 
   return (
@@ -308,12 +380,13 @@ export function StudentMenuPage() {
                 <CategoryFilter active={!selectedCat} label="Todo" onClick={() => setSelectedCat(null)} />
                 {categories.map((cat) => <CategoryFilter key={cat.id} active={selectedCat === cat.id} label={cat.name} onClick={() => setSelectedCat(cat.id)} />)}
               </div>
+              <NutritionFilterBar filter={nutritionFilter} excludedAllergens={excludedAllergens} availableAllergens={availableAllergens} showAllergenOptions={showAllergenOptions} onShowAllergenOptions={() => setShowAllergenOptions((value) => !value)} onFilter={setNutritionFilter} onToggleAllergen={toggleAllergen} />
             </section>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {availableProducts.map((product) => <ProductCard key={product.id} product={product} qty={cartQty(product.id)} onAdd={addToCart} onRemove={removeFromCart} />)}
+              {availableProducts.map((product) => <ProductCard key={product.id} product={product} nutrition={nutritionByProduct[product.id]} qty={cartQty(product.id)} onAdd={addToCart} onRemove={removeFromCart} />)}
             </div>
-            {availableProducts.length === 0 && <Empty icon={Search} title="No encontramos productos" text="Prueba otra búsqueda o selecciona otra categoría." />}
+            {availableProducts.length === 0 && <Empty icon={Filter} title="No encontramos productos" text={nutritionFilter === 'all' ? 'Prueba otra búsqueda o selecciona otra categoría.' : 'Prueba otro filtro nutricional o ajusta los alérgenos excluidos.'} />}
           </main>
         )}
 
@@ -359,8 +432,27 @@ function CategoryFilter({ active, label, onClick }: { active: boolean; label: st
   return <button onClick={onClick} className={`shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition ${active ? 'border-emerald-500 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-[#0D111D] dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white'}`}>{label}</button>;
 }
 
-function ProductCard({ product, qty, onAdd, onRemove }: { product: Product; qty: number; onAdd: (product: Product) => void; onRemove: (id: string) => void }) {
+function NutritionFilterBar({ filter, excludedAllergens, availableAllergens, showAllergenOptions, onShowAllergenOptions, onFilter, onToggleAllergen }: { filter: NutritionFilter; excludedAllergens: string[]; availableAllergens: string[]; showAllergenOptions: boolean; onShowAllergenOptions: () => void; onFilter: (filter: NutritionFilter) => void; onToggleAllergen: (allergen: string) => void; }) {
+  const filterButton = (id: NutritionFilter, label: string) => <button type="button" onClick={() => onFilter(id)} className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition ${filter === id ? 'border-emerald-500 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-[#0D111D] dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white'}`}>{label}</button>;
+  return <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-[#0D1628]">
+    <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /><span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Filtros nutricionales</span></div>
+    <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+      {filterButton('all', 'Todos')}
+      {filterButton('healthy', 'Saludables')}
+      {filterButton('vegetarian', 'Vegetarianos')}
+      {filterButton('complete', 'Con información nutricional')}
+      <button type="button" onClick={() => { onFilter('excludeAllergens'); onShowAllergenOptions(); }} className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition ${filter === 'excludeAllergens' ? 'border-emerald-500 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-[#0D111D] dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white'}`}>Sin alérgenos{excludedAllergens.length > 0 ? ` · ${excludedAllergens.length}` : ''}</button>
+    </div>
+    {filter === 'excludeAllergens' && <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-[#131B2E]">
+      <div className="flex items-center justify-between gap-3"><p className="text-xs font-bold text-slate-600 dark:text-slate-300">Excluir alérgenos</p><button type="button" onClick={onShowAllergenOptions} className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{showAllergenOptions ? 'Ocultar' : 'Mostrar'}</button></div>
+      {showAllergenOptions && <div className="mt-2 flex flex-wrap gap-2">{availableAllergens.length === 0 ? <p className="text-xs text-slate-500 dark:text-slate-400">Todavía no hay alérgenos registrados en los productos.</p> : availableAllergens.map((allergen) => <button key={allergen} type="button" onClick={() => onToggleAllergen(allergen)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold capitalize transition ${excludedAllergens.includes(allergen) ? 'border-rose-400 bg-rose-500/10 text-rose-600 dark:text-rose-300' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-[#0D111D] dark:text-slate-400'}`}>{excludedAllergens.includes(allergen) ? '✓ ' : ''}{allergen}</button>)}</div>}
+    </div>}
+  </div>;
+}
+
+function ProductCard({ product, nutrition, qty, onAdd, onRemove }: { product: Product; nutrition?: ProductNutrition; qty: number; onAdd: (product: Product) => void; onRemove: (id: string) => void }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const allergens = parseAllergens(nutrition?.allergens);
   return <article className={`${SURFACE} overflow-hidden rounded-xl transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/10 dark:hover:border-slate-700 dark:hover:shadow-black/20`}>
     <div className="relative h-44 overflow-hidden bg-slate-100 dark:bg-[#0D111D]">
       {!imageFailed && product.image_url ? <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" onError={() => setImageFailed(true)} /> : <div className="grid h-full place-items-center text-slate-400 dark:text-slate-600"><Utensils className="h-10 w-10" /></div>}
@@ -372,6 +464,12 @@ function ProductCard({ product, qty, onAdd, onRemove }: { product: Product; qty:
         <ProductRatingBadge productId={product.id} />
       </div>
       <p className="mt-1 line-clamp-1 text-xs text-slate-600 dark:text-slate-400">{product.description}</p>
+      {nutrition && <div className="mt-2 flex flex-wrap gap-1.5">
+        {nutrition.healthy_choice && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300"><Leaf className="h-3 w-3" />Saludable</span>}
+        {nutrition.vegetarian && <span className="inline-flex items-center gap-1 rounded-full bg-lime-500/10 px-2 py-1 text-[10px] font-bold text-lime-700 dark:text-lime-300"><Apple className="h-3 w-3" />Vegetariano</span>}
+        {nutrition.calories !== null && <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{fmt(Number(nutrition.calories))} kcal</span>}
+        {allergens.length > 0 && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[10px] font-bold capitalize text-amber-700 dark:text-amber-300">Alérgenos: {allergens.slice(0, 2).join(', ')}{allergens.length > 2 ? '…' : ''}</span>}
+      </div>}
       <p className="mt-2 text-lg font-black text-emerald-600 dark:text-emerald-400">${fmt(product.price)}</p>
       {qty === 0 ? <button onClick={() => onAdd(product)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500"><Plus className="h-4 w-4" />Agregar</button> : <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 p-1 dark:border-emerald-500/20 dark:bg-emerald-500/10"><button onClick={() => onRemove(product.id)} className="grid h-8 w-8 place-items-center rounded-lg bg-white text-emerald-600 transition hover:bg-slate-100 dark:bg-[#131B2E] dark:text-emerald-400 dark:hover:bg-slate-800"><Minus className="h-4 w-4" /></button><span className="font-black text-slate-900 dark:text-white">{qty}</span><button onClick={() => onAdd(product)} className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-600 text-white transition hover:bg-emerald-500"><Plus className="h-4 w-4" /></button></div>}
     </div>
