@@ -52,7 +52,7 @@ export function RegisterPage() {
 
     if (!formData.email) {
       newErrors.email = 'El correo es requerido';
-    } else if (!/^([^\s@]+)@([^\s@]+)\.([^\s@]+)$/.test(formData.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Correo electrónico inválido';
     }
 
@@ -301,7 +301,7 @@ export function RegisterPage() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 hover:text-blue-200 transition"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 w-5" />}
                 </button>
               </div>
               {formData.confirmPassword && formData.password === formData.confirmPassword && (
