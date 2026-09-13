@@ -49,6 +49,7 @@ export function StudentLinkCodePage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [now, setNow] = useState(() => Date.now());
 
   const loadCode = useCallback(async (forceNew = false) => {
     setError('');
@@ -68,6 +69,7 @@ export function StudentLinkCodePage() {
       if (!result.code) throw new Error('Supabase no devolvió un código de vinculación válido.');
       setCode(result.code);
       setExpiresAt(result.expiresAt);
+      setNow(Date.now());
     } catch (caught) {
       const raw = getReadableError(caught);
       const lower = raw.toLowerCase();
@@ -86,6 +88,12 @@ export function StudentLinkCodePage() {
 
   useEffect(() => { void loadCode(); }, [loadCode]);
 
+  useEffect(() => {
+    if (!expiresAt) return undefined;
+    const interval = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(interval);
+  }, [expiresAt]);
+
   const copy = async () => {
     if (!code) return;
     try {
@@ -97,7 +105,7 @@ export function StudentLinkCodePage() {
   };
 
   const expiration = expiresAt ? new Date(expiresAt) : null;
-  const expired = expiration ? expiration.getTime() <= Date.now() : false;
+  const expired = expiration ? expiration.getTime() <= now : false;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,.12),_transparent_35%),#f5f8f7] p-5 text-slate-900 sm:p-8">
