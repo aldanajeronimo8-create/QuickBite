@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useDataStore } from '../../../store/dataStore';
-import { requireSupabaseClient, type Product } from '../../../lib/supabase';
+import { type Product } from '../../../lib/supabase';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -82,9 +82,7 @@ export function AdminInventory() {
     <div>
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-blue-900 mb-2">Inventario</h1>
-        <p className="text-gray-600 text-lg">
-          Gestiona el stock y disponibilidad de productos
-        </p>
+        <p className="text-gray-600 text-lg">Gestiona el stock y disponibilidad de productos</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -95,7 +93,6 @@ export function AdminInventory() {
           </div>
           <p className="text-sm font-medium text-slate-500">Productos disponibles</p>
         </Card>
-
         <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <AlertTriangle className="w-8 h-8 text-red-600" />
@@ -103,7 +100,6 @@ export function AdminInventory() {
           </div>
           <p className="text-sm font-medium text-slate-500">Productos agotados</p>
         </Card>
-
         <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <AlertTriangle className="w-8 h-8 text-amber-500" />
@@ -111,7 +107,6 @@ export function AdminInventory() {
           </div>
           <p className="text-sm font-medium text-slate-500">Stock bajo (≤5)</p>
         </Card>
-
         <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <EyeOff className="w-8 h-8 text-slate-500" />
@@ -123,7 +118,6 @@ export function AdminInventory() {
 
       <Card className="border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-blue-900 mb-6">Productos</h2>
-
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -148,25 +142,13 @@ export function AdminInventory() {
                       </div>
                     </div>
                   </td>
-                  <td className="py-4 px-4">
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                      {getCategoryName(product.category_id)}
-                    </Badge>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className="font-bold text-green-700">${product.price.toLocaleString()}</span>
-                  </td>
-                  <td className="py-4 px-4 text-center">
-                    <span className={`text-lg font-bold ${product.stock === 0 ? 'text-red-600' : product.stock <= 5 ? 'text-amber-600' : 'text-green-700'}`}>
-                      {product.stock}
-                    </span>
-                  </td>
+                  <td className="py-4 px-4"><Badge variant="outline" className="bg-blue-50 text-blue-700">{getCategoryName(product.category_id)}</Badge></td>
+                  <td className="py-4 px-4"><span className="font-bold text-green-700">${product.price.toLocaleString()}</span></td>
+                  <td className="py-4 px-4 text-center"><span className={`text-lg font-bold ${product.stock === 0 ? 'text-red-600' : product.stock <= 5 ? 'text-amber-600' : 'text-green-700'}`}>{product.stock}</span></td>
                   <td className="py-4 px-4 text-center">{getStockBadge(product)}</td>
                   <td className="py-4 px-4 text-right">
                     <div className="flex gap-2 justify-end">
-                      <Button size="sm" onClick={() => openEditDialog(product)} className="bg-blue-600 hover:bg-blue-700 text-white">
-                        <Edit className="w-4 h-4 mr-2" />Ajustar Stock
-                      </Button>
+                      <Button size="sm" onClick={() => openEditDialog(product)} className="bg-blue-600 hover:bg-blue-700 text-white"><Edit className="w-4 h-4 mr-2" />Ajustar Stock</Button>
                       <Button size="sm" variant="outline" onClick={() => handleToggleAvailability(product)} className={product.available ? 'border-gray-600 text-gray-700 hover:bg-gray-50' : 'border-green-600 text-green-700 hover:bg-green-50'}>
                         {product.available ? <><EyeOff className="w-4 h-4 mr-2" />Ocultar</> : <><Eye className="w-4 h-4 mr-2" />Mostrar</>}
                       </Button>
