@@ -68,7 +68,7 @@ export function AdminUsersSeparated() {
     void listProtectedAdminEmails().then((emails) => { if (active) setProtectedEmails(new Set(emails)); }).catch(() => undefined);
     void loadConsents();
     return () => { active = false; };
-  }, [authLoading, currentUser?.id]);
+  }, [authLoading, currentUser]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -146,10 +146,29 @@ export function AdminUsersSeparated() {
         if (protectedOriginalEmail) setProtectedEmails((current) => { const next = new Set(current); next.delete(protectedOriginalEmail); next.add(email); return next; });
         toast.success('Credenciales actualizadas');
       } else if (form.id) {
-        await updateUser({ id: form.id, email, full_name: name, role: form.role, ti: needsTi(form.role) ? ti : '', password: password || undefined, student_code: code || undefined, relationship: form.relationship || undefined } as any);
+        const updatePayload = {
+          id: form.id,
+          email,
+          full_name: name,
+          role: form.role,
+          ti: needsTi(form.role) ? ti : '',
+          password: password || undefined,
+          student_code: code || undefined,
+          relationship: form.relationship || undefined,
+        };
+        await updateUser(updatePayload);
         toast.success('Usuario actualizado');
       } else {
-        await addUser({ email, password, full_name: name, role: mode === 'parent' ? 'parent' : form.role, ti: mode === 'student' ? (needsTi(form.role) ? ti : '') : '', student_code: undefined, relationship: mode === 'parent' ? form.relationship : undefined } as any);
+        const createPayload = {
+          email,
+          password,
+          full_name: name,
+          role: mode === 'parent' ? 'parent' as const : form.role,
+          ti: mode === 'student' ? (needsTi(form.role) ? ti : '') : '',
+          student_code: undefined,
+          relationship: mode === 'parent' ? form.relationship : undefined,
+        };
+        await addUser(createPayload);
         toast.success(mode === 'parent' ? 'Padre de familia creado y vinculado' : 'Usuario creado');
         await new Promise((resolve) => setTimeout(resolve, 150));
         const { data: created } = await requireSupabaseClient().from('profiles').select('id,full_name,role').eq('email', email).maybeSingle();
