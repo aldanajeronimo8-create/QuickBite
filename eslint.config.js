@@ -57,5 +57,16 @@ export default tseslint.config(
     },
   },
 
+  {
+    files: ['api/**/*.js'],
+    languageOptions: {
+      globals: {
+        Buffer: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
+
   prettier,
 );
