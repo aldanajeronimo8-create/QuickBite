@@ -17,18 +17,21 @@ function safeIsVisualPreviewMode(): boolean {
   try { return isVisualPreviewMode(); } catch { return false; }
 }
 
-function syncVisualInterfaceScope(pathname: string) {
+function syncVisualInterfaceScope(pathname: string, search = '') {
   if (typeof document === 'undefined') return;
   const body = document.body;
-  const scope = pathname.startsWith('/admin')
-    ? 'admin'
-    : pathname.startsWith('/parent')
-      ? 'parent'
-      : pathname.startsWith('/menu') || pathname.startsWith('/student')
-        ? 'student'
-        : pathname === '/' || pathname === '/login'
-          ? 'login_student'
-          : null;
+  const previewRole = new URLSearchParams(search).get('preview_role');
+  const scope = (pathname === '/' || pathname === '/login') && (previewRole === 'student' || previewRole === 'parent' || previewRole === 'admin')
+    ? `login_${previewRole}`
+    : pathname.startsWith('/admin')
+      ? 'admin'
+      : pathname.startsWith('/parent')
+        ? 'parent'
+        : pathname.startsWith('/menu') || pathname.startsWith('/student')
+          ? 'student'
+          : pathname === '/' || pathname === '/login'
+            ? 'login_student'
+            : null;
   if (scope) body.dataset.qbInterface = scope;
   else delete body.dataset.qbInterface;
   document.documentElement.classList.toggle('qb-public-home', pathname === '/');
@@ -75,9 +78,9 @@ function PreviewSessionBootstrap() {
 
 function VisualRouteSynchronizer() {
   useEffect(() => {
-    const sync = () => syncVisualInterfaceScope(router.state.location.pathname);
+    const sync = () => syncVisualInterfaceScope(router.state.location.pathname, router.state.location.search);
     sync();
-    return router.subscribe((state) => syncVisualInterfaceScope(state.location.pathname));
+    return router.subscribe((state) => syncVisualInterfaceScope(state.location.pathname, state.location.search));
   }, []);
   return null;
 }
