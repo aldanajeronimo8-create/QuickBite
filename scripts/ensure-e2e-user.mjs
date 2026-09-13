@@ -12,18 +12,62 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+const ADMIN_READ_MAX_ATTEMPTS = 4;
+const ADMIN_READ_TIMEOUT_MS = 20_000;
+
 async function adminRequest(path, options = {}) {
-  const response = await globalThis.fetch(`${url}/auth/v1${path}`, {
-    ...options,
-    headers: { ...headers, ...(options.headers ?? {}) },
-  });
-  const text = await response.text();
-  let body = null;
-  try { body = text ? JSON.parse(text) : null; } catch { body = text; }
-  if (!response.ok) {
-    throw new Error(`Supabase Admin ${options.method ?? 'GET'} ${path} failed (${response.status}): ${typeof body === 'string' ? body : JSON.stringify(body)}`);
+  const isRead = (options.method ?? 'GET').toUpperCase() === 'GET';
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= (isRead ? ADMIN_READ_MAX_ATTEMPTS : 1); attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ADMIN_READ_TIMEOUT_MS);
+
+    try {
+      const response = await globalThis.fetch(`${url}/auth/v1${path}`, {
+        ...options,
+        signal: controller.signal,
+        headers: { ...headers, ...(options.headers ?? {}) },
+      });
+      const text = await response.text();
+      let body = null;
+      try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+
+      if (response.ok) return body;
+
+      const message = `Supabase Admin ${options.method ?? 'GET'} ${path} failed (${response.status}): ${typeof body === 'string' ? body : JSON.stringify(body)}`;
+      const transient = response.status === 408 || response.status === 429 || response.status >= 500;
+      if (!isRead || !transient || attempt === ADMIN_READ_MAX_ATTEMPTS) {
+        throw new Error(message);
+      }
+
+      lastError = new Error(message);
+      const delayMs = 500 * (2 ** (attempt - 1));
+      console.warn(`Supabase Admin GET ${path} returned ${response.status}; retrying in ${delayMs}ms (attempt ${attempt + 1}/${ADMIN_READ_MAX_ATTEMPTS}).`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    } catch (error) {
+      const aborted = error instanceof DOMException && error.name === 'AbortError';
+      const message = aborted
+        ? `Supabase Admin ${options.method ?? 'GET'} ${path} timed out after ${ADMIN_READ_TIMEOUT_MS}ms.`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+
+      const retryable = isRead;
+      if (!retryable || attempt === ADMIN_READ_MAX_ATTEMPTS) {
+        throw new Error(message);
+      }
+
+      lastError = new Error(message);
+      const delayMs = 500 * (2 ** (attempt - 1));
+      console.warn(`Supabase Admin GET ${path} did not complete; retrying in ${delayMs}ms (attempt ${attempt + 1}/${ADMIN_READ_MAX_ATTEMPTS}).`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    } finally {
+      clearTimeout(timeout);
+    }
   }
-  return body;
+
+  throw lastError ?? new Error(`Supabase Admin GET ${path} failed unexpectedly.`);
 }
 
 async function restRequest(path, options = {}) {
