@@ -63,7 +63,7 @@ export function AdminWalletTopups() {
       window.clearInterval(interval);
       void client.removeChannel(channel);
     };
-  }, [authLoading, currentUser?.id, load]);
+  }, [authLoading, currentUser, load]);
 
   const approve = async (id: string) => {
     setBusy(id);
