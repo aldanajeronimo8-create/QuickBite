@@ -31,23 +31,41 @@
         "isAccessibleForFree": true
       }
     </script>
+    <style>
+      .qb-public-seo { display: none; max-width: 760px; margin: 0 auto; padding: 14px 20px 28px; font-family: inherit; color: #334155; }
+      .qb-public-home .qb-public-seo { display: block; }
+      .qb-public-seo details { border: 1px solid #dbe4ec; border-radius: 18px; background: rgba(255, 255, 255, 0.78); box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08); overflow: hidden; }
+      .qb-public-seo summary { cursor: pointer; list-style: none; padding: 14px 18px; font-size: .9rem; font-weight: 700; text-align: center; color: #475569; user-select: none; }
+      .qb-public-seo summary::-webkit-details-marker { display: none; }
+      .qb-public-seo summary:hover { background: rgba(22, 163, 106, 0.06); }
+      .qb-public-seo .qb-seo-content { padding: 4px 22px 22px; line-height: 1.65; font-size: .92rem; }
+      .qb-public-seo h2 { font-size: 1.2rem; line-height: 1.3; margin: 12px 0 8px; font-weight: 800; }
+      .qb-public-seo h3 { font-size: 1rem; margin: 18px 0 7px; font-weight: 800; }
+      .qb-public-seo p { margin: 0 0 18px; color: #64748b; }
+      .qb-public-seo p:last-child { margin-bottom: 0; }
+      .dark .qb-public-seo details, [data-qb-theme="dark"] .qb-public-seo details { border-color: rgba(170,183,201,.2); background: rgba(13,22,40,.88); box-shadow: 0 12px 36px rgba(0,0,0,.24); }
+      .dark .qb-public-seo summary, [data-qb-theme="dark"] .qb-public-seo summary { color: #f5f7fa; }
+      .dark .qb-public-seo summary:hover, [data-qb-theme="dark"] .qb-public-seo summary:hover { background: rgba(22,163,106,.12); }
+      .dark .qb-public-seo p, [data-qb-theme="dark"] .qb-public-seo p { color: #aab7c9; }
+    </style>
+    <script>
+      document.documentElement.classList.toggle('qb-public-home', window.location.pathname === '/');
+    </script>
     <title>QuickBite | Cafetería escolar digital</title>
   </head>
   <body>
     <div id="root"></div>
 
-    <section aria-label="Información sobre QuickBite" style="max-width: 760px; margin: 0 auto; padding: 14px 20px 28px; font-family: inherit; color: var(--foreground, #334155);">
-      <details style="border: 1px solid var(--border, rgba(148, 163, 184, 0.28)); border-radius: 18px; background: var(--card, rgba(255, 255, 255, 0.72)); box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08); overflow: hidden;">
-        <summary style="cursor: pointer; list-style: none; padding: 14px 18px; font-size: 0.9rem; font-weight: 600; text-align: center; color: var(--foreground, #475569); user-select: none;">
-          <span aria-hidden="true">ⓘ</span> Conoce QuickBite
-        </summary>
-        <div style="padding: 4px 22px 22px; line-height: 1.65; font-size: 0.92rem;">
-          <h2 style="font-size: 1.2rem; line-height: 1.3; margin: 12px 0 8px; font-weight: 700;">QuickBite: cafetería escolar digital</h2>
-          <p style="margin: 0 0 18px; opacity: 0.82;">QuickBite es un sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente. Está pensado para facilitar el acceso a los alimentos durante los descansos y reducir las filas y los tiempos de espera.</p>
-          <h3 style="font-size: 1rem; margin: 18px 0 7px; font-weight: 700;">¿Cómo funciona QuickBite?</h3>
-          <p style="margin: 0 0 18px; opacity: 0.82;">Los estudiantes pueden consultar el menú disponible, seleccionar sus productos, realizar el pedido y recibir una confirmación para recoger sus alimentos. El sistema organiza la información del pedido para facilitar su preparación y entrega en la cafetería.</p>
-          <h3 style="font-size: 1rem; margin: 18px 0 7px; font-weight: 700;">Beneficios para la comunidad escolar</h3>
-          <p style="margin: 0; opacity: 0.82;">La plataforma ayuda a organizar la atención de la cafetería, agilizar la compra de alimentos, mejorar la experiencia durante el descanso y facilitar una gestión más clara de los pedidos escolares.</p>
+    <section id="quickbite-public-seo" class="qb-public-seo" aria-label="Información sobre QuickBite">
+      <details>
+        <summary><span aria-hidden="true">ⓘ</span> Conoce QuickBite</summary>
+        <div class="qb-seo-content">
+          <h2>QuickBite: cafetería escolar digital</h2>
+          <p>QuickBite es un sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente. Está pensado para facilitar el acceso a los alimentos durante los descansos y reducir las filas y los tiempos de espera.</p>
+          <h3>¿Cómo funciona QuickBite?</h3>
+          <p>Los estudiantes pueden consultar el menú disponible, seleccionar sus productos, realizar el pedido y recibir una confirmación para recoger sus alimentos. El sistema organiza la información del pedido para facilitar su preparación y entrega en la cafetería.</p>
+          <h3>Beneficios para la comunidad escolar</h3>
+          <p>La plataforma ayuda a organizar la atención de la cafetería, agilizar la compra de alimentos, mejorar la experiencia durante el descanso y facilitar una gestión más clara de los pedidos escolares.</p>
         </div>
       </details>
     </section>
