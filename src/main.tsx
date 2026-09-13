@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/index.css';
 import './styles/admin-dark.css';
+import './styles/phase0-admin-harmony.css';
 import App from './app/App';
 import { startThemeAudit } from './lib/themeAuditBootstrap';
 
