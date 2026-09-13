@@ -7,7 +7,10 @@ import { useStudentContextStore } from '../../../store/studentContextStore';
 
 type ReviewRow = { id: string; product_id: string; order_id: string; stars: number; comment: string | null; status: 'pending' | 'approved' | 'rejected'; created_at: string; product?: Pick<Product, 'name' | 'image_url'> | null };
 type PurchaseRow = { order_id: string; product_id: string; product: Pick<Product, 'id' | 'name' | 'image_url'>; order_created_at: string };
+type PurchaseQueryOrder = { id: string; created_at: string; order_items?: Array<{ product_id: string; products?: Array<Pick<Product, 'id' | 'name' | 'image_url'>> }> };
 type RatingSummary = { product_id: string; average_stars: number; review_count: number };
+
+type ReviewQueryRow = Omit<ReviewRow, 'product'> & { products?: Array<Pick<Product, 'name' | 'image_url'>> };
 
 const Stars = ({ value, onChange, interactive = false }: { value: number; onChange?: (value: number) => void; interactive?: boolean }) => (
   <div className="flex items-center gap-1" aria-label={`${value} de 5 estrellas`}>
@@ -51,14 +54,16 @@ export function StudentReviewsPage() {
       if (summaryError) throw summaryError;
 
       const rows: PurchaseRow[] = [];
-      for (const order of (orderData ?? []) as Array<{ id: string; created_at: string; order_items?: Array<{ product_id: string; products?: Pick<Product, 'id' | 'name' | 'image_url'> | null }> }>) {
+      for (const order of (orderData ?? []) as unknown as PurchaseQueryOrder[]) {
         for (const item of order.order_items ?? []) {
-          if (!item.products) continue;
-          rows.push({ order_id: order.id, product_id: item.product_id, product: item.products, order_created_at: order.created_at });
+          const product = item.products?.[0];
+          if (!product) continue;
+          rows.push({ order_id: order.id, product_id: item.product_id, product, order_created_at: order.created_at });
         }
       }
+      const reviewRows = (reviewsData ?? []) as unknown as ReviewQueryRow[];
       setPurchases(rows);
-      setReviews(((reviewsData ?? []) as ReviewRow[]).map((review) => ({ ...review, product: review.product ?? null })));
+      setReviews(reviewRows.map((review) => ({ ...review, product: review.products?.[0] ?? null })));
       setSummaries((summaryData ?? []) as RatingSummary[]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron cargar las reseñas.');
