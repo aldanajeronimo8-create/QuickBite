@@ -38,6 +38,20 @@ export default defineConfig({
   build: {
     minify: 'esbuild',
     cssMinify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('recharts')) return 'vendor-charts'
+          if (id.includes('@mui/') || id.includes('@emotion/')) return 'vendor-mui'
+          if (id.includes('@redoper1/xlsx-js-style') || id.includes('/xlsx/')) return 'vendor-xlsx'
+          if (id.includes('@supabase/')) return 'vendor-supabase'
+          if (id.includes('@radix-ui/')) return 'vendor-radix'
+          if (id.includes('react-router')) return 'vendor-router'
+          return undefined
+        },
+      },
+    },
   },
   test: {
     environment: 'jsdom',
