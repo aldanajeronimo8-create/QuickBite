@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useDataStore } from '../../../store/dataStore';
+import { requireSupabaseClient, type Product } from '../../../lib/supabase';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -11,7 +12,7 @@ import { toast } from 'sonner';
 
 export function AdminInventory() {
   const { products, categories, updateProduct } = useDataStore();
-  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [stock, setStock] = useState('');
 
   const stats = useMemo(() => {
@@ -42,7 +43,7 @@ export function AdminInventory() {
     }
   };
 
-  const handleToggleAvailability = async (product: any) => {
+  const handleToggleAvailability = async (product: Product) => {
     try {
       await updateProduct(product.id, { available: !product.available });
       toast.success(
@@ -55,7 +56,7 @@ export function AdminInventory() {
     }
   };
 
-  const openEditDialog = (product: any) => {
+  const openEditDialog = (product: Product) => {
     setEditingProduct(product);
     setStock(product.stock.toString());
   };
@@ -64,7 +65,7 @@ export function AdminInventory() {
     return categories.find((c) => c.id === categoryId)?.name || 'Sin categoría';
   };
 
-  const getStockBadge = (product: any) => {
+  const getStockBadge = (product: Product) => {
     if (!product.available) {
       return <Badge className="bg-slate-500 text-white">Oculto</Badge>;
     }
@@ -86,7 +87,6 @@ export function AdminInventory() {
         </p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
@@ -121,7 +121,6 @@ export function AdminInventory() {
         </Card>
       </div>
 
-      {/* Products Table */}
       <Card className="border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold text-blue-900 mb-6">Productos</h2>
 
@@ -142,16 +141,10 @@ export function AdminInventory() {
                 <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-12 h-12 object-cover rounded-lg"
-                      />
+                      <img src={product.image_url} alt={product.name} className="w-12 h-12 object-cover rounded-lg" />
                       <div>
                         <p className="font-medium text-gray-900">{product.name}</p>
-                        <p className="text-sm text-gray-600 line-clamp-1">
-                          {product.description}
-                        </p>
+                        <p className="text-sm text-gray-600 line-clamp-1">{product.description}</p>
                       </div>
                     </div>
                   </td>
@@ -161,53 +154,21 @@ export function AdminInventory() {
                     </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <span className="font-bold text-green-700">
-                      ${product.price.toLocaleString()}
-                    </span>
+                    <span className="font-bold text-green-700">${product.price.toLocaleString()}</span>
                   </td>
                   <td className="py-4 px-4 text-center">
-                    <span className={`text-lg font-bold ${
-                      product.stock === 0 ? 'text-red-600' :
-                      product.stock <= 5 ? 'text-amber-600' :
-                      'text-green-700'
-                    }`}>
+                    <span className={`text-lg font-bold ${product.stock === 0 ? 'text-red-600' : product.stock <= 5 ? 'text-amber-600' : 'text-green-700'}`}>
                       {product.stock}
                     </span>
                   </td>
-                  <td className="py-4 px-4 text-center">
-                    {getStockBadge(product)}
-                  </td>
+                  <td className="py-4 px-4 text-center">{getStockBadge(product)}</td>
                   <td className="py-4 px-4 text-right">
                     <div className="flex gap-2 justify-end">
-                      <Button
-                        size="sm"
-                        onClick={() => openEditDialog(product)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Ajustar Stock
+                      <Button size="sm" onClick={() => openEditDialog(product)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Edit className="w-4 h-4 mr-2" />Ajustar Stock
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleToggleAvailability(product)}
-                        className={
-                          product.available
-                            ? 'border-gray-600 text-gray-700 hover:bg-gray-50'
-                            : 'border-green-600 text-green-700 hover:bg-green-50'
-                        }
-                      >
-                        {product.available ? (
-                          <>
-                            <EyeOff className="w-4 h-4 mr-2" />
-                            Ocultar
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="w-4 h-4 mr-2" />
-                            Mostrar
-                          </>
-                        )}
+                      <Button size="sm" variant="outline" onClick={() => handleToggleAvailability(product)} className={product.available ? 'border-gray-600 text-gray-700 hover:bg-gray-50' : 'border-green-600 text-green-700 hover:bg-green-50'}>
+                        {product.available ? <><EyeOff className="w-4 h-4 mr-2" />Ocultar</> : <><Eye className="w-4 h-4 mr-2" />Mostrar</>}
                       </Button>
                     </div>
                   </td>
@@ -218,54 +179,25 @@ export function AdminInventory() {
         </div>
       </Card>
 
-      {/* Edit Stock Dialog */}
       <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ajustar Stock</DialogTitle>
-          </DialogHeader>
-
+          <DialogHeader><DialogTitle>Ajustar Stock</DialogTitle></DialogHeader>
           {editingProduct && (
             <div className="space-y-6">
               <div className="flex items-center gap-4">
-                <img
-                  src={editingProduct.image_url}
-                  alt={editingProduct.name}
-                  className="w-20 h-20 object-cover rounded-lg"
-                />
+                <img src={editingProduct.image_url} alt={editingProduct.name} className="w-20 h-20 object-cover rounded-lg" />
                 <div>
                   <h3 className="font-bold text-lg">{editingProduct.name}</h3>
                   <p className="text-sm text-gray-600">Stock actual: {editingProduct.stock}</p>
                 </div>
               </div>
-
               <div>
                 <Label htmlFor="stock">Nuevo Stock</Label>
-                <Input
-                  id="stock"
-                  type="number"
-                  min="0"
-                  value={stock}
-                  onChange={(e) => setStock(e.target.value)}
-                  className="mt-2"
-                  placeholder="Ingresa la cantidad"
-                />
+                <Input id="stock" type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className="mt-2" placeholder="Ingresa la cantidad" />
               </div>
-
               <div className="flex gap-3">
-                <Button
-                  onClick={handleStockUpdate}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  Guardar Cambios
-                </Button>
-                <Button
-                  onClick={() => setEditingProduct(null)}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
+                <Button onClick={handleStockUpdate} className="flex-1 bg-green-600 hover:bg-green-700 text-white">Guardar Cambios</Button>
+                <Button onClick={() => setEditingProduct(null)} variant="outline" className="flex-1">Cancelar</Button>
               </div>
             </div>
           )}
