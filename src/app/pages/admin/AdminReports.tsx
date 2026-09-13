@@ -1,36 +1,55 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import { ComponentType, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarDays, FileSpreadsheet, RefreshCw, ShoppingBag, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { requireSupabaseClient, type Order } from '../../../lib/supabase';
-import { buildPeriodReportWorkbook } from '../../../services/reportExportService';
-import { buildReportPeriod, dateKeyInBogota, formatPeriodDateRange, getMonthWeekGroups, parseReportInputDate, type ReportMode } from '../../../lib/reportPeriods';
-import * as XLSX from '@redoper1/xlsx-js-style';
 import { Button } from '../../components/ui/button';
-import { useAuthStore } from '../../../store/authStore';
+import * as XLSX from 'xlsx';
+import { buildPeriodReportWorkbook } from '../../../services/reportExportService';
+import { getMonthWeekGroups, getReportPeriod, ordersForDay, type ReportMode } from '../../../lib/reportPeriods';
 
-const salesHeaders = ['N.º pedido', 'Fecha de compra', 'Hora de compra', 'Cliente', 'Correo', 'Documento', 'Estado pedido', 'Estado pago', 'Método de pago', 'Código recogida', 'Referencia de pago', 'Total pedido', 'Productos', 'Unidades', 'Tiempo estimado (min)'];
-const detailHeaders = ['N.º pedido', 'Fecha de compra', 'Hora de compra', 'Producto', 'Categoría', 'Precio unitario', 'Cantidad', 'Subtotal', 'Stock actual', 'Cliente'];
-const inputDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
-const dateFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
-const timeFormatter = new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const currency = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+const dateFormatter = new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short' });
+const salesHeaders = ['Fecha', 'Pedido', 'Cliente', 'Estado', 'Pago', 'Método', 'Total', 'Productos', 'Unidades', 'Referencia', 'Código', 'Valor'];
+const detailHeaders = ['Fecha', 'Producto', 'Categoría', 'Cantidad', 'Precio unitario', 'Subtotal', 'Pedido', 'Total pedido'];
 
-function statusLabel(value: string) { return ({ pending: 'Pendiente', preparing: 'En preparación', ready: 'Listo para recoger', delivered: 'Entregado', cancelled: 'Cancelado', confirmed: 'Confirmado', rejected: 'Rechazado' } as Record<string, string>)[value] ?? value; }
-function paymentLabel(value: string) { return ({ nequi: 'Nequi', 'bre-b': 'Bre-B', cash: 'Efectivo' } as Record<string, string>)[value] ?? value; }
-function toSalesRows(orders: Order[]) { return orders.map((order) => [order.order_number, dateFormatter.format(new Date(order.created_at)), timeFormatter.format(new Date(order.created_at)), order.user?.full_name ?? 'Sin cliente', order.user?.email ?? '', order.user?.ti ?? '', statusLabel(order.status), statusLabel(order.payment_status), paymentLabel(order.payment_method), order.pickup_code ?? '', order.payment_reference ?? '', Number(order.total), Number(order.order_items?.length ?? 0), Number(order.order_items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0), Number(order.estimated_minutes ?? 0)]); }
-function toDetailRows(orders: Order[]) { return orders.flatMap((order) => (order.order_items ?? []).map((item) => [order.order_number, dateFormatter.format(new Date(order.created_at)), timeFormatter.format(new Date(order.created_at)), item.product?.name ?? 'Producto no disponible', item.product?.category?.name ?? 'Sin categoría', Number(item.price), Number(item.quantity), Number(item.price) * Number(item.quantity), Number(item.product?.stock ?? 0), order.user?.full_name ?? 'Sin cliente'])); }
-function ordersForDay(orders: Order[], day: Date) { return orders.filter((order) => dateKeyInBogota(order.created_at) === day.toISOString().slice(0, 10)); }
+function toSalesRows(orders: Order[]) {
+  return orders.map((order) => [
+    new Date(order.created_at).toLocaleString('es-CO'),
+    order.order_number,
+    order.user?.full_name ?? order.user?.email ?? '—',
+    order.status,
+    order.payment_status,
+    order.payment_method,
+    Number(order.total),
+    order.order_items?.length ?? 0,
+    order.order_items?.reduce((sum, item) => sum + Number(item.quantity), 0) ?? 0,
+    order.payment_reference ?? '—',
+    order.pickup_code ?? '—',
+    Number(order.total),
+  ]);
+}
+function toDetailRows(orders: Order[]) {
+  return orders.flatMap((order) => (order.order_items ?? []).map((item) => [
+    new Date(order.created_at).toLocaleString('es-CO'),
+    item.product?.name ?? 'Producto',
+    item.product?.category?.name ?? '—',
+    Number(item.quantity),
+    Number(item.unit_price ?? item.product?.price ?? 0),
+    Number(item.total ?? 0),
+    order.order_number,
+    Number(order.total),
+  ]));
+}
 
 export function AdminReports() {
   const authLoading = useAuthStore((state) => state.loading);
   const currentUser = useAuthStore((state) => state.user);
-  const [mode, setMode] = useState<ReportMode>('daily');
-  const [selectedDate, setSelectedDate] = useState(() => inputDateFormatter.format(new Date()));
   const [orders, setOrders] = useState<Order[]>([]);
+  const [mode, setMode] = useState<ReportMode>('daily');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const selected = useMemo(() => parseReportInputDate(selectedDate), [selectedDate]);
-  const period = useMemo(() => buildReportPeriod(mode, selected), [mode, selected]);
+  const period = useMemo(() => getReportPeriod(mode, selectedDate), [mode, selectedDate]);
   const load = useCallback(async () => {
     if (!currentUser || authLoading) return;
     setLoading(true);
@@ -49,7 +68,7 @@ export function AdminReports() {
   useEffect(() => {
     if (authLoading || !currentUser) return;
     void load();
-  }, [authLoading, currentUser?.id, load]);
+  }, [authLoading, currentUser, load]);
   const confirmedOrders = useMemo(() => orders.filter((order) => order.payment_status === 'confirmed'), [orders]);
   const totalSales = useMemo(() => confirmedOrders.reduce((sum, order) => sum + Number(order.total), 0), [confirmedOrders]);
   const totalUnits = useMemo(() => confirmedOrders.reduce((sum, order) => sum + Number(order.order_items?.reduce((units, item) => units + Number(item.quantity), 0) ?? 0), 0), [confirmedOrders]);
@@ -68,4 +87,3 @@ export function AdminReports() {
 function Kpi({ icon: Icon, label, value }: { icon: ComponentType<{ className?: string }>; label: string; value: string }) { return <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-3 flex items-center justify-between"><p className="text-sm font-medium text-slate-500">{label}</p><Icon className="h-6 w-6 text-blue-600" /></div><p className="text-lg font-black text-slate-900">{value}</p></div>; }
 function ReportSection({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) { return <section className="mb-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 px-5 py-4"><h2 className="text-xl font-bold text-slate-900">{title}</h2><p className="text-sm text-slate-500">{subtitle}</p></div>{children}</section>; }
 function Empty({ text }: { text: string }) { return <div className="p-10 text-center text-slate-500">{text}</div>; }
-function ReportTable({ headers, rows, currencyColumns = [] }: { headers: string[]; rows: unknown[][]; currencyColumns?: number[] }) { return <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="bg-green-900 text-xs uppercase text-white"><tr>{headers.map((header) => <th key={header} className="px-4 py-3">{header}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{rows.map((row, rowIndex) => <tr key={`${rowIndex}-${String(row[0])}`} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>{row.map((value, columnIndex) => <td key={`${rowIndex}-${columnIndex}`} className="px-4 py-3 align-top">{currencyColumns.includes(columnIndex) && typeof value === 'number' ? currency.format(value) : String(value ?? '')}</td>)}</tr>)}</tbody></table></div>; }
