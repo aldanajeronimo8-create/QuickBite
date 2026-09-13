@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { Eye, Grid3X3, Layers3, Monitor, Palette, Redo2, Ruler, Smartphone, Tablet, Undo2 } from 'lucide-react';
 import type { VisualInterfaceScope, VisualSettingsDraft } from '../../../../types/visualSettings';
 
@@ -108,7 +108,7 @@ export function PreviewStudio({
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const guideActive = tool === 'guides';
 
-  const postTo = (frame: HTMLIFrameElement | null, settings: VisualSettingsDraft) => {
+  const postTo = useCallback((frame: HTMLIFrameElement | null, settings: VisualSettingsDraft) => {
     const target = frame?.contentWindow;
     if (!target) return;
     try {
@@ -116,20 +116,20 @@ export function PreviewStudio({
     } catch {
       // iframe also receives the same settings on load
     }
-  };
+  }, []);
 
-  const postPreview = () => {
+  const postPreview = useCallback(() => {
     if (compare) {
       postTo(iframeRef.current, draft);
       postTo(savedIframeRef.current, saved);
     } else {
       postTo(iframeRef.current, activeSettings);
     }
-  };
+  }, [activeSettings, compare, draft, postTo, saved]);
 
   useEffect(() => {
     postPreview();
-  }, [draft, saved, compare, mode]);
+  }, [postPreview]);
 
   useEffect(() => {
     const handleReady = (event: MessageEvent) => {
@@ -139,7 +139,7 @@ export function PreviewStudio({
     };
     window.addEventListener('message', handleReady);
     return () => window.removeEventListener('message', handleReady);
-  }, [compare, draft, saved, mode]);
+  }, [activeSettings, compare, draft, postTo, saved]);
 
   const toggleTool = (nextTool: Exclude<StudioTool, null>) => {
     setTool((current) => (current === nextTool ? null : nextTool));
@@ -162,22 +162,10 @@ export function PreviewStudio({
     <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_16px_40px_rgba(2,6,23,0.20)] backdrop-blur-2xl sm:p-4">
       {tool === 'styles' && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
-            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Primario <span className="size-4 rounded-full ring-2 ring-white/40" style={{ backgroundColor: activeSettings.primary_color }} /></div>
-            <p className="mt-2 font-mono text-xs font-bold text-white">{activeSettings.primary_color}</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
-            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Fondo <span className="size-4 rounded-full ring-2 ring-white/40" style={{ backgroundColor: activeSettings.background_color }} /></div>
-            <p className="mt-2 font-mono text-xs font-bold text-white">{activeSettings.background_color}</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Tipografía</p>
-            <p className="mt-2 text-xs font-bold text-white">{activeSettings.font_family}</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Tema</p>
-            <p className="mt-2 text-xs font-bold text-white capitalize">{activeSettings.theme_mode}</p>
-          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3"><div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Primario <span className="size-4 rounded-full ring-2 ring-white/40" style={{ backgroundColor: activeSettings.primary_color }} /></div><p className="mt-2 font-mono text-xs font-bold text-white">{activeSettings.primary_color}</p></div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3"><div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Fondo <span className="size-4 rounded-full ring-2 ring-white/40" style={{ backgroundColor: activeSettings.background_color }} /></div><p className="mt-2 font-mono text-xs font-bold text-white">{activeSettings.background_color}</p></div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Tipografía</p><p className="mt-2 text-xs font-bold text-white">{activeSettings.font_family}</p></div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Tema</p><p className="mt-2 text-xs font-bold text-white capitalize">{activeSettings.theme_mode}</p></div>
         </div>
       )}
       {tool === 'layout' && (
@@ -189,22 +177,10 @@ export function PreviewStudio({
         </div>
       )}
       {tool === 'elements' && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-black text-white">Edición directa sobre la interfaz</p>
-            <p className="mt-1 text-[11px] leading-5 text-slate-400">Haz 3 clics sobre un elemento de la preview para abrir sus controles. Solo ese elemento se modifica y el cambio permanece como borrador hasta Guardar.</p>
-          </div>
-          <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black text-slate-300">{Object.keys(activeSettings.element_overrides ?? {}).length} elementos personalizados</span>
-        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-black text-white">Edición directa sobre la interfaz</p><p className="mt-1 text-[11px] leading-5 text-slate-400">Haz 3 clics sobre un elemento de la preview para abrir sus controles. Solo ese elemento se modifica y el cambio permanece como borrador hasta Guardar.</p></div><span className="shrink-0 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black text-slate-300">{Object.keys(activeSettings.element_overrides ?? {}).length} elementos personalizados</span></div>
       )}
       {tool === 'guides' && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-black text-white">Guías de composición activas</p>
-            <p className="mt-1 text-[11px] leading-5 text-slate-400">Cuadrícula de 24 px para alinear visualmente bloques, tarjetas, botones y espaciados dentro de la preview.</p>
-          </div>
-          <span className="shrink-0 rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1.5 text-[10px] font-black text-cyan-100">24 × 24 px</span>
-        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-black text-white">Guías de composición activas</p><p className="mt-1 text-[11px] leading-5 text-slate-400">Cuadrícula de 24 px para alinear visualmente bloques, tarjetas, botones y espaciados dentro de la preview.</p></div><span className="shrink-0 rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1.5 text-[10px] font-black text-cyan-100">24 × 24 px</span></div>
       )}
     </div>
   ) : null;
@@ -214,85 +190,16 @@ export function PreviewStudio({
       <div className="pointer-events-none absolute -left-20 -top-24 size-56 rounded-full bg-cyan-300/10 blur-3xl" />
       <div className="pointer-events-none absolute right-12 -top-16 size-48 rounded-full bg-fuchsia-300/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 left-1/3 size-64 rounded-full bg-indigo-300/10 blur-3xl" />
-
       <div className="relative border-b border-white/10 bg-white/[0.035] px-3 py-3 backdrop-blur-2xl sm:px-5 sm:py-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid size-10 shrink-0 place-items-center rounded-2xl border border-white/15 bg-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_32px_rgba(2,6,23,0.22)] backdrop-blur-xl">
-              <Eye className="h-4 w-4 text-slate-200" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Visual Studio <span className="size-1 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.8)]" /></div>
-              <p className="mt-0.5 truncate text-sm font-bold text-white capitalize">{scope.replaceAll('_', ' ')} <span className="text-slate-500">·</span> {mode === 'draft' ? 'Borrador' : 'Guardado'}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center rounded-2xl border border-white/10 bg-white/[0.055] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_30px_rgba(2,6,23,0.20)] backdrop-blur-2xl">
-              {VIEWPORTS.map(({ id, label, icon: Icon }) => (
-                <button key={id} type="button" onClick={() => setViewport(id)} className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-black transition-all ${viewport === id ? 'bg-white/[0.92] text-slate-900 shadow-[0_8px_24px_rgba(255,255,255,0.12)]' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
-                  <Icon className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center rounded-2xl border border-white/10 bg-white/[0.055] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_30px_rgba(2,6,23,0.20)] backdrop-blur-2xl">
-              <button type="button" onClick={() => setMode('draft')} className={`rounded-xl px-3 py-2 text-[11px] font-black transition-all ${mode === 'draft' ? 'bg-white/[0.92] text-slate-900 shadow-[0_8px_24px_rgba(255,255,255,0.12)]' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Borrador</button>
-              <button type="button" onClick={() => setMode('saved')} className={`rounded-xl px-3 py-2 text-[11px] font-black transition-all ${mode === 'saved' ? 'bg-white/[0.92] text-slate-900 shadow-[0_8px_24px_rgba(255,255,255,0.12)]' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Guardado</button>
-            </div>
-
-            <div className="flex items-center rounded-2xl border border-white/10 bg-white/[0.055] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_30px_rgba(2,6,23,0.20)] backdrop-blur-2xl">
-              <button type="button" disabled={!canUndo} onClick={onUndo} className="grid size-9 place-items-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-25" aria-label="Deshacer"><Undo2 className="h-4 w-4" /></button>
-              <button type="button" disabled={!canRedo} onClick={onRedo} className="grid size-9 place-items-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-25" aria-label="Rehacer"><Redo2 className="h-4 w-4" /></button>
-            </div>
-
-            <button type="button" onClick={() => onCompareChange?.(!compare)} className={`rounded-2xl border px-3.5 py-2.5 text-[11px] font-black shadow-[0_12px_30px_rgba(2,6,23,0.18)] backdrop-blur-2xl transition-all ${compare ? 'border-white/60 bg-white/[0.9] text-slate-900' : 'border-white/10 bg-white/[0.055] text-slate-200 hover:bg-white/10'}`}>{compare ? 'Salir de comparación' : 'Antes / Después'}</button>
-
-            <div className="flex items-center rounded-2xl border border-white/10 bg-white/[0.055] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_30px_rgba(2,6,23,0.20)] backdrop-blur-2xl">
-              <ToolButton active={tool === 'styles'} label="Estilos" icon={Palette} onClick={() => toggleTool('styles')} />
-              <ToolButton active={tool === 'layout'} label="Diseño" icon={Ruler} onClick={() => toggleTool('layout')} />
-              <ToolButton active={tool === 'elements'} label="Elementos" icon={Layers3} onClick={() => toggleTool('elements')} />
-              <ToolButton active={tool === 'guides'} label="Guías" icon={Grid3X3} onClick={() => toggleTool('guides')} />
-            </div>
-          </div>
+          <div className="flex min-w-0 items-center gap-3"><div className="grid size-10 shrink-0 place-items-center rounded-2xl border border-white/15 bg-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_32px_rgba(2,6,23,0.22)] backdrop-blur-xl"><Eye className="h-4 w-4 text-slate-200" /></div><div className="min-w-0"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Visual Studio <span className="size-1 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.8)]" /></div><p className="mt-0.5 truncate text-sm font-bold text-white capitalize">{scope.replaceAll('_', ' ')} <span className="text-slate-500">·</span> {mode === 'draft' ? 'Borrador' : 'Guardado'}</p></div></div>
+          <div className="flex flex-wrap items-center gap-2"><div className="flex items-center rounded-2xl border border-white/10 bg-white/[0.055] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_30px_rgba(2,6,23,0.20)] backdrop-blur-2xl">{VIEWPORTS.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setViewport(id)} className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-black transition-all ${viewport === id ? 'bg-white/[0.92] text-slate-900 shadow-[0_8px_24px_rgba(255,255,255,0.12)]' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}><Icon className="h-3.5 w-3.5" /><span className="hidden sm:inline">{label}</span></button>)}</div><div className="flex items-center rounded-2xl border border-white/10 bg-white/[0.055] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_30px_rgba(2,6,23,0.20)] backdrop-blur-2xl"><button type="button" onClick={() => setMode('draft')} className={`rounded-xl px-3 py-2 text-[11px] font-black transition-all ${mode === 'draft' ? 'bg-white/[0.92] text-slate-900 shadow-[0_8px_24px_rgba(255,255,255,0.12)]' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Borrador</button><button type="button" onClick={() => setMode('saved')} className={`rounded-xl px-3 py-2 text-[11px] font-black transition-all ${mode === 'saved' ? 'bg-white/[0.92] text-slate-900 shadow-[0_8px_24px_rgba(255,255,255,0.12)]' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>Guardado</button></div><div className="flex items-center rounded-2xl border border-white/10 bg-white/[0.055] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_30px_rgba(2,6,23,0.20)] backdrop-blur-2xl"><button type="button" disabled={!canUndo} onClick={onUndo} className="grid size-9 place-items-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-25" aria-label="Deshacer"><Undo2 className="h-4 w-4" /></button><button type="button" disabled={!canRedo} onClick={onRedo} className="grid size-9 place-items-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-25" aria-label="Rehacer"><Redo2 className="h-4 w-4" /></button></div><button type="button" onClick={() => onCompareChange?.(!compare)} className={`rounded-2xl border px-3.5 py-2.5 text-[11px] font-black shadow-[0_12px_30px_rgba(2,6,23,0.18)] backdrop-blur-2xl transition-all ${compare ? 'border-white/60 bg-white/[0.9] text-slate-900' : 'border-white/10 bg-white/[0.055] text-slate-200 hover:bg-white/10'}`}>{compare ? 'Salir de comparación' : 'Antes / Después'}</button><div className="flex items-center rounded-2xl border border-white/10 bg-white/[0.055] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_30px_rgba(2,6,23,0.20)] backdrop-blur-2xl"><ToolButton active={tool === 'styles'} label="Estilos" icon={Palette} onClick={() => toggleTool('styles')} /><ToolButton active={tool === 'layout'} label="Diseño" icon={Ruler} onClick={() => toggleTool('layout')} /><ToolButton active={tool === 'elements'} label="Elementos" icon={Layers3} onClick={() => toggleTool('elements')} /><ToolButton active={tool === 'guides'} label="Guías" icon={Grid3X3} onClick={() => toggleTool('guides')} /></div></div>
         </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-300">
-          <span className="rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">Interfaz real</span>
-          <span className="rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">Sesión aislada</span>
-          {dirty && <span className="rounded-full border border-amber-200/15 bg-amber-300/10 px-2.5 py-1.5 text-amber-100 shadow-[0_8px_20px_rgba(251,191,36,0.08)] backdrop-blur-xl">Cambios sin guardar</span>}
-          {guideActive && <span className="rounded-full border border-cyan-200/15 bg-cyan-300/10 px-2.5 py-1.5 text-cyan-100 backdrop-blur-xl">Guías activas</span>}
-        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-300"><span className="rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">Interfaz real</span><span className="rounded-full border border-white/10 bg-white/[0.055] px-2.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">Sesión aislada</span>{dirty && <span className="rounded-full border border-amber-200/15 bg-amber-300/10 px-2.5 py-1.5 text-amber-100 shadow-[0_8px_20px_rgba(251,191,36,0.08)] backdrop-blur-xl">Cambios sin guardar</span>}{guideActive && <span className="rounded-full border border-cyan-200/15 bg-cyan-300/10 px-2.5 py-1.5 text-cyan-100 backdrop-blur-xl">Guías activas</span>}</div>
         {toolPanel}
       </div>
-
-      <div className="relative bg-slate-200 p-3 sm:p-5">
-        <div
-          style={previewSurfaceStyle}
-          className={`mx-auto min-h-[520px] overflow-auto rounded-[1.5rem] bg-slate-300/70 p-3 shadow-inner sm:p-5 ${compare ? 'grid gap-5 xl:grid-cols-2' : 'flex justify-center'}`}
-        >
-          {compare ? (
-            <>
-              <div className="min-w-0">
-                <p className="mb-2 text-center text-[11px] font-black uppercase tracking-[0.15em] text-slate-500">Antes · Guardado</p>
-                <PreviewFrame ref={savedIframeRef} frameKey={`saved-${previewPath}`} settings={saved} label="Guardado" scope={scope} previewPath={previewPath} frameStyle={frameStyle} postTo={postTo} />
-              </div>
-              <div className="min-w-0">
-                <p className="mb-2 text-center text-[11px] font-black uppercase tracking-[0.15em] text-slate-500">Después · Borrador</p>
-                <PreviewFrame ref={iframeRef} frameKey={`draft-${previewPath}`} settings={draft} label="Borrador" scope={scope} previewPath={previewPath} frameStyle={frameStyle} postTo={postTo} />
-              </div>
-            </>
-          ) : (
-            <PreviewFrame ref={iframeRef} frameKey={`${mode}-${previewPath}`} settings={activeSettings} label={mode === 'draft' ? 'Borrador' : 'Guardado'} scope={scope} previewPath={previewPath} frameStyle={frameStyle} postTo={postTo} />
-          )}
-        </div>
-      </div>
-
-      <div className="relative flex flex-col gap-2 border-t border-white/10 bg-white/[0.025] px-4 py-3 text-[11px] leading-5 text-slate-400 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <span>3 clics editan un elemento. Los ajustes se mantienen como borrador hasta Guardar.</span>
-        <span className="font-black text-slate-300">{selectedViewport.width === 'full' ? 'Ancho adaptable' : `${selectedViewport.width}px`}</span>
-      </div>
+      <div className="relative bg-slate-200 p-3 sm:p-5"><div style={previewSurfaceStyle} className={`mx-auto min-h-[520px] overflow-auto rounded-[1.5rem] bg-slate-300/70 p-3 shadow-inner sm:p-5 ${compare ? 'grid gap-5 xl:grid-cols-2' : 'flex justify-center'}`}>{compare ? <><div className="min-w-0"><p className="mb-2 text-center text-[11px] font-black uppercase tracking-[0.15em] text-slate-500">Antes · Guardado</p><PreviewFrame ref={savedIframeRef} frameKey={`saved-${previewPath}`} settings={saved} label="Guardado" scope={scope} previewPath={previewPath} frameStyle={frameStyle} postTo={postTo} /></div><div className="min-w-0"><p className="mb-2 text-center text-[11px] font-black uppercase tracking-[0.15em] text-slate-500">Después · Borrador</p><PreviewFrame ref={iframeRef} frameKey={`draft-${previewPath}`} settings={draft} label="Borrador" scope={scope} previewPath={previewPath} frameStyle={frameStyle} postTo={postTo} /></div></> : <PreviewFrame ref={iframeRef} frameKey={`${mode}-${previewPath}`} settings={activeSettings} label={mode === 'draft' ? 'Borrador' : 'Guardado'} scope={scope} previewPath={previewPath} frameStyle={frameStyle} postTo={postTo} />}</div></div>
+      <div className="relative flex flex-col gap-2 border-t border-white/10 bg-white/[0.025] px-4 py-3 text-[11px] leading-5 text-slate-400 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-5"><span>3 clics editan un elemento. Los ajustes se mantienen como borrador hasta Guardar.</span><span className="font-black text-slate-300">{selectedViewport.width === 'full' ? 'Ancho adaptable' : `${selectedViewport.width}px`}</span></div>
     </section>
   );
 }
