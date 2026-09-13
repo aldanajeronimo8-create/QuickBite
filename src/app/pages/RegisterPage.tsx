@@ -52,7 +52,7 @@ export function RegisterPage() {
 
     if (!formData.email) {
       newErrors.email = 'El correo es requerido';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/^([^\s@]+)@([^\s@]+)\.([^\s@]+)$/.test(formData.email)) {
       newErrors.email = 'Correo electrónico inválido';
     }
 
@@ -110,8 +110,8 @@ export function RegisterPage() {
       await signUp(formData.email, formData.password, formData.fullName, formData.verificationCode);
       toast.success('¡Cuenta creada exitosamente!');
       navigate('/admin');
-    } catch (error: any) {
-      const msg: string = error.message || '';
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '';
       if (msg === 'CONFIRM_EMAIL') {
         toast.success('Cuenta creada. Revisa tu correo y confirma antes de iniciar sesión.', { duration: 8000 });
         navigate('/login');
