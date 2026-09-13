@@ -18,10 +18,35 @@
     <meta property="og:title" content="QuickBite | Cafetería escolar digital" />
     <meta property="og:description" content="Sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente." />
     <meta property="og:url" content="https://quick-bite-snowy-ten.vercel.app/" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "QuickBite",
+        "url": "https://quick-bite-snowy-ten.vercel.app/",
+        "description": "Sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "es-CO",
+        "isAccessibleForFree": true
+      }
+    </script>
     <title>QuickBite | Cafetería escolar digital</title>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main>
+        <h1>QuickBite: cafetería escolar digital</h1>
+        <p>QuickBite es un sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente. Permite consultar el menú, realizar pedidos y facilitar la entrega de alimentos durante los descansos.</p>
+        <nav aria-label="Accesos de QuickBite">
+          <a href="/login">Iniciar sesión</a>
+          <a href="/register-student">Crear cuenta de estudiante</a>
+          <a href="/register-parent">Crear cuenta de Padre de Familia</a>
+          <a href="/verify-order">Verificar pedido</a>
+        </nav>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
