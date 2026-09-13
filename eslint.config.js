@@ -31,7 +31,7 @@ export default tseslint.config(
     files: ['src/app/pages/student/StudentMenuPage.tsx'],
     rules: {
       '@typescript-eslint/no-unused-vars': 'warn',
-      // Checkout identifiers are generated for a new order lifecycle and are intentionally stateful.
+      // Checkout identifiers are generated for a new order lifecycle and intentionally depend on UI state.
       'react-hooks/purity': 'off',
     },
   },
