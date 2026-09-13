@@ -4,7 +4,7 @@
   "buildCommand": "npx --yes pnpm@9.15.9 run build",
   "headers": [
     {
-      "source": "/(admin|admin/.*|menu|menu/.*|student|student/.*|parent|parent/.*|register|register/.*|register-student|register-student/.*|register-parent|register-parent/.*|forgot-password|reset-password|setup)(.*)",
+      "source": "/(admin|admin/.*|menu|menu/.*|student|student/.*|parent|parent/.*|login|login/.*|register|register/.*|register-student|register-student/.*|register-parent|register-parent/.*|verify-order|verify-order/.*|forgot-password|reset-password|setup)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
         { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
