@@ -128,7 +128,7 @@ export function VisualSettingsPanel() {
     setHistory([]);
     setFuture([]);
     setCompare(false);
-  }, [scope, settings.updated_at]);
+  }, [scope, settings]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
