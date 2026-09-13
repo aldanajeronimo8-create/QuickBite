@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://quick-bite-snowy-ten.vercel.app/</loc>
+  </url>
+  <url>
+    <loc>https://quick-bite-snowy-ten.vercel.app/login</loc>
+  </url>
+  <url>
+    <loc>https://quick-bite-snowy-ten.vercel.app/register</loc>
+  </url>
+  <url>
+    <loc>https://quick-bite-snowy-ten.vercel.app/register-student</loc>
+  </url>
+  <url>
+    <loc>https://quick-bite-snowy-ten.vercel.app/register-parent</loc>
+  </url>
+  <url>
+    <loc>https://quick-bite-snowy-ten.vercel.app/verify-order</loc>
+  </url>
+</urlset>
