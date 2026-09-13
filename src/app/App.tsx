@@ -17,6 +17,23 @@ function safeIsVisualPreviewMode(): boolean {
   try { return isVisualPreviewMode(); } catch { return false; }
 }
 
+function syncVisualInterfaceScope(pathname: string) {
+  if (typeof document === 'undefined') return;
+  const body = document.body;
+  const scope = pathname.startsWith('/admin')
+    ? 'admin'
+    : pathname.startsWith('/parent')
+      ? 'parent'
+      : pathname.startsWith('/menu') || pathname.startsWith('/student')
+        ? 'student'
+        : pathname === '/' || pathname === '/login'
+          ? 'login_student'
+          : null;
+  if (scope) body.dataset.qbInterface = scope;
+  else delete body.dataset.qbInterface;
+  document.documentElement.classList.toggle('qb-public-home', pathname === '/');
+}
+
 function SessionRestorer() {
   useEffect(() => {
     if (safeIsVisualPreviewMode()) return;
@@ -56,6 +73,15 @@ function PreviewSessionBootstrap() {
   return null;
 }
 
+function VisualRouteSynchronizer() {
+  useEffect(() => {
+    const sync = () => syncVisualInterfaceScope(router.state.location.pathname);
+    sync();
+    return router.subscribe((state) => syncVisualInterfaceScope(state.location.pathname));
+  }, []);
+  return null;
+}
+
 function AppContent() {
   const checkSession = useAuthStore((s) => s.checkSession);
   const user = useAuthStore((s) => s.user);
@@ -72,7 +98,7 @@ function AppContent() {
   return (
     <ErrorBoundary>
       <VisualThemeProvider>
-        {needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><PreviewSessionBootstrap />{visualPreview && <VisualPreviewEditor scope={getVisualPreviewScope() ?? 'student'} />}{!visualPreview && <SessionRestorer />}{!visualPreview && user && <UserThemePreference />}</>}
+        {needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><VisualRouteSynchronizer /><PreviewSessionBootstrap />{visualPreview && <VisualPreviewEditor scope={getVisualPreviewScope() ?? 'student'} />}{!visualPreview && <SessionRestorer />}{!visualPreview && user && <UserThemePreference />}</>}
         <Toaster position="top-center" />
       </VisualThemeProvider>
     </ErrorBoundary>
