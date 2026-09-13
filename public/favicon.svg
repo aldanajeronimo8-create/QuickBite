@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
   <title>QuickBite</title>
-  <desc>Icono circular de QuickBite</desc>
+  <desc>Logo de QuickBite en negro sobre fondo blanco circular</desc>
   <circle cx="32" cy="32" r="31" fill="#fff"/>
-  <circle cx="32" cy="32" r="29" fill="none" stroke="#111827" stroke-width="2"/>
-  <path d="M21 20h17.5c5.25 0 9.5 4.25 9.5 9.5S43.75 39 38.5 39H21V20Z" fill="#111827"/>
-  <path d="M21 39h14.5c4.14 0 7.5 3.36 7.5 7.5S39.64 54 35.5 54H21V39Z" fill="#111827"/>
-  <circle cx="35" cy="29.5" r="3.5" fill="#fff"/>
-  <path d="M35 46h10" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <g fill="#111827">
+    <path d="M18 17h20.5C46.5 17 53 23.5 53 31.5S46.5 46 38.5 46H18V17Zm10 8v13h10.5c3.1 0 5.5-2.4 5.5-5.5S41.6 25 38.5 25H28Z"/>
+    <path d="M18 38h17v9H18z"/>
+    <path d="M34 41h10l7 7-4 4-7-7h-6z"/>
+  </g>
 </svg>
