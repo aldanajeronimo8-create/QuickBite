@@ -64,8 +64,8 @@ export function ParentFoodControlsPage() {
         p_reason: food.reason ?? null,
       });
       if (error) throw error;
-      setFoods((current) => current.map((item) => item.product_id === food.product_id ? { ...item, blocked: Boolean(data) } : item));
-      toast.success(Boolean(data) ? `${food.product_name} quedó bloqueado para ${activeStudent.full_name}.` : `${food.product_name} volvió a estar permitido.`);
+      setFoods((current) => current.map((item) => item.product_id === food.product_id ? { ...item, blocked: data } : item));
+      toast.success(data ? `${food.product_name} quedó bloqueado para ${activeStudent.full_name}.` : `${food.product_name} volvió a estar permitido.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo actualizar la restricción.');
     } finally {
