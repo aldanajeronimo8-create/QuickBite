@@ -16,6 +16,11 @@ type Review = {
   product?: { name: string; image_url: string | null } | null;
 };
 
+type ReviewQueryRow = Omit<Review, 'student' | 'product'> & {
+  profiles?: Array<{ full_name: string; email: string }>;
+  products?: Array<{ name: string; image_url: string | null }>;
+};
+
 const statusLabel: Record<Review['status'], string> = { pending: 'Pendiente', approved: 'Publicada', rejected: 'Rechazada' };
 
 function Stars({ value }: { value: number }) {
@@ -38,10 +43,18 @@ export function AdminReviews() {
         .select('id,student_id,product_id,order_id,stars,comment,status,created_at,profiles!product_reviews_student_id_fkey(full_name,email),products(name,image_url)')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setReviews(((data ?? []) as Array<Review & { profiles?: { full_name: string; email: string } | null; products?: { name: string; image_url: string | null } | null }>).map((item) => ({
-        ...item,
-        student: item.profiles ?? null,
-        product: item.products ?? null,
+      const rows = (data ?? []) as unknown as ReviewQueryRow[];
+      setReviews(rows.map((item) => ({
+        id: item.id,
+        student_id: item.student_id,
+        product_id: item.product_id,
+        order_id: item.order_id,
+        stars: item.stars,
+        comment: item.comment,
+        status: item.status,
+        created_at: item.created_at,
+        student: item.profiles?.[0] ?? null,
+        product: item.products?.[0] ?? null,
       })));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron cargar las reseñas.');
