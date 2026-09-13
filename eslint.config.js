@@ -40,9 +40,13 @@ export default tseslint.config(
     files: ['scripts/**/*.mjs'],
     languageOptions: {
       globals: {
+        AbortController: 'readonly',
+        DOMException: 'readonly',
+        clearTimeout: 'readonly',
         console: 'readonly',
-        process: 'readonly',
         crypto: 'readonly',
+        process: 'readonly',
+        setTimeout: 'readonly',
       },
     },
   },
