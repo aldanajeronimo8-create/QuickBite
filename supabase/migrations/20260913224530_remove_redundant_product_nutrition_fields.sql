@@ -1,0 +1,11 @@
+DROP INDEX IF EXISTS public.products_healthy_idx;
+DROP INDEX IF EXISTS public.products_vegetarian_idx;
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_calories_nonnegative;
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_protein_nonnegative;
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_fiber_nonnegative;
+ALTER TABLE public.products DROP COLUMN IF EXISTS is_healthy;
+ALTER TABLE public.products DROP COLUMN IF EXISTS is_vegetarian;
+ALTER TABLE public.products DROP COLUMN IF EXISTS calories;
+ALTER TABLE public.products DROP COLUMN IF EXISTS protein_g;
+ALTER TABLE public.products DROP COLUMN IF EXISTS fiber_g;
+ALTER TABLE public.products DROP COLUMN IF EXISTS allergens;
