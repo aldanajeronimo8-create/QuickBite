@@ -7,6 +7,7 @@ import { getErrorMessage } from '../../../lib/errorMessage';
 import { requireSupabaseClient, type LoyaltyRedemption, type LoyaltyReward, type Order, type Product } from '../../../lib/supabase';
 import { getOrderVerificationUrl } from '../../../lib/orderQr';
 import { UserNotificationBell } from '../../components/notifications/UserNotificationBell';
+import { ProductRatingBadge } from '../../components/student/ProductRatingBadge';
 import { StudentRewardsPanel } from '../../components/student/StudentRewardsPanel';
 import { useLoyalty } from '../../hooks/useLoyalty';
 import { Badge } from '../../components/ui/badge';
@@ -366,7 +367,10 @@ function ProductCard({ product, qty, onAdd, onRemove }: { product: Product; qty:
       <span className="absolute left-2 top-2 rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[11px] font-bold text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-[#0D111D]/90 dark:text-slate-300">Stock {product.stock}</span>
     </div>
     <div className="p-4">
-      <p className="min-h-10 text-sm font-black leading-tight text-slate-900 dark:text-white">{product.name}</p>
+      <div className="flex min-h-10 items-start justify-between gap-2">
+        <p className="text-sm font-black leading-tight text-slate-900 dark:text-white">{product.name}</p>
+        <ProductRatingBadge productId={product.id} />
+      </div>
       <p className="mt-1 line-clamp-1 text-xs text-slate-600 dark:text-slate-400">{product.description}</p>
       <p className="mt-2 text-lg font-black text-emerald-600 dark:text-emerald-400">${fmt(product.price)}</p>
       {qty === 0 ? <button onClick={() => onAdd(product)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500"><Plus className="h-4 w-4" />Agregar</button> : <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 p-1 dark:border-emerald-500/20 dark:bg-emerald-500/10"><button onClick={() => onRemove(product.id)} className="grid h-8 w-8 place-items-center rounded-lg bg-white text-emerald-600 transition hover:bg-slate-100 dark:bg-[#131B2E] dark:text-emerald-400 dark:hover:bg-slate-800"><Minus className="h-4 w-4" /></button><span className="font-black text-slate-900 dark:text-white">{qty}</span><button onClick={() => onAdd(product)} className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-600 text-white transition hover:bg-emerald-500"><Plus className="h-4 w-4" /></button></div>}
