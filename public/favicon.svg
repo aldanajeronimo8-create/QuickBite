@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title>QuickBite</title>
+  <desc>Logo original de QuickBite centrado dentro de un círculo blanco</desc>
+  <defs>
+    <clipPath id="circle">
+      <circle cx="32" cy="32" r="30"/>
+    </clipPath>
+    <filter id="black-logo" x="-20%" y="-20%" width="140%" height="140%">
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="2" intercept="-0.55"/>
+        <feFuncG type="linear" slope="2" intercept="-0.55"/>
+        <feFuncB type="linear" slope="2" intercept="-0.55"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+  <circle cx="32" cy="32" r="31" fill="#fff"/>
+  <circle cx="32" cy="32" r="30" fill="#fff" stroke="#e5e7eb" stroke-width="1"/>
+  <image
+    href="/favicon-source.png"
+    x="9" y="9" width="46" height="46"
+    preserveAspectRatio="xMidYMid meet"
+    clip-path="url(#circle)"
+    filter="url(#black-logo)"
+  />
+</svg>
