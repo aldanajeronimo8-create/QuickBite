@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /student/account
+Disallow: /student/wallet
+Disallow: /student/history
+Disallow: /student/rewards
+Disallow: /student/favorites
+Disallow: /student/notifications
+Disallow: /student/link-code
+
+Sitemap: https://quick-bite-snowy-ten.vercel.app/sitemap.xml
