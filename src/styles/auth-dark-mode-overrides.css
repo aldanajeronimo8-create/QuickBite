@@ -1,0 +1,187 @@
+/* QuickBite auth role surfaces: explicit final selectors for LoginPage markup. */
+html[data-qb-theme="dark"] .qb-auth,
+html.dark .qb-auth {
+  background-color: #070B14 !important;
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(34, 197, 94, 0.12), transparent 28%),
+    radial-gradient(circle at 85% 12%, rgba(59, 130, 246, 0.14), transparent 30%),
+    radial-gradient(circle at 50% 100%, rgba(20, 184, 166, 0.08), transparent 38%) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth > div,
+html.dark .qb-auth > div {
+  color: #F8FAFC !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-card,
+html.dark .qb-auth .qb-auth-card {
+  background: linear-gradient(180deg, #111A2B 0%, #0D1626 100%) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46), inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+  color: #F8FAFC !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-card h2,
+html[data-qb-theme="dark"] .qb-auth .qb-auth-card h3,
+html[data-qb-theme="dark"] .qb-auth .qb-auth-card label,
+html.dark .qb-auth .qb-auth-card h2,
+html.dark .qb-auth .qb-auth-card h3,
+html.dark .qb-auth .qb-auth-card label {
+  color: #F8FAFC !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-card p:not(.qb-auth-error),
+html.dark .qb-auth .qb-auth-card p:not(.qb-auth-error) {
+  color: #AAB7C9 !important;
+}
+
+/* The role selector is a real dark surface, never a light utility background. */
+html[data-qb-theme="dark"] .qb-auth .qb-auth-switch,
+html.dark .qb-auth .qb-auth-switch {
+  background: #091221 !important;
+  border: 1px solid rgba(148, 163, 184, 0.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.025) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-switch button,
+html.dark .qb-auth .qb-auth-switch button {
+  background: transparent !important;
+  color: #94A3B8 !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth--student,
+html.dark .qb-auth .qb-auth--student { color: #F8FAFC !important; }
+
+html[data-qb-theme="dark"] .qb-auth--student .qb-auth-switch button:first-child,
+html.dark .qb-auth--student .qb-auth-switch button:first-child {
+  background: rgba(34, 197, 94, 0.14) !important;
+  color: #86EFAC !important;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.18) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-switch button:hover,
+html.dark .qb-auth .qb-auth-switch button:hover {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #DBEAFE !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-switch-button,
+html.dark .qb-auth .qb-auth-switch-button {
+  background: rgba(59, 130, 246, 0.08) !important;
+  border: 1px solid rgba(59, 130, 246, 0.22) !important;
+  color: #93C5FD !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-active-note,
+html.dark .qb-auth .qb-auth-active-note {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border: 1px solid rgba(59, 130, 246, 0.16) !important;
+  color: #BFDBFE !important;
+}
+
+/* Inputs use a dedicated dark control token independent of global bg-white rules. */
+html[data-qb-theme="dark"] .qb-auth input[data-slot="input"],
+html.dark .qb-auth input[data-slot="input"] {
+  background: #0A1423 !important;
+  color: #F8FAFC !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth input[data-slot="input"]:hover,
+html.dark .qb-auth input[data-slot="input"]:hover {
+  background: #0C1728 !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth input[data-slot="input"]:focus,
+html[data-qb-theme="dark"] .qb-auth input[data-slot="input"]:focus-visible,
+html.dark .qb-auth input[data-slot="input"]:focus,
+html.dark .qb-auth input[data-slot="input"]:focus-visible {
+  background: #0C1728 !important;
+  border-color: #3B82F6 !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.16) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth input[data-slot="input"]::placeholder,
+html.dark .qb-auth input[data-slot="input"]::placeholder {
+  color: #64748B !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-primary,
+html.dark .qb-auth .qb-auth-primary {
+  color: #FFFFFF !important;
+  border: 0 !important;
+  background: linear-gradient(135deg, #16A34A 0%, #15803D 100%) !important;
+  box-shadow: 0 12px 28px rgba(22, 163, 74, 0.24) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth--blue .qb-auth-primary,
+html.dark .qb-auth--blue .qb-auth-primary,
+html[data-qb-theme="dark"] .qb-auth--admin .qb-auth-primary,
+html.dark .qb-auth--admin .qb-auth-primary {
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-secondary,
+html.dark .qb-auth .qb-auth-secondary,
+html[data-qb-theme="dark"] .qb-auth .qb-auth-secondary-action,
+html.dark .qb-auth .qb-auth-secondary-action {
+  color: #CBD5E1 !important;
+  background: rgba(255,255,255,0.025) !important;
+  border-color: rgba(148, 163, 184, 0.20) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-secondary:hover,
+html.dark .qb-auth .qb-auth-secondary:hover,
+html[data-qb-theme="dark"] .qb-auth .qb-auth-secondary-action:hover,
+html.dark .qb-auth .qb-auth-secondary-action:hover {
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  color: #FFFFFF !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-link,
+html.dark .qb-auth .qb-auth-link {
+  color: #86EFAC !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-icon-button,
+html.dark .qb-auth .qb-auth-icon-button {
+  color: #94A3B8 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-icon-button:hover,
+html.dark .qb-auth .qb-auth-icon-button:hover {
+  color: #DBEAFE !important;
+  background: rgba(59, 130, 246, 0.10) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-error,
+html.dark .qb-auth .qb-auth-error {
+  color: #FDA4AF !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .text-red-300,
+html.dark .qb-auth .text-red-300 { color: #FDA4AF !important; }
+
+html[data-qb-theme="dark"] .qb-auth .text-green-100,
+html.dark .qb-auth .text-green-100 { color: #86EFAC !important; }
+
+html[data-qb-theme="dark"] .qb-auth .text-blue-200,
+html.dark .qb-auth .text-blue-200 { color: #93C5FD !important; }
+
+html[data-qb-theme="dark"] .qb-auth-brand > span,
+html.dark .qb-auth-brand > span {
+  background: #101B2D !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 0 16px 36px rgba(0,0,0,0.35) !important;
+}
+
+@media (max-width: 640px) {
+  html[data-qb-theme="dark"] .qb-auth .qb-auth-card,
+  html.dark .qb-auth .qb-auth-card { margin-inline: 0.25rem; }
+}
