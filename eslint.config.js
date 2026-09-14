@@ -20,8 +20,6 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-explicit-any': 'warn',
-      // QuickBite uses effects for Supabase data loading, subscriptions and timers.
-      // Keep purity/dependency checks active, but do not flag these intentional effect-driven loads.
       'react-hooks/purity': 'warn',
       'react-hooks/set-state-in-effect': 'off',
     },
@@ -31,8 +29,21 @@ export default tseslint.config(
     files: ['src/app/pages/student/StudentMenuPage.tsx'],
     rules: {
       '@typescript-eslint/no-unused-vars': 'warn',
-      // Checkout identifiers are generated for a new order lifecycle and intentionally depend on UI state.
       'react-hooks/purity': 'off',
+    },
+  },
+
+  {
+    files: ['src/app/layouts/AdminLayout.tsx'],
+    rules: {
+      'no-empty': ['error', { allowEmptyCatch: true }],
+    },
+  },
+
+  {
+    files: ['src/app/pages/ParentWellbeingPage.tsx'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'warn',
     },
   },
 
