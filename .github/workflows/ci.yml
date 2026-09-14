@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
 
+      - name: Excel-only export guard
+        run: pnpm verify:excel-only
+
       - name: Typecheck
         run: pnpm typecheck
 
