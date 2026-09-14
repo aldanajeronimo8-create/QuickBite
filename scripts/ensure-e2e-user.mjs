@@ -29,18 +29,20 @@ function isRetryableStatus(status) {
 }
 
 async function adminRequest(path, options = {}) {
-  const method = (options.method ?? 'GET').toUpperCase();
+  const { maxAttempts: configuredMaxAttempts, ...requestOptions } = options;
+  const method = (requestOptions.method ?? 'GET').toUpperCase();
+  const maxAttempts = configuredMaxAttempts ?? ADMIN_REQUEST_MAX_ATTEMPTS;
   let lastError = null;
 
-  for (let attempt = 1; attempt <= ADMIN_REQUEST_MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), ADMIN_REQUEST_TIMEOUT_MS);
 
     try {
       const response = await globalThis.fetch(`${url}/auth/v1${path}`, {
-        ...options,
+        ...requestOptions,
         signal: controller.signal,
-        headers: { ...headers, ...(options.headers ?? {}) },
+        headers: { ...headers, ...(requestOptions.headers ?? {}) },
       });
       const text = await response.text();
       let body = null;
@@ -53,13 +55,13 @@ async function adminRequest(path, options = {}) {
       if (response.ok) return body;
 
       const message = `Supabase Admin ${method} ${path} failed (${response.status}): ${typeof body === 'string' ? body : JSON.stringify(body)}`;
-      if (!isRetryableStatus(response.status) || attempt === ADMIN_REQUEST_MAX_ATTEMPTS) {
+      if (!isRetryableStatus(response.status) || attempt === maxAttempts) {
         throw new Error(message);
       }
 
       lastError = new Error(message);
       const delayMs = 750 * (2 ** (attempt - 1));
-      console.warn(`Supabase Admin ${method} ${path} returned ${response.status}; retrying in ${delayMs}ms (attempt ${attempt + 1}/${ADMIN_REQUEST_MAX_ATTEMPTS}).`);
+      console.warn(`Supabase Admin ${method} ${path} returned ${response.status}; retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxAttempts}).`);
       await sleep(delayMs);
     } catch (error) {
       const message = isAbortError(error)
@@ -69,13 +71,13 @@ async function adminRequest(path, options = {}) {
           : String(error);
 
       const retryable = isAbortError(error) || /failed \((?:408|425|429|5\d\d)\):/.test(message);
-      if (!retryable || attempt === ADMIN_REQUEST_MAX_ATTEMPTS) {
+      if (!retryable || attempt === maxAttempts) {
         throw new Error(message);
       }
 
       lastError = new Error(message);
       const delayMs = 750 * (2 ** (attempt - 1));
-      console.warn(`Supabase Admin ${method} ${path} did not complete; retrying in ${delayMs}ms (attempt ${attempt + 1}/${ADMIN_REQUEST_MAX_ATTEMPTS}).`);
+      console.warn(`Supabase Admin ${method} ${path} did not complete; retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxAttempts}).`);
       await sleep(delayMs);
     } finally {
       clearTimeout(timeout);
@@ -103,34 +105,49 @@ async function findUserByEmail(email) {
   return users.find((candidate) => candidate.email?.toLowerCase() === email) ?? null;
 }
 
+function isTransientAdminError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /failed \((?:408|425|429|5\d\d)\):/.test(message) || /timed out after/.test(message);
+}
+
 async function createUserIdempotently(account) {
-  try {
-    return await adminRequest('/admin/users', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: account.email,
-        password: account.password,
-        email_confirm: true,
-        user_metadata: { role: account.role, full_name: `QuickBite E2E ${account.role}` },
-      }),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!/failed \((?:408|425|429|5\d\d)\):/.test(message) && !/timed out after/.test(message)) {
-      throw error;
-    }
+  const CREATE_MAX_ATTEMPTS = 3;
 
-    // A POST can time out after Auth has already created the user. Reconcile
-    // server state before attempting another create, preventing duplicate users.
-    console.warn(`Supabase Admin POST /admin/users ended ambiguously; reconciling ${account.email} before retrying create.`);
-    const existing = await findUserByEmail(account.email);
-    if (existing) {
-      console.log(`E2E ${account.role} account already exists after transient create failure; continuing with existing user.`);
-      return existing;
-    }
+  for (let attempt = 1; attempt <= CREATE_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await adminRequest('/admin/users', {
+        method: 'POST',
+        maxAttempts: 1,
+        body: JSON.stringify({
+          email: account.email,
+          password: account.password,
+          email_confirm: true,
+          user_metadata: { role: account.role, full_name: `QuickBite E2E ${account.role}` },
+        }),
+      });
+    } catch (error) {
+      const transient = isTransientAdminError(error);
 
-    throw error;
+      // A POST may have reached Auth even when the gateway returned 5xx. Always
+      // reconcile before retrying so we never create duplicate E2E identities.
+      console.warn(`Supabase Admin POST /admin/users failed for ${account.email}; reconciling server state.`);
+      const existing = await findUserByEmail(account.email);
+      if (existing) {
+        console.log(`E2E ${account.role} account already exists after create attempt ${attempt}; continuing with existing user.`);
+        return existing;
+      }
+
+      if (!transient || attempt === CREATE_MAX_ATTEMPTS) {
+        throw error;
+      }
+
+      const delayMs = 1_000 * (2 ** (attempt - 1));
+      console.warn(`E2E ${account.role} account was not found after a transient create failure; retrying create in ${delayMs}ms (attempt ${attempt + 1}/${CREATE_MAX_ATTEMPTS}).`);
+      await sleep(delayMs);
+    }
   }
+
+  throw new Error(`Unable to provision E2E ${account.role} account.`);
 }
 
 async function restRequest(path, options = {}) {
@@ -237,8 +254,6 @@ for (const account of accounts) {
   workflowEnv.push(`PLAYWRIGHT_${account.role.toUpperCase()}_PASSWORD=${account.password}`);
   console.log(`E2E ${account.role} account provisioned and login verified.`);
 
-  // Keep the local snapshot coherent for the next account while avoiding a
-  // second global list when the create/update path already returned the user.
   users = users.filter((candidate) => candidate.id !== user.id);
   users.push(user);
 }
