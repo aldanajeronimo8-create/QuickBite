@@ -20,11 +20,13 @@ export function QuickBiteLogo({ className = '', imageClassName = '', alt }: Quic
   const label = alt || settings.app_name || 'QuickBite';
 
   return (
-    <span className={`inline-flex shrink-0 items-center justify-center ${className}`}>
+    <span
+      className={`qb-logo inline-flex size-auto max-h-14 max-w-[11rem] shrink-0 items-center justify-center border-0 bg-transparent p-0 shadow-none ${className}`}
+    >
       <img
         src={source}
         alt={label}
-        className={`max-h-full max-w-full object-contain ${imageClassName}`}
+        className={`block max-h-14 max-w-[11rem] object-contain ${imageClassName}`}
         onError={() => {
           if (source !== quickBiteLogo) setSource(quickBiteLogo);
         }}
