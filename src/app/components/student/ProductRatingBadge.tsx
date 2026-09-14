@@ -96,7 +96,10 @@ export function ProductRatingBadge({ productId }: { productId: string }) {
         setIsFavorite(false);
         toast.success('Quitado de favoritos.');
       } else {
-        const { error } = await client.from('favorites').insert({ user_id: userId, product_id: productId });
+        const { error } = await client.from('favorites').upsert(
+          { user_id: userId, product_id: productId },
+          { onConflict: 'user_id,product_id', ignoreDuplicates: true },
+        );
         if (error) throw error;
         setIsFavorite(true);
         toast.success('Agregado a favoritos.');
