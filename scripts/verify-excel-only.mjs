@@ -1,5 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { relative } from 'node:path';
 
 const root = new URL('..', import.meta.url);
 const roots = ['src', 'supabase', '.env.example', '.github/workflows', 'package.json'];
@@ -17,7 +17,7 @@ async function collect(path, results = []) {
       else if (entry.name === '.env.example' || allowedExtensions.has('.' + entry.name.split('.').pop())) results.push(child);
     }
   } catch {
-    // A missing optional root is not a failure; the file roots are handled below.
+    // Missing optional roots are ignored; build/type/lint checks remain authoritative.
   }
   return results;
 }
@@ -34,7 +34,7 @@ for (const file of files) {
     const text = await readFile(file, 'utf8');
     if (forbidden.test(text)) offenders.push(relative(root.pathname, file.pathname));
   } catch {
-    // Ignore unreadable optional files; CI will report build/type failures separately.
+    // Ignore unreadable optional files; CI reports build/type failures separately.
   }
 }
 
