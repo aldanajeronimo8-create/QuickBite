@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, CheckCheck, Inbox, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { appConfig } from '../../../config/appConfig';
@@ -24,6 +24,7 @@ export function UserNotificationBell({ userId }: { userId: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingRead, setIsMarkingRead] = useState(false);
+  const notificationRootRef = useRef<HTMLDivElement>(null);
 
   const loadNotifications = useCallback(async () => {
     const items = await listUserNotifications(userId);
@@ -80,6 +81,28 @@ export function UserNotificationBell({ userId }: { userId: string }) {
     };
   }, [userId]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && !notificationRootRef.current?.contains(target)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
   const bellNotifications = useMemo(
     () => notifications.filter((notification) => !notification.read_at && !isWalletTopUpNotification(notification)),
     [notifications],
@@ -107,7 +130,7 @@ export function UserNotificationBell({ userId }: { userId: string }) {
   };
 
   return (
-    <div className="relative">
+    <div ref={notificationRootRef} className="relative">
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
@@ -127,19 +150,19 @@ export function UserNotificationBell({ userId }: { userId: string }) {
         <section
           role="dialog"
           aria-label="Notificaciones"
-          className="absolute right-0 z-50 mt-3 w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl ring-1 ring-slate-200"
+          className="qb-notification-panel absolute right-0 z-50 mt-3 w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl ring-1 ring-slate-200"
         >
-          <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+          <header className="qb-notification-header flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div>
               <h2 className="font-black">Notificaciones</h2>
-              <p className="text-xs text-slate-500">{unreadIds.length ? `${unreadIds.length} sin leer` : 'Todo al dia'}</p>
+              <p className="qb-notification-muted text-xs text-slate-500">{unreadIds.length ? `${unreadIds.length} sin leer` : 'Todo al dia'}</p>
             </div>
             {unreadIds.length > 0 && (
               <button
                 type="button"
                 onClick={() => void markRead()}
                 disabled={isMarkingRead}
-                className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="qb-notification-action rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Marcar todas como leidas"
                 title="Marcar todas como leidas"
               >
@@ -150,11 +173,11 @@ export function UserNotificationBell({ userId }: { userId: string }) {
 
           <div className="max-h-96 overflow-y-auto">
             {isLoading ? (
-              <div className="grid min-h-32 place-items-center text-slate-500">
+              <div className="qb-notification-muted grid min-h-32 place-items-center text-slate-500">
                 <LoaderCircle className="h-5 w-5 animate-spin" aria-label="Cargando notificaciones" />
               </div>
             ) : bellNotifications.length === 0 ? (
-              <div className="grid min-h-32 place-items-center gap-2 px-6 py-8 text-center text-sm text-slate-500">
+              <div className="qb-notification-muted grid min-h-32 place-items-center gap-2 px-6 py-8 text-center text-sm text-slate-500">
                 <Inbox className="h-7 w-7 text-slate-300" />
                 <p>No tienes notificaciones pendientes.</p>
               </div>
@@ -164,14 +187,14 @@ export function UserNotificationBell({ userId }: { userId: string }) {
                   key={notification.id}
                   type="button"
                   onClick={() => void markRead([notification.id])}
-                  className="block w-full border-b border-slate-100 bg-green-50/70 px-4 py-3 text-left transition last:border-b-0 hover:bg-slate-50"
+                  className="qb-notification-item block w-full border-b border-slate-100 bg-green-50/70 px-4 py-3 text-left transition last:border-b-0 hover:bg-slate-50"
                 >
                   <div className="flex gap-3">
                     <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-green-500" aria-hidden="true" />
                     <div>
                       <p className="text-sm font-bold">{notification.title}</p>
-                      <p className="mt-1 text-sm leading-5 text-slate-600">{notification.body}</p>
-                      <p className="mt-1.5 text-xs text-slate-400">{formatNotificationTime(notification.created_at)}</p>
+                      <p className="qb-notification-muted mt-1 text-sm leading-5 text-slate-600">{notification.body}</p>
+                      <p className="qb-notification-time mt-1.5 text-xs text-slate-400">{formatNotificationTime(notification.created_at)}</p>
                     </div>
                   </div>
                 </button>
