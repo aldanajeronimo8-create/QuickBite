@@ -27,95 +27,54 @@
             "@id": "https://quick-bite-snowy-ten.vercel.app/#website",
             "url": "https://quick-bite-snowy-ten.vercel.app/",
             "name": "QuickBite CBMP",
-            "alternateName": ["QuickBite", "QuickBite cafetería escolar"],
-            "inLanguage": "es-CO"
+            "alternateName": ["QuickBite cafetería escolar", "QuickBite CBMP"],
+            "inLanguage": "es-CO",
+            "publisher": {
+              "@type": "EducationalOrganization",
+              "name": "Colegio Bilingüe Maximino Poitiers"
+            }
           },
           {
             "@type": "WebApplication",
             "@id": "https://quick-bite-snowy-ten.vercel.app/#application",
             "name": "QuickBite CBMP",
-            "alternateName": "QuickBite",
+            "alternateName": "QuickBite cafetería escolar",
             "url": "https://quick-bite-snowy-ten.vercel.app/",
             "description": "Sistema digital de la cafetería escolar para consultar el menú, gestionar pedidos y reducir filas durante los descansos.",
             "applicationCategory": "EducationalApplication",
             "operatingSystem": "Web",
             "inLanguage": "es-CO",
-            "isAccessibleForFree": true
+            "isAccessibleForFree": true,
+            "provider": {
+              "@type": "EducationalOrganization",
+              "name": "Colegio Bilingüe Maximino Poitiers"
+            }
           }
         ]
       }
-    </script>
-    <style>
-      .qb-public-seo {
-        display: none;
-        max-width: 860px;
-        margin: 0 auto;
-        padding: 22px 20px 34px;
-        font-family: inherit;
-        color: #334155;
-      }
-      .qb-login-view .qb-public-seo { display: block; }
-      .qb-public-home .qb-public-seo {
-        display: block;
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        clip-path: inset(50%);
-        white-space: nowrap;
-        border: 0;
-      }
-      .qb-public-seo details { border: 1px solid #dbe4ec; border-radius: 18px; background: rgba(255, 255, 255, 0.78); box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08); overflow: hidden; }
-      .qb-public-seo summary { cursor: pointer; list-style: none; padding: 14px 18px; font-size: .9rem; font-weight: 700; text-align: center; color: #475569; user-select: none; }
-      .qb-public-seo summary::-webkit-details-marker { display: none; }
-      .qb-public-seo summary:hover { background: rgba(22, 163, 106, 0.06); }
-      .qb-public-seo .qb-seo-content { padding: 4px 22px 22px; line-height: 1.65; font-size: .92rem; }
-      .qb-public-seo h1 { font-size: clamp(1.75rem, 4vw, 2.35rem); line-height: 1.15; margin: 0 0 12px; font-weight: 850; letter-spacing: -0.02em; }
-      .qb-public-seo h2 { font-size: 1.2rem; line-height: 1.3; margin: 20px 0 8px; font-weight: 800; }
-      .qb-public-seo p { margin: 0 0 18px; color: #64748b; }
-      .qb-public-seo p:last-child { margin-bottom: 0; }
-      .qb-public-seo nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
-      .qb-public-seo nav a { display: inline-flex; align-items: center; border: 1px solid #dbe4ec; border-radius: 999px; padding: 8px 12px; color: #166534; text-decoration: none; font-weight: 700; background: rgba(255,255,255,.88); }
-      .qb-public-seo nav a:hover { text-decoration: underline; }
-      .dark .qb-public-seo details, [data-qb-theme="dark"] .qb-public-seo details { border-color: rgba(170,183,201,.2); background: rgba(13,22,40,.88); box-shadow: 0 12px 36px rgba(0,0,0,.24); }
-      .dark .qb-public-seo summary, [data-qb-theme="dark"] .qb-public-seo summary { color: #f5f7fa; }
-      .dark .qb-public-seo summary:hover, [data-qb-theme="dark"] .qb-public-seo summary:hover { background: rgba(22,163,106,.12); }
-      .dark .qb-public-seo .qb-seo-content, [data-qb-theme="dark"] .qb-public-seo .qb-seo-content { color: #e5e7eb; }
-      .dark .qb-public-seo p, [data-qb-theme="dark"] .qb-public-seo p { color: #aab7c9; }
-      .dark .qb-public-seo nav a, [data-qb-theme="dark"] .qb-public-seo nav a { border-color: rgba(170,183,201,.2); background: rgba(13,22,40,.7); color: #86efac; }
-    </style>
-    <script>
-      const path = window.location.pathname.replace(/\/$/, '') || '/';
-      document.documentElement.classList.toggle('qb-public-home', path === '/');
-      document.documentElement.classList.toggle('qb-login-view', path === '/login');
     </script>
     <title>QuickBite CBMP | Cafetería escolar digital</title>
   </head>
   <body>
     <div id="root"></div>
 
-    <section id="quickbite-public-seo" class="qb-public-seo" aria-label="Información sobre QuickBite CBMP">
-      <details open>
-        <summary>Conoce QuickBite CBMP</summary>
-        <div class="qb-seo-content">
-          <h1>QuickBite CBMP: cafetería escolar digital</h1>
-          <p>QuickBite CBMP es un sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente. Está pensado para facilitar el acceso a los alimentos durante los descansos, reducir las filas y mejorar el tiempo disponible para que los estudiantes compren y recojan sus pedidos.</p>
-          <h2>¿Cómo funciona QuickBite CBMP?</h2>
-          <p>Los estudiantes pueden consultar el menú disponible, seleccionar productos, organizar su pedido y recibir una confirmación para recoger los alimentos en la cafetería. El sistema ayuda a centralizar la información, reducir tiempos de espera y hacer más claro el proceso de atención desde el pedido hasta la entrega.</p>
-          <h2>Una experiencia más rápida y organizada</h2>
-          <p>QuickBite CBMP facilita la consulta del menú y la preparación de pedidos, mientras que el personal de la cafetería puede visualizar la información necesaria para atender cada solicitud. La propuesta busca mejorar la experiencia durante el descanso y apoyar una gestión más ordenada de la cafetería escolar.</p>
-          <h2>Beneficios para la comunidad escolar</h2>
-          <p>La plataforma ayuda a agilizar la compra, ordenar la gestión de pedidos y aprovechar mejor el tiempo de los estudiantes. También ofrece una forma sencilla de consultar productos, confirmar solicitudes y recoger los alimentos con mayor claridad.</p>
-          <nav aria-label="Accesos de QuickBite CBMP">
-            <a href="/">Inicio de QuickBite CBMP</a>
-            <a href="/login">Acceder a QuickBite</a>
-            <a href="/menu">Ver menú escolar</a>
-          </nav>
-        </div>
-      </details>
+    <section id="quickbite-public-seo" class="qb-public-seo" aria-labelledby="quickbite-public-title">
+      <div class="qb-seo-content">
+        <p class="qb-seo-kicker">Colegio Bilingüe Maximino Poitiers</p>
+        <h1 id="quickbite-public-title">QuickBite CBMP: cafetería escolar digital</h1>
+        <p>QuickBite CBMP es el sistema digital de la cafetería escolar del Colegio Bilingüe Maximino Poitiers. Permite consultar el menú, organizar pedidos y agilizar la compra de alimentos durante los descansos.</p>
+        <details>
+          <summary>¿Qué ofrece QuickBite CBMP?</summary>
+          <div class="qb-seo-details">
+            <p>Los estudiantes pueden revisar los productos disponibles, seleccionar lo que desean comprar y confirmar su pedido. La propuesta busca reducir filas, ordenar la atención y aprovechar mejor el tiempo de descanso.</p>
+            <p>El personal de la cafetería recibe la información necesaria para preparar y entregar los pedidos de manera más organizada. QuickBite CBMP conecta el menú, el pedido y la recogida en una sola experiencia web.</p>
+          </div>
+        </details>
+        <nav aria-label="Accesos de QuickBite CBMP">
+          <a href="/">Inicio</a>
+          <a href="/login">Acceder</a>
+        </nav>
+      </div>
     </section>
 
     <noscript>
@@ -124,5 +83,98 @@
         <p>Para utilizar QuickBite necesitas habilitar JavaScript en tu navegador.</p>
       </main>
     </noscript>
+
+    <script type="module" src="/src/main.tsx"></script>
+
+    <style>
+      .qb-public-seo {
+        display: block;
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 28px 20px 42px;
+        font-family: inherit;
+        color: #334155;
+      }
+      .qb-seo-content {
+        padding: 24px;
+        border: 1px solid #dbe4ec;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+        line-height: 1.65;
+      }
+      .qb-seo-kicker {
+        margin: 0 0 6px;
+        font-size: .78rem;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #15803d;
+      }
+      .qb-public-seo h1 {
+        margin: 0 0 12px;
+        font-size: clamp(1.65rem, 3vw, 2.25rem);
+        line-height: 1.15;
+        font-weight: 850;
+        letter-spacing: -0.02em;
+      }
+      .qb-public-seo p {
+        margin: 0 0 14px;
+        color: #64748b;
+      }
+      .qb-public-seo details {
+        margin-top: 16px;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 14px;
+      }
+      .qb-public-seo summary {
+        cursor: pointer;
+        font-weight: 800;
+        color: #334155;
+      }
+      .qb-seo-details {
+        padding-top: 10px;
+      }
+      .qb-public-seo nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .qb-public-seo nav a {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #dbe4ec;
+        border-radius: 999px;
+        padding: 8px 13px;
+        color: #166534;
+        text-decoration: none;
+        font-weight: 700;
+        background: #ffffff;
+      }
+      .qb-public-seo nav a:hover {
+        text-decoration: underline;
+      }
+      .dark .qb-seo-content, [data-qb-theme="dark"] .qb-seo-content {
+        border-color: rgba(170,183,201,.2);
+        background: rgba(13,22,40,.9);
+        box-shadow: 0 12px 36px rgba(0,0,0,.24);
+        color: #e5e7eb;
+      }
+      .dark .qb-public-seo p, [data-qb-theme="dark"] .qb-public-seo p {
+        color: #aab7c9;
+      }
+      .dark .qb-public-seo summary, [data-qb-theme="dark"] .qb-public-seo summary {
+        color: #f5f7fa;
+      }
+      .dark .qb-public-seo details, [data-qb-theme="dark"] .qb-public-seo details {
+        border-top-color: rgba(170,183,201,.2);
+      }
+      .dark .qb-public-seo nav a, [data-qb-theme="dark"] .qb-public-seo nav a {
+        border-color: rgba(170,183,201,.2);
+        background: rgba(13,22,40,.7);
+        color: #86efac;
+      }
+    </style>
   </body>
 </html>
