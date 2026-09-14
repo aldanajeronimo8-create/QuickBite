@@ -18,7 +18,6 @@
 @import './phase0-theme-hardening.css';
 @import './phase0-root-surface.css';
 @import './auth-dark-mode.css';
-@import './auth-dark-mode-overrides.css';
 
 @supports (animation-timeline: scroll()) {
   header.sticky[class*="bg-[#166534]"] { animation: quickbite-student-header-hide linear both; animation-timeline: scroll(root block); animation-range: 0px 120px; }
