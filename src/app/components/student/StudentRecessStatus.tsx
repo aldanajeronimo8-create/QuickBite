@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Clock3, Zap, TimerReset, RefreshCw } from 'lucide-react';
-import { requireSupabaseClient } from '@/lib/supabaseClient';
+import { requireSupabaseClient } from '../../../lib/supabase';
 
 type RecessItem={id:string;name:string;start_time:string;end_time:string;minutes_remaining?:number;starts_in_minutes?:number;scope_level:number};
 type RecessStatus={date:string;timezone:string;is_active:boolean;active:RecessItem|null;next:RecessItem|null};
