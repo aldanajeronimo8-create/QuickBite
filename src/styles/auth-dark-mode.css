@@ -1,31 +1,25 @@
-/* QuickBite authentication — final dark visual layer.
- * Loaded after the global dark-mode authority so auth screens have their own
- * product-quality surface hierarchy without changing authentication logic.
- */
+/* QuickBite Auth Dark Mode — semantic, layered and intentionally restrained. */
 
 html[data-qb-theme="dark"] .qb-auth,
 html.dark .qb-auth {
-  --auth-bg: #080d18;
-  --auth-surface: rgba(17, 25, 43, 0.92);
-  --auth-surface-strong: #111a2b;
-  --auth-input: #0b1424;
-  --auth-border: rgba(148, 163, 184, 0.16);
-  --auth-border-strong: rgba(148, 163, 184, 0.25);
-  --auth-text: #f8fafc;
-  --auth-secondary: #aab7c9;
-  --auth-muted: #718096;
-  --auth-green: #22c55e;
-  --auth-blue: #3b82f6;
+  --auth-bg: #000000;
+  --auth-surface: #111113;
+  --auth-surface-2: #18181b;
+  --auth-control: #1c1c1f;
+  --auth-border: rgba(255,255,255,.10);
+  --auth-border-strong: rgba(255,255,255,.17);
+  --auth-text: #f5f5f7;
+  --auth-secondary: #a1a1aa;
+  --auth-tertiary: #71717a;
+  --auth-green: #30d158;
+  --auth-blue: #0a84ff;
 
   min-height: 100vh;
-  overflow: hidden;
+  background: var(--auth-bg) !important;
+  color: var(--auth-text) !important;
   position: relative;
+  overflow: hidden;
   isolation: isolate;
-  background:
-    radial-gradient(circle at 12% 10%, rgba(34, 197, 94, 0.14), transparent 30%),
-    radial-gradient(circle at 88% 12%, rgba(59, 130, 246, 0.16), transparent 32%),
-    radial-gradient(circle at 50% 100%, rgba(20, 184, 166, 0.08), transparent 38%),
-    var(--auth-bg) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth::before,
@@ -33,62 +27,37 @@ html.dark .qb-auth::before {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: -2;
   pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: linear-gradient(to bottom, black, transparent 92%);
-}
-
-html[data-qb-theme="dark"] .qb-auth::after,
-html.dark .qb-auth::after {
-  content: "";
-  position: absolute;
-  width: 28rem;
-  height: 28rem;
-  right: -12rem;
-  bottom: -15rem;
-  border-radius: 999px;
   z-index: -1;
-  pointer-events: none;
-  background: rgba(34, 197, 94, 0.07);
-  filter: blur(70px);
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255,255,255,.07), transparent 34%),
+    radial-gradient(circle at 8% 90%, rgba(48,209,88,.035), transparent 28%),
+    radial-gradient(circle at 92% 85%, rgba(10,132,255,.04), transparent 28%);
 }
 
 html[data-qb-theme="dark"] .qb-auth > div,
 html.dark .qb-auth > div {
-  position: relative;
+  color: var(--auth-text) !important;
 }
 
-/* Brand becomes a clear visual anchor instead of a white tile. */
+/* Brand: minimal, no white tile. */
 html[data-qb-theme="dark"] .qb-auth-brand,
 html.dark .qb-auth-brand {
-  margin-bottom: 1.75rem !important;
+  margin-bottom: 2rem !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-brand > span,
-html.dark .qb-auth-brand > span {
-  width: 4.5rem !important;
-  height: 4.5rem !important;
-  margin-inline: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255,255,255,0.12) !important;
-  border-radius: 1.4rem !important;
-  background: linear-gradient(145deg, rgba(30, 45, 72, 0.96), rgba(13, 22, 40, 0.96)) !important;
-  box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.34),
-    inset 0 1px 0 rgba(255,255,255,0.08) !important;
+html[data-qb-theme="dark"] .qb-auth-brand .rounded-3xl,
+html.dark .qb-auth-brand .rounded-3xl {
+  border-radius: 1.1rem !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,.34) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-brand h1,
 html.dark .qb-auth-brand h1 {
-  color: var(--auth-text) !important;
-  letter-spacing: -0.03em;
-  text-shadow: 0 8px 28px rgba(0,0,0,0.28);
+  color: #ffffff !important;
+  font-size: 2rem !important;
+  font-weight: 750 !important;
+  letter-spacing: -.04em !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-brand p,
@@ -96,20 +65,18 @@ html.dark .qb-auth-brand p {
   color: var(--auth-secondary) !important;
 }
 
-/* Main authentication card */
+/* Elevated panel, not a bright/glassy white card. */
 html[data-qb-theme="dark"] .qb-auth-card,
 html.dark .qb-auth-card {
-  position: relative;
-  overflow: hidden;
   border: 1px solid var(--auth-border) !important;
   border-radius: 1.5rem !important;
-  background:
-    linear-gradient(180deg, rgba(20, 31, 52, 0.96), rgba(14, 22, 38, 0.96)) !important;
+  background: linear-gradient(180deg, rgba(24,24,27,.98), rgba(17,17,19,.98)) !important;
+  color: var(--auth-text) !important;
   box-shadow:
-    0 30px 80px rgba(0,0,0,0.44),
-    0 8px 24px rgba(0,0,0,0.18),
-    inset 0 1px 0 rgba(255,255,255,0.045) !important;
-  backdrop-filter: blur(28px);
+    0 28px 80px rgba(0,0,0,.60),
+    0 8px 28px rgba(0,0,0,.28),
+    inset 0 1px 0 rgba(255,255,255,.035) !important;
+  backdrop-filter: blur(24px);
 }
 
 html[data-qb-theme="dark"] .qb-auth-card::before,
@@ -118,182 +85,217 @@ html.dark .qb-auth-card::before {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(135deg, rgba(255,255,255,0.04), transparent 34%);
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.025), transparent 28%);
 }
 
-html[data-qb-theme="dark"] .qb-auth-card > *,
-html.dark .qb-auth-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* Typography hierarchy */
 html[data-qb-theme="dark"] .qb-auth-card h2,
 html[data-qb-theme="dark"] .qb-auth-card h3,
 html.dark .qb-auth-card h2,
 html.dark .qb-auth-card h3 {
-  color: var(--auth-text) !important;
-  letter-spacing: -0.02em;
+  color: #f5f5f7 !important;
+  letter-spacing: -.025em !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-card p:not([class*="text-red"]),
-html.dark .qb-auth-card p:not([class*="text-red"]) {
+html[data-qb-theme="dark"] .qb-auth-card p:not(.qb-auth-error),
+html.dark .qb-auth-card p:not(.qb-auth-error) {
   color: var(--auth-secondary) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card label,
 html.dark .qb-auth-card label {
-  color: #dbe4ef !important;
+  color: #d4d4d8 !important;
   font-weight: 600;
 }
 
-/* Inputs: dark, readable, and clearly interactive. */
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="input"],
-html.dark .qb-auth-card [data-slot="input"] {
-  min-height: 3rem !important;
+/* Role selector: quiet segmented control. */
+html[data-qb-theme="dark"] .qb-auth-switch,
+html.dark .qb-auth-switch {
+  padding: .25rem !important;
+  gap: .25rem !important;
+  border: 1px solid var(--auth-border) !important;
+  border-radius: .95rem !important;
+  background: #0b0b0d !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth-switch button,
+html.dark .qb-auth-switch button {
+  min-height: 2.75rem !important;
+  border-radius: .72rem !important;
+  color: #a1a1aa !important;
+  background: transparent !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth--student .qb-auth-switch button:first-child,
+html.dark .qb-auth--student .qb-auth-switch button:first-child {
+  background: #202124 !important;
+  color: #f5f5f7 !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06) !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth-switch button:hover,
+html.dark .qb-auth-switch button:hover {
+  background: rgba(255,255,255,.055) !important;
+  color: #ffffff !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth-switch-button,
+html.dark .qb-auth-switch-button {
+  min-height: 2.75rem !important;
+  border: 1px solid var(--auth-border) !important;
+  border-radius: .8rem !important;
+  background: #151518 !important;
+  color: #d4d4d8 !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth-active-note,
+html.dark .qb-auth-active-note {
+  border: 1px solid rgba(10,132,255,.22) !important;
+  border-radius: .8rem !important;
+  background: rgba(10,132,255,.08) !important;
+  color: #a9d2ff !important;
+}
+
+/* Inputs: a neutral, elevated control level. */
+html[data-qb-theme="dark"] .qb-auth-card input,
+html.dark .qb-auth-card input {
+  min-height: 3.15rem !important;
   border: 1px solid var(--auth-border-strong) !important;
-  border-radius: 0.9rem !important;
-  background: var(--auth-input) !important;
-  color: var(--auth-text) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.025) !important;
-  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  border-radius: .85rem !important;
+  background: var(--auth-control) !important;
+  color: #ffffff !important;
+  caret-color: var(--auth-blue) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018) !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="input"]:hover,
-html.dark .qb-auth-card [data-slot="input"]:hover {
-  border-color: rgba(148,163,184,0.34) !important;
-  background: #0d1729 !important;
+html[data-qb-theme="dark"] .qb-auth-card input:hover,
+html.dark .qb-auth-card input:hover {
+  background: #202024 !important;
+  border-color: rgba(255,255,255,.22) !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="input"]:focus,
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="input"]:focus-visible,
-html.dark .qb-auth-card [data-slot="input"]:focus,
-html.dark .qb-auth-card [data-slot="input"]:focus-visible {
-  border-color: rgba(59,130,246,0.82) !important;
-  background: #0c1729 !important;
-  box-shadow:
-    0 0 0 3px rgba(59,130,246,0.14),
-    0 8px 22px rgba(0,0,0,0.16) !important;
+html[data-qb-theme="dark"] .qb-auth-card input:focus,
+html[data-qb-theme="dark"] .qb-auth-card input:focus-visible,
+html.dark .qb-auth-card input:focus,
+html.dark .qb-auth-card input:focus-visible {
+  background: #202024 !important;
+  border-color: rgba(10,132,255,.78) !important;
+  box-shadow: 0 0 0 3px rgba(10,132,255,.14), 0 8px 20px rgba(0,0,0,.18) !important;
+  outline: none !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="input"]::placeholder,
-html.dark .qb-auth-card [data-slot="input"]::placeholder {
-  color: #64748b !important;
+html[data-qb-theme="dark"] .qb-auth-card input::placeholder,
+html.dark .qb-auth-card input::placeholder {
+  color: #6f7077 !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card .relative > svg,
 html.dark .qb-auth-card .relative > svg {
-  color: #8aa0bd !important;
+  color: #8b8c93 !important;
 }
 
-/* Password visibility control */
-html[data-qb-theme="dark"] .qb-auth-card .relative button:not([data-slot="button"]),
-html.dark .qb-auth-card .relative button:not([data-slot="button"]) {
-  color: #8aa0bd !important;
-  transition: color 160ms ease, background-color 160ms ease;
+/* Password icon / compact utility controls. */
+html[data-qb-theme="dark"] .qb-auth-icon-button,
+html.dark .qb-auth-icon-button {
+  color: #8b8c93 !important;
+  border-radius: .55rem !important;
+  background: transparent !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-card .relative button:not([data-slot="button"]):hover,
-html.dark .qb-auth-card .relative button:not([data-slot="button"]):hover {
-  color: #dbeafe !important;
+html[data-qb-theme="dark"] .qb-auth-icon-button:hover,
+html.dark .qb-auth-icon-button:hover {
+  color: #ffffff !important;
+  background: rgba(255,255,255,.06) !important;
 }
 
-/* Student/parent mode controls */
-html[data-qb-theme="dark"] .qb-auth-card .grid,
-html.dark .qb-auth-card .grid {
-  background: rgba(9, 20, 36, 0.9) !important;
-  border: 1px solid rgba(148,163,184,0.11);
-  border-radius: 0.95rem !important;
+/* Primary CTA: bright and simple, like a native action. */
+html[data-qb-theme="dark"] .qb-auth-primary,
+html.dark .qb-auth-primary {
+  min-height: 3.1rem !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  border-radius: .85rem !important;
+  background: #ffffff !important;
+  color: #050505 !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.28) !important;
+  font-weight: 750 !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-card .grid button,
-html.dark .qb-auth-card .grid button {
-  min-height: 2.65rem;
-  color: #91a4bb !important;
-  border-radius: 0.75rem !important;
-  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
-}
-
-html[data-qb-theme="dark"] .qb-auth--student .qb-auth-card .grid button:first-child,
-html.dark .qb-auth--student .qb-auth-card .grid button:first-child {
-  background: rgba(34,197,94,0.12) !important;
-  color: #86efac !important;
-  box-shadow: inset 0 0 0 1px rgba(34,197,94,0.16) !important;
-}
-
-html[data-qb-theme="dark"] .qb-auth-card .grid button:hover,
-html.dark .qb-auth-card .grid button:hover {
-  background: rgba(59,130,246,0.10) !important;
-  color: #dbeafe !important;
-}
-
-/* Primary actions */
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"].bg-green-600,
-html.dark .qb-auth-card [data-slot="button"].bg-green-600 {
-  background: linear-gradient(135deg, #16a34a, #15803d) !important;
-  border: 1px solid rgba(134,239,172,0.16) !important;
-  box-shadow: 0 12px 26px rgba(22,163,74,0.22) !important;
-}
-
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"].bg-green-600:hover,
-html.dark .qb-auth-card [data-slot="button"].bg-green-600:hover {
-  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+html[data-qb-theme="dark"] .qb-auth-primary:hover,
+html.dark .qb-auth-primary:hover {
+  background: #ededed !important;
+  color: #000000 !important;
   transform: translateY(-1px);
 }
 
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"].bg-gradient-to-r,
-html.dark .qb-auth-card [data-slot="button"].bg-gradient-to-r {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-  border: 1px solid rgba(147,197,253,0.16) !important;
-  box-shadow: 0 12px 28px rgba(37,99,235,0.23) !important;
+html[data-qb-theme="dark"] .qb-auth--blue .qb-auth-primary,
+html.dark .qb-auth--blue .qb-auth-primary,
+html[data-qb-theme="dark"] .qb-auth--admin .qb-auth-primary,
+html.dark .qb-auth--admin .qb-auth-primary {
+  background: #0a84ff !important;
+  color: #ffffff !important;
+  border-color: rgba(10,132,255,.34) !important;
+  box-shadow: 0 12px 28px rgba(10,132,255,.18) !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"].bg-gradient-to-r:hover,
-html.dark .qb-auth-card [data-slot="button"].bg-gradient-to-r:hover {
-  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
-  transform: translateY(-1px);
+html[data-qb-theme="dark"] .qb-auth--blue .qb-auth-primary:hover,
+html.dark .qb-auth--blue .qb-auth-primary:hover,
+html[data-qb-theme="dark"] .qb-auth--admin .qb-auth-primary:hover,
+html.dark .qb-auth--admin .qb-auth-primary:hover {
+  background: #409cff !important;
 }
 
-/* Secondary buttons / links become true dark surfaces instead of light outlines. */
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"][class*="border-green"],
-html.dark .qb-auth-card [data-slot="button"][class*="border-green"] {
-  border-color: rgba(34,197,94,0.26) !important;
-  background: rgba(34,197,94,0.07) !important;
-  color: #86efac !important;
+/* Secondary actions are quiet, not competing with the main CTA. */
+html[data-qb-theme="dark"] .qb-auth-secondary,
+html[data-qb-theme="dark"] .qb-auth-secondary-action,
+html.dark .qb-auth-secondary,
+html.dark .qb-auth-secondary-action {
+  min-height: 3rem !important;
+  border: 1px solid var(--auth-border) !important;
+  border-radius: .85rem !important;
+  background: rgba(255,255,255,.025) !important;
+  color: #d4d4d8 !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"][class*="border-blue"],
-html.dark .qb-auth-card [data-slot="button"][class*="border-blue"],
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"][class*="border-slate"],
-html.dark .qb-auth-card [data-slot="button"][class*="border-slate"] {
-  border-color: var(--auth-border-strong) !important;
-  background: rgba(255,255,255,0.025) !important;
-  color: #cbd5e1 !important;
+html[data-qb-theme="dark"] .qb-auth-secondary:hover,
+html[data-qb-theme="dark"] .qb-auth-secondary-action:hover,
+html.dark .qb-auth-secondary:hover,
+html.dark .qb-auth-secondary-action:hover {
+  background: rgba(255,255,255,.065) !important;
+  border-color: rgba(255,255,255,.18) !important;
+  color: #ffffff !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"][class*="border-green"]:hover,
-html.dark .qb-auth-card [data-slot="button"][class*="border-green"]:hover,
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"][class*="border-blue"]:hover,
-html.dark .qb-auth-card [data-slot="button"][class*="border-blue"]:hover,
-html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"][class*="border-slate"]:hover,
-html.dark .qb-auth-card [data-slot="button"][class*="border-slate"]:hover {
-  border-color: rgba(148,163,184,0.34) !important;
-  background: rgba(255,255,255,0.055) !important;
-  color: #f8fafc !important;
+html[data-qb-theme="dark"] .qb-auth-link,
+html.dark .qb-auth-link {
+  color: #8fc7ff !important;
+  font-weight: 600 !important;
 }
 
-/* Error states remain high contrast without glowing too hard. */
-html[data-qb-theme="dark"] .qb-auth-card p.text-red-300,
-html.dark .qb-auth-card p.text-red-300 {
-  color: #fda4af !important;
+html[data-qb-theme="dark"] .qb-auth-error,
+html.dark .qb-auth-error {
+  color: #ff9a9a !important;
 }
 
-/* Mobile: preserve hierarchy and avoid an oversized card. */
+html[data-qb-theme="dark"] .qb-auth .text-red-300,
+html.dark .qb-auth .text-red-300 { color: #ff9a9a !important; }
+
+html[data-qb-theme="dark"] .qb-auth .text-green-100,
+html.dark .qb-auth .text-green-100 { color: #9be6a7 !important; }
+
+html[data-qb-theme="dark"] .qb-auth .text-blue-200,
+html.dark .qb-auth .text-blue-200 { color: #a9d2ff !important; }
+
+/* Brand mark container stays integrated with the black canvas. */
+html[data-qb-theme="dark"] .qb-auth-brand > span,
+html.dark .qb-auth-brand > span {
+  background: #111113 !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 18px 40px rgba(0,0,0,.42) !important;
+}
+
 @media (max-width: 640px) {
-  html[data-qb-theme="dark"] .qb-auth,
-  html.dark .qb-auth {
-    padding-top: 1.25rem;
-    padding-bottom: 1.25rem;
+  html[data-qb-theme="dark"] .qb-auth {
+    padding: 1.25rem !important;
   }
 
   html[data-qb-theme="dark"] .qb-auth-card,
@@ -304,15 +306,15 @@ html.dark .qb-auth-card p.text-red-300 {
 
   html[data-qb-theme="dark"] .qb-auth-brand h1,
   html.dark .qb-auth-brand h1 {
-    font-size: 2rem !important;
+    font-size: 1.8rem !important;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-qb-theme="dark"] .qb-auth-card [data-slot="input"],
-  html[data-qb-theme="dark"] .qb-auth-card [data-slot="button"],
-  html.dark .qb-auth-card [data-slot="input"],
-  html.dark .qb-auth-card [data-slot="button"] {
+  html[data-qb-theme="dark"] .qb-auth-primary,
+  html[data-qb-theme="dark"] .qb-auth-card input,
+  html.dark .qb-auth-primary,
+  html.dark .qb-auth-card input {
     transition: none !important;
   }
 }
