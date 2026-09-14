@@ -8,13 +8,22 @@ const credentials: Record<Role, () => { email?: string; password?: string }> = {
   admin: () => ({ email: process.env.PLAYWRIGHT_ADMIN_EMAIL, password: process.env.PLAYWRIGHT_ADMIN_PASSWORD }),
 };
 
+function isExpectedUnauthenticatedAuthResponse(response: { status: () => number; url: () => string; request: () => { method: () => string } }) {
+  return response.status() === 401 && response.request().method() === 'GET' && /\/auth\/v1\/user(?:$|\?)/.test(response.url());
+}
+
 async function monitor(page: Page) {
   const errors: string[] = [];
   const responses: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('console', (m) => {
+    if (m.type() !== 'error') return;
+    // Supabase intentionally returns 401 for /auth/v1/user when no session exists.
+    if (/failed to load resource: the server responded with a status of 401 \(\)/i.test(m.text())) return;
+    errors.push(m.text());
+  });
   page.on('response', async (r) => {
-    if (r.status() < 400) return;
+    if (r.status() < 400 || isExpectedUnauthenticatedAuthResponse(r)) return;
     const url = r.url();
     if (!/\/rest\/|\/auth\/|\/functions\//.test(url)) return;
     let body = '';
