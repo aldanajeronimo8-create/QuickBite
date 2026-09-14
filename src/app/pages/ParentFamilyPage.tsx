@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, ArrowRight, HeartPulse, LogOut, Link2, RefreshCw, Users, WalletCards } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { requireSupabaseClient } from '../../lib/supabase';
