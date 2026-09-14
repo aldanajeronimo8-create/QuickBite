@@ -10,6 +10,7 @@ import { Label } from '../components/ui/label';
 import { canAccessParent, canAccessStudent, canAccessAdmin } from '../../lib/access';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 import { bindStudentUser, clearBoundStudentUser, getBoundStudentUserId } from '../../lib/studentDeviceSession';
+import { toast } from 'sonner';
 
 type Mode='student'|'parent'|'admin'; type LoginIntent='student'|'parent'|'admin';
 export function LoginPage(){
