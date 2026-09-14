@@ -4,6 +4,23 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { requireSupabaseClient, type Product } from '../../../lib/supabase';
 
+async function getEffectiveUserId() {
+  const client = requireSupabaseClient();
+  const { data: session, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  const authUserId = session.session?.user.id;
+  if (!authUserId) throw new Error('Sesión no disponible.');
+
+  try {
+    const { data, error } = await client.rpc('effective_student_user_id');
+    if (!error && typeof data === 'string' && data) return data;
+  } catch {
+    // Regular student accounts simply use their authenticated user id.
+  }
+
+  return authUserId;
+}
+
 export function StudentFavoritesPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
@@ -14,21 +31,20 @@ export function StudentFavoritesPage() {
 
   const load = useCallback(async () => {
     const client = requireSupabaseClient();
-    const { data: session, error: sessionError } = await client.auth.getSession();
-    if (sessionError) throw sessionError;
-    const userId = session.session?.user.id;
-    if (!userId) throw new Error('Sesión no disponible.');
+    const userId = await getEffectiveUserId();
     const { data: favoriteRows, error: favoriteError } = await client
       .from('favorites')
       .select('product_id')
       .eq('user_id', userId);
     if (favoriteError) throw favoriteError;
+
     const ids = (favoriteRows ?? []).map((row) => row.product_id);
     setFavoriteIds(ids);
     if (ids.length === 0) {
       setProducts([]);
       return;
     }
+
     const { data: productRows, error: productError } = await client
       .from('products')
       .select('id,name,description,price,image_url,category_id,stock,available,created_at')
@@ -39,26 +55,33 @@ export function StudentFavoritesPage() {
   }, []);
 
   useEffect(() => {
-    void load().catch((error) => toast.error(error instanceof Error ? error.message : 'No se pudieron cargar tus favoritos.')).finally(() => setLoading(false));
+    void load()
+      .catch((error) => toast.error(error instanceof Error ? error.message : 'No se pudieron cargar tus favoritos.'))
+      .finally(() => setLoading(false));
   }, [load]);
 
-  const filteredProducts = useMemo(() => products.filter((product) => `${product.name} ${product.description ?? ''}`.toLowerCase().includes(query.toLowerCase())), [products, query]);
+  const filteredProducts = useMemo(
+    () => products.filter((product) => `${product.name} ${product.description ?? ''}`.toLowerCase().includes(query.toLowerCase())),
+    [products, query],
+  );
 
   const toggleFavorite = async (productId: string) => {
-    const client = requireSupabaseClient();
-    const { data: session } = await client.auth.getSession();
-    const userId = session.session?.user.id;
-    if (!userId || saving) return;
-    const exists = favoriteIds.includes(productId);
+    if (saving) return;
     setSaving(productId);
     try {
+      const client = requireSupabaseClient();
+      const userId = await getEffectiveUserId();
+      const exists = favoriteIds.includes(productId);
       const result = exists
         ? await client.from('favorites').delete().eq('user_id', userId).eq('product_id', productId)
         : await client.from('favorites').insert({ user_id: userId, product_id: productId });
       if (result.error) throw result.error;
+
       if (exists) {
         setFavoriteIds((current) => current.filter((id) => id !== productId));
         setProducts((current) => current.filter((product) => product.id !== productId));
+      } else {
+        setFavoriteIds((current) => current.includes(productId) ? current : [...current, productId]);
       }
       toast.success(exists ? 'Quitado de favoritos.' : 'Agregado a favoritos.');
     } catch (error) {
