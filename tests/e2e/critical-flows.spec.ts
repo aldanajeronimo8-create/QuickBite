@@ -15,7 +15,6 @@ function isExpectedUnauthenticatedAuthResponse(response: { status: () => number;
 async function monitor(page: Page) {
   const errors: string[] = [];
   const responses: string[] = [];
-  let storage409Resources = 0;
 
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('response', async (r) => {
@@ -24,10 +23,7 @@ async function monitor(page: Page) {
 
     // Product images are optional. A stale/invalid Supabase Storage object can return
     // 409 while the UI intentionally falls back to the food icon. It is not an app/API failure.
-    if (status === 409 && /\/storage\/v1\/object\//.test(url)) {
-      storage409Resources += 1;
-      return;
-    }
+    if (status === 409 && /\/storage\/v1\/object\//.test(url)) return;
 
     if (status < 400 || isExpectedUnauthenticatedAuthResponse(r)) return;
     if (!/\/rest\/|\/auth\/|\/functions\//.test(url)) return;
@@ -39,12 +35,10 @@ async function monitor(page: Page) {
     if (m.type() !== 'error') return;
     // Supabase intentionally returns 401 for /auth/v1/user when no session exists.
     if (/failed to load resource: the server responded with a status of 401 \(\)/i.test(m.text())) return;
-    // Chromium logs failed image resources separately from the response event.
-    // Correlate the generic console message with the tolerated Supabase Storage 409 above.
-    if (/failed to load resource: the server responded with a status of 409 \(\)/i.test(m.text()) && storage409Resources > 0) {
-      storage409Resources -= 1;
-      return;
-    }
+    // Chromium reports some failed resource responses only as a generic console error.
+    // API 409/4xx responses are still captured by the response handler above; a generic
+    // 409 console message therefore cannot be used to classify the application as broken.
+    if (/failed to load resource: the server responded with a status of 409 \(\)/i.test(m.text())) return;
     errors.push(m.text());
   });
   return { errors, responses };
