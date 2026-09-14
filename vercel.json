@@ -4,6 +4,13 @@
   "buildCommand": "npx --yes pnpm@9.15.9 run build",
   "headers": [
     {
+      "source": "/",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "index, follow" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
       "source": "/(admin|admin/.*|menu|menu/.*|student|student/.*|parent|parent/.*|login|login/.*|register|register/.*|register-student|register-student/.*|register-parent|register-parent/.*|verify-order|verify-order/.*|forgot-password|reset-password|setup)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
