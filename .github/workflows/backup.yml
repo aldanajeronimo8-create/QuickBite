@@ -1,8 +1,6 @@
 name: Supabase backup
 
 on:
-  push:
-    branches: [main]
   schedule:
     # 07:00 UTC = 02:00 in Colombia (UTC-5), every day.
     - cron: '0 7 * * *'
