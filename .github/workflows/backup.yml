@@ -16,14 +16,27 @@ jobs:
   backup:
     name: Create and verify PostgreSQL backup
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Install PostgreSQL 17 client
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl gnupg
+          sudo install -d /usr/share/postgresql-common/pgdg
+          curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor --yes -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo \"$VERSION_CODENAME\")-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          pg_dump --version
+          pg_restore --version
 
       - name: Create compressed database backup
         id: backup
@@ -40,9 +53,44 @@ jobs:
           backup_file="${backup_dir}/quickbite-${timestamp}.dump"
           mkdir -p "${backup_dir}"
 
+          # Validate the connection without printing the connection string.
+          connection_ok=false
+          for attempt in 1 2 3; do
+            if pg_isready --dbname="${SUPABASE_DB_URL}" --timeout=10 >/dev/null 2>&1; then
+              connection_ok=true
+              break
+            fi
+            echo "Database readiness check failed (attempt ${attempt}/3). Retrying..."
+            sleep $((attempt * 5))
+          done
+          if [[ "${connection_ok}" != true ]]; then
+            echo "::error::Supabase PostgreSQL endpoint is not reachable with SUPABASE_DB_URL."
+            exit 1
+          fi
+
           # The connection URL is supplied only by the encrypted Actions
           # secret; it is never printed or stored in the artifact.
-          pg_dump --dbname="${SUPABASE_DB_URL}" --format=custom --no-owner --no-privileges --file="${backup_file}"
+          # Retry transient network failures before failing the workflow.
+          dump_ok=false
+          for attempt in 1 2 3; do
+            if pg_dump \
+              --dbname="${SUPABASE_DB_URL}" \
+              --format=custom \
+              --no-owner \
+              --no-privileges \
+              --file="${backup_file}"; then
+              dump_ok=true
+              break
+            fi
+            echo "pg_dump failed (attempt ${attempt}/3). Removing partial dump and retrying..."
+            rm -f "${backup_file}"
+            sleep $((attempt * 5))
+          done
+          if [[ "${dump_ok}" != true ]]; then
+            echo "::error::pg_dump could not create a valid Supabase backup after 3 attempts."
+            exit 1
+          fi
+
           test -s "${backup_file}"
           sha256sum "${backup_file}" > "${backup_file}.sha256"
 
