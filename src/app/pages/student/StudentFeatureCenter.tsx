@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Clock3, CreditCard, Heart, History, Link2, Star, UtensilsCrossed, Wallet, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Bell, Clock3, CreditCard, Heart, History, Info, Link2, Star, UtensilsCrossed, Wallet, MessageSquare } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStudentContextStore } from '../../../store/studentContextStore';
 import { useLoyaltyProgram } from '../../hooks/useLoyaltyProgram';
@@ -27,6 +27,19 @@ export function StudentFeatureCenter() {
         {loyaltyEnabled && <Link reloadDocument to="/student/rewards" className={studentCardClass}><Star className="h-5 w-5 text-amber-500"/><h2 className="qb-text mt-3 font-black">Puntos y premios</h2><p className="qb-text-secondary mt-1 text-sm">Consulta y canjea tus recompensas disponibles.</p></Link>}
         <Link reloadDocument to="/student/notifications" className={studentCardClass}><Bell className="h-5 w-5 text-violet-600 dark:text-violet-300"/><h2 className="qb-text mt-3 font-black">Notificaciones</h2><p className="qb-text-secondary mt-1 text-sm">Revisa avisos y cambios de tus pedidos y recargas.</p></Link>
         <Link reloadDocument to="/student/link-code" className={`${studentCardClass} sm:col-span-2 lg:col-span-3`}><div className="flex items-start gap-3"><Link2 className="h-5 w-5 text-blue-700 dark:text-blue-300"/><div><h2 className="qb-text font-black">Código para vincular a mi familia</h2><p className="qb-text-secondary mt-1 text-sm">Genera o consulta tu código. Un padre, madre o acudiente usa este código desde su cuenta para solicitar el vínculo con tu perfil.</p></div></div></Link>
+        <details className="group sm:col-span-2 lg:col-span-3 overflow-hidden rounded-3xl border border-emerald-200/70 bg-emerald-50/70 shadow-sm dark:border-emerald-300/20 dark:bg-emerald-500/5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 [&::-webkit-details-marker]:hidden">
+            <div className="flex items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"><Info className="h-5 w-5"/></div><div><h2 className="qb-text font-black">Más sobre QuickBite</h2><p className="qb-text-secondary mt-1 text-sm">Conoce el propósito, funcionamiento y beneficios del proyecto.</p></div></div><span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-black text-emerald-700 transition-transform group-open:rotate-180 dark:border-emerald-300/20 dark:bg-slate-900/40 dark:text-emerald-300" aria-hidden="true">⌄</span>
+          </summary>
+          <div className="border-t border-emerald-200/60 px-5 pb-5 pt-4 dark:border-emerald-300/15">
+            <p className="qb-text-secondary leading-7">QuickBite CBMP es una plataforma web creada para optimizar el proceso de compra en la cafetería escolar del Colegio Bilingüe Maximino Poitiers. Busca facilitar el acceso a los alimentos durante los descansos mediante un flujo más rápido, organizado y claro para estudiantes y personal de cafetería.</p>
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div className="qb-surface rounded-2xl border qb-border p-4"><h3 className="qb-text font-black">¿Qué problema resuelve?</h3><p className="qb-text-secondary mt-1 text-sm leading-6">Ayuda a reducir filas y tiempos de atención centralizando el menú y los pedidos en una experiencia digital.</p></div>
+              <div className="qb-surface rounded-2xl border qb-border p-4"><h3 className="qb-text font-black">¿Cómo funciona?</h3><p className="qb-text-secondary mt-1 text-sm leading-6">El estudiante consulta el menú, selecciona productos, confirma su pedido y recibe la información necesaria para recogerlo.</p></div>
+              <div className="qb-surface rounded-2xl border qb-border p-4"><h3 className="qb-text font-black">Beneficios</h3><p className="qb-text-secondary mt-1 text-sm leading-6">Mejora la organización de la atención y permite aprovechar mejor el tiempo de descanso.</p></div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </div>;
