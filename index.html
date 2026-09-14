@@ -32,21 +32,27 @@
       }
     </script>
     <style>
-      .qb-public-seo { display: none; max-width: 760px; margin: 0 auto; padding: 14px 20px 28px; font-family: inherit; color: #334155; }
+      .qb-public-seo { display: none; max-width: 860px; margin: 0 auto; padding: 22px 20px 34px; font-family: inherit; color: #334155; }
       .qb-public-home .qb-public-seo { display: block; }
       .qb-public-seo details { border: 1px solid #dbe4ec; border-radius: 18px; background: rgba(255, 255, 255, 0.78); box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08); overflow: hidden; }
       .qb-public-seo summary { cursor: pointer; list-style: none; padding: 14px 18px; font-size: .9rem; font-weight: 700; text-align: center; color: #475569; user-select: none; }
       .qb-public-seo summary::-webkit-details-marker { display: none; }
       .qb-public-seo summary:hover { background: rgba(22, 163, 106, 0.06); }
       .qb-public-seo .qb-seo-content { padding: 4px 22px 22px; line-height: 1.65; font-size: .92rem; }
-      .qb-public-seo h2 { font-size: 1.2rem; line-height: 1.3; margin: 12px 0 8px; font-weight: 800; }
+      .qb-public-seo h1 { font-size: clamp(1.75rem, 4vw, 2.35rem); line-height: 1.15; margin: 0 0 12px; font-weight: 850; letter-spacing: -0.02em; }
+      .qb-public-seo h2 { font-size: 1.2rem; line-height: 1.3; margin: 20px 0 8px; font-weight: 800; }
       .qb-public-seo h3 { font-size: 1rem; margin: 18px 0 7px; font-weight: 800; }
       .qb-public-seo p { margin: 0 0 18px; color: #64748b; }
       .qb-public-seo p:last-child { margin-bottom: 0; }
+      .qb-public-seo nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+      .qb-public-seo nav a { display: inline-flex; align-items: center; border: 1px solid #dbe4ec; border-radius: 999px; padding: 8px 12px; color: #166534; text-decoration: none; font-weight: 700; background: rgba(255,255,255,.88); }
+      .qb-public-seo nav a:hover { text-decoration: underline; }
       .dark .qb-public-seo details, [data-qb-theme="dark"] .qb-public-seo details { border-color: rgba(170,183,201,.2); background: rgba(13,22,40,.88); box-shadow: 0 12px 36px rgba(0,0,0,.24); }
       .dark .qb-public-seo summary, [data-qb-theme="dark"] .qb-public-seo summary { color: #f5f7fa; }
       .dark .qb-public-seo summary:hover, [data-qb-theme="dark"] .qb-public-seo summary:hover { background: rgba(22,163,106,.12); }
+      .dark .qb-public-seo .qb-seo-content, [data-qb-theme="dark"] .qb-public-seo .qb-seo-content { color: #e5e7eb; }
       .dark .qb-public-seo p, [data-qb-theme="dark"] .qb-public-seo p { color: #aab7c9; }
+      .dark .qb-public-seo nav a, [data-qb-theme="dark"] .qb-public-seo nav a { border-color: rgba(170,183,201,.2); background: rgba(13,22,40,.7); color: #86efac; }
     </style>
     <script>
       document.documentElement.classList.toggle('qb-public-home', window.location.pathname === '/');
@@ -57,21 +63,27 @@
     <div id="root"></div>
 
     <section id="quickbite-public-seo" class="qb-public-seo" aria-label="Información sobre QuickBite">
-      <details>
-        <summary><span aria-hidden="true">ⓘ</span> Conoce QuickBite</summary>
+      <details open>
+        <summary>Conoce QuickBite</summary>
         <div class="qb-seo-content">
-          <h2>QuickBite: cafetería escolar digital</h2>
-          <p>QuickBite es un sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente. Está pensado para facilitar el acceso a los alimentos durante los descansos y reducir las filas y los tiempos de espera.</p>
-          <h3>¿Cómo funciona QuickBite?</h3>
-          <p>Los estudiantes pueden consultar el menú disponible, seleccionar sus productos, realizar el pedido y recibir una confirmación para recoger sus alimentos. El sistema organiza la información del pedido para facilitar su preparación y entrega en la cafetería.</p>
-          <h3>Beneficios para la comunidad escolar</h3>
-          <p>La plataforma ayuda a organizar la atención de la cafetería, agilizar la compra de alimentos, mejorar la experiencia durante el descanso y facilitar una gestión más clara de los pedidos escolares.</p>
+          <h1>QuickBite: cafetería escolar digital</h1>
+          <p>QuickBite es un sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente. Está pensado para facilitar el acceso a los alimentos durante los descansos, reducir las filas y mejorar el tiempo disponible para que los estudiantes compren y recojan sus pedidos.</p>
+          <h2>¿Cómo funciona QuickBite?</h2>
+          <p>Los estudiantes pueden consultar el menú disponible, seleccionar productos, organizar su pedido y recibir una confirmación para recoger los alimentos en la cafetería. El sistema ayuda a centralizar la información y a hacer más claro el proceso de atención.</p>
+          <h2>Beneficios para la comunidad escolar</h2>
+          <p>La plataforma busca agilizar la compra, ordenar la gestión de pedidos y mejorar la experiencia durante el descanso. También facilita una operación más clara para el personal de la cafetería y una consulta más sencilla del menú.</p>
+          <nav aria-label="Accesos de QuickBite">
+            <a href="/">Inicio de QuickBite</a>
+            <a href="/login">Acceder a QuickBite</a>
+            <a href="/menu">Ver menú</a>
+          </nav>
         </div>
       </details>
     </section>
 
     <noscript>
       <main>
+        <h1>QuickBite: cafetería escolar digital</h1>
         <p>Para utilizar QuickBite necesitas habilitar JavaScript en tu navegador.</p>
       </main>
     </noscript>
