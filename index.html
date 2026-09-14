@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="QuickBite: sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente." />
-    <meta name="keywords" content="QuickBite, cafetería escolar, pedidos escolares, comida escolar, sistema de pedidos" />
+    <meta name="description" content="QuickBite CBMP: sistema digital de la cafetería escolar para consultar el menú, gestionar pedidos y reducir filas durante los descansos." />
+    <meta name="keywords" content="QuickBite CBMP, QuickBite cafetería escolar, cafetería escolar digital, pedidos escolares, Colegio Bilingüe Maximino Poitiers" />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#ffffff" />
     <link rel="canonical" href="https://quick-bite-snowy-ten.vercel.app/" />
@@ -14,21 +14,35 @@
     <link rel="manifest" href="/manifest.json" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="es_CO" />
-    <meta property="og:site_name" content="QuickBite" />
-    <meta property="og:title" content="QuickBite | Cafetería escolar digital" />
-    <meta property="og:description" content="Sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente." />
+    <meta property="og:site_name" content="QuickBite CBMP" />
+    <meta property="og:title" content="QuickBite CBMP | Cafetería escolar digital" />
+    <meta property="og:description" content="Sistema digital de la cafetería escolar para consultar el menú, gestionar pedidos y reducir filas durante los descansos." />
     <meta property="og:url" content="https://quick-bite-snowy-ten.vercel.app/" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "QuickBite",
-        "url": "https://quick-bite-snowy-ten.vercel.app/",
-        "description": "Sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente.",
-        "applicationCategory": "EducationalApplication",
-        "operatingSystem": "Web",
-        "inLanguage": "es-CO",
-        "isAccessibleForFree": true
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://quick-bite-snowy-ten.vercel.app/#website",
+            "url": "https://quick-bite-snowy-ten.vercel.app/",
+            "name": "QuickBite CBMP",
+            "alternateName": ["QuickBite", "QuickBite cafetería escolar"],
+            "inLanguage": "es-CO"
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://quick-bite-snowy-ten.vercel.app/#application",
+            "name": "QuickBite CBMP",
+            "alternateName": "QuickBite",
+            "url": "https://quick-bite-snowy-ten.vercel.app/",
+            "description": "Sistema digital de la cafetería escolar para consultar el menú, gestionar pedidos y reducir filas durante los descansos.",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Web",
+            "inLanguage": "es-CO",
+            "isAccessibleForFree": true
+          }
+        ]
       }
     </script>
     <style>
@@ -78,27 +92,27 @@
       document.documentElement.classList.toggle('qb-public-home', path === '/');
       document.documentElement.classList.toggle('qb-login-view', path === '/login');
     </script>
-    <title>QuickBite | Cafetería escolar digital</title>
+    <title>QuickBite CBMP | Cafetería escolar digital</title>
   </head>
   <body>
     <div id="root"></div>
 
-    <section id="quickbite-public-seo" class="qb-public-seo" aria-label="Información sobre QuickBite">
+    <section id="quickbite-public-seo" class="qb-public-seo" aria-label="Información sobre QuickBite CBMP">
       <details open>
-        <summary>Conoce QuickBite</summary>
+        <summary>Conoce QuickBite CBMP</summary>
         <div class="qb-seo-content">
-          <h1>QuickBite: cafetería escolar digital</h1>
-          <p>QuickBite es un sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente. Está pensado para facilitar el acceso a los alimentos durante los descansos, reducir las filas y mejorar el tiempo disponible para que los estudiantes compren y recojan sus pedidos.</p>
-          <h2>¿Cómo funciona QuickBite?</h2>
+          <h1>QuickBite CBMP: cafetería escolar digital</h1>
+          <p>QuickBite CBMP es un sistema digital para gestionar pedidos de la cafetería escolar de forma rápida, organizada y eficiente. Está pensado para facilitar el acceso a los alimentos durante los descansos, reducir las filas y mejorar el tiempo disponible para que los estudiantes compren y recojan sus pedidos.</p>
+          <h2>¿Cómo funciona QuickBite CBMP?</h2>
           <p>Los estudiantes pueden consultar el menú disponible, seleccionar productos, organizar su pedido y recibir una confirmación para recoger los alimentos en la cafetería. El sistema ayuda a centralizar la información, reducir tiempos de espera y hacer más claro el proceso de atención desde el pedido hasta la entrega.</p>
           <h2>Una experiencia más rápida y organizada</h2>
-          <p>QuickBite facilita la consulta del menú y la preparación de pedidos, mientras que el personal de la cafetería puede visualizar la información necesaria para atender cada solicitud. La propuesta busca mejorar la experiencia durante el descanso y apoyar una gestión más ordenada de la cafetería escolar.</p>
+          <p>QuickBite CBMP facilita la consulta del menú y la preparación de pedidos, mientras que el personal de la cafetería puede visualizar la información necesaria para atender cada solicitud. La propuesta busca mejorar la experiencia durante el descanso y apoyar una gestión más ordenada de la cafetería escolar.</p>
           <h2>Beneficios para la comunidad escolar</h2>
           <p>La plataforma ayuda a agilizar la compra, ordenar la gestión de pedidos y aprovechar mejor el tiempo de los estudiantes. También ofrece una forma sencilla de consultar productos, confirmar solicitudes y recoger los alimentos con mayor claridad.</p>
-          <nav aria-label="Accesos de QuickBite">
-            <a href="/">Inicio de QuickBite</a>
+          <nav aria-label="Accesos de QuickBite CBMP">
+            <a href="/">Inicio de QuickBite CBMP</a>
             <a href="/login">Acceder a QuickBite</a>
-            <a href="/menu">Ver menú</a>
+            <a href="/menu">Ver menú escolar</a>
           </nav>
         </div>
       </details>
@@ -106,7 +120,7 @@
 
     <noscript>
       <main>
-        <p><strong>QuickBite: cafetería escolar digital</strong></p>
+        <p><strong>QuickBite CBMP: cafetería escolar digital</strong></p>
         <p>Para utilizar QuickBite necesitas habilitar JavaScript en tu navegador.</p>
       </main>
     </noscript>
