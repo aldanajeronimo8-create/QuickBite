@@ -1,0 +1,26 @@
+html, body, #root {
+  min-height: 100%;
+}
+
+html,
+body {
+  background: var(--qb-background, #F5F8F7);
+  color: var(--qb-text, #0F172A);
+}
+
+html[data-qb-theme='dark'],
+html[data-qb-theme='dark'] body,
+html[data-qb-theme='dark'] #root {
+  background: #070D19;
+  color: #F5F7FA;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--qb-accent, #14B8A6) 28%, transparent);
+}
