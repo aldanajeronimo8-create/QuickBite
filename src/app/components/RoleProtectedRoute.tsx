@@ -15,6 +15,15 @@ function canAccess(role: UserRole, required: RoleProtectedRouteProps['role']) {
   return canAccessStudent(role);
 }
 
+function isAdminStudentPreview() {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.sessionStorage.getItem('quickbite_admin_student_preview') === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function RoleProtectedRoute({ role, children }: RoleProtectedRouteProps) {
   const { user, loading } = useAuthStore();
   const activeStudent = useStudentContextStore((state) => state.activeStudent);
@@ -25,7 +34,8 @@ export function RoleProtectedRoute({ role, children }: RoleProtectedRouteProps) 
   if (!user) return <Navigate to="/login" replace />;
 
   const actingAsLinkedStudent = role === 'student' && canAccessParent(user.role) && Boolean(activeStudent);
-  if (!canAccess(user.role, role) && !actingAsLinkedStudent) {
+  const adminStudentPreview = role === 'student' && canAccessAdmin(user.role) && isAdminStudentPreview();
+  if (!canAccess(user.role, role) && !actingAsLinkedStudent && !adminStudentPreview) {
     const destination = canAccessAdmin(user.role) ? '/admin' : canAccessParent(user.role) ? '/parent/family' : canAccessStudent(user.role) ? '/menu' : '/login';
     return <Navigate to={destination} replace />;
   }
