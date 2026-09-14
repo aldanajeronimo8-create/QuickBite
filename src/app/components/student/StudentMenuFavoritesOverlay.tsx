@@ -44,7 +44,10 @@ export function StudentMenuFavoritesOverlay() {
               const exists = favoriteIds.has(productId);
               const result = exists
                 ? await client.from('favorites').delete().eq('user_id', userId).eq('product_id', productId)
-                : await client.from('favorites').upsert({ user_id: userId, product_id: productId }, { onConflict: 'user_id,product_id' });
+                : await client.from('favorites').upsert(
+                    { user_id: userId, product_id: productId },
+                    { onConflict: 'user_id,product_id', ignoreDuplicates: true },
+                  );
               if (result.error) return;
               if (exists) favoriteIds.delete(productId); else favoriteIds.add(productId);
               const active = favoriteIds.has(productId);
