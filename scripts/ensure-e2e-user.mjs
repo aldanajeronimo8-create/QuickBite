@@ -12,16 +12,29 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-const ADMIN_READ_MAX_ATTEMPTS = 4;
-const ADMIN_READ_TIMEOUT_MS = 20_000;
+const ADMIN_REQUEST_MAX_ATTEMPTS = 4;
+const ADMIN_REQUEST_TIMEOUT_MS = 20_000;
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504, 521, 522, 523, 524]);
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAbortError(error) {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+function isRetryableStatus(status) {
+  return RETRYABLE_STATUS_CODES.has(status);
+}
 
 async function adminRequest(path, options = {}) {
-  const isRead = (options.method ?? 'GET').toUpperCase() === 'GET';
+  const method = (options.method ?? 'GET').toUpperCase();
   let lastError = null;
 
-  for (let attempt = 1; attempt <= (isRead ? ADMIN_READ_MAX_ATTEMPTS : 1); attempt += 1) {
+  for (let attempt = 1; attempt <= ADMIN_REQUEST_MAX_ATTEMPTS; attempt += 1) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), ADMIN_READ_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), ADMIN_REQUEST_TIMEOUT_MS);
 
     try {
       const response = await globalThis.fetch(`${url}/auth/v1${path}`, {
@@ -31,43 +44,93 @@ async function adminRequest(path, options = {}) {
       });
       const text = await response.text();
       let body = null;
-      try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch {
+        body = text;
+      }
 
       if (response.ok) return body;
 
-      const message = `Supabase Admin ${options.method ?? 'GET'} ${path} failed (${response.status}): ${typeof body === 'string' ? body : JSON.stringify(body)}`;
-      const transient = response.status === 408 || response.status === 429 || response.status >= 500;
-      if (!isRead || !transient || attempt === ADMIN_READ_MAX_ATTEMPTS) {
+      const message = `Supabase Admin ${method} ${path} failed (${response.status}): ${typeof body === 'string' ? body : JSON.stringify(body)}`;
+      if (!isRetryableStatus(response.status) || attempt === ADMIN_REQUEST_MAX_ATTEMPTS) {
         throw new Error(message);
       }
 
       lastError = new Error(message);
-      const delayMs = 500 * (2 ** (attempt - 1));
-      console.warn(`Supabase Admin GET ${path} returned ${response.status}; retrying in ${delayMs}ms (attempt ${attempt + 1}/${ADMIN_READ_MAX_ATTEMPTS}).`);
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      const delayMs = 750 * (2 ** (attempt - 1));
+      console.warn(`Supabase Admin ${method} ${path} returned ${response.status}; retrying in ${delayMs}ms (attempt ${attempt + 1}/${ADMIN_REQUEST_MAX_ATTEMPTS}).`);
+      await sleep(delayMs);
     } catch (error) {
-      const aborted = error instanceof DOMException && error.name === 'AbortError';
-      const message = aborted
-        ? `Supabase Admin ${options.method ?? 'GET'} ${path} timed out after ${ADMIN_READ_TIMEOUT_MS}ms.`
+      const message = isAbortError(error)
+        ? `Supabase Admin ${method} ${path} timed out after ${ADMIN_REQUEST_TIMEOUT_MS}ms.`
         : error instanceof Error
           ? error.message
           : String(error);
 
-      const retryable = isRead;
-      if (!retryable || attempt === ADMIN_READ_MAX_ATTEMPTS) {
+      const retryable = isAbortError(error) || /failed \((?:408|425|429|5\d\d)\):/.test(message);
+      if (!retryable || attempt === ADMIN_REQUEST_MAX_ATTEMPTS) {
         throw new Error(message);
       }
 
       lastError = new Error(message);
-      const delayMs = 500 * (2 ** (attempt - 1));
-      console.warn(`Supabase Admin GET ${path} did not complete; retrying in ${delayMs}ms (attempt ${attempt + 1}/${ADMIN_READ_MAX_ATTEMPTS}).`);
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      const delayMs = 750 * (2 ** (attempt - 1));
+      console.warn(`Supabase Admin ${method} ${path} did not complete; retrying in ${delayMs}ms (attempt ${attempt + 1}/${ADMIN_REQUEST_MAX_ATTEMPTS}).`);
+      await sleep(delayMs);
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  throw lastError ?? new Error(`Supabase Admin GET ${path} failed unexpectedly.`);
+  throw lastError ?? new Error(`Supabase Admin ${method} ${path} failed unexpectedly.`);
+}
+
+async function listUsers() {
+  const users = [];
+  let page = 1;
+  while (true) {
+    const body = await adminRequest(`/admin/users?page=${page}&per_page=100`);
+    const batch = Array.isArray(body?.users) ? body.users : [];
+    users.push(...batch);
+    if (batch.length < 100) break;
+    page += 1;
+  }
+  return users;
+}
+
+async function findUserByEmail(email) {
+  const users = await listUsers();
+  return users.find((candidate) => candidate.email?.toLowerCase() === email) ?? null;
+}
+
+async function createUserIdempotently(account) {
+  try {
+    return await adminRequest('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: account.email,
+        password: account.password,
+        email_confirm: true,
+        user_metadata: { role: account.role, full_name: `QuickBite E2E ${account.role}` },
+      }),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/failed \((?:408|425|429|5\d\d)\):/.test(message) && !/timed out after/.test(message)) {
+      throw error;
+    }
+
+    // A POST can time out after Auth has already created the user. Reconcile
+    // server state before attempting another create, preventing duplicate users.
+    console.warn(`Supabase Admin POST /admin/users ended ambiguously; reconciling ${account.email} before retrying create.`);
+    const existing = await findUserByEmail(account.email);
+    if (existing) {
+      console.log(`E2E ${account.role} account already exists after transient create failure; continuing with existing user.`);
+      return existing;
+    }
+
+    throw error;
+  }
 }
 
 async function restRequest(path, options = {}) {
@@ -95,15 +158,7 @@ async function validateProtectedProfile(userId, role) {
   }
 }
 
-let users = [];
-let page = 1;
-while (true) {
-  const body = await adminRequest(`/admin/users?page=${page}&per_page=100`);
-  const batch = Array.isArray(body?.users) ? body.users : [];
-  users.push(...batch);
-  if (batch.length < 100) break;
-  page += 1;
-}
+let users = await listUsers();
 
 const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString();
 const configured = [
@@ -146,15 +201,7 @@ for (const account of accounts) {
       console.log(`E2E ${account.role} account is protected; keeping its existing credentials and metadata.`);
     }
   } else {
-    user = await adminRequest('/admin/users', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: account.email,
-        password: account.password,
-        email_confirm: true,
-        user_metadata: { role: account.role, full_name: `QuickBite E2E ${account.role}` },
-      }),
-    });
+    user = await createUserIdempotently(account);
   }
 
   if (isProtected) {
@@ -189,6 +236,11 @@ for (const account of accounts) {
   workflowEnv.push(`PLAYWRIGHT_${account.role.toUpperCase()}_EMAIL=${account.email}`);
   workflowEnv.push(`PLAYWRIGHT_${account.role.toUpperCase()}_PASSWORD=${account.password}`);
   console.log(`E2E ${account.role} account provisioned and login verified.`);
+
+  // Keep the local snapshot coherent for the next account while avoiding a
+  // second global list when the create/update path already returned the user.
+  users = users.filter((candidate) => candidate.id !== user.id);
+  users.push(user);
 }
 
 if (githubEnvPath) {
