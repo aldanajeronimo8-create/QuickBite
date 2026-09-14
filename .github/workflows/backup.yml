@@ -1,6 +1,8 @@
 name: Supabase backup
 
 on:
+  push:
+    branches: [main]
   schedule:
     # 07:00 UTC = 02:00 in Colombia (UTC-5), every day.
     - cron: '0 7 * * *'
@@ -63,7 +65,6 @@ jobs:
           backup_file="${backup_dir}/quickbite-${timestamp}.dump"
           mkdir -p "${backup_dir}"
 
-          # Validate the connection without printing the connection string.
           connection_ok=false
           for attempt in 1 2 3; do
             if "${PG_ISREADY}" --dbname="${SUPABASE_DB_URL}" --timeout=10 >/dev/null 2>&1; then
@@ -78,9 +79,6 @@ jobs:
             exit 1
           fi
 
-          # The connection URL is supplied only by the encrypted Actions
-          # secret; it is never printed or stored in the artifact.
-          # Retry transient network failures before failing the workflow.
           dump_ok=false
           for attempt in 1 2 3; do
             if "${PG_DUMP}" \
@@ -103,9 +101,6 @@ jobs:
 
           test -s "${backup_file}"
           sha256sum "${backup_file}" > "${backup_file}.sha256"
-
-          # Validates both the checksum and that pg_restore can read the
-          # custom-format archive without restoring any data.
           sha256sum --check "${backup_file}.sha256"
           "${PG_RESTORE}" --list "${backup_file}" > /dev/null
 
