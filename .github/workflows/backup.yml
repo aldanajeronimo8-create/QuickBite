@@ -35,8 +35,13 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
-          pg_dump --version
-          pg_restore --version
+          PG17_BIN="/usr/lib/postgresql/17/bin"
+          test -x "${PG17_BIN}/pg_dump"
+          test -x "${PG17_BIN}/pg_restore"
+          test -x "${PG17_BIN}/pg_isready"
+          "${PG17_BIN}/pg_dump" --version
+          "${PG17_BIN}/pg_restore" --version
+          "${PG17_BIN}/pg_isready" --version
 
       - name: Create compressed database backup
         id: backup
@@ -48,6 +53,11 @@ jobs:
             exit 1
           fi
 
+          PG17_BIN="/usr/lib/postgresql/17/bin"
+          PG_DUMP="${PG17_BIN}/pg_dump"
+          PG_RESTORE="${PG17_BIN}/pg_restore"
+          PG_ISREADY="${PG17_BIN}/pg_isready"
+
           backup_dir="backups"
           timestamp="$(date -u +'%Y-%m-%dT%H-%M-%SZ')"
           backup_file="${backup_dir}/quickbite-${timestamp}.dump"
@@ -56,7 +66,7 @@ jobs:
           # Validate the connection without printing the connection string.
           connection_ok=false
           for attempt in 1 2 3; do
-            if pg_isready --dbname="${SUPABASE_DB_URL}" --timeout=10 >/dev/null 2>&1; then
+            if "${PG_ISREADY}" --dbname="${SUPABASE_DB_URL}" --timeout=10 >/dev/null 2>&1; then
               connection_ok=true
               break
             fi
@@ -73,7 +83,7 @@ jobs:
           # Retry transient network failures before failing the workflow.
           dump_ok=false
           for attempt in 1 2 3; do
-            if pg_dump \
+            if "${PG_DUMP}" \
               --dbname="${SUPABASE_DB_URL}" \
               --format=custom \
               --no-owner \
@@ -97,7 +107,7 @@ jobs:
           # Validates both the checksum and that pg_restore can read the
           # custom-format archive without restoring any data.
           sha256sum --check "${backup_file}.sha256"
-          pg_restore --list "${backup_file}" > /dev/null
+          "${PG_RESTORE}" --list "${backup_file}" > /dev/null
 
           echo "backup_dir=${backup_dir}" >> "${GITHUB_OUTPUT}"
           echo "backup_file=${backup_file}" >> "${GITHUB_OUTPUT}"
