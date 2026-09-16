@@ -1,4 +1,4 @@
-/* QuickBite Auth Dark Mode — semantic, layered and intentionally restrained. */
+/* QuickBite Auth Dark Mode — single semantic authority. */
 
 html[data-qb-theme="dark"] .qb-auth,
 html.dark .qb-auth {
@@ -6,20 +6,21 @@ html.dark .qb-auth {
   --auth-surface: #111113;
   --auth-surface-2: #18181b;
   --auth-control: #1c1c1f;
-  --auth-border: rgba(255,255,255,.10);
-  --auth-border-strong: rgba(255,255,255,.17);
+  --auth-border: rgba(255,255,255,.12);
+  --auth-border-strong: rgba(255,255,255,.20);
   --auth-text: #f5f5f7;
-  --auth-secondary: #a1a1aa;
-  --auth-tertiary: #71717a;
+  --auth-secondary: #b7b7bd;
+  --auth-tertiary: #8e8e93;
   --auth-green: #30d158;
   --auth-blue: #0a84ff;
 
   min-height: 100vh;
-  background: var(--auth-bg) !important;
+  background: #000 !important;
   color: var(--auth-text) !important;
   position: relative;
   overflow: hidden;
   isolation: isolate;
+  color-scheme: dark;
 }
 
 html[data-qb-theme="dark"] .qb-auth::before,
@@ -30,9 +31,17 @@ html.dark .qb-auth::before {
   pointer-events: none;
   z-index: -1;
   background:
-    radial-gradient(circle at 50% -10%, rgba(255,255,255,.07), transparent 34%),
-    radial-gradient(circle at 8% 90%, rgba(48,209,88,.035), transparent 28%),
-    radial-gradient(circle at 92% 85%, rgba(10,132,255,.04), transparent 28%);
+    radial-gradient(circle at 50% -8%, rgba(255,255,255,.065), transparent 34%),
+    radial-gradient(circle at 8% 90%, rgba(48,209,88,.025), transparent 28%),
+    radial-gradient(circle at 92% 85%, rgba(10,132,255,.03), transparent 28%);
+}
+
+/* Universal text contract: no pale-theme utility class may make dark text unreadable. */
+html[data-qb-theme="dark"] .qb-auth,
+html.dark .qb-auth,
+html[data-qb-theme="dark"] .qb-auth * ,
+html.dark .qb-auth * {
+  -webkit-font-smoothing: antialiased;
 }
 
 html[data-qb-theme="dark"] .qb-auth > div,
@@ -40,16 +49,38 @@ html.dark .qb-auth > div {
   color: var(--auth-text) !important;
 }
 
-/* Brand: minimal, no white tile. */
+html[data-qb-theme="dark"] .qb-auth h1,
+html[data-qb-theme="dark"] .qb-auth h2,
+html[data-qb-theme="dark"] .qb-auth h3,
+html[data-qb-theme="dark"] .qb-auth strong,
+html.dark .qb-auth h1,
+html.dark .qb-auth h2,
+html.dark .qb-auth h3,
+html.dark .qb-auth strong {
+  color: #f5f5f7 !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth p,
+html.dark .qb-auth p {
+  color: var(--auth-secondary) !important;
+}
+
+/* Brand */
 html[data-qb-theme="dark"] .qb-auth-brand,
 html.dark .qb-auth-brand {
-  margin-bottom: 2rem !important;
+  margin-bottom: 1.75rem !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth-brand > span,
+html.dark .qb-auth-brand > span {
+  background: #111113 !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,.42) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-brand .rounded-3xl,
 html.dark .qb-auth-brand .rounded-3xl {
   border-radius: 1.1rem !important;
-  box-shadow: 0 18px 42px rgba(0,0,0,.34) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-brand h1,
@@ -57,25 +88,33 @@ html.dark .qb-auth-brand h1 {
   color: #ffffff !important;
   font-size: 2rem !important;
   font-weight: 750 !important;
+  line-height: 1.1 !important;
   letter-spacing: -.04em !important;
+  text-shadow: 0 1px 14px rgba(255,255,255,.04);
 }
 
 html[data-qb-theme="dark"] .qb-auth-brand p,
-html.dark .qb-auth-brand p {
-  color: var(--auth-secondary) !important;
+html.dark .qb-auth-brand p,
+html[data-qb-theme="dark"] .qb-auth-brand .text-green-100,
+html[data-qb-theme="dark"] .qb-auth-brand .text-blue-200,
+html.dark .qb-auth-brand .text-green-100,
+html.dark .qb-auth-brand .text-blue-200 {
+  color: #b7b7bd !important;
+  font-size: .875rem !important;
 }
 
-/* Elevated panel, not a bright/glassy white card. */
+/* Main elevated surface */
 html[data-qb-theme="dark"] .qb-auth-card,
 html.dark .qb-auth-card {
+  position: relative;
   border: 1px solid var(--auth-border) !important;
   border-radius: 1.5rem !important;
-  background: linear-gradient(180deg, rgba(24,24,27,.98), rgba(17,17,19,.98)) !important;
-  color: var(--auth-text) !important;
+  background: linear-gradient(180deg, #18181b 0%, #111113 100%) !important;
+  color: #f5f5f7 !important;
   box-shadow:
-    0 28px 80px rgba(0,0,0,.60),
-    0 8px 28px rgba(0,0,0,.28),
-    inset 0 1px 0 rgba(255,255,255,.035) !important;
+    0 28px 80px rgba(0,0,0,.62),
+    0 8px 28px rgba(0,0,0,.30),
+    inset 0 1px 0 rgba(255,255,255,.045) !important;
   backdrop-filter: blur(24px);
 }
 
@@ -86,7 +125,7 @@ html.dark .qb-auth-card::before {
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255,255,255,.025), transparent 28%);
+  background: linear-gradient(180deg, rgba(255,255,255,.022), transparent 28%);
 }
 
 html[data-qb-theme="dark"] .qb-auth-card h2,
@@ -99,79 +138,100 @@ html.dark .qb-auth-card h3 {
 
 html[data-qb-theme="dark"] .qb-auth-card p:not(.qb-auth-error),
 html.dark .qb-auth-card p:not(.qb-auth-error) {
-  color: var(--auth-secondary) !important;
+  color: #b7b7bd !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card label,
 html.dark .qb-auth-card label {
-  color: #d4d4d8 !important;
-  font-weight: 600;
+  color: #e5e5ea !important;
+  font-weight: 600 !important;
 }
 
-/* Role selector: quiet segmented control. */
+/* Force legacy utility colors to remain readable in dark Auth. */
+html[data-qb-theme="dark"] .qb-auth .text-green-100,
+html[data-qb-theme="dark"] .qb-auth .text-green-700,
+html[data-qb-theme="dark"] .qb-auth .text-blue-200,
+html[data-qb-theme="dark"] .qb-auth .text-blue-400,
+html.dark .qb-auth .text-green-100,
+html.dark .qb-auth .text-green-700,
+html.dark .qb-auth .text-blue-200,
+html.dark .qb-auth .text-blue-400 {
+  color: #b7b7bd !important;
+}
+
+/* Role selector */
 html[data-qb-theme="dark"] .qb-auth-switch,
 html.dark .qb-auth-switch {
   padding: .25rem !important;
   gap: .25rem !important;
-  border: 1px solid var(--auth-border) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
   border-radius: .95rem !important;
   background: #0b0b0d !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-switch button,
 html.dark .qb-auth-switch button {
   min-height: 2.75rem !important;
   border-radius: .72rem !important;
-  color: #a1a1aa !important;
   background: transparent !important;
+  color: #b7b7bd !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth-switch button svg,
+html.dark .qb-auth-switch button svg {
+  color: currentColor !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth--student .qb-auth-switch button:first-child,
 html.dark .qb-auth--student .qb-auth-switch button:first-child {
-  background: #202124 !important;
-  color: #f5f5f7 !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06) !important;
+  background: #242427 !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.075) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-switch button:hover,
 html.dark .qb-auth-switch button:hover {
-  background: rgba(255,255,255,.055) !important;
+  background: rgba(255,255,255,.065) !important;
   color: #ffffff !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-switch-button,
 html.dark .qb-auth-switch-button {
   min-height: 2.75rem !important;
-  border: 1px solid var(--auth-border) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
   border-radius: .8rem !important;
   background: #151518 !important;
-  color: #d4d4d8 !important;
+  color: #e5e5ea !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-active-note,
 html.dark .qb-auth-active-note {
-  border: 1px solid rgba(10,132,255,.22) !important;
+  border: 1px solid rgba(10,132,255,.24) !important;
   border-radius: .8rem !important;
-  background: rgba(10,132,255,.08) !important;
-  color: #a9d2ff !important;
+  background: rgba(10,132,255,.09) !important;
+  color: #b7d9ff !important;
 }
 
-/* Inputs: a neutral, elevated control level. */
+/* Inputs */
 html[data-qb-theme="dark"] .qb-auth-card input,
-html.dark .qb-auth-card input {
+html[data-qb-theme="dark"] .qb-auth-card input[data-slot="input"],
+html.dark .qb-auth-card input,
+html.dark .qb-auth-card input[data-slot="input"] {
   min-height: 3.15rem !important;
   border: 1px solid var(--auth-border-strong) !important;
   border-radius: .85rem !important;
-  background: var(--auth-control) !important;
+  background: #1c1c1f !important;
   color: #ffffff !important;
   caret-color: var(--auth-blue) !important;
+  opacity: 1 !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.018) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card input:hover,
 html.dark .qb-auth-card input:hover {
   background: #202024 !important;
-  border-color: rgba(255,255,255,.22) !important;
+  border-color: rgba(255,255,255,.25) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card input:focus,
@@ -179,25 +239,39 @@ html[data-qb-theme="dark"] .qb-auth-card input:focus-visible,
 html.dark .qb-auth-card input:focus,
 html.dark .qb-auth-card input:focus-visible {
   background: #202024 !important;
-  border-color: rgba(10,132,255,.78) !important;
-  box-shadow: 0 0 0 3px rgba(10,132,255,.14), 0 8px 20px rgba(0,0,0,.18) !important;
+  border-color: rgba(10,132,255,.85) !important;
+  box-shadow: 0 0 0 3px rgba(10,132,255,.15), 0 8px 20px rgba(0,0,0,.18) !important;
   outline: none !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card input::placeholder,
 html.dark .qb-auth-card input::placeholder {
-  color: #6f7077 !important;
+  color: #8e8e93 !important;
+  opacity: 1 !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card .relative > svg,
 html.dark .qb-auth-card .relative > svg {
-  color: #8b8c93 !important;
+  color: #b7b7bd !important;
 }
 
-/* Password icon / compact utility controls. */
+/* Links */
+html[data-qb-theme="dark"] .qb-auth-link,
+html.dark .qb-auth-link {
+  color: #70b7ff !important;
+  font-weight: 650 !important;
+  text-decoration-thickness: 1px !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth-link:hover,
+html.dark .qb-auth-link:hover {
+  color: #9bcfff !important;
+}
+
+/* Password utility */
 html[data-qb-theme="dark"] .qb-auth-icon-button,
 html.dark .qb-auth-icon-button {
-  color: #8b8c93 !important;
+  color: #a1a1a6 !important;
   border-radius: .55rem !important;
   background: transparent !important;
 }
@@ -205,10 +279,10 @@ html.dark .qb-auth-icon-button {
 html[data-qb-theme="dark"] .qb-auth-icon-button:hover,
 html.dark .qb-auth-icon-button:hover {
   color: #ffffff !important;
-  background: rgba(255,255,255,.06) !important;
+  background: rgba(255,255,255,.065) !important;
 }
 
-/* Primary CTA: bright and simple, like a native action. */
+/* Main CTA */
 html[data-qb-theme="dark"] .qb-auth-primary,
 html.dark .qb-auth-primary {
   min-height: 3.1rem !important;
@@ -216,8 +290,9 @@ html.dark .qb-auth-primary {
   border-radius: .85rem !important;
   background: #ffffff !important;
   color: #050505 !important;
-  box-shadow: 0 10px 24px rgba(0,0,0,.28) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.30) !important;
   font-weight: 750 !important;
+  opacity: 1 !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-primary:hover,
@@ -227,9 +302,14 @@ html.dark .qb-auth-primary:hover {
   transform: translateY(-1px);
 }
 
+html[data-qb-theme="dark"] .qb-auth-primary:disabled,
+html.dark .qb-auth-primary:disabled {
+  opacity: .62 !important;
+}
+
 html[data-qb-theme="dark"] .qb-auth--blue .qb-auth-primary,
-html.dark .qb-auth--blue .qb-auth-primary,
 html[data-qb-theme="dark"] .qb-auth--admin .qb-auth-primary,
+html.dark .qb-auth--blue .qb-auth-primary,
 html.dark .qb-auth--admin .qb-auth-primary {
   background: #0a84ff !important;
   color: #ffffff !important;
@@ -238,39 +318,46 @@ html.dark .qb-auth--admin .qb-auth-primary {
 }
 
 html[data-qb-theme="dark"] .qb-auth--blue .qb-auth-primary:hover,
-html.dark .qb-auth--blue .qb-auth-primary:hover,
 html[data-qb-theme="dark"] .qb-auth--admin .qb-auth-primary:hover,
+html.dark .qb-auth--blue .qb-auth-primary:hover,
 html.dark .qb-auth--admin .qb-auth-primary:hover {
   background: #409cff !important;
 }
 
-/* Secondary actions are quiet, not competing with the main CTA. */
+/* Secondary buttons: dark surface + clearly readable label. */
 html[data-qb-theme="dark"] .qb-auth-secondary,
 html[data-qb-theme="dark"] .qb-auth-secondary-action,
 html.dark .qb-auth-secondary,
 html.dark .qb-auth-secondary-action {
   min-height: 3rem !important;
-  border: 1px solid var(--auth-border) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
   border-radius: .85rem !important;
-  background: rgba(255,255,255,.025) !important;
-  color: #d4d4d8 !important;
+  background: #171719 !important;
+  color: #ededf0 !important;
+  opacity: 1 !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth-secondary span,
+html[data-qb-theme="dark"] .qb-auth-secondary svg,
+html[data-qb-theme="dark"] .qb-auth-secondary-action span,
+html[data-qb-theme="dark"] .qb-auth-secondary-action svg,
+html.dark .qb-auth-secondary span,
+html.dark .qb-auth-secondary svg,
+html.dark .qb-auth-secondary-action span,
+html.dark .qb-auth-secondary-action svg {
+  color: currentColor !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-secondary:hover,
 html[data-qb-theme="dark"] .qb-auth-secondary-action:hover,
 html.dark .qb-auth-secondary:hover,
 html.dark .qb-auth-secondary-action:hover {
-  background: rgba(255,255,255,.065) !important;
-  border-color: rgba(255,255,255,.18) !important;
+  background: #222225 !important;
+  border-color: rgba(255,255,255,.22) !important;
   color: #ffffff !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-link,
-html.dark .qb-auth-link {
-  color: #8fc7ff !important;
-  font-weight: 600 !important;
-}
-
+/* Error / status text */
 html[data-qb-theme="dark"] .qb-auth-error,
 html.dark .qb-auth-error {
   color: #ff9a9a !important;
@@ -280,21 +367,22 @@ html[data-qb-theme="dark"] .qb-auth .text-red-300,
 html.dark .qb-auth .text-red-300 { color: #ff9a9a !important; }
 
 html[data-qb-theme="dark"] .qb-auth .text-green-100,
-html.dark .qb-auth .text-green-100 { color: #9be6a7 !important; }
+html.dark .qb-auth .text-green-100 { color: #a4ebb0 !important; }
 
 html[data-qb-theme="dark"] .qb-auth .text-blue-200,
-html.dark .qb-auth .text-blue-200 { color: #a9d2ff !important; }
+html.dark .qb-auth .text-blue-200 { color: #b7d9ff !important; }
 
-/* Brand mark container stays integrated with the black canvas. */
-html[data-qb-theme="dark"] .qb-auth-brand > span,
-html.dark .qb-auth-brand > span {
-  background: #111113 !important;
-  border: 1px solid rgba(255,255,255,.10) !important;
-  box-shadow: 0 18px 40px rgba(0,0,0,.42) !important;
+/* Keep admin/parent headers readable without changing their role accents. */
+html[data-qb-theme="dark"] .qb-auth--blue .qb-auth-card > .mb-5 h2,
+html[data-qb-theme="dark"] .qb-auth--admin .qb-auth-card > .mb-5 h2,
+html.dark .qb-auth--blue .qb-auth-card > .mb-5 h2,
+html.dark .qb-auth--admin .qb-auth-card > .mb-5 h2 {
+  color: #f5f5f7 !important;
 }
 
 @media (max-width: 640px) {
-  html[data-qb-theme="dark"] .qb-auth {
+  html[data-qb-theme="dark"] .qb-auth,
+  html.dark .qb-auth {
     padding: 1.25rem !important;
   }
 
