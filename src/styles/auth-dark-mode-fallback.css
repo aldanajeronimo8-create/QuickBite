@@ -1,0 +1,200 @@
+/*
+ * Boot-safe Auth Dark Mode
+ *
+ * The login screen renders before an authenticated user exists, so there is no
+ * account-level theme to apply yet. During that unauthenticated phase we follow
+ * the OS/browser appearance. Once an account preference resolves, the explicit
+ * [data-qb-theme] rules become authoritative and this fallback stops when the
+ * resolved theme is light.
+ */
+@media (prefers-color-scheme: dark) {
+  html:not([data-qb-theme="light"]) .qb-auth {
+    min-height: 100vh !important;
+    background: #000000 !important;
+    color: #f5f5f7 !important;
+    color-scheme: dark !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth > div,
+  html:not([data-qb-theme="light"]) .qb-auth h1,
+  html:not([data-qb-theme="light"]) .qb-auth h2,
+  html:not([data-qb-theme="light"]) .qb-auth h3,
+  html:not([data-qb-theme="light"]) .qb-auth strong {
+    color: #f5f5f7 !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth p {
+    color: #b7b7bd !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-brand > span {
+    background: #111113 !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    box-shadow: 0 18px 42px rgba(0,0,0,.42) !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-card {
+    position: relative !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    border-radius: 1.5rem !important;
+    background: linear-gradient(180deg, #18181b 0%, #111113 100%) !important;
+    color: #f5f5f7 !important;
+    box-shadow: 0 28px 80px rgba(0,0,0,.62), 0 8px 28px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.045) !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,.022), transparent 28%);
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-card label {
+    color: #e5e5ea !important;
+    font-weight: 600 !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-switch {
+    padding: .25rem !important;
+    gap: .25rem !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    border-radius: .95rem !important;
+    background: #0b0b0d !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-switch button {
+    min-height: 2.75rem !important;
+    border-radius: .72rem !important;
+    background: transparent !important;
+    color: #b7b7bd !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth--student .qb-auth-switch button:first-child {
+    background: #242427 !important;
+    color: #ffffff !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.075) !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-switch button:hover {
+    background: rgba(255,255,255,.065) !important;
+    color: #ffffff !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-switch-button {
+    min-height: 2.75rem !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    border-radius: .8rem !important;
+    background: #151518 !important;
+    color: #e5e5ea !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-active-note {
+    border: 1px solid rgba(10,132,255,.24) !important;
+    border-radius: .8rem !important;
+    background: rgba(10,132,255,.09) !important;
+    color: #b7d9ff !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-card input,
+  html:not([data-qb-theme="light"]) .qb-auth-card input[data-slot="input"] {
+    min-height: 3.15rem !important;
+    border: 1px solid rgba(255,255,255,.20) !important;
+    border-radius: .85rem !important;
+    background: #1c1c1f !important;
+    color: #ffffff !important;
+    caret-color: #0a84ff !important;
+    opacity: 1 !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-card input:hover,
+  html:not([data-qb-theme="light"]) .qb-auth-card input[data-slot="input"]:hover {
+    background: #202024 !important;
+    border-color: rgba(255,255,255,.25) !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-card input:focus,
+  html:not([data-qb-theme="light"]) .qb-auth-card input:focus-visible,
+  html:not([data-qb-theme="light"]) .qb-auth-card input[data-slot="input"]:focus,
+  html:not([data-qb-theme="light"]) .qb-auth-card input[data-slot="input"]:focus-visible {
+    background: #202024 !important;
+    border-color: rgba(10,132,255,.85) !important;
+    box-shadow: 0 0 0 3px rgba(10,132,255,.15), 0 8px 20px rgba(0,0,0,.18) !important;
+    outline: none !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-card input::placeholder {
+    color: #8e8e93 !important;
+    opacity: 1 !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-card .relative > svg,
+  html:not([data-qb-theme="light"]) .qb-auth-icon-button {
+    color: #b7b7bd !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-link {
+    color: #70b7ff !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-link:hover {
+    color: #9bcfff !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-icon-button:hover {
+    color: #ffffff !important;
+    background: rgba(255,255,255,.065) !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-primary {
+    min-height: 3.1rem !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    border-radius: .85rem !important;
+    background: #ffffff !important;
+    color: #050505 !important;
+    box-shadow: 0 10px 24px rgba(0,0,0,.30) !important;
+    font-weight: 750 !important;
+    opacity: 1 !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth--blue .qb-auth-primary,
+  html:not([data-qb-theme="light"]) .qb-auth--admin .qb-auth-primary {
+    background: #0a84ff !important;
+    color: #ffffff !important;
+    border-color: rgba(10,132,255,.34) !important;
+    box-shadow: 0 12px 28px rgba(10,132,255,.18) !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-primary:hover {
+    background: #ededed !important;
+    color: #000000 !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth--blue .qb-auth-primary:hover,
+  html:not([data-qb-theme="light"]) .qb-auth--admin .qb-auth-primary:hover {
+    background: #409cff !important;
+    color: #ffffff !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-secondary,
+  html:not([data-qb-theme="light"]) .qb-auth-secondary-action {
+    min-height: 3rem !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    border-radius: .85rem !important;
+    background: #171719 !important;
+    color: #ededf0 !important;
+    opacity: 1 !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-secondary:hover,
+  html:not([data-qb-theme="light"]) .qb-auth-secondary-action:hover {
+    background: #222225 !important;
+    border-color: rgba(255,255,255,.22) !important;
+    color: #ffffff !important;
+  }
+
+  html:not([data-qb-theme="light"]) .qb-auth-error {
+    color: #ff9a9a !important;
+  }
+}
