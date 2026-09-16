@@ -6,48 +6,91 @@ import type { ThemeMode } from '../../types/theme';
 
 type VisualThemeContextValue = { userThemeMode: ThemeMode; userThemeLoading: boolean; setUserThemeMode: (mode: ThemeMode) => Promise<void>; resolvedThemeMode: ResolvedThemeMode };
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
-const THEME_STORAGE_KEY = 'quickbite_theme_preference_v1';
+const THEME_STORAGE_PREFIX = 'quickbite_theme_preference_v2';
 
-function readThemePreference(): ThemeMode { if (typeof window === 'undefined') return 'system'; try { const stored = window.localStorage.getItem(THEME_STORAGE_KEY); return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system'; } catch { return 'system'; } }
-function writeThemePreference(mode: ThemeMode) { try { window.localStorage.setItem(THEME_STORAGE_KEY, mode); } catch { /* ignore storage limitations */ } }
+type ThemeStorageKey = `${typeof THEME_STORAGE_PREFIX}:${string}`;
+const isThemeMode = (value: unknown): value is ThemeMode => value === 'light' || value === 'dark' || value === 'system';
+const getThemeStorageKey = (userId: string): ThemeStorageKey => `${THEME_STORAGE_PREFIX}:${userId}`;
 
-export function getVisualInterfaceScope() { if (typeof window === 'undefined') return 'student'; const pathname = window.location.pathname; return pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : 'login_student'; }
+function readThemePreference(userId?: string): ThemeMode {
+  if (typeof window === 'undefined' || !userId) return 'system';
+  try {
+    const stored = window.localStorage.getItem(getThemeStorageKey(userId));
+    return isThemeMode(stored) ? stored : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+function writeThemePreference(userId: string | undefined, mode: ThemeMode) {
+  if (typeof window === 'undefined' || !userId) return;
+  try {
+    window.localStorage.setItem(getThemeStorageKey(userId), mode);
+  } catch {
+    // Ignore browser storage limitations; Supabase is the durable source of truth.
+  }
+}
+
+export function getVisualInterfaceScope() {
+  if (typeof window === 'undefined') return 'student';
+  const pathname = window.location.pathname;
+  return pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : 'login_student';
+}
+
 export function isVisualPreviewMode() { return false; }
 
 export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
-  const [userThemeMode, setUserThemeModeState] = useState<ThemeMode>(readThemePreference);
+  const userId = user?.id;
+  const [userThemeMode, setUserThemeModeState] = useState<ThemeMode>('system');
   const [userThemeLoading, setUserThemeLoading] = useState(false);
   const [prefersDark, setPrefersDark] = useState(false);
-  const authenticated = Boolean(user?.id);
+  const authenticated = Boolean(userId);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const sync = () => setPrefersDark(media.matches);
-    sync(); media.addEventListener?.('change', sync);
+    sync();
+    media.addEventListener?.('change', sync);
     return () => media.removeEventListener?.('change', sync);
   }, []);
 
   useEffect(() => {
-    if (!authenticated) return;
     let cancelled = false;
+
+    if (!userId) {
+      setUserThemeLoading(false);
+      setUserThemeModeState('system');
+      return () => { cancelled = true; };
+    }
+
+    const cached = readThemePreference(userId);
+    setUserThemeModeState(cached);
+    setUserThemeLoading(true);
+
     const load = async () => {
       try {
         const { data, error } = await requireSupabaseClient().rpc('get_my_theme_preference');
         if (error) throw error;
-        const next = data === 'dark' || data === 'system' ? data : 'light';
-        if (!cancelled) { setUserThemeModeState(next); writeThemePreference(next); }
+        const next: ThemeMode = isThemeMode(data) ? data : 'light';
+        if (!cancelled) {
+          setUserThemeModeState(next);
+          writeThemePreference(userId, next);
+        }
       } catch {
-        // System preference remains valid even when the legacy RPC is unavailable.
-        if (!cancelled && readThemePreference() === 'system') setUserThemeModeState('system');
+        // Keep only this user's cache; never fall back to a global or another user's preference.
+      } finally {
+        if (!cancelled) setUserThemeLoading(false);
       }
     };
+
     void load();
     return () => { cancelled = true; };
-  }, [authenticated, user?.id]);
+  }, [userId]);
 
   const resolvedThemeMode = resolveThemeMode(userThemeMode, prefersDark);
+
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.qbTheme = resolvedThemeMode;
@@ -57,26 +100,31 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
   }, [resolvedThemeMode, userThemeMode]);
 
   const setUserThemeMode = useCallback(async (next: ThemeMode) => {
-    if (!authenticated || userThemeLoading) return;
+    if (!authenticated || !userId || userThemeLoading || !isThemeMode(next)) return;
+
     const previous = userThemeMode;
     setUserThemeModeState(next);
     setUserThemeLoading(true);
-    writeThemePreference(next);
+    writeThemePreference(userId, next);
+
     try {
-      if (next !== 'system') {
-        const { error } = await requireSupabaseClient().rpc('set_my_theme_preference', { p_theme_mode: next });
-        if (error) throw error;
-      }
+      const { error } = await requireSupabaseClient().rpc('set_my_theme_preference', { p_theme_mode: next });
+      if (error) throw error;
     } catch (error) {
       setUserThemeModeState(previous);
-      writeThemePreference(previous);
+      writeThemePreference(userId, previous);
       throw error instanceof Error ? error : new Error('No se pudo guardar la preferencia de apariencia.');
     } finally {
       setUserThemeLoading(false);
     }
-  }, [authenticated, userThemeLoading, userThemeMode]);
+  }, [authenticated, userId, userThemeLoading, userThemeMode]);
 
   const value = useMemo(() => ({ userThemeMode, userThemeLoading, setUserThemeMode, resolvedThemeMode }), [resolvedThemeMode, setUserThemeMode, userThemeLoading, userThemeMode]);
   return <VisualThemeContext.Provider value={value}>{children}</VisualThemeContext.Provider>;
 }
-export function useVisualTheme(): VisualThemeContextValue { const context = useContext(VisualThemeContext); if (!context) throw new Error('useVisualTheme debe utilizarse dentro de VisualThemeProvider.'); return context; }
+
+export function useVisualTheme(): VisualThemeContextValue {
+  const context = useContext(VisualThemeContext);
+  if (!context) throw new Error('useVisualTheme debe utilizarse dentro de VisualThemeProvider.');
+  return context;
+}
