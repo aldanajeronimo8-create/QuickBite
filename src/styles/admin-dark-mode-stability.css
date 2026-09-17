@@ -1,6 +1,5 @@
-/* Admin dark-mode stability layer.
- * Loaded last so the global dark authority cannot flatten the Admin shell.
- * Navigation remains interactive and keeps the original blue Admin identity.
+/* Admin dark-mode stability layer. Loaded last so legacy light-mode
+ * utilities cannot leave isolated blue/light surfaces inside the shell.
  */
 
 html[data-qb-theme="dark"] .admin-shell,
@@ -10,25 +9,48 @@ html.dark .admin-shell {
   color: #F5F7FA !important;
 }
 
+/* The Admin sidebar is a single dark surface in dark mode. */
 html[data-qb-theme="dark"] .admin-shell .admin-sidebar,
 html.dark .admin-shell .admin-sidebar {
-  background: #1747B8 !important;
+  background: #111827 !important;
+  background-color: #111827 !important;
   background-image: none !important;
-  color: #FFFFFF !important;
-  border-color: rgba(255,255,255,0.12) !important;
+  color: #F8FAFC !important;
+  border-color: rgba(148,163,184,0.16) !important;
 }
 
+/* Header/brand and account footer must use the same dark surface. */
+html[data-qb-theme="dark"] .admin-shell .admin-sidebar > div:first-child,
+html.dark .admin-shell .admin-sidebar > div:first-child,
+html[data-qb-theme="dark"] .admin-shell .admin-sidebar > div:last-child,
+html.dark .admin-shell .admin-sidebar > div:last-child {
+  background: #111827 !important;
+  background-color: #111827 !important;
+  background-image: none !important;
+  color: #F8FAFC !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell .admin-sidebar .text-blue-100,
+html.dark .admin-shell .admin-sidebar .text-blue-100,
+html[data-qb-theme="dark"] .admin-shell .admin-sidebar .text-blue-200,
+html.dark .admin-shell .admin-sidebar .text-blue-200,
+html[data-qb-theme="dark"] .admin-shell .admin-sidebar .text-blue-300,
+html.dark .admin-shell .admin-sidebar .text-blue-300 {
+  color: #CBD5E1 !important;
+}
+
+/* Navigation keeps the Admin identity without turning the whole sidebar blue. */
 html[data-qb-theme="dark"] .admin-shell .admin-nav-link,
 html.dark .admin-shell .admin-nav-link {
   pointer-events: auto !important;
   position: relative;
   z-index: 1;
-  color: #BFDBFE !important;
+  color: #CBD5E1 !important;
 }
 
 html[data-qb-theme="dark"] .admin-shell .admin-nav-link:hover,
 html.dark .admin-shell .admin-nav-link:hover {
-  background: rgba(255,255,255,0.10) !important;
+  background: rgba(255,255,255,0.08) !important;
   color: #FFFFFF !important;
 }
 
@@ -37,6 +59,12 @@ html[data-qb-theme="dark"] .admin-shell .admin-nav-link[style*="color:#fff"],
 html.dark .admin-shell .admin-nav-link[style*="color: #fff"],
 html.dark .admin-shell .admin-nav-link[style*="color:#fff"] {
   color: #FFFFFF !important;
+}
+
+/* Kill light blue inline/utility surfaces in the sidebar while retaining text accents. */
+html[data-qb-theme="dark"] .admin-shell .admin-sidebar :where(.bg-blue-50, .bg-blue-100, .bg-blue-200, .bg-sky-50, .bg-sky-100),
+html.dark .admin-shell .admin-sidebar :where(.bg-blue-50, .bg-blue-100, .bg-blue-200, .bg-sky-50, .bg-sky-100) {
+  background-color: transparent !important;
 }
 
 html[data-qb-theme="dark"] .admin-shell > main,
@@ -92,7 +120,6 @@ html.dark .admin-shell main :where(input, textarea)::placeholder {
   color: #718096 !important;
 }
 
-/* Keep menus, dialogs and notification popovers readable in Admin dark mode. */
 html[data-qb-theme="dark"] .admin-shell :where([role="dialog"], [role="menu"], [role="listbox"], [data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="popover-content"]),
 html.dark .admin-shell :where([role="dialog"], [role="menu"], [role="listbox"], [data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="popover-content"]) {
   background: #121A2F !important;
