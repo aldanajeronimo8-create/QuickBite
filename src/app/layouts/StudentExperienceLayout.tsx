@@ -53,17 +53,14 @@ export function StudentExperienceLayout() {
         type="button"
         onClick={returnToAdmin}
         aria-label="Volver al panel de administración"
-        title="Volver al panel de administración"
-        className="group inline-flex items-center gap-2 rounded-2xl border border-blue-200/80 bg-white/95 px-2.5 py-2 shadow-lg backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-blue-400 hover:bg-white focus:outline-none focus:ring-4 focus:ring-blue-200/60 dark:border-slate-700 dark:bg-[#121A2F]/95 dark:hover:bg-[#16243A]"
+        title="Volver a Admin"
+        className="group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/80 bg-white/90 p-1.5 shadow-md backdrop-blur-xl transition hover:border-blue-300 hover:bg-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400/40 dark:border-slate-700 dark:bg-[#121A2F]/90 dark:hover:bg-[#16243A]"
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1747B8] p-1.5 shadow-sm">
-          <QuickBiteLogo className="h-full w-full" alt="Administración" />
-        </span>
-        <span className="hidden text-xs font-black text-slate-800 dark:text-white sm:inline">Volver a Admin</span>
+        <QuickBiteLogo className="h-full w-full" alt="Administración" />
       </button>
     </div>}
 
-    {actingAsStudent && <div className={`sticky top-0 z-50 flex items-center justify-between gap-4 border-b px-5 py-3 shadow-sm backdrop-blur-xl lg:px-8 ${adminPreview ? 'pr-24 lg:pr-36' : ''} border-blue-200 bg-blue-50/95 text-blue-950`}><div className="min-w-0"><p className="text-[11px] font-black uppercase tracking-[.18em] text-blue-700">Modo padre</p><p className="truncate text-sm font-bold">Estás usando QuickBite como {activeStudent?.full_name}. Los pedidos, favoritos, puntos, billetera y demás cambios pertenecen a ese estudiante.</p></div><button type="button" onClick={() => void returnToParent()} disabled={returning} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black text-blue-800 shadow-sm ring-1 ring-blue-200 hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60"><ArrowLeft className="h-4 w-4" />{returning ? 'Volviendo…' : 'Volver a Padre'}</button></div>}
+    {actingAsStudent && <div className={`sticky top-0 z-50 flex items-center justify-between gap-4 border-b px-5 py-3 shadow-sm backdrop-blur-xl lg:px-8 ${adminPreview ? 'pr-20 lg:pr-28' : ''} border-blue-200 bg-blue-50/95 text-blue-950`}><div className="min-w-0"><p className="text-[11px] font-black uppercase tracking-[.18em] text-blue-700">Modo padre</p><p className="truncate text-sm font-bold">Estás usando QuickBite como {activeStudent?.full_name}. Los pedidos, favoritos, puntos, billetera y demás cambios pertenecen a ese estudiante.</p></div><button type="button" onClick={() => void returnToParent()} disabled={returning} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black text-blue-800 shadow-sm ring-1 ring-blue-200 hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60"><ArrowLeft className="h-4 w-4" />{returning ? 'Volviendo…' : 'Volver a Padre'}</button></div>}
 
     <StudentMenuPage />
     <StudentMenuFavoritesOverlay />
