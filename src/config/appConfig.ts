@@ -13,7 +13,8 @@ export const appConfig = {
   supabaseStorageBucket: import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? '',
   supabaseRealtimeEnabled: import.meta.env.VITE_SUPABASE_REALTIME_ENABLED !== 'false',
   dataRefreshIntervalMs: Number(import.meta.env.VITE_DATA_REFRESH_INTERVAL_MS ?? 5000),
-  passwordResetMode: import.meta.env.VITE_PASSWORD_RESET_MODE ?? 'code',
+  // Password recovery is handled exclusively by Supabase Auth email links.
+  passwordResetMode: 'email' as const,
   monitoringDsn: import.meta.env.VITE_MONITORING_DSN ?? '',
   monitoringProvider: import.meta.env.VITE_MONITORING_PROVIDER ?? 'console',
   analyticsProvider: import.meta.env.VITE_ANALYTICS_PROVIDER ?? 'none',
