@@ -9,7 +9,6 @@ html.dark .admin-shell {
   color: #F5F7FA !important;
 }
 
-/* The Admin sidebar is a single dark surface in dark mode. */
 html[data-qb-theme="dark"] .admin-shell .admin-sidebar,
 html.dark .admin-shell .admin-sidebar {
   background: #111827 !important;
@@ -19,7 +18,17 @@ html.dark .admin-shell .admin-sidebar {
   border-color: rgba(148,163,184,0.16) !important;
 }
 
-/* Header/brand and account footer must use the same dark surface. */
+/* The whole sidebar navigation is one continuous dark surface. */
+html[data-qb-theme="dark"] .admin-shell .admin-sidebar > nav,
+html.dark .admin-shell .admin-sidebar > nav,
+html[data-qb-theme="dark"] .admin-shell .admin-sidebar nav,
+html.dark .admin-shell .admin-sidebar nav {
+  background: #111827 !important;
+  background-color: #111827 !important;
+  background-image: none !important;
+  border-color: transparent !important;
+}
+
 html[data-qb-theme="dark"] .admin-shell .admin-sidebar > div:first-child,
 html.dark .admin-shell .admin-sidebar > div:first-child,
 html[data-qb-theme="dark"] .admin-shell .admin-sidebar > div:last-child,
@@ -39,7 +48,6 @@ html.dark .admin-shell .admin-sidebar .text-blue-300 {
   color: #CBD5E1 !important;
 }
 
-/* Navigation keeps the Admin identity without turning the whole sidebar blue. */
 html[data-qb-theme="dark"] .admin-shell .admin-nav-link,
 html.dark .admin-shell .admin-nav-link {
   pointer-events: auto !important;
@@ -61,7 +69,6 @@ html.dark .admin-shell .admin-nav-link[style*="color:#fff"] {
   color: #FFFFFF !important;
 }
 
-/* Kill light blue inline/utility surfaces in the sidebar while retaining text accents. */
 html[data-qb-theme="dark"] .admin-shell .admin-sidebar :where(.bg-blue-50, .bg-blue-100, .bg-blue-200, .bg-sky-50, .bg-sky-100),
 html.dark .admin-shell .admin-sidebar :where(.bg-blue-50, .bg-blue-100, .bg-blue-200, .bg-sky-50, .bg-sky-100) {
   background-color: transparent !important;
@@ -79,7 +86,6 @@ html.dark .admin-shell > main > div {
   background: transparent !important;
 }
 
-/* Admin content surfaces */
 html[data-qb-theme="dark"] .admin-shell main :where([data-slot="card"], article, section.rounded-3xl, section.rounded-2xl),
 html.dark .admin-shell main :where([data-slot="card"], article, section.rounded-3xl, section.rounded-2xl) {
   background-color: #121A2F !important;
