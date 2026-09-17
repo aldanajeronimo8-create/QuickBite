@@ -7,28 +7,20 @@ import type { ThemeMode } from '../../types/theme';
 type VisualThemeContextValue = { userThemeMode: ThemeMode; userThemeLoading: boolean; setUserThemeMode: (mode: ThemeMode) => Promise<void>; resolvedThemeMode: ResolvedThemeMode };
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const THEME_STORAGE_PREFIX = 'quickbite_theme_preference_v2';
-
 type ThemeStorageKey = `${typeof THEME_STORAGE_PREFIX}:${string}`;
 const isThemeMode = (value: unknown): value is ThemeMode => value === 'light' || value === 'dark' || value === 'system';
 const getThemeStorageKey = (userId: string): ThemeStorageKey => `${THEME_STORAGE_PREFIX}:${userId}`;
 
 function readThemePreference(userId?: string): ThemeMode {
-  if (typeof window === 'undefined' || !userId) return 'system';
+  if (typeof window === 'undefined' || !userId) return 'light';
   try {
     const stored = window.localStorage.getItem(getThemeStorageKey(userId));
-    return isThemeMode(stored) ? stored : 'system';
-  } catch {
-    return 'system';
-  }
+    return isThemeMode(stored) ? stored : 'light';
+  } catch { return 'light'; }
 }
-
 function writeThemePreference(userId: string | undefined, mode: ThemeMode) {
   if (typeof window === 'undefined' || !userId) return;
-  try {
-    window.localStorage.setItem(getThemeStorageKey(userId), mode);
-  } catch {
-    // Ignore browser storage limitations; Supabase is the durable source of truth.
-  }
+  try { window.localStorage.setItem(getThemeStorageKey(userId), mode); } catch { /* browser storage unavailable */ }
 }
 
 export function getVisualInterfaceScope() {
@@ -36,13 +28,12 @@ export function getVisualInterfaceScope() {
   const pathname = window.location.pathname;
   return pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : 'login_student';
 }
-
 export function isVisualPreviewMode() { return false; }
 
 export function VisualThemeProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const userId = user?.id;
-  const [userThemeMode, setUserThemeModeState] = useState<ThemeMode>('system');
+  const [userThemeMode, setUserThemeModeState] = useState<ThemeMode>('light');
   const [userThemeLoading, setUserThemeLoading] = useState(false);
   const [prefersDark, setPrefersDark] = useState(false);
   const authenticated = Boolean(userId);
@@ -58,17 +49,16 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-
+    // Anonymous/auth screens always use QuickBite's original light appearance.
+    // The OS can only affect the theme after an authenticated user explicitly chooses "system".
     if (!userId) {
       setUserThemeLoading(false);
-      setUserThemeModeState('system');
+      setUserThemeModeState('light');
       return () => { cancelled = true; };
     }
-
     const cached = readThemePreference(userId);
     setUserThemeModeState(cached);
     setUserThemeLoading(true);
-
     const load = async () => {
       try {
         const { data, error } = await requireSupabaseClient().rpc('get_my_theme_preference');
@@ -79,12 +69,11 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
           writeThemePreference(userId, next);
         }
       } catch {
-        // Keep only this user's cache; never fall back to a global or another user's preference.
+        // Keep this user's cache only; never use another account or a global theme.
       } finally {
         if (!cancelled) setUserThemeLoading(false);
       }
     };
-
     void load();
     return () => { cancelled = true; };
   }, [userId]);
@@ -101,12 +90,10 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
 
   const setUserThemeMode = useCallback(async (next: ThemeMode) => {
     if (!authenticated || !userId || userThemeLoading || !isThemeMode(next)) return;
-
     const previous = userThemeMode;
     setUserThemeModeState(next);
     setUserThemeLoading(true);
     writeThemePreference(userId, next);
-
     try {
       const { error } = await requireSupabaseClient().rpc('set_my_theme_preference', { p_theme_mode: next });
       if (error) throw error;
@@ -114,15 +101,12 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
       setUserThemeModeState(previous);
       writeThemePreference(userId, previous);
       throw error instanceof Error ? error : new Error('No se pudo guardar la preferencia de apariencia.');
-    } finally {
-      setUserThemeLoading(false);
-    }
+    } finally { setUserThemeLoading(false); }
   }, [authenticated, userId, userThemeLoading, userThemeMode]);
 
   const value = useMemo(() => ({ userThemeMode, userThemeLoading, setUserThemeMode, resolvedThemeMode }), [resolvedThemeMode, setUserThemeMode, userThemeLoading, userThemeMode]);
   return <VisualThemeContext.Provider value={value}>{children}</VisualThemeContext.Provider>;
 }
-
 export function useVisualTheme(): VisualThemeContextValue {
   const context = useContext(VisualThemeContext);
   if (!context) throw new Error('useVisualTheme debe utilizarse dentro de VisualThemeProvider.');
