@@ -19,6 +19,14 @@ const STORAGE_KEY = 'quickbite.parent.activeStudent';
 function readStoredStudent(): ActingStudent | null {
   if (typeof window === 'undefined') return null;
   try {
+    // A direct login/register starts a fresh student session. A previously
+    // delegated parent/student context must never leak into that flow.
+    const path = window.location.pathname;
+    if (path === '/' || path === '/login' || path.startsWith('/register')) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.sessionStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
     const raw = window.localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as ActingStudent) : null;
   } catch {
@@ -33,7 +41,10 @@ export const useStudentContextStore = create<StudentContextState>((set) => ({
     set({ activeStudent: student });
   },
   clearActiveStudent: () => {
-    if (typeof window !== 'undefined') window.localStorage.removeItem(STORAGE_KEY);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.sessionStorage.removeItem(STORAGE_KEY);
+    }
     set({ activeStudent: null });
   },
 }));
