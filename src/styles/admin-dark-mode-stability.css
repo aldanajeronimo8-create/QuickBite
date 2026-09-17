@@ -1,0 +1,113 @@
+/* Admin dark-mode stability layer.
+ * Loaded last so the global dark authority cannot flatten the Admin shell.
+ * Navigation remains interactive and keeps the original blue Admin identity.
+ */
+
+html[data-qb-theme="dark"] .admin-shell,
+html.dark .admin-shell {
+  min-height: 100vh;
+  background: #0D111D !important;
+  color: #F5F7FA !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell .admin-sidebar,
+html.dark .admin-shell .admin-sidebar {
+  background: #1747B8 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell .admin-nav-link,
+html.dark .admin-shell .admin-nav-link {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 1;
+  color: #BFDBFE !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell .admin-nav-link:hover,
+html.dark .admin-shell .admin-nav-link:hover {
+  background: rgba(255,255,255,0.10) !important;
+  color: #FFFFFF !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell .admin-nav-link[style*="color: #fff"],
+html[data-qb-theme="dark"] .admin-shell .admin-nav-link[style*="color:#fff"],
+html.dark .admin-shell .admin-nav-link[style*="color: #fff"],
+html.dark .admin-shell .admin-nav-link[style*="color:#fff"] {
+  color: #FFFFFF !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell > main,
+html.dark .admin-shell > main {
+  min-height: 100vh;
+  background: #0D111D !important;
+  color: #F5F7FA !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell > main > div,
+html.dark .admin-shell > main > div {
+  background: transparent !important;
+}
+
+/* Admin content surfaces */
+html[data-qb-theme="dark"] .admin-shell main :where([data-slot="card"], article, section.rounded-3xl, section.rounded-2xl),
+html.dark .admin-shell main :where([data-slot="card"], article, section.rounded-3xl, section.rounded-2xl) {
+  background-color: #121A2F !important;
+  color: #F5F7FA !important;
+  border-color: rgba(148,163,184,0.18) !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell main :where(.bg-white, .bg-gray-50, .bg-slate-50),
+html.dark .admin-shell main :where(.bg-white, .bg-gray-50, .bg-slate-50) {
+  background-color: #121A2F !important;
+  color: #F5F7FA !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell main :where(.bg-slate-100, .bg-gray-100, .bg-slate-200, .bg-gray-200),
+html.dark .admin-shell main :where(.bg-slate-100, .bg-gray-100, .bg-slate-200, .bg-gray-200) {
+  background-color: #0D1628 !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell main :where(.text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700),
+html.dark .admin-shell main :where(.text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800, .text-gray-700) {
+  color: #F5F7FA !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell main :where(.text-slate-600, .text-slate-500, .text-gray-600, .text-gray-500),
+html.dark .admin-shell main :where(.text-slate-600, .text-slate-500, .text-gray-600, .text-gray-500) {
+  color: #AAB7C9 !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell main :where(input, textarea, select, [role="combobox"]),
+html.dark .admin-shell main :where(input, textarea, select, [role="combobox"]) {
+  background-color: #0D1628 !important;
+  color: #F5F7FA !important;
+  border-color: rgba(148,163,184,0.20) !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell main :where(input, textarea)::placeholder,
+html.dark .admin-shell main :where(input, textarea)::placeholder {
+  color: #718096 !important;
+}
+
+/* Keep menus, dialogs and notification popovers readable in Admin dark mode. */
+html[data-qb-theme="dark"] .admin-shell :where([role="dialog"], [role="menu"], [role="listbox"], [data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="popover-content"]),
+html.dark .admin-shell :where([role="dialog"], [role="menu"], [role="listbox"], [data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="popover-content"]) {
+  background: #121A2F !important;
+  color: #F5F7FA !important;
+  border-color: rgba(148,163,184,0.18) !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell table :where(th),
+html.dark .admin-shell table :where(th) {
+  background: #0D1628 !important;
+  color: #AAB7C9 !important;
+}
+
+html[data-qb-theme="dark"] .admin-shell table :where(td),
+html.dark .admin-shell table :where(td) {
+  background: #121A2F !important;
+  color: #F5F7FA !important;
+}
