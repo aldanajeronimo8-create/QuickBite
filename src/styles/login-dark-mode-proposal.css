@@ -350,3 +350,110 @@ html.dark .qb-auth-error {
     transform: none !important;
   }
 }
+
+
+/* Defensive OS-dark fallback for the public login.
+   This keeps the login visually dark even during the anonymous boot phase if
+   another theme layer temporarily reports light before React resolves the theme. */
+@media (prefers-color-scheme: dark) {
+  body[data-qb-interface="login_student"] .qb-auth {
+    --login-card: #101927;
+    --login-card-2: #0D1522;
+    --login-field: #152033;
+    --login-field-focus: #192941;
+    --login-text: #F8FAFC;
+    --login-subtle: #A7B3C4;
+    --login-muted: #718096;
+
+    background: #0B1018 !important;
+    color: #F8FAFC !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-card {
+    background: linear-gradient(180deg, #101927 0%, #0D1522 100%) !important;
+    border: 1px solid rgba(148,163,184,.22) !important;
+    color: #F8FAFC !important;
+    box-shadow: 0 24px 70px rgba(0,0,0,.50) !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-card h2,
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-card h3,
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-card label,
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-brand h1 {
+    color: #FFFFFF !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-card p,
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-brand-subtitle {
+    color: #A7B3C4 !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-switch {
+    background: #090F18 !important;
+    border-color: rgba(148,163,184,.18) !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-switch button {
+    color: #A7B3C4 !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth--student .qb-auth-switch button:first-child {
+    background: rgba(22,163,106,.15) !important;
+    color: #9AE6C6 !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-card input,
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-card input[data-slot="input"] {
+    background: #152033 !important;
+    border-color: rgba(148,163,184,.30) !important;
+    color: #FFFFFF !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-card input::placeholder {
+    color: #718096 !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-primary {
+    background: #16A36A !important;
+    color: #FFFFFF !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-secondary,
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-secondary-action {
+    background: #162131 !important;
+    border-color: rgba(148,163,184,.18) !important;
+    color: #E2E8F0 !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-link {
+    color: #7DD3FC !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-card .relative > svg,
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-icon-button {
+    color: #94A3B8 !important;
+  }
+}
+
+/* Explicit resolved-theme fallback, independent of html.dark/class timing. */
+html[data-qb-theme="dark"] body[data-qb-interface="login_student"] .qb-auth,
+html.dark body[data-qb-interface="login_student"] .qb-auth {
+  background: #0B1018 !important;
+}
+
+html[data-qb-theme="dark"] body[data-qb-interface="login_student"] .qb-auth .qb-auth-card,
+html.dark body[data-qb-interface="login_student"] .qb-auth .qb-auth-card {
+  background: linear-gradient(180deg, #101927 0%, #0D1522 100%) !important;
+  color: #F8FAFC !important;
+}
+
+html[data-qb-theme="dark"] body[data-qb-interface="login_student"] .qb-auth .qb-auth-card h2,
+html[data-qb-theme="dark"] body[data-qb-interface="login_student"] .qb-auth .qb-auth-card h3,
+html[data-qb-theme="dark"] body[data-qb-interface="login_student"] .qb-auth .qb-auth-card label,
+html[data-qb-theme="dark"] body[data-qb-interface="login_student"] .qb-auth .qb-auth-brand h1,
+html.dark body[data-qb-interface="login_student"] .qb-auth .qb-auth-card h2,
+html.dark body[data-qb-interface="login_student"] .qb-auth .qb-auth-card h3,
+html.dark body[data-qb-interface="login_student"] .qb-auth .qb-auth-card label,
+html.dark body[data-qb-interface="login_student"] .qb-auth .qb-auth-brand h1 {
+  color: #FFFFFF !important;
+}
