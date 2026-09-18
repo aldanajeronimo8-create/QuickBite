@@ -507,3 +507,26 @@ html[data-qb-theme="light"] .qb-auth-active-note{
   background:rgba(37,99,235,.07)!important;border:1px solid rgba(37,99,235,.16)!important;color:#1747B8!important;
 }
 html[data-qb-theme="light"] .qb-auth-error{color:#B91C1C!important}
+
+
+/* Brand text must invert with the resolved login theme, independently of role. */
+html[data-qb-theme="light"] .qb-auth .qb-auth-brand-title {
+  color:#0F172A!important;
+  -webkit-text-fill-color:#0F172A!important;
+  text-shadow:none!important;
+}
+html[data-qb-theme="light"] .qb-auth .qb-auth-brand-subtitle {
+  color:#475569!important;
+  -webkit-text-fill-color:#475569!important;
+  text-shadow:none!important;
+}
+html[data-qb-theme="dark"] .qb-auth .qb-auth-brand-title,
+html.dark .qb-auth .qb-auth-brand-title {
+  color:#F8FAFC!important;
+  -webkit-text-fill-color:#F8FAFC!important;
+}
+html[data-qb-theme="dark"] .qb-auth .qb-auth-brand-subtitle,
+html.dark .qb-auth .qb-auth-brand-subtitle {
+  color:#AAB7C9!important;
+  -webkit-text-fill-color:#AAB7C9!important;
+}
