@@ -14,6 +14,7 @@
 @import './auth-dark-mode.css';
 @import './auth-dark-mode-polish.css';
 @import './admin-dark-mode-stability.css';
+@import './login-dark-mode-proposal.css';
 
 @supports (animation-timeline: scroll()) {
   header.sticky[class*="bg-[#166534]"] { animation: quickbite-student-header-hide linear both; animation-timeline: scroll(root block); animation-range: 0px 120px; }
