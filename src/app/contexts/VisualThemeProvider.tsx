@@ -12,15 +12,19 @@ const isThemeMode = (value: unknown): value is ThemeMode => value === 'light' ||
 const getThemeStorageKey = (userId: string): ThemeStorageKey => `${THEME_STORAGE_PREFIX}:${userId}`;
 
 function readThemePreference(userId?: string): ThemeMode {
-  if (typeof window === 'undefined' || !userId) return 'light';
+  if (typeof window === 'undefined') return 'light';
   try {
-    const stored = window.localStorage.getItem(getThemeStorageKey(userId));
+    const key = userId ? getThemeStorageKey(userId) : LAST_THEME_STORAGE_KEY;
+    const stored = window.localStorage.getItem(key);
     return isThemeMode(stored) ? stored : 'light';
   } catch { return 'light'; }
 }
 function writeThemePreference(userId: string | undefined, mode: ThemeMode) {
   if (typeof window === 'undefined' || !userId) return;
-  try { window.localStorage.setItem(getThemeStorageKey(userId), mode); } catch { /* browser storage unavailable */ }
+  try {
+    window.localStorage.setItem(getThemeStorageKey(userId), mode);
+    window.localStorage.setItem(LAST_THEME_STORAGE_KEY, mode);
+  } catch { /* browser storage unavailable */ }
 }
 
 export function getVisualInterfaceScope() {
@@ -49,12 +53,12 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    // Anonymous/auth screens follow the device appearance until an account
-    // preference becomes available. This makes the login dark mode real rather
-    // than merely styling a theme state that is immediately forced back to light.
+    // The login/public UI must keep a real light/dark appearance after logout,
+    // but it must never borrow another authenticated account's preference.
+    // The last authenticated preference is only a public-screen fallback;
+    // each account still has its own userId-scoped preference.
     if (!userId) {
-      const media = window.matchMedia?.('(prefers-color-scheme: dark)');
-      const next = media?.matches ? 'system' : 'light';
+      const next = readThemePreference();
       setUserThemeLoading(false);
       setUserThemeModeState(next);
       return () => { cancelled = true; };
