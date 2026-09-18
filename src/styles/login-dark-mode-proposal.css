@@ -457,3 +457,50 @@ html.dark body[data-qb-interface="login_student"] .qb-auth .qb-auth-card label,
 html.dark body[data-qb-interface="login_student"] .qb-auth .qb-auth-brand h1 {
   color: #FFFFFF !important;
 }
+
+
+/* Brand copy: explicit hooks so global utility/selection styles cannot make it
+   disappear on the dark login. Light mode is unaffected because every rule is
+   scoped to the resolved dark theme. */
+html[data-qb-theme="dark"] .qb-auth .qb-auth-brand-title,
+html.dark .qb-auth .qb-auth-brand-title {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #F8FAFC !important;
+  -webkit-text-fill-color: #F8FAFC !important;
+  text-shadow: 0 1px 14px rgba(22,163,106,.10) !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth .qb-auth-brand-subtitle,
+html.dark .qb-auth .qb-auth-brand-subtitle {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin-top: .3rem !important;
+  color: #AAB7C9 !important;
+  -webkit-text-fill-color: #AAB7C9 !important;
+  text-shadow: none !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-brand-title {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #F8FAFC !important;
+    -webkit-text-fill-color: #F8FAFC !important;
+  }
+
+  body[data-qb-interface="login_student"] .qb-auth .qb-auth-brand-subtitle {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #AAB7C9 !important;
+    -webkit-text-fill-color: #AAB7C9 !important;
+  }
+}
