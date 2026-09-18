@@ -4,14 +4,15 @@ import './styles/index.css';
 import App from './app/App';
 import { startThemeAudit } from './lib/themeAuditBootstrap';
 
-// Boot default: before authentication there is no account preference, so the
-// login/register experience must always start in QuickBite's original light theme.
-// Account-specific dark/system preferences are applied later by VisualThemeProvider.
+// Boot the anonymous experience from the device appearance. Once a user is
+// authenticated, VisualThemeProvider replaces this with the account preference.
 if (typeof document !== 'undefined') {
-  document.documentElement.dataset.qbTheme = 'light';
-  document.documentElement.dataset.qbAppearancePreference = 'light';
-  document.documentElement.classList.remove('dark');
-  document.documentElement.style.colorScheme = 'light';
+  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  const initialTheme = prefersDark ? 'dark' : 'light';
+  document.documentElement.dataset.qbTheme = initialTheme;
+  document.documentElement.dataset.qbAppearancePreference = 'system';
+  document.documentElement.classList.toggle('dark', prefersDark);
+  document.documentElement.style.colorScheme = initialTheme;
 }
 
 const stopThemeAudit = startThemeAudit();
