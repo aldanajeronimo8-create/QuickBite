@@ -1,217 +1,207 @@
-/* QuickBite Login — final dark-mode visual proposal. */
-/* Scoped exclusively to the authentication surface so light mode is untouched. */
+/* QuickBite — production dark login visual correction.
+   Scoped only to authenticated-theme dark mode on .qb-auth. */
 
 html[data-qb-theme="dark"] .qb-auth,
 html.dark .qb-auth {
-  --login-bg: #0B101A;
-  --login-card: #111827;
-  --login-control: #172033;
-  --login-control-hover: #1C2940;
-  --login-border: rgba(148, 163, 184, 0.20);
-  --login-border-strong: rgba(148, 163, 184, 0.30);
+  --login-bg: #0B1018;
+  --login-card: #101927;
+  --login-card-2: #0D1522;
+  --login-field: #152033;
+  --login-field-focus: #192941;
+  --login-line: rgba(148,163,184,.18);
+  --login-line-strong: rgba(148,163,184,.30);
   --login-text: #F8FAFC;
-  --login-secondary: #94A3B8;
+  --login-subtle: #A7B3C4;
   --login-muted: #718096;
   --login-green: #16A36A;
-  --login-green-hover: #0E8F5B;
+  --login-green-strong: #0F8A59;
   --login-blue: #2563EB;
-  --login-blue-hover: #1D4ED8;
 
-  background: var(--login-bg) !important;
+  min-height: 100vh !important;
+  background: #0B1018 !important;
   color: var(--login-text) !important;
+  isolation: isolate;
+  overflow-x: hidden;
 }
 
 html[data-qb-theme="dark"] .qb-auth::before,
 html.dark .qb-auth::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
   background:
-    radial-gradient(circle at 50% -12%, rgba(22, 163, 106, 0.10), transparent 34%),
-    radial-gradient(circle at 8% 88%, rgba(37, 99, 235, 0.035), transparent 28%),
-    radial-gradient(circle at 92% 82%, rgba(20, 184, 166, 0.035), transparent 28%) !important;
+    radial-gradient(700px 360px at 50% -8%, rgba(22,163,106,.10), transparent 65%),
+    radial-gradient(480px 320px at 0% 100%, rgba(37,99,235,.045), transparent 70%) !important;
 }
 
-/* Brand: clean mark, no decorative frame in dark mode. */
+/* Brand: the real PNG can contain its own pale disc; hide that visual container
+   and keep the mark compact. */
 html[data-qb-theme="dark"] .qb-auth-brand,
 html.dark .qb-auth-brand {
-  margin-bottom: 1.75rem !important;
+  margin-bottom: 1.35rem !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-brand > .qb-logo,
 html.dark .qb-auth-brand > .qb-logo {
-  width: 5rem !important;
-  height: 5rem !important;
-  max-width: 5rem !important;
-  max-height: 5rem !important;
-  padding: 0 !important;
+  width: 4.4rem !important;
+  height: 4.4rem !important;
+  max-width: 4.4rem !important;
+  max-height: 4.4rem !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
+  overflow: visible !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-brand > .qb-logo img,
 html.dark .qb-auth-brand > .qb-logo img {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 5rem !important;
-  max-height: 5rem !important;
+  width: 4.4rem !important;
+  height: 4.4rem !important;
+  max-width: 4.4rem !important;
+  max-height: 4.4rem !important;
   object-fit: contain !important;
-  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.22));
+  border: 0 !important;
+  border-radius: .85rem !important;
+  filter: drop-shadow(0 5px 14px rgba(0,0,0,.24)) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-brand h1,
 html.dark .qb-auth-brand h1 {
-  margin-top: .15rem !important;
+  margin-top: .2rem !important;
   color: #FFFFFF !important;
   font-size: 2rem !important;
-  font-weight: 800 !important;
-  line-height: 1.1 !important;
-  letter-spacing: -0.04em !important;
+  line-height: 1.05 !important;
+  font-weight: 850 !important;
+  letter-spacing: -.045em !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-brand-subtitle,
 html.dark .qb-auth-brand-subtitle {
-  color: #94A3B8 !important;
-  font-size: .875rem !important;
-  font-weight: 500 !important;
+  color: #8FA0B5 !important;
+  font-size: .82rem !important;
+  font-weight: 600 !important;
 }
 
-/* Main card: deep navy surface instead of a pale gray block. */
+/* Card: one coherent navy surface, not a light gray slab. */
 html[data-qb-theme="dark"] .qb-auth-card,
 html.dark .qb-auth-card {
-  max-width: 100% !important;
-  padding: 1.5rem !important;
-  background: var(--login-card) !important;
-  border: 1px solid var(--login-border) !important;
-  border-radius: 1.25rem !important;
-  box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.42),
-    0 6px 22px rgba(0, 0, 0, 0.20) !important;
+  width: 100% !important;
+  padding: 1.55rem !important;
+  border: 1px solid var(--login-line) !important;
+  border-radius: 1.35rem !important;
+  background: linear-gradient(180deg, var(--login-card) 0%, var(--login-card-2) 100%) !important;
   color: var(--login-text) !important;
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.46),
+    inset 0 1px 0 rgba(255,255,255,.025) !important;
+  backdrop-filter: none !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card::before,
 html.dark .qb-auth-card::before {
-  background: linear-gradient(180deg, rgba(255,255,255,.025), transparent 25%) !important;
+  display: none !important;
 }
 
-/* Headings and copy. */
 html[data-qb-theme="dark"] .qb-auth-card h2,
-html[data-qb-theme="dark"] .qb-auth-card h3,
-html.dark .qb-auth-card h2,
-html.dark .qb-auth-card h3 {
-  color: var(--login-text) !important;
-  letter-spacing: -0.025em !important;
+html.dark .qb-auth-card h2 {
+  color: #FFFFFF !important;
+  font-size: 1.02rem !important;
+  font-weight: 800 !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card h3,
 html.dark .qb-auth-card h3 {
-  font-size: 1.25rem !important;
-  font-weight: 800 !important;
+  color: #FFFFFF !important;
+  font-size: 1.28rem !important;
+  line-height: 1.2 !important;
+  font-weight: 850 !important;
+  letter-spacing: -.03em !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card p:not(.qb-auth-error),
 html.dark .qb-auth-card p:not(.qb-auth-error) {
-  color: var(--login-secondary) !important;
+  color: var(--login-subtle) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card label,
 html.dark .qb-auth-card label {
-  color: #E2E8F0 !important;
-  font-weight: 650 !important;
+  color: #E4EAF2 !important;
+  font-size: .78rem !important;
+  font-weight: 750 !important;
 }
 
-/* Role selector: segmented control. */
+/* Role selector — clean two-segment control. */
 html[data-qb-theme="dark"] .qb-auth-switch,
 html.dark .qb-auth-switch {
-  padding: .25rem !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
   gap: .25rem !important;
-  border: 1px solid var(--login-border) !important;
-  border-radius: .85rem !important;
-  background: #0D1625 !important;
+  padding: .24rem !important;
+  border: 1px solid rgba(148,163,184,.14) !important;
+  border-radius: .8rem !important;
+  background: #0A111C !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-switch button,
 html.dark .qb-auth-switch button {
   min-height: 2.65rem !important;
-  padding: .55rem .65rem !important;
+  padding: .45rem .5rem !important;
   border: 0 !important;
-  border-radius: .65rem !important;
+  border-radius: .6rem !important;
   background: transparent !important;
-  color: var(--login-secondary) !important;
-  font-size: .78rem !important;
-  line-height: 1.15 !important;
-  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease !important;
+  color: #94A3B8 !important;
+  font-size: .72rem !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-switch button:hover,
 html.dark .qb-auth-switch button:hover {
-  background: rgba(255,255,255,.05) !important;
+  background: rgba(255,255,255,.045) !important;
   color: #FFFFFF !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth--student .qb-auth-switch button:first-child,
 html.dark .qb-auth--student .qb-auth-switch button:first-child {
-  background: #1B2A36 !important;
-  color: #FFFFFF !important;
-  box-shadow: inset 0 0 0 1px rgba(22,163,106,.34) !important;
+  background: rgba(22,163,106,.13) !important;
+  color: #8CE0BB !important;
+  box-shadow: inset 0 0 0 1px rgba(22,163,106,.22) !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth-switch svg,
-html.dark .qb-auth-switch svg {
-  flex: 0 0 auto;
-  color: currentColor !important;
-}
-
-/* Parent/admin single-mode switch controls. */
-html[data-qb-theme="dark"] .qb-auth-switch-button,
-html.dark .qb-auth-switch-button {
-  min-height: 2.65rem !important;
-  border: 1px solid var(--login-border) !important;
-  border-radius: .7rem !important;
-  background: #0D1625 !important;
-  color: #E2E8F0 !important;
-}
-
-html[data-qb-theme="dark"] .qb-auth-active-note,
-html.dark .qb-auth-active-note {
-  border: 1px solid rgba(37,99,235,.22) !important;
-  background: rgba(37,99,235,.08) !important;
-  color: #B9D3FF !important;
-}
-
-/* Inputs: distinct surface, readable focus ring. */
+/* Inputs */
 html[data-qb-theme="dark"] .qb-auth-card input,
 html.dark .qb-auth-card input {
   min-height: 2.95rem !important;
   height: 2.95rem !important;
-  border: 1px solid var(--login-border-strong) !important;
+  background: var(--login-field) !important;
+  border: 1px solid var(--login-line-strong) !important;
   border-radius: .72rem !important;
-  background: var(--login-control) !important;
-  color: var(--login-text) !important;
-  caret-color: var(--login-green) !important;
+  color: #FFFFFF !important;
   box-shadow: none !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card input:hover,
 html.dark .qb-auth-card input:hover {
-  background: var(--login-control-hover) !important;
-  border-color: rgba(148,163,184,.42) !important;
+  background: #18263B !important;
+  border-color: rgba(148,163,184,.40) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card input:focus,
 html[data-qb-theme="dark"] .qb-auth-card input:focus-visible,
 html.dark .qb-auth-card input:focus,
 html.dark .qb-auth-card input:focus-visible {
-  background: #1A263B !important;
+  background: var(--login-field-focus) !important;
   border-color: var(--login-green) !important;
-  box-shadow: 0 0 0 3px rgba(22,163,106,.14) !important;
+  box-shadow: 0 0 0 3px rgba(22,163,106,.12) !important;
   outline: none !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card input::placeholder,
 html.dark .qb-auth-card input::placeholder {
   color: #64748B !important;
-  opacity: 1 !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth-card .relative > svg,
@@ -219,49 +209,46 @@ html.dark .qb-auth-card .relative > svg {
   color: #94A3B8 !important;
 }
 
-/* Recovery link. */
+/* Recovery link */
 html[data-qb-theme="dark"] .qb-auth-link,
 html.dark .qb-auth-link {
   color: #7DD3FC !important;
-  font-weight: 650 !important;
+  font-weight: 750 !important;
 }
-
 html[data-qb-theme="dark"] .qb-auth-link:hover,
 html.dark .qb-auth-link:hover {
   color: #BAE6FD !important;
 }
 
-/* Password visibility control. */
+/* Password button */
 html[data-qb-theme="dark"] .qb-auth-icon-button,
 html.dark .qb-auth-icon-button {
   color: #94A3B8 !important;
-  border-radius: .5rem !important;
   background: transparent !important;
 }
-
 html[data-qb-theme="dark"] .qb-auth-icon-button:hover,
 html.dark .qb-auth-icon-button:hover {
   color: #FFFFFF !important;
-  background: rgba(255,255,255,.06) !important;
+  background: rgba(255,255,255,.05) !important;
 }
 
-/* Primary CTA: QuickBite green in student mode; role colors remain intact elsewhere. */
+/* Primary CTA: unmistakable QuickBite action. */
 html[data-qb-theme="dark"] .qb-auth--student .qb-auth-primary,
 html.dark .qb-auth--student .qb-auth-primary {
   min-height: 3rem !important;
   height: 3rem !important;
-  border: 1px solid rgba(22,163,106,.55) !important;
+  border: 1px solid rgba(22,163,106,.56) !important;
   border-radius: .72rem !important;
   background: var(--login-green) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 10px 24px rgba(22,163,106,.18) !important;
-  font-weight: 800 !important;
+  font-size: .9rem !important;
+  font-weight: 850 !important;
+  box-shadow: 0 12px 24px rgba(22,163,106,.16) !important;
 }
 
 html[data-qb-theme="dark"] .qb-auth--student .qb-auth-primary:hover,
 html.dark .qb-auth--student .qb-auth-primary:hover {
-  background: var(--login-green-hover) !important;
-  border-color: rgba(22,163,106,.72) !important;
+  background: var(--login-green-strong) !important;
   transform: translateY(-1px) !important;
 }
 
@@ -272,11 +259,6 @@ html.dark .qb-auth--blue .qb-auth-primary {
   border-color: rgba(37,99,235,.52) !important;
 }
 
-html[data-qb-theme="dark"] .qb-auth--blue .qb-auth-primary:hover,
-html.dark .qb-auth--blue .qb-auth-primary:hover {
-  background: var(--login-blue-hover) !important;
-}
-
 html[data-qb-theme="dark"] .qb-auth--admin .qb-auth-primary,
 html.dark .qb-auth--admin .qb-auth-primary {
   background: #334155 !important;
@@ -284,18 +266,20 @@ html.dark .qb-auth--admin .qb-auth-primary {
   border-color: rgba(148,163,184,.28) !important;
 }
 
-/* Secondary actions: hierarchy below the main CTA. */
+/* Secondary actions: compact and clearly subordinate. */
 html[data-qb-theme="dark"] .qb-auth-secondary,
 html[data-qb-theme="dark"] .qb-auth-secondary-action,
 html.dark .qb-auth-secondary,
 html.dark .qb-auth-secondary-action {
-  min-height: 2.7rem !important;
-  height: 2.7rem !important;
-  padding: .55rem .9rem !important;
-  border: 1px solid var(--login-border) !important;
-  border-radius: .7rem !important;
-  background: #192333 !important;
-  color: #E7EDF3 !important;
+  min-height: 2.55rem !important;
+  height: 2.55rem !important;
+  padding: .45rem .8rem !important;
+  border: 1px solid rgba(148,163,184,.16) !important;
+  border-radius: .68rem !important;
+  background: #162131 !important;
+  color: #CBD5E1 !important;
+  font-size: .74rem !important;
+  font-weight: 700 !important;
   box-shadow: none !important;
 }
 
@@ -303,48 +287,57 @@ html[data-qb-theme="dark"] .qb-auth-secondary:hover,
 html[data-qb-theme="dark"] .qb-auth-secondary-action:hover,
 html.dark .qb-auth-secondary:hover,
 html.dark .qb-auth-secondary-action:hover {
-  background: #223047 !important;
-  border-color: var(--login-border-strong) !important;
+  background: #1D2A3D !important;
+  border-color: rgba(148,163,184,.28) !important;
   color: #FFFFFF !important;
 }
 
-/* Admin entry stays visually separate from student actions. */
+/* Keep admin access visually distinct without changing functionality. */
 html[data-qb-theme="dark"] .qb-auth-card form > .qb-auth-secondary:last-child,
 html.dark .qb-auth-card form > .qb-auth-secondary:last-child {
-  margin-top: .2rem !important;
-  box-shadow: inset 0 1px 0 rgba(148,163,184,.08) !important;
+  margin-top: .25rem !important;
+  background: #101A29 !important;
+  border-color: rgba(148,163,184,.12) !important;
+  color: #AAB7C9 !important;
 }
 
-/* Error copy. */
+/* Parent-mode equivalents */
+html[data-qb-theme="dark"] .qb-auth-switch-button,
+html.dark .qb-auth-switch-button {
+  background: #101A29 !important;
+  border: 1px solid rgba(148,163,184,.16) !important;
+  color: #D9E2EC !important;
+}
+
+html[data-qb-theme="dark"] .qb-auth-active-note,
+html.dark .qb-auth-active-note {
+  background: rgba(37,99,235,.08) !important;
+  border: 1px solid rgba(37,99,235,.20) !important;
+  color: #BFDBFE !important;
+}
+
 html[data-qb-theme="dark"] .qb-auth-error,
 html.dark .qb-auth-error {
   color: #FDA4AF !important;
 }
 
-/* Small screens: keep the card breathing room without changing light mode. */
 @media (max-width: 640px) {
-  html[data-qb-theme="dark"] .qb-auth,
-  html.dark .qb-auth {
-    padding: 1rem !important;
+  html[data-qb-theme="dark"] .qb-auth {
+    padding: .9rem !important;
   }
-
   html[data-qb-theme="dark"] .qb-auth-card,
   html.dark .qb-auth-card {
-    padding: 1.25rem !important;
+    padding: 1.2rem !important;
     border-radius: 1.15rem !important;
   }
-
   html[data-qb-theme="dark"] .qb-auth-brand > .qb-logo,
-  html.dark .qb-auth-brand > .qb-logo {
-    width: 4.5rem !important;
-    height: 4.5rem !important;
-    max-width: 4.5rem !important;
-    max-height: 4.5rem !important;
-  }
-
-  html[data-qb-theme="dark"] .qb-auth-brand h1,
-  html.dark .qb-auth-brand h1 {
-    font-size: 1.85rem !important;
+  html.dark .qb-auth-brand > .qb-logo,
+  html[data-qb-theme="dark"] .qb-auth-brand > .qb-logo img,
+  html.dark .qb-auth-brand > .qb-logo img {
+    width: 4rem !important;
+    height: 4rem !important;
+    max-width: 4rem !important;
+    max-height: 4rem !important;
   }
 }
 
@@ -354,5 +347,6 @@ html.dark .qb-auth-error {
   html.dark .qb-auth-primary,
   html.dark .qb-auth-switch button {
     transition: none !important;
+    transform: none !important;
   }
 }
