@@ -49,11 +49,14 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    // Anonymous/auth screens always use QuickBite's original light appearance.
-    // The OS can only affect the theme after an authenticated user explicitly chooses "system".
+    // Anonymous/auth screens follow the device appearance until an account
+    // preference becomes available. This makes the login dark mode real rather
+    // than merely styling a theme state that is immediately forced back to light.
     if (!userId) {
+      const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+      const next = media?.matches ? 'system' : 'light';
       setUserThemeLoading(false);
-      setUserThemeModeState('light');
+      setUserThemeModeState(next);
       return () => { cancelled = true; };
     }
     const cached = readThemePreference(userId);
