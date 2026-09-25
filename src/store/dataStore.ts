@@ -154,14 +154,25 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
 
   addOrder: async (orderData) => {
+    // The order transaction is the only operation on the critical path.
+    // Audit and data refresh are intentionally detached so the buyer sees
+    // confirmation as soon as the atomic database write succeeds.
     const orderNumber = await repo.createOrder(orderData);
-    await remoteAudit({
+
+    void remoteAudit({
       action: 'order.create',
       actorId: orderData.user_id,
       entity: 'order',
       metadata: { payment_method: orderData.payment_method },
     });
-    await get().loadData({ silent: true });
+
+    void get().loadData({ silent: true }).catch((error) => {
+      writeAuditLog({
+        action: 'app.error',
+        metadata: { source: 'post_order_refresh', message: String(error) },
+      });
+    });
+
     return orderNumber;
   },
 
