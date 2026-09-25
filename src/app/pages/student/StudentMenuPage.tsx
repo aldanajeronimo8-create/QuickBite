@@ -290,13 +290,34 @@ export function StudentMenuPage() {
       setTip('');
       setPayStep('receipt');
       toast.success(paidWithCredits ? `Pedido ${orderNumber} pagado con créditos.` : `Pedido ${orderNumber} creado y enviado para aprobación`);
-      await loadData();
-      const { data: wallet } = await requireSupabaseClient().from('wallet_accounts').select('balance').eq('user_id', student.id).maybeSingle();
-      setWalletBalance(Number(wallet?.balance ?? 0));
-      if (note) {
-        const createdOrder = useDataStore.getState().orders.find((order) => order.order_number === orderNumber);
-        if (createdOrder) await updateOrder(createdOrder.id, { notes: note });
-      }
+
+      // Everything below is post-confirmation work. It must never delay the
+      // receipt or keep the checkout UI in a processing state.
+      void (async () => {
+        try {
+          const { data: wallet } = await requireSupabaseClient()
+            .from('wallet_accounts')
+            .select('balance')
+            .eq('user_id', student.id)
+            .maybeSingle();
+          setWalletBalance(Number(wallet?.balance ?? 0));
+        } catch {
+          // The order is already committed; a stale wallet value is preferable
+          // to making the buyer wait or treating the purchase as failed.
+        }
+
+        if (note) {
+          try {
+            // The store refresh is intentionally asynchronous. Wait for the
+            // created order to become available before attaching the note.
+            await loadData({ silent: true });
+            const createdOrder = useDataStore.getState().orders.find((order) => order.order_number === orderNumber);
+            if (createdOrder) await updateOrder(createdOrder.id, { notes: note });
+          } catch {
+            toast.info('El pedido fue creado; la nota se sincronizará posteriormente.');
+          }
+        }
+      })();
     } catch (error) {
       const message = getErrorMessage(error, 'Error al enviar el pedido');
       if (/insufficient_wallet_balance|Insufficient wallet balance/i.test(message)) toast.error('No tienes créditos suficientes para pagar este pedido.');
