@@ -16,7 +16,7 @@ import { VisualThemeProvider, useVisualTheme } from './contexts/VisualThemeProvi
 function syncVisualInterfaceScope(pathname: string) {
   if (typeof document === 'undefined') return;
   const body = document.body;
-  const scope = pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : pathname === '/' || pathname === '/login' ? 'login_student' : null;
+  const scope = pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/staff') ? 'staff' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : pathname === '/' || pathname === '/login' ? 'login_student' : null;
   if (scope) body.dataset.qbInterface = scope;
   else delete body.dataset.qbInterface;
   document.documentElement.classList.toggle('qb-public-home', pathname === '/');
@@ -80,6 +80,6 @@ function AppContent() {
   useEffect(() => { if (!hasSupabase || !user) return; void loadData({ silent: true }); }, [hasSupabase, loadData, user]);
   useEffect(() => { if (!hasSupabase || !user) return; const cleanupRealtime = subscribeRealtime(); return () => cleanupRealtime(); }, [hasSupabase, subscribeRealtime, user]);
   useEffect(() => { syncVisualInterfaceScope(router.state.location.pathname); return router.subscribe((state) => syncVisualInterfaceScope(state.location.pathname)); }, []);
-  return <ErrorBoundary><VisualThemeProvider>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><AdminStudentPreviewBar /><SessionRestorer />{user && <UserThemePreference />}<ThemePreferenceBoundary /></>}<Toaster position="top-center" /></VisualThemeProvider></ErrorBoundary>;
+  return <ErrorBoundary><VisualThemeProvider>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><AdminStudentPreviewBar /><SessionRestorer />{user && <UserThemePreference />}{!window.location.pathname.startsWith('/staff') && <ThemePreferenceBoundary />}</>}<Toaster position="top-center" /></VisualThemeProvider></ErrorBoundary>;
 }
 export default AppContent;
