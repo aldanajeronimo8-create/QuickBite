@@ -76,11 +76,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     clearDelegatedStudentContext();
     const supabase = requireSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    const profile = data.user ? await getProfile(data.user.id) : null;
-    if (profile) writeAuditLog({ action: 'auth.logout', actorId: profile.id, actorEmail: profile.email });
-    await supabase.auth.signOut();
-    set({ user: null, session: null, loading: false });
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        try {
+          const profile = await getProfile(data.user.id);
+          if (profile) {
+            await writeAuditLog({ action: 'auth.logout', actorId: profile.id, actorEmail: profile.email });
+          }
+        } catch {
+          // Audit/profile lookup must never prevent the actual logout.
+        }
+      }
+    } catch {
+      // Local auth state is still cleared even if the remote session cannot be read.
+    } finally {
+      try {
+        await supabase.auth.signOut();
+      } finally {
+        set({ user: null, session: null, loading: false });
+      }
+    }
   },
 
   checkSession: async () => {
