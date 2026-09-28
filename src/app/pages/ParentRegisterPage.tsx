@@ -115,8 +115,8 @@ export function ParentRegisterPage() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_rgba(37,99,235,.16),_transparent_40%),#f5f8f7] p-5 text-slate-900 sm:p-8">
       <div className="mx-auto flex min-h-[90vh] max-w-lg items-center justify-center">
         <section className="w-full rounded-[2rem] bg-white/85 p-7 shadow-2xl backdrop-blur-2xl sm:p-9">
-          <Link to="/register-student" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold shadow-sm">
-            <ArrowLeft className="h-4 w-4" />Tipo de cuenta
+          <Link to="/login" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold shadow-sm">
+            <ArrowLeft className="h-4 w-4" />Volver a iniciar sesión
           </Link>
           <div className="mt-6 text-center">
             <Users className="mx-auto h-10 w-10 text-blue-700" />
