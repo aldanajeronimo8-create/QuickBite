@@ -7,6 +7,7 @@ import type { ThemeMode } from '../../types/theme';
 type VisualThemeContextValue = { userThemeMode: ThemeMode; userThemeLoading: boolean; setUserThemeMode: (mode: ThemeMode) => Promise<void>; resolvedThemeMode: ResolvedThemeMode };
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const THEME_STORAGE_PREFIX = 'quickbite_theme_preference_v2';
+const LAST_THEME_STORAGE_KEY = 'quickbite_last_theme_preference_v2';
 type ThemeStorageKey = `${typeof THEME_STORAGE_PREFIX}:${string}`;
 const isThemeMode = (value: unknown): value is ThemeMode => value === 'light' || value === 'dark' || value === 'system';
 const getThemeStorageKey = (userId: string): ThemeStorageKey => `${THEME_STORAGE_PREFIX}:${userId}`;
