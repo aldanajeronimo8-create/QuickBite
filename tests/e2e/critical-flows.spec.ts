@@ -220,7 +220,10 @@ test.describe('critical functional flows', () => {
     await expect(orderCard).toContainText(/entregado/i);
     await healthy(adminPage, adminState);
 
+    const openAdminMenu = adminPage.getByRole('button', { name: 'Abrir menú lateral', exact: true });
+    if (await openAdminMenu.count() && await openAdminMenu.isVisible()) await openAdminMenu.click();
     const adminLogout = adminPage.getByRole('button', { name: /cerrar sesión/i }).first();
+    await adminLogout.scrollIntoViewIfNeeded();
     await adminLogout.click();
     await adminPage.waitForURL(/\/login$/);
     await adminPage.close();
@@ -232,8 +235,9 @@ test.describe('critical functional flows', () => {
     await healthy(verificationPage, verificationState);
     const historyCard = verificationPage.locator('article').filter({ hasText: orderNumber! }).first();
     await expect(historyCard).toBeVisible({ timeout: 15_000 });
-    await expect(historyCard).toContainText(/Recogida:/i);
-    await expect(historyCard).toContainText(/Código QR para reclamar/i);
+    await expect(historyCard).toContainText(/Recogida/i);
+    await historyCard.locator('button').first().click();
+    await expect(historyCard).toContainText(/Escanea este QR para verificar/i);
     await expect(historyCard.getByText(/entregado/i).first()).toBeVisible();
     await verificationPage.close();
   });
