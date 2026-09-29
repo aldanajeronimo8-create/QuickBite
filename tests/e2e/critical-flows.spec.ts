@@ -157,4 +157,149 @@ test.describe('critical functional flows', () => {
     }
     await healthy(page, state);
   });
+
+  test('student completes a real purchase and admin processes it through delivery', async ({ browser }) => {
+    const studentPage = await browser.newPage();
+    const studentState = await monitor(studentPage);
+    await login(studentPage, 'student');
+    await healthy(studentPage, studentState);
+
+    const addButtons = studentPage.getByRole('button', { name: /^agregar$/i });
+    await expect(addButtons.first()).toBeVisible();
+    await addButtons.first().click();
+
+    await studentPage.getByRole('button', { name: /abrir carrito/i }).click();
+    const cartSheet = studentPage.locator('section').filter({ hasText: /tu pedido/i }).last();
+    await expect(cartSheet).toBeVisible();
+    await expect(cartSheet).toContainText(/método de pago/i);
+
+    const nequi = cartSheet.getByRole('button', { name: /^nequi/i });
+    await expect(nequi).toBeVisible();
+    await nequi.click();
+    await cartSheet.getByRole('button', { name: /continuar al pago/i }).click();
+    await expect(cartSheet).toContainText(/confirmar pago/i);
+    await cartSheet.getByRole('button', { name: /enviar para aprobación/i }).click();
+
+    const receiptOrder = studentPage.getByText(/^QB\d{6}[A-Z0-9]+$/).last();
+    await expect(receiptOrder).toBeVisible({ timeout: 15_000 });
+    const orderNumber = (await receiptOrder.textContent())?.trim();
+    expect(orderNumber).toMatch(/^QB\d{6}[A-Z0-9]+$/);
+
+    const receiptPickup = cartSheet.locator('p').filter({ hasText: /^[A-Z0-9]{6,20}$/ }).last();
+    await expect(receiptPickup).toBeVisible();
+
+    const studentLogout = studentPage.getByRole('button', { name: /cerrar sesión/i }).first();
+    await studentPage.getByRole('button', { name: /^cerrar$/i }).click().catch(() => undefined);
+    await studentLogout.click();
+    await studentPage.waitForURL(/\/(?:login)?$/);
+    await studentPage.close();
+
+    const adminPage = await browser.newPage();
+    const adminState = await monitor(adminPage);
+    await login(adminPage, 'admin');
+    await adminPage.goto('/admin/payments');
+    await healthy(adminPage, adminState);
+
+    const paymentCard = adminPage.getByTestId(`admin-payment-${orderNumber}`);
+    await expect(paymentCard).toBeVisible({ timeout: 15_000 });
+    await paymentCard.getByRole('button', { name: /^confirmar$/i }).click();
+    await expect(paymentCard).not.toContainText(/pendiente/i);
+
+    await adminPage.goto('/admin/orders');
+    await healthy(adminPage, adminState);
+    const orderCard = adminPage.getByTestId(`admin-order-${orderNumber}`);
+    await expect(orderCard).toBeVisible({ timeout: 15_000 });
+    await expect(orderCard).toContainText(/pedido recibido|confirmado/i);
+
+    await orderCard.getByRole('button', { name: /^en preparación$/i }).click();
+    await expect(orderCard).toContainText(/en preparación/i);
+    await orderCard.getByRole('button', { name: /^listo para recoger$/i }).click();
+    await expect(orderCard).toContainText(/listo para recoger/i);
+    await orderCard.getByRole('button', { name: /^entregado$/i }).click();
+    await expect(orderCard).toContainText(/entregado/i);
+
+    const adminLogout = adminPage.getByRole('button', { name: /cerrar sesión/i }).first();
+    await adminLogout.click();
+    await adminPage.waitForURL(/\/(?:login)?$/);
+    await adminPage.close();
+
+    const verificationPage = await browser.newPage();
+    const verificationState = await monitor(verificationPage);
+    await login(verificationPage, 'student');
+    await verificationPage.goto('/student/history');
+    await healthy(verificationPage, verificationState);
+    await expect(verificationPage.getByText(orderNumber!, { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(verificationPage.getByText(/entregado/i).first()).toBeVisible();
+    await verificationPage.close();
+  });
+
+  test('theme preference remains account-specific across logout and login', async ({ browser }) => {
+    const studentPage = await browser.newPage();
+    const studentState = await monitor(studentPage);
+    await login(studentPage, 'student');
+    await studentPage.goto('/student/account');
+    await healthy(studentPage, studentState);
+
+    const lightTheme = studentPage.getByRole('radio', { name: /claro/i });
+    await expect(lightTheme).toBeVisible();
+    await lightTheme.click();
+    await expect.poll(async () => studentPage.locator('html').getAttribute('data-qb-theme')).toBe('light');
+
+    const studentMenu = await browser.newPage();
+    const studentMenuState = await monitor(studentMenu);
+    await login(studentMenu, 'student');
+    await studentMenu.goto('/menu');
+    await healthy(studentMenu, studentMenuState);
+    await studentMenu.getByRole('button', { name: /cerrar sesión/i }).first().click();
+    await studentMenu.waitForURL(/\/(?:login)?$/);
+    await expect.poll(async () => studentMenu.locator('html').getAttribute('data-qb-theme')).toBe('light');
+    await studentPage.close();
+    await studentMenu.close();
+
+    const parentPage = await browser.newPage();
+    const parentState = await monitor(parentPage);
+    await login(parentPage, 'parent');
+    await parentPage.goto('/parent/family');
+    await healthy(parentPage, parentState);
+
+    const darkTheme = parentPage.getByRole('radio', { name: /oscuro/i });
+    await expect(darkTheme).toBeVisible();
+    await darkTheme.click();
+    await expect.poll(async () => parentPage.locator('html').getAttribute('data-qb-theme')).toBe('dark');
+
+    await parentPage.getByRole('button', { name: /cerrar sesión/i }).first().click();
+    await parentPage.waitForURL(/\/(?:login)?$/);
+    await expect.poll(async () => parentPage.locator('html').getAttribute('data-qb-theme')).toBe('dark');
+    await parentPage.close();
+
+    const studentAgain = await browser.newPage();
+    const studentAgainState = await monitor(studentAgain);
+    await login(studentAgain, 'student');
+    await expect.poll(async () => studentAgain.locator('html').getAttribute('data-qb-theme')).toBe('light');
+    await healthy(studentAgain, studentAgainState);
+    await studentAgain.close();
+  });
+
+  test('student and admin critical surfaces do not overflow on mobile and tablet widths', async ({ browser }) => {
+    for (const width of [390, 768, 1024]) {
+      const page = await browser.newPage({ viewport: { width, height: 844 } });
+      const state = await monitor(page);
+      await login(page, 'student');
+      await page.goto('/menu');
+      await healthy(page, state);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `student /menu horizontal overflow at ${width}px`).toBeLessThanOrEqual(1);
+      await page.close();
+    }
+
+    const adminPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const adminState = await monitor(adminPage);
+    await login(adminPage, 'admin');
+    await adminPage.goto('/admin/orders');
+    await healthy(adminPage, adminState);
+    const adminOverflow = await adminPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(adminOverflow, 'admin /admin/orders horizontal overflow at 390px').toBeLessThanOrEqual(1);
+    await adminPage.close();
+  });
+
 });
