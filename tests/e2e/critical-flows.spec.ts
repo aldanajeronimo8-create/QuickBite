@@ -253,6 +253,8 @@ test.describe('critical functional flows', () => {
     await studentMenu.getByRole('button', { name: /cerrar sesión/i }).first().click();
     await studentMenu.waitForURL(/\/(?:login)?$/);
     await expect.poll(async () => studentMenu.locator('html').getAttribute('data-qb-theme')).toBe('light');
+    const lightLoginTitleColor = await studentMenu.getByRole('heading', { name: 'QuickBite', exact: true }).evaluate((element) => getComputedStyle(element).color);
+    expect(lightLoginTitleColor).not.toBe('rgb(255, 255, 255)');
     await studentPage.close();
     await studentMenu.close();
 
@@ -270,6 +272,8 @@ test.describe('critical functional flows', () => {
     await parentPage.getByRole('button', { name: /cerrar sesión/i }).first().click();
     await parentPage.waitForURL(/\/(?:login)?$/);
     await expect.poll(async () => parentPage.locator('html').getAttribute('data-qb-theme')).toBe('dark');
+    const darkLoginTitleColor = await parentPage.getByRole('heading', { name: 'QuickBite', exact: true }).evaluate((element) => getComputedStyle(element).color);
+    expect(darkLoginTitleColor).toBe('rgb(255, 255, 255)');
     await parentPage.close();
 
     const studentAgain = await browser.newPage();
