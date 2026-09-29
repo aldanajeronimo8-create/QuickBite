@@ -286,32 +286,8 @@ export function StudentMenuPage() {
         payment_reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : paymentMethod === 'credits' ? 'PAGO-CON-CREDITOS' : reference,
         order_items: cart.map((i) => ({ product_id: i.id, quantity: i.qty, price: i.price }))
       });
-
-      // The database is authoritative for pickup codes: create_order_tx generates
-      // the secure server-side code and intentionally ignores client-provided codes.
-      // Read the persisted code before showing the receipt so the receipt/QR match
-      // the value stored in Supabase and verified by the cafeteria.
-      let persistedPickupCode = pickup;
-      try {
-        const { data: persistedOrder, error: persistedOrderError } = await requireSupabaseClient()
-          .from('orders')
-          .select('pickup_code')
-          .eq('order_number', orderNumber)
-          .eq('user_id', student.id)
-          .maybeSingle();
-        if (persistedOrderError) throw persistedOrderError;
-        if (persistedOrder?.pickup_code) persistedPickupCode = persistedOrder.pickup_code;
-      } catch (error) {
-        throw error instanceof Error ? error : new Error('No se pudo verificar el código seguro de recogida del pedido.');
-      }
-
       const paidWithCredits = paymentMethod === 'credits';
-      setLastReceipt({
-        orderNumber,
-        reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : paymentMethod === 'credits' ? 'PAGO-CON-CREDITOS' : reference,
-        pickup: persistedPickupCode,
-        paidWithCredits,
-      });
+      setLastReceipt({ orderNumber, reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : paymentMethod === 'credits' ? 'PAGO-CON-CREDITOS' : reference, pickup, paidWithCredits });
       setCart([]);
       setTip('');
       setPayStep('receipt');
