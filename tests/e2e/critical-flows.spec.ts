@@ -169,7 +169,7 @@ test.describe('critical functional flows', () => {
     await addButtons.first().click();
 
     await studentPage.getByRole('button', { name: /abrir carrito/i }).click();
-    const cartSheet = studentPage.locator('section').filter({ hasText: /tu pedido/i }).last();
+    const cartSheet = studentPage.getByRole('heading', { name: 'Tu pedido', exact: true }).locator('xpath=../..');
     await expect(cartSheet).toBeVisible();
     await expect(cartSheet).toContainText(/método de pago/i);
 
@@ -191,7 +191,7 @@ test.describe('critical functional flows', () => {
     const studentLogout = studentPage.getByRole('button', { name: /cerrar sesión/i }).first();
     await studentPage.getByRole('button', { name: /^cerrar$/i }).click().catch(() => undefined);
     await studentLogout.click();
-    await studentPage.waitForURL(/\/(?:login)?$/);
+    await studentPage.waitForURL(/\/login$/);
     await studentPage.close();
 
     const adminPage = await browser.newPage();
@@ -213,14 +213,17 @@ test.describe('critical functional flows', () => {
 
     await orderCard.getByRole('button', { name: /^en preparación$/i }).click();
     await expect(orderCard).toContainText(/en preparación/i);
+    await healthy(adminPage, adminState);
     await orderCard.getByRole('button', { name: /^listo para recoger$/i }).click();
     await expect(orderCard).toContainText(/listo para recoger/i);
+    await healthy(adminPage, adminState);
     await orderCard.getByRole('button', { name: /^entregado$/i }).click();
     await expect(orderCard).toContainText(/entregado/i);
+    await healthy(adminPage, adminState);
 
     const adminLogout = adminPage.getByRole('button', { name: /cerrar sesión/i }).first();
     await adminLogout.click();
-    await adminPage.waitForURL(/\/(?:login)?$/);
+    await adminPage.waitForURL(/\/login$/);
     await adminPage.close();
 
     const verificationPage = await browser.newPage();
@@ -251,7 +254,7 @@ test.describe('critical functional flows', () => {
     await studentMenu.goto('/menu');
     await healthy(studentMenu, studentMenuState);
     await studentMenu.getByRole('button', { name: /cerrar sesión/i }).first().click();
-    await studentMenu.waitForURL(/\/(?:login)?$/);
+    await studentMenu.waitForURL(/\/login$/);
     await expect.poll(async () => studentMenu.locator('html').getAttribute('data-qb-theme')).toBe('light');
     const lightLoginTitleColor = await studentMenu.getByRole('heading', { name: 'QuickBite', exact: true }).evaluate((element) => getComputedStyle(element).color);
     expect(lightLoginTitleColor).not.toBe('rgb(255, 255, 255)');
@@ -270,7 +273,7 @@ test.describe('critical functional flows', () => {
     await expect.poll(async () => parentPage.locator('html').getAttribute('data-qb-theme')).toBe('dark');
 
     await parentPage.getByRole('button', { name: /cerrar sesión/i }).first().click();
-    await parentPage.waitForURL(/\/(?:login)?$/);
+    await parentPage.waitForURL(/\/login$/);
     await expect.poll(async () => parentPage.locator('html').getAttribute('data-qb-theme')).toBe('dark');
     const darkLoginTitleColor = await parentPage.getByRole('heading', { name: 'QuickBite', exact: true }).evaluate((element) => getComputedStyle(element).color);
     expect(darkLoginTitleColor).toBe('rgb(255, 255, 255)');
