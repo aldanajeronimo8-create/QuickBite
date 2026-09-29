@@ -7,6 +7,7 @@ import type { ThemeMode } from '../../types/theme';
 type VisualThemeContextValue = { userThemeMode: ThemeMode; userThemeLoading: boolean; setUserThemeMode: (mode: ThemeMode) => Promise<void>; resolvedThemeMode: ResolvedThemeMode };
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null);
 const THEME_STORAGE_PREFIX = 'quickbite_theme_preference_v2';
+const LAST_THEME_STORAGE_KEY = `${THEME_STORAGE_PREFIX}:last`;
 type ThemeStorageKey = `${typeof THEME_STORAGE_PREFIX}:${string}`;
 const isThemeMode = (value: unknown): value is ThemeMode => value === 'light' || value === 'dark' || value === 'system';
 const getThemeStorageKey = (userId: string): ThemeStorageKey => `${THEME_STORAGE_PREFIX}:${userId}`;
@@ -30,7 +31,7 @@ function writeThemePreference(userId: string | undefined, mode: ThemeMode) {
 export function getVisualInterfaceScope() {
   if (typeof window === 'undefined') return 'student';
   const pathname = window.location.pathname;
-  return pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : 'login_student';
+  return pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/staff') ? 'staff' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : 'login_student';
 }
 export function isVisualPreviewMode() { return false; }
 
