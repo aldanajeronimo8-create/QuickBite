@@ -187,9 +187,6 @@ test.describe('critical functional flows', () => {
     const orderNumber = (await receiptOrder.textContent())?.trim();
     expect(orderNumber).toMatch(/^QB\d{6}[A-Z0-9]+$/);
 
-    const receiptPickup = cartSheet.locator('p').filter({ hasText: /^[A-Z0-9]{6,20}$/ }).last();
-    await expect(receiptPickup).toBeVisible();
-
     const studentLogout = studentPage.getByRole('button', { name: /cerrar sesión/i }).first();
     await studentPage.getByRole('button', { name: /^cerrar$/i }).click().catch(() => undefined);
     await studentLogout.click();
@@ -233,8 +230,11 @@ test.describe('critical functional flows', () => {
     await login(verificationPage, 'student');
     await verificationPage.goto('/student/history');
     await healthy(verificationPage, verificationState);
-    await expect(verificationPage.getByText(orderNumber!, { exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(verificationPage.getByText(/entregado/i).first()).toBeVisible();
+    const historyCard = verificationPage.locator('article').filter({ hasText: orderNumber! }).first();
+    await expect(historyCard).toBeVisible({ timeout: 15_000 });
+    await expect(historyCard).toContainText(/Recogida:/i);
+    await expect(historyCard).toContainText(/Código QR para reclamar/i);
+    await expect(historyCard.getByText(/entregado/i).first()).toBeVisible();
     await verificationPage.close();
   });
 
@@ -277,7 +277,10 @@ test.describe('critical functional flows', () => {
     await parentPage.getByRole('button', { name: /cerrar sesión/i }).first().click();
     await parentPage.waitForURL(/\/login$/);
     await expect.poll(async () => parentPage.locator('html').getAttribute('data-qb-theme')).toBe('dark');
-    const darkLoginTitleColor = await parentPage.getByRole('heading', { name: 'QuickBite', exact: true }).evaluate((element) => getComputedStyle(element).color);
+    const darkLoginTitle = parentPage.locator('.qb-auth .qb-auth-brand-title');
+    await expect(darkLoginTitle).toHaveCount(1);
+    await expect(darkLoginTitle).toBeVisible();
+    const darkLoginTitleColor = await darkLoginTitle.evaluate((element) => getComputedStyle(element).color);
     expect(darkLoginTitleColor).toBe('rgb(255, 255, 255)');
     await parentPage.close();
 
