@@ -236,8 +236,8 @@ test.describe('critical functional flows', () => {
     const historyCard = verificationPage.locator('article').filter({ hasText: orderNumber! }).first();
     await expect(historyCard).toBeVisible({ timeout: 15_000 });
     await expect(historyCard).toContainText(/Recogida/i);
-    await historyCard.locator('button').first().click();
-    await expect(historyCard).toContainText(/Escanea este QR para verificar/i);
+    const pickupLine = historyCard.locator('div.grid').filter({ hasText: /Recogida/i }).last();
+    await expect(pickupLine).toContainText(/[A-Z0-9]{6,}/);
     await expect(historyCard.getByText(/entregado/i).first()).toBeVisible();
     await verificationPage.close();
   });
