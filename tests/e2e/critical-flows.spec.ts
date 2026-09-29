@@ -177,8 +177,10 @@ test.describe('critical functional flows', () => {
     await expect(nequi).toBeVisible();
     await nequi.click();
     await cartSheet.getByRole('button', { name: /continuar al pago/i }).click();
-    await expect(cartSheet).toContainText(/confirmar pago/i);
-    await cartSheet.getByRole('button', { name: /enviar para aprobación/i }).click();
+    const paymentSheet = studentPage.getByRole('heading', { name: 'Confirmar pago', exact: true }).locator('xpath=../..');
+    await expect(paymentSheet).toBeVisible();
+    await expect(paymentSheet).toContainText(/pago|referencia|total/i);
+    await paymentSheet.getByRole('button', { name: /enviar para aprobación/i }).click();
 
     const receiptOrder = studentPage.getByText(/^QB\d{6}[A-Z0-9]+$/).last();
     await expect(receiptOrder).toBeVisible({ timeout: 15_000 });
