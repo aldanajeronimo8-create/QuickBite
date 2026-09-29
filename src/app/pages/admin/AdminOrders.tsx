@@ -237,6 +237,7 @@ export function AdminOrders() {
 
             return (
               <Card
+                data-testid={`admin-order-${order.order_number}`}
                 key={order.id}
                 className="border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-lg"
               >
