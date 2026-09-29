@@ -277,7 +277,7 @@ test.describe('critical functional flows', () => {
     await parentPage.getByRole('button', { name: /cerrar sesión/i }).first().click();
     await parentPage.waitForURL(/\/login$/);
     await expect.poll(async () => parentPage.locator('html').getAttribute('data-qb-theme')).toBe('dark');
-    const darkLoginTitle = parentPage.locator('.qb-auth .qb-auth-brand-title');
+    const darkLoginTitle = parentPage.getByTestId('qb-auth-brand-title');
     await expect(darkLoginTitle).toHaveCount(1);
     await expect(darkLoginTitle).toBeVisible();
     const darkLoginTitleColor = await darkLoginTitle.evaluate((element) => getComputedStyle(element).color);
