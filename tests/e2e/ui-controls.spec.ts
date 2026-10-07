@@ -1,10 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 
-type Role = 'student' | 'parent' | 'admin';
+type Role = 'student' | 'parent' | 'staff' | 'admin';
 
 const credentials: Record<Role, () => { email?: string; password?: string }> = {
   student: () => ({ email: process.env.PLAYWRIGHT_E2E_EMAIL, password: process.env.PLAYWRIGHT_E2E_PASSWORD }),
   parent: () => ({ email: process.env.PLAYWRIGHT_PARENT_EMAIL, password: process.env.PLAYWRIGHT_PARENT_PASSWORD }),
+  staff: () => ({ email: process.env.PLAYWRIGHT_STAFF_EMAIL, password: process.env.PLAYWRIGHT_STAFF_PASSWORD }),
   admin: () => ({ email: process.env.PLAYWRIGHT_ADMIN_EMAIL, password: process.env.PLAYWRIGHT_ADMIN_PASSWORD }),
 };
 
@@ -20,7 +21,8 @@ const routes: Record<Role, string[]> = {
     '/student/notifications',
     '/student/rewards',
   ],
-  parent: ['/parent/family'],
+  parent: ['/parent/family', '/parent/food-controls', '/parent/wellbeing'],
+  staff: ['/staff', '/staff/orders'],
   admin: [
     '/admin',
     '/admin/features',
@@ -36,6 +38,7 @@ const routes: Record<Role, string[]> = {
     '/admin/history',
     '/admin/system',
     '/admin/reset',
+    '/admin/academic', '/admin/recess', '/admin/nutrition', '/admin/operations', '/admin/rankings', '/admin/reviews',
   ],
 };
 
@@ -60,11 +63,12 @@ async function loginAs(page: Page, role: Role) {
 
   await page.goto('/login');
   if (role === 'parent') await page.getByRole('button', { name: /iniciar sesi[oó]n como padre/i }).click();
+  if (role === 'staff') await page.getByRole('button', { name: /personal de cafeter[ií]a/i }).click();
   if (role === 'admin') await page.getByRole('button', { name: /acceso de administraci[oó]n/i }).click();
   await page.locator('#login-email').fill(account.email!);
   await page.locator('#login-password').fill(account.password!);
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
-  await page.waitForURL(role === 'student' ? /\/menu$/ : role === 'parent' ? /\/parent\/family$/ : /\/admin(?:\/)?$/);
+  await page.waitForURL(role === 'student' ? /\/menu$/ : role === 'parent' ? /\/parent\/family$/ : role === 'staff' ? /\/staff(?:\/orders)?$/ : /\/admin(?:\/)?$/);
 }
 
 async function assertNoRuntimeErrors(page: Page, label: string) {
@@ -149,7 +153,7 @@ async function waitForInternalNavigation(page: Page, href: string, beforeUrl: st
   }
 }
 
-test.describe('interactive UI control audit', () => {
+test.describe('interactive UI control audit', () => {\n  test('role: safe interactive controls include staff and exhaustive control inventory', async ({ page }) => {\n    const role: Role = 'staff';\n    const monitors = await installErrorMonitors(page);\n    await loginAs(page, role);\n    for (const route of routes[role]) {\n      await page.goto(route);\n      await page.waitForLoadState('domcontentloaded');\n      await assertNoRuntimeErrors(page, \u0022staff \u0022 + route);\n      const interactiveCount = await page.locator('button:not([disabled]):visible, a[href]:visible, select:not([disabled]):visible, input:not([disabled]):visible, textarea:not([disabled]):visible, [role=tab]:visible, [role=combobox]:visible').count();\n      expect(interactiveCount, 'interactive controls must be discoverable on ' + route).toBeGreaterThan(0);\n      resetMonitors(monitors);\n      await page.getByRole('tab').all().then(async tabs => { for (const tab of tabs.slice(0, 20)) { if (await tab.isVisible().catch(() => false)) await tab.click().catch(() => undefined); } });\n      await assertMonitorsClean(monitors, 'staff ' + route + ' tab audit');\n    }\n  });\n
   test.describe.configure({ mode: 'serial' });
 
   for (const role of ['student', 'parent', 'admin'] as const) {
