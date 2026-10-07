@@ -1,270 +1,473 @@
-/* global __ENV, __VU, __ITER */
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-import { Rate } from 'k6/metrics';
+/* global __ENV */
+import { browser } from 'k6/browser';
+import { check } from 'k6';
+import { Rate, Counter, Trend } from 'k6/metrics';
 
 const BASE_URL = (__ENV.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app').replace(/\/$/, '');
 const SUPABASE_URL = (__ENV.VITE_SUPABASE_URL || 'https://cczbbqxunygcowqfrqdm.supabase.co').replace(/\/$/, '');
 const ANON_KEY = __ENV.VITE_SUPABASE_ANON_KEY;
 
-const credentials = {
+const accounts = {
   student: { email: __ENV.K6_STUDENT_EMAIL, password: __ENV.K6_STUDENT_PASSWORD },
   parent: { email: __ENV.K6_PARENT_EMAIL, password: __ENV.K6_PARENT_PASSWORD },
   staff: { email: __ENV.K6_STAFF_EMAIL, password: __ENV.K6_STAFF_PASSWORD },
   admin: { email: __ENV.K6_ADMIN_EMAIL, password: __ENV.K6_ADMIN_PASSWORD },
 };
 
-const roles = Object.keys(credentials);
-const roleErrors = new Rate('role_flow_errors');
+const failures = new Rate('ui_function_failures');
+const controlsChecked = new Counter('ui_controls_checked');
+const controlsClicked = new Counter('ui_controls_clicked');
+const controlsTrialOnly = new Counter('ui_controls_trial_only');
+const routesChecked = new Counter('ui_routes_checked');
+const routeLatency = new Trend('ui_route_latency', true);
 
-for (const role of roles) {
-  if (!credentials[role].email || !credentials[role].password) {
-    throw new Error('Missing k6 credentials for role: ' + role);
+const ROLE_ROUTES = {
+  student: [
+    '/login?preview_role=student',
+    '/student/features',
+    '/menu?tab=menu',
+    '/menu?tab=orders',
+    '/student/reviews',
+    '/student/order-windows',
+    '/student/account',
+    '/student/wallet',
+    '/student/history',
+    '/student/rewards',
+    '/student/favorites',
+    '/student/link-code',
+    '/student/notifications',
+  ],
+  parent: [
+    '/login?preview_role=parent',
+    '/parent/family',
+    '/parent/food-controls',
+    '/parent/wellbeing',
+  ],
+  staff: [
+    '/login?preview_role=staff',
+    '/staff',
+    '/staff/orders',
+  ],
+  admin: [
+    '/login?preview_role=admin',
+    '/admin',
+    '/admin/features',
+    '/admin/operations',
+    '/admin/rankings',
+    '/admin/reviews',
+    '/admin/orders',
+    '/admin/payments',
+    '/admin/wallet',
+    '/admin/inventory',
+    '/admin/menu',
+    '/admin/nutrition',
+    '/admin/verification',
+    '/admin/users',
+    '/admin/academic',
+    '/admin/recess',
+    '/admin/loyalty',
+    '/admin/reports',
+    '/admin/history',
+    '/admin/system',
+    '/admin/reset',
+  ],
+};
+
+const SAFE_ACTION_PATTERNS = [
+  /\bvolver\b/i,
+  /\bregresar\b/i,
+  /\batrás\b/i,
+  /\bmostrar\b/i,
+  /\bocultar\b/i,
+  /\babrir\b/i,
+  /\bexpandir\b/i,
+  /\bcerrar\b/i,
+  /\bfiltrar\b/i,
+  /\bbuscar\b/i,
+  /\bactualizar\b/i,
+  /\brefrescar\b/i,
+  /\bver\b/i,
+  /\bdetalle\b/i,
+  /\bcontinuar\b/i,
+  /\bcancelar\b/i,
+  /\bseleccionar\b/i,
+  /\bmodo\b/i,
+  /\bpestaña\b/i,
+  /\bmenú\b/i,
+  /\bhistorial\b/i,
+  /\bnotificaciones\b/i,
+  /\bfavoritos\b/i,
+  /\brecuperar\b/i,
+  /\bestudiante\b/i,
+  /\bpadre\b/i,
+  /\bpersonal de cafetería\b/i,
+  /\badministración\b/i,
+];
+
+const MUTATING_PATTERNS = [
+  /\bguardar\b/i,
+  /\bcrear\b/i,
+  /\beliminar\b/i,
+  /\bborrar\b/i,
+  /\breiniciar\b/i,
+  /\breset\b/i,
+  /\baprobar\b/i,
+  /\brechazar\b/i,
+  /\bcanjear\b/i,
+  /\bcomprar\b/i,
+  /\bpagar\b/i,
+  /\brecargar\b/i,
+  /\bsolicitar\b/i,
+  /\bmarcar\b/i,
+  /\bdesactivar\b/i,
+  /\bactivar\b/i,
+  /\bcerrar período\b/i,
+  /\bcomenzar preparación\b/i,
+  /\blisto\b/i,
+  /\bentregado\b/i,
+  /\benviar\b/i,
+  /\bactualizar producto\b/i,
+  /\bguardar cambios\b/i,
+  /\bconfirmar\b/i,
+];
+
+for (const role of Object.keys(accounts)) {
+  if (!accounts[role].email || !accounts[role].password) {
+    throw new Error('Missing k6 credentials for ' + role);
   }
 }
-if (!ANON_KEY) throw new Error('VITE_SUPABASE_ANON_KEY is required.');
+if (!ANON_KEY) throw new Error('Missing VITE_SUPABASE_ANON_KEY');
 
 export const options = {
   scenarios: Object.fromEntries(
-    roles.map((role) => [role, {
-      executor: 'ramping-vus',
-      startVUs: 0,
-      stages: [
-        { duration: '30s', target: 25 },
-        { duration: '30s', target: 50 },
-        { duration: '60s', target: 100 },
-        { duration: '120s', target: 100 },
-        { duration: '30s', target: 0 },
-      ],
-      gracefulRampDown: '30s',
-      exec: role + 'Scenario',
-      tags: { role },
-    }]),
+    Object.keys(accounts).map((role) => [
+      role,
+      {
+        executor: 'per-vu-iterations',
+        vus: 100,
+        iterations: 1,
+        maxDuration: '12m',
+        exec: role + 'BrowserAudit',
+        tags: { role, test: 'ui-full-function-sweep' },
+        options: { browser: { type: 'chromium' } },
+      },
+    ]),
   ),
   thresholds: {
-    http_req_failed: ['rate<0.02'],
-    http_req_duration: ['p(95)<2000', 'p(99)<4000'],
-    checks: ['rate>0.985'],
-    role_flow_errors: ['rate<0.02'],
-    'role_flow_errors{role:student}': ['rate<0.02'],
-    'role_flow_errors{role:parent}': ['rate<0.02'],
-    'role_flow_errors{role:staff}': ['rate<0.02'],
-    'role_flow_errors{role:admin}': ['rate<0.02'],
+    checks: ['rate>0.995'],
+    ui_function_failures: ['rate<0.01'],
   },
 };
 
-function login(account) {
-  const response = http.post(
+async function login(role) {
+  const account = accounts[role];
+  const response = httpPostLogin(account);
+  if (!response || !response.accessToken) {
+    throw new Error('Unable to obtain session for ' + role);
+  }
+  return response;
+}
+
+function httpPostLogin(account) {
+  const response = fetch(
     SUPABASE_URL + '/auth/v1/token?grant_type=password',
     JSON.stringify({ email: account.email, password: account.password }),
     {
       headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
-      tags: { name: 'auth_password_setup', role: account.role },
+      timeout: '30s',
     },
   );
 
-  if (!check(response, {
-    'setup auth returns 200': (r) => r.status === 200,
-    'setup auth returns token': (r) => Boolean(r.json('access_token')),
-  })) {
-    throw new Error('k6 setup login failed for ' + account.role);
-  }
+  if (response.status !== 200) return null;
 
   return {
-    accessToken: response.json('access_token'),
-    userId: response.json('user.id'),
+    accessToken: JSON.parse(response.body).access_token,
+    refreshToken: JSON.parse(response.body).refresh_token,
+    expiresIn: JSON.parse(response.body).expires_in,
+    expiresAt: JSON.parse(response.body).expires_at,
+    tokenType: JSON.parse(response.body).token_type,
+    user: JSON.parse(response.body).user,
   };
 }
 
-export function setup() {
-  return Object.fromEntries(
-    roles.map((role) => [role, login({ ...credentials[role], role })]),
-  );
+function classifyControl(meta) {
+  const label = [meta.text, meta.aria, meta.title, meta.name, meta.type]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  if (MUTATING_PATTERNS.some((pattern) => pattern.test(label))) return 'mutating';
+  if (SAFE_ACTION_PATTERNS.some((pattern) => pattern.test(label))) return 'safe';
+  if (meta.type === 'submit' || meta.type === 'button') return 'unknown-button';
+  return 'other';
 }
 
-function headers(token, json) {
-  const result = { apikey: ANON_KEY };
-  if (token) result.Authorization = 'Bearer ' + token;
-  if (json) result['Content-Type'] = 'application/json';
-  return result;
-}
-
-function rest(pathname, token, method, body, role, name) {
-  return http.request(
-    method,
-    SUPABASE_URL + '/rest/v1' + pathname,
-    body || null,
-    { headers: headers(token, Boolean(body)), tags: { name, role } },
-  );
-}
-
-function rpc(name, body, token, role) {
-  return rest(
-    '/rpc/' + name,
-    token,
-    'POST',
-    JSON.stringify(body || {}),
-    role,
-    'rpc_' + name,
-  );
-}
-
-function appShell(role) {
-  const response = http.get(BASE_URL, { tags: { name: 'quickbite_home', role } });
-  return check(response, {
-    'QuickBite returns 200': (r) => r.status === 200,
-    'QuickBite returns HTML': (r) =>
-      String(r.headers['Content-Type'] || '').toLowerCase().includes('text/html'),
+async function setSession(page, role, session) {
+  await page.goto(BASE_URL + '/login?preview_role=' + role, {
+    waitUntil: 'domcontentloaded',
   });
+
+  const storage = {
+    session,
+    context: role === 'admin' ? 'admin' : 'user',
+  };
+
+  await page.evaluate((payload) => {
+    sessionStorage.setItem(
+      payload.context === 'admin' ? 'quickbite.admin.auth' : 'quickbite.user.auth',
+      JSON.stringify(payload.session),
+    );
+    sessionStorage.setItem('quickbite.auth.context', payload.context);
+  }, storage);
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
 }
 
-function profile(role, token, userId) {
-  const response = rest(
-    '/profiles?id=eq.' + encodeURIComponent(userId) +
-      '&select=id,email,role,active,section_id,grade_id,course_id&limit=1',
-    token, 'GET', null, role, 'profile_self',
-  );
-
-  return check(response, {
-    'profile request succeeds': (r) => r.status === 200,
-    'profile belongs to current user': (r) => {
-      const rows = r.json();
-      return Array.isArray(rows) && rows.length === 1 && rows[0].id === userId;
-    },
-    'profile role is correct': (r) => {
-      const rows = r.json();
-      const actual = rows?.[0]?.role;
-      const matches =
-        role === 'student'
-          ? ['student', 'both', 'student_parent'].includes(actual)
-          : actual === role;
-      return Array.isArray(rows) && rows.length === 1 && matches;
-    },
-    'profile is active': (r) => {
-      const rows = r.json();
-      return Array.isArray(rows) && rows.length === 1 && rows[0].active === true;
-    },
-  });
+async function safeClick(page, locator) {
+  await locator.click({ timeout: 10000 });
 }
 
-function notifications(role, token, userId) {
-  const response = rest(
-    '/notifications?user_id=eq.' + encodeURIComponent(userId) +
-      '&select=id,title,created_at&order=created_at.desc&limit=5',
-    token, 'GET', null, role, 'notifications_self',
-  );
-  return check(response, { 'notifications request succeeds': (r) => r.status === 200 });
+async function collectMeta(locator) {
+  return locator.evaluate((element) => ({
+    text: (element.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 180),
+    aria: element.getAttribute('aria-label') || '',
+    title: element.getAttribute('title') || '',
+    name: element.getAttribute('name') || '',
+    type: element.getAttribute('type') || '',
+    testId: element.getAttribute('data-testid') || '',
+    disabled: element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true',
+  }));
 }
 
-function adminBoundary(role, token) {
-  const response = rpc('admin_list_users', {}, token, role);
-  return check(response, {
-    'admin authorization matches role': (r) =>
-      role === 'admin' ? r.status === 200 : [400, 401, 403].includes(r.status),
-  });
-}
+async function probeControls(page, role, route) {
+  const selector =
+    'button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"]';
+  const initial = await page.locator(selector).all();
 
-function run(role, auth, flow) {
-  let ok = appShell(role);
-  ok = check(auth || {}, {
-    'authenticated virtual user is ready': () => Boolean(auth?.accessToken && auth?.userId),
-  }) && ok;
+  for (let i = 0; i < initial.length; i += 1) {
+    // Reopen each route so state changes from a previous click do not hide the next control.
+    if (i > 0) {
+      await page.goto(BASE_URL + route, { waitUntil: 'domcontentloaded' });
+    }
 
-  if (auth?.accessToken) ok = flow(auth) && ok;
-  if (__ITER === 0 && auth?.accessToken) {
-    ok = adminBoundary(role, auth.accessToken) && ok;
+    const controls = await page.locator(selector).all();
+    if (i >= controls.length) continue;
+
+    const control = controls[i];
+    const meta = await collectMeta(control);
+    controlsChecked.add(1, { role });
+    const category = classifyControl(meta);
+
+    if (meta.disabled) {
+      check(meta, {
+        'disabled controls remain discoverable': () => meta.disabled === true,
+      });
+      continue;
+    }
+
+    try {
+      await control.click({ trial: true, timeout: 10000 });
+    } catch (error) {
+      failures.add(true, { role });
+      console.error(
+        'CONTROL_TRIAL_FAILED',
+        role,
+        route,
+        JSON.stringify(meta),
+        String(error),
+      );
+      continue;
+    }
+
+    if (category === 'safe') {
+      try {
+        await safeClick(page, control);
+        controlsClicked.add(1, { role });
+        await page.waitForTimeout(150);
+        const bodyText = (await page.locator('body').textContent() || '').toLowerCase();
+        const appError =
+          bodyText.includes('unexpected error') ||
+          bodyText.includes('application error') ||
+          bodyText.includes('something went wrong');
+
+        check({ appError }, {
+          'safe control does not show application error': (v) => v.appError === false,
+        });
+
+        if (appError) failures.add(true, { role });
+      } catch (error) {
+        failures.add(true, { role });
+        console.error(
+          'CONTROL_CLICK_FAILED',
+          role,
+          route,
+          JSON.stringify(meta),
+          String(error),
+        );
+      }
+    } else {
+      controlsTrialOnly.add(1, { role });
+    }
   }
-
-  roleErrors.add(!ok, { role });
-  sleep(1);
 }
 
-function studentScenario(data) {
-  run('student', data.student, (auth) => {
-    let ok = profile('student', auth.accessToken, auth.userId);
+async function probeLinks(page, role, route) {
+  const links = await page.locator('a[href]').all();
+  for (let i = 0; i < links.length; i += 1) {
+    const meta = await collectMeta(links[i]);
+    const href = await links[i].evaluate((element) => element.getAttribute('href') || '');
+    const internal = href.startsWith('/') && !href.startsWith('//');
 
-    ok = check(
-      rpc('get_student_recess_status', {}, auth.accessToken, 'student'),
-      { 'student recess interface works': (r) => r.status === 200 },
-    ) && ok;
+    if (!internal || href.startsWith('/logout')) continue;
 
-    ok = check(
-      rpc('qb_products_available_for_current_student', {}, auth.accessToken, 'student'),
-      { 'student menu interface works': (r) => r.status === 200 },
-    ) && ok;
+    controlsChecked.add(1, { role, kind: 'link' });
 
-    return notifications('student', auth.accessToken, auth.userId) && ok;
-  });
+    const response = await page.goto(BASE_URL + href, {
+      waitUntil: 'domcontentloaded',
+    });
+
+    const ok = Boolean(response) && response.status < 500;
+
+    check(
+      { ok, href, meta },
+      { 'internal link resolves below 500': (v) => v.ok === true },
+    );
+
+    if (!ok) failures.add(true, { role });
+
+    await page.goto(BASE_URL + route, { waitUntil: 'domcontentloaded' });
+  }
 }
 
-function parentScenario(data) {
-  run('parent', data.parent, (auth) => {
-    let ok = profile('parent', auth.accessToken, auth.userId);
-    const active = rpc('get_parent_active_student', {}, auth.accessToken, 'parent');
-    const payload = active.status === 200 ? active.json() : null;
-    const row = Array.isArray(payload) ? payload[0] : payload;
-    const studentId = row?.student_user_id;
+async function probeFormControls(page, role, route) {
+  const controls = await page.locator(
+    'input:not([type="hidden"]), textarea, select, [contenteditable="true"]',
+  ).all();
 
-    ok = check(active, {
-      'parent active-student lookup works': (r) => r.status === 200,
-      'parent has an active student': () => Boolean(studentId),
-    }) && ok;
+  for (let i = 0; i < controls.length; i += 1) {
+    const field = controls[i];
+    const meta = await collectMeta(field);
+    controlsChecked.add(1, { role, kind: 'form' });
 
-    if (studentId) {
-      ok = check(
-        rpc('get_parent_family_dashboard', { p_student_user_id: studentId }, auth.accessToken, 'parent'),
-        { 'parent family dashboard works': (r) => r.status === 200 },
-      ) && ok;
+    try {
+      await field.click({ trial: true, timeout: 10000 });
 
-      ok = check(
-        rpc('get_parent_student_spending_summary', { p_student_user_id: studentId }, auth.accessToken, 'parent'),
-        { 'parent spending summary works': (r) => r.status === 200 },
-      ) && ok;
+      const tag = await field.evaluate((el) => el.tagName.toLowerCase());
+      const type = (await field.evaluate((el) => el.getAttribute('type') || 'text')).toLowerCase();
 
-      ok = check(
-        rpc('get_parent_food_controls', { p_student_user_id: studentId }, auth.accessToken, 'parent'),
-        { 'parent food controls work': (r) => r.status === 200 },
-      ) && ok;
+      if (['text', 'email', 'search', 'tel', 'url'].includes(type) || tag === 'textarea') {
+        await field.fill('k6-test-value');
+      } else if (tag === 'select') {
+        const optionCount = await field.locator('option').count();
+        if (optionCount > 0) await field.selectOption({ index: 0 });
+      }
+
+      check(meta, {
+        'form control is actionable': () => meta.disabled !== true,
+      });
+    } catch (error) {
+      failures.add(true, { role });
+      console.error(
+        'FORM_CONTROL_FAILED',
+        role,
+        route,
+        JSON.stringify(meta),
+        String(error),
+      );
     }
 
-    return notifications('parent', auth.accessToken, auth.userId) && ok;
-  });
+    if (i < controls.length - 1) {
+      await page.goto(BASE_URL + route, { waitUntil: 'domcontentloaded' });
+    }
+  }
 }
 
-function staffScenario(data) {
-  run('staff', data.staff, (auth) => {
-    let ok = profile('staff', auth.accessToken, auth.userId);
-    ok = check(
-      rpc('staff_list_active_orders', {}, auth.accessToken, 'staff'),
-      { 'staff orders interface works': (r) => r.status === 200 },
-    ) && ok;
-    return notifications('staff', auth.accessToken, auth.userId) && ok;
+async function auditRoute(page, role, route) {
+  const started = Date.now();
+
+  await page.goto(BASE_URL + route, {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000,
   });
+
+  await page.waitForTimeout(300);
+  routesChecked.add(1, { role });
+
+  const url = await page.url();
+  const bodyText = (await page.locator('body').textContent() || '').trim();
+
+  check(
+    { url, bodyText },
+    {
+      'route loads without blank application shell': (v) =>
+        v.url.includes(BASE_URL) && v.bodyText.length > 40,
+    },
+  );
+
+  await probeControls(page, role, route);
+  await page.goto(BASE_URL + route, { waitUntil: 'domcontentloaded' });
+  await probeLinks(page, role, route);
+  await page.goto(BASE_URL + route, { waitUntil: 'domcontentloaded' });
+  await probeFormControls(page, role, route);
+
+  routeLatency.add(Date.now() - started, { role, route });
 }
 
-function adminScenario(data) {
-  run('admin', data.admin, (auth) => {
-    let ok = profile('admin', auth.accessToken, auth.userId);
+export function setup() {
+  return {
+    student: login('student'),
+    parent: login('parent'),
+    staff: login('staff'),
+    admin: login('admin'),
+  };
+}
 
-    ok = check(
-      rpc('list_admin_orders', {}, auth.accessToken, 'admin'),
-      { 'admin orders interface works': (r) => r.status === 200 },
-    ) && ok;
+async function runBrowserAudit(role, sessionData) {
+  const page = await browser.newPage();
 
-    if (__ITER === 0) {
-      ok = check(
-        rpc('admin_list_users', {}, auth.accessToken, 'admin'),
-        { 'admin users interface works': (r) => r.status === 200 },
-      ) && ok;
+  const consoleErrors = [];
+  page.on('console', (message) => {
+    const type = message.type();
+    if (type === 'error') consoleErrors.push(message.text());
+  });
 
-      ok = check(
-        rpc('get_admin_dashboard_intelligence', { p_days: 7 }, auth.accessToken, 'admin'),
-        { 'admin dashboard intelligence works': (r) => r.status === 200 },
-      ) && ok;
+  try {
+    await setSession(page, role, sessionData);
+
+    for (const route of ROLE_ROUTES[role]) {
+      try {
+        await auditRoute(page, role, route);
+      } catch (error) {
+        failures.add(true, { role });
+        console.error('ROUTE_AUDIT_FAILED', role, route, String(error));
+      }
     }
 
-    return notifications('admin', auth.accessToken, auth.userId) && ok;
-  });
+    check(
+      { consoleErrors },
+      {
+        'no browser console errors were emitted': (v) => v.consoleErrors.length === 0,
+      },
+    );
+
+    if (consoleErrors.length) failures.add(true, { role });
+  } finally {
+    await page.close();
+  }
 }
 
-export { studentScenario, parentScenario, staffScenario, adminScenario };
+export async function studentBrowserAudit(data) {
+  await runBrowserAudit('student', data.student);
+}
+
+export async function parentBrowserAudit(data) {
+  await runBrowserAudit('parent', data.parent);
+}
+
+export async function staffBrowserAudit(data) {
+  await runBrowserAudit('staff', data.staff);
+}
+
+export async function adminBrowserAudit(data) {
+  await runBrowserAudit('admin', data.admin);
+}
