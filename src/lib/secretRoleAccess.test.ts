@@ -58,8 +58,7 @@ describe('registerSecretRoleTap', () => {
   });
 
   it('resets the tracker after unlocking', () => {
-    let state = emptyState;
-    let finalResult = registerSecretRoleTap(state, 'student', 1000);
+    let finalResult = registerSecretRoleTap(emptyState, 'student', 1000);
 
     for (let index = 1; index < SECRET_TAP_THRESHOLD; index += 1) {
       finalResult = registerSecretRoleTap(
