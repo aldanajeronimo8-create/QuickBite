@@ -52,39 +52,6 @@ jobs:
           test -n "${K6_ADMIN_PASSWORD}" || { echo "Missing Admin load-test password"; exit 1; }
           test -n "${VITE_SUPABASE_ANON_KEY}" || { echo "Missing Supabase anon/publishable key"; exit 1; }
 
-      - name: Diagnose role authentication
-        shell: bash
-        run: |
-          set -u
-          check_role() {
-            local role="$1"
-            local email_var="$2"
-            local password_var="$3"
-            local email="${!email_var}"
-            local password="${!password_var}"
-            local body_file
-            body_file="$(mktemp)"
-            local status
-            status="$(curl -sS -o "$body_file" -w '%{http_code}'               -X POST "${VITE_SUPABASE_URL}/auth/v1/token?grant_type=password"               -H "apikey: ${VITE_SUPABASE_ANON_KEY}"               -H "Content-Type: application/json"               --data "{"email":"$email","password":"$password"}" || true)"
-            local code
-            code="$(python3 - "$body_file" <<'PY'
-import json, sys
-try:
-    with open(sys.argv[1], encoding="utf-8") as f:
-        data=json.load(f)
-    print(data.get("error_code") or data.get("code") or data.get("msg") or data.get("error_description") or "no_error_code")
-except Exception:
-    print("unparseable_response")
-PY
-)"
-            echo "AUTH_DIAGNOSTIC role=$role status=$status reason=$code"
-            rm -f "$body_file"
-          }
-          check_role student K6_STUDENT_EMAIL K6_STUDENT_PASSWORD
-          check_role parent K6_PARENT_EMAIL K6_PARENT_PASSWORD
-          check_role staff K6_STAFF_EMAIL K6_STAFF_PASSWORD
-          check_role admin K6_ADMIN_EMAIL K6_ADMIN_PASSWORD
-
       - name: Setup current Grafana k6
         uses: grafana/setup-k6-action@v1
 
