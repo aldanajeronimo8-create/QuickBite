@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'tests/k6/**'
-      - 'scripts/ensure-e2e-user.mjs'
+      - 'scripts/prepare-k6-role-accounts.mjs'
       - '.github/workflows/k6-load-test.yml'
   workflow_dispatch:
 
@@ -30,7 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate E2E provisioning configuration
+      - name: Validate load-test credentials
         shell: bash
         run: |
           set -euo pipefail
@@ -39,8 +39,8 @@ jobs:
           test -n "${PLAYWRIGHT_E2E_EMAIL}" || { echo "PLAYWRIGHT_E2E_EMAIL is missing"; exit 1; }
           test -n "${PLAYWRIGHT_E2E_PASSWORD}" || { echo "PLAYWRIGHT_E2E_PASSWORD is missing"; exit 1; }
 
-      - name: Provision/verify four isolated E2E role accounts
-        run: node scripts/ensure-e2e-user.mjs
+      - name: Prepare four role identities
+        run: node scripts/prepare-k6-role-accounts.mjs
 
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
@@ -53,11 +53,11 @@ jobs:
           K6_BASE_URL: ${{ env.K6_BASE_URL }}
           VITE_SUPABASE_URL: ${{ env.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ env.VITE_SUPABASE_ANON_KEY }}
-          K6_STUDENT_EMAIL: ${{ env.PLAYWRIGHT_STUDENT_EMAIL }}
-          K6_STUDENT_PASSWORD: ${{ env.PLAYWRIGHT_STUDENT_PASSWORD }}
-          K6_PARENT_EMAIL: ${{ env.PLAYWRIGHT_PARENT_EMAIL }}
-          K6_PARENT_PASSWORD: ${{ env.PLAYWRIGHT_PARENT_PASSWORD }}
-          K6_STAFF_EMAIL: ${{ env.PLAYWRIGHT_STAFF_EMAIL }}
-          K6_STAFF_PASSWORD: ${{ env.PLAYWRIGHT_STAFF_PASSWORD }}
-          K6_ADMIN_EMAIL: ${{ env.PLAYWRIGHT_ADMIN_EMAIL }}
-          K6_ADMIN_PASSWORD: ${{ env.PLAYWRIGHT_ADMIN_PASSWORD }}
+          K6_STUDENT_EMAIL: ${{ env.K6_STUDENT_EMAIL }}
+          K6_STUDENT_PASSWORD: ${{ env.K6_STUDENT_PASSWORD }}
+          K6_PARENT_EMAIL: ${{ env.K6_PARENT_EMAIL }}
+          K6_PARENT_PASSWORD: ${{ env.K6_PARENT_PASSWORD }}
+          K6_STAFF_EMAIL: ${{ env.K6_STAFF_EMAIL }}
+          K6_STAFF_PASSWORD: ${{ env.K6_STAFF_PASSWORD }}
+          K6_ADMIN_EMAIL: ${{ env.K6_ADMIN_EMAIL }}
+          K6_ADMIN_PASSWORD: ${{ env.K6_ADMIN_PASSWORD }}

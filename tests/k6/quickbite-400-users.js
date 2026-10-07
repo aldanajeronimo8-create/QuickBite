@@ -3,27 +3,15 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
 
-const BASE_URL = (__ENV.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app').replace(/\/$/, '');
-const SUPABASE_URL = (__ENV.VITE_SUPABASE_URL || 'https://cczbbqxunygcowqfrqdm.supabase.co').replace(/\/$/, '');
+const BASE_URL = (__ENV.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app').replace(/\\/$/, '');
+const SUPABASE_URL = (__ENV.VITE_SUPABASE_URL || 'https://cczbbqxunygcowqfrqdm.supabase.co').replace(/\\/$/, '');
 const ANON_KEY = __ENV.VITE_SUPABASE_ANON_KEY;
 
 const credentials = {
-  student: {
-    email: __ENV.K6_STUDENT_EMAIL,
-    password: __ENV.K6_STUDENT_PASSWORD,
-  },
-  parent: {
-    email: __ENV.K6_PARENT_EMAIL,
-    password: __ENV.K6_PARENT_PASSWORD,
-  },
-  staff: {
-    email: __ENV.K6_STAFF_EMAIL,
-    password: __ENV.K6_STAFF_PASSWORD,
-  },
-  admin: {
-    email: __ENV.K6_ADMIN_EMAIL,
-    password: __ENV.K6_ADMIN_PASSWORD,
-  },
+  student: { email: __ENV.K6_STUDENT_EMAIL, password: __ENV.K6_STUDENT_PASSWORD },
+  parent: { email: __ENV.K6_PARENT_EMAIL, password: __ENV.K6_PARENT_PASSWORD },
+  staff: { email: __ENV.K6_STAFF_EMAIL, password: __ENV.K6_STAFF_PASSWORD },
+  admin: { email: __ENV.K6_ADMIN_EMAIL, password: __ENV.K6_ADMIN_PASSWORD },
 };
 
 const roles = Object.keys(credentials);
@@ -34,6 +22,7 @@ for (const role of roles) {
     throw new Error('Missing k6 credentials for role: ' + role);
   }
 }
+if (!ANON_KEY) throw new Error('VITE_SUPABASE_ANON_KEY is required.');
 
 export const options = {
   scenarios: Object.fromEntries(
@@ -64,31 +53,22 @@ export const options = {
   },
 };
 
-let session = null;
-
-function authHeaders(token, includeJson) {
-  const result = { apikey: ANON_KEY };
-  if (token) result.Authorization = 'Bearer ' + token;
-  if (includeJson) result['Content-Type'] = 'application/json';
-  return result;
-}
-
 function login(account) {
   const response = http.post(
     SUPABASE_URL + '/auth/v1/token?grant_type=password',
     JSON.stringify({ email: account.email, password: account.password }),
     {
-      headers: authHeaders(null, true),
-      tags: { name: 'auth_password', role: account.role },
+      headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
+      tags: { name: 'auth_password_setup', role: account.role },
     },
   );
 
-  const ok = check(response, {
-    'Supabase auth returns 200': (r) => r.status === 200,
-    'Supabase auth returns access token': (r) => Boolean(r.json('access_token')),
-  });
-
-  if (!ok) return null;
+  if (!check(response, {
+    'setup auth returns 200': (r) => r.status === 200,
+    'setup auth returns token': (r) => Boolean(r.json('access_token')),
+  })) {
+    throw new Error('k6 setup login failed for ' + account.role);
+  }
 
   return {
     accessToken: response.json('access_token'),
@@ -96,9 +76,17 @@ function login(account) {
   };
 }
 
-function getSession(role) {
-  if (!session) session = login({ ...credentials[role], role });
-  return session;
+export function setup() {
+  return Object.fromEntries(
+    roles.map((role) => [role, login({ ...credentials[role], role })]),
+  );
+}
+
+function headers(token, json) {
+  const result = { apikey: ANON_KEY };
+  if (token) result.Authorization = 'Bearer ' + token;
+  if (json) result['Content-Type'] = 'application/json';
+  return result;
 }
 
 function rest(pathname, token, method, body, role, name) {
@@ -106,10 +94,7 @@ function rest(pathname, token, method, body, role, name) {
     method,
     SUPABASE_URL + '/rest/v1' + pathname,
     body || null,
-    {
-      headers: authHeaders(token, Boolean(body)),
-      tags: { name, role },
-    },
+    { headers: headers(token, Boolean(body)), tags: { name, role } },
   );
 }
 
@@ -125,10 +110,7 @@ function rpc(name, body, token, role) {
 }
 
 function appShell(role) {
-  const response = http.get(BASE_URL, {
-    tags: { name: 'quickbite_home', role },
-  });
-
+  const response = http.get(BASE_URL, { tags: { name: 'quickbite_home', role } });
   return check(response, {
     'QuickBite returns 200': (r) => r.status === 200,
     'QuickBite returns HTML': (r) =>
@@ -140,11 +122,7 @@ function profile(role, token, userId) {
   const response = rest(
     '/profiles?id=eq.' + encodeURIComponent(userId) +
       '&select=id,email,role,active,section_id,grade_id,course_id&limit=1',
-    token,
-    'GET',
-    null,
-    role,
-    'profile_self',
+    token, 'GET', null, role, 'profile_self',
   );
 
   return check(response, {
@@ -168,16 +146,9 @@ function notifications(role, token, userId) {
   const response = rest(
     '/notifications?user_id=eq.' + encodeURIComponent(userId) +
       '&select=id,title,created_at&order=created_at.desc&limit=5',
-    token,
-    'GET',
-    null,
-    role,
-    'notifications_self',
+    token, 'GET', null, role, 'notifications_self',
   );
-
-  return check(response, {
-    'notifications request succeeds': (r) => r.status === 200,
-  });
+  return check(response, { 'notifications request succeeds': (r) => r.status === 200 });
 }
 
 function adminBoundary(role, token) {
@@ -188,19 +159,13 @@ function adminBoundary(role, token) {
   });
 }
 
-function run(role, flow) {
-  const account = credentials[role];
-  const auth = getSession(role);
+function run(role, auth, flow) {
   let ok = appShell(role);
-
   ok = check(auth || {}, {
-    'authenticated session exists': () => Boolean(auth?.accessToken && auth?.userId),
+    'authenticated virtual user is ready': () => Boolean(auth?.accessToken && auth?.userId),
   }) && ok;
 
-  if (auth?.accessToken) {
-    ok = flow(auth) && ok;
-  }
-
+  if (auth?.accessToken) ok = flow(auth) && ok;
   if (__ITER === 0 && auth?.accessToken) {
     ok = adminBoundary(role, auth.accessToken) && ok;
   }
@@ -209,34 +174,26 @@ function run(role, flow) {
   sleep(1);
 }
 
-function studentScenario() {
-  run('student', (auth) => {
+function studentScenario(data) {
+  run('student', data.student, (auth) => {
     let ok = profile('student', auth.accessToken, auth.userId);
 
-    ok = check(rpc(
-      'get_student_recess_status',
-      {},
-      auth.accessToken,
-      'student',
-    ), {
-      'student recess interface works': (r) => r.status === 200,
-    }) && ok;
+    ok = check(
+      rpc('get_student_recess_status', {}, auth.accessToken, 'student'),
+      { 'student recess interface works': (r) => r.status === 200 },
+    ) && ok;
 
-    ok = check(rpc(
-      'qb_products_available_for_current_student',
-      {},
-      auth.accessToken,
-      'student',
-    ), {
-      'student menu interface works': (r) => r.status === 200,
-    }) && ok;
+    ok = check(
+      rpc('qb_products_available_for_current_student', {}, auth.accessToken, 'student'),
+      { 'student menu interface works': (r) => r.status === 200 },
+    ) && ok;
 
     return notifications('student', auth.accessToken, auth.userId) && ok;
   });
 }
 
-function parentScenario() {
-  run('parent', (auth) => {
+function parentScenario(data) {
+  run('parent', data.parent, (auth) => {
     let ok = profile('parent', auth.accessToken, auth.userId);
     const active = rpc('get_parent_active_student', {}, auth.accessToken, 'parent');
     const payload = active.status === 200 ? active.json() : null;
@@ -269,21 +226,19 @@ function parentScenario() {
   });
 }
 
-function staffScenario() {
-  run('staff', (auth) => {
+function staffScenario(data) {
+  run('staff', data.staff, (auth) => {
     let ok = profile('staff', auth.accessToken, auth.userId);
-
     ok = check(
       rpc('staff_list_active_orders', {}, auth.accessToken, 'staff'),
       { 'staff orders interface works': (r) => r.status === 200 },
     ) && ok;
-
     return notifications('staff', auth.accessToken, auth.userId) && ok;
   });
 }
 
-function adminScenario() {
-  run('admin', (auth) => {
+function adminScenario(data) {
+  run('admin', data.admin, (auth) => {
     let ok = profile('admin', auth.accessToken, auth.userId);
 
     ok = check(
