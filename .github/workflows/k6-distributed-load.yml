@@ -1,0 +1,44 @@
+name: QuickBite Distributed 400-User Load Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/k6/quickbite-400-users-http.js'
+      - '.github/workflows/k6-distributed-load.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quickbite-distributed-load
+  cancel-in-progress: false
+
+jobs:
+  load:
+    name: ${{ matrix.role }} — 100 VUs
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [student, parent, staff, admin]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      K6_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+      K6_${{ matrix.role }}: ${{ matrix.role }}
+      K6_STUDENT_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+      K6_STUDENT_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
+      K6_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
+      K6_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
+      K6_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
+      K6_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
+      K6_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
+      K6_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Run 100-VU role load
+        run: k6 run tests/k6/quickbite-400-users-http.js
