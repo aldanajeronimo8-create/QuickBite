@@ -169,7 +169,7 @@ async function login(role) {
 }
 
 function httpPostLogin(account) {
-  const response = fetch(
+  const response = http.post(
     SUPABASE_URL + '/auth/v1/token?grant_type=password',
     JSON.stringify({ email: account.email, password: account.password }),
     {
