@@ -23,7 +23,8 @@
     "verify:excel-only": "node scripts/verify-excel-only.mjs",
     "prepare": "husky",
     "test:k6": "k6 run tests/k6/quickbite-load.js",
-    "test:k6:smoke": "k6 run --vus 5 --duration 30s tests/k6/quickbite-load.js"
+    "test:k6:smoke": "k6 run --vus 5 --duration 30s tests/k6/quickbite-load.js",
+    "test:k6:400": "k6 run tests/k6/quickbite-400-users.js"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
