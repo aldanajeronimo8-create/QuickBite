@@ -1,3 +1,17 @@
+
+async function loginAsStaff(page: import('@playwright/test').Page) {
+  const email = process.env.PLAYWRIGHT_STAFF_EMAIL;
+  const password = process.env.PLAYWRIGHT_STAFF_PASSWORD;
+  test.skip(!email || !password, 'Missing Playwright Staff credentials.');
+
+  await page.goto('/login');
+  await page.getByRole('button', { name: /personal de cafeter[ií]a/i }).click();
+  await page.locator('#login-email').fill(email!);
+  await page.locator('#login-password').fill(password!);
+  await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
+  await page.waitForURL(/\/staff(?:\/)?$/);
+}
+
 import { test, expect } from '@playwright/test';
 
 const publicRoutes = [
@@ -59,4 +73,32 @@ test('admin feature center smoke test when admin E2E credentials are configured'
   await expect(page.getByText(/an[aá]lisis y trazabilidad/i)).toBeVisible();
   await expect(page.getByText(/sistema y mantenimiento/i)).toBeVisible();
   expect(consoleErrors).toEqual([]);
+});
+
+
+test('staff cannot access admin routes', async ({ page }) => {
+  await loginAsStaff(page);
+  await page.goto('/admin/features');
+  await page.waitForLoadState('domcontentloaded');
+  await expect(page).toHaveURL(/\/staff(?:\/)?$|\/login$/);
+  await expect(page.getByText(/centro de funcionalidades/i)).not.toBeVisible();
+});
+
+test('admin users page exposes Staff lifecycle controls', async ({ page }) => {
+  test.skip(
+    !process.env.PLAYWRIGHT_ADMIN_EMAIL || !process.env.PLAYWRIGHT_ADMIN_PASSWORD,
+    'Set admin credentials to enable Staff management coverage.',
+  );
+
+  await page.goto('/login');
+  await page.getByRole('button', { name: /acceso de administraci[oó]n/i }).click();
+  await page.locator('#login-email').fill(process.env.PLAYWRIGHT_ADMIN_EMAIL!);
+  await page.locator('#login-password').fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD!);
+  await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
+  await page.waitForURL(/\/admin(?:\/)?/);
+  await page.goto('/admin/users');
+  await page.waitForLoadState('networkidle');
+  await expect(page.getByRole('heading', { name: 'Usuarios' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Crear Staff' })).toBeVisible();
+  await expect(page.getByText('Estado', { exact: true })).toBeVisible();
 });
