@@ -1,5 +1,6 @@
 /* global __ENV */
 import { browser } from 'k6/browser';
+import http from 'k6/http';
 import { check } from 'k6';
 import { Rate, Counter, Trend } from 'k6/metrics';
 

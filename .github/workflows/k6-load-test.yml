@@ -23,16 +23,16 @@ jobs:
     timeout-minutes: 15
     env:
       VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
-      VITE_SUPABASE_ANON_KEY: \${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      K6_BASE_URL: \${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
-      K6_STUDENT_EMAIL: \${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
-      K6_STUDENT_PASSWORD: \${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
-      K6_PARENT_EMAIL: \${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
-      K6_PARENT_PASSWORD: \${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
-      K6_STAFF_EMAIL: \${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
-      K6_STAFF_PASSWORD: \${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
-      K6_ADMIN_EMAIL: \${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
-      K6_ADMIN_PASSWORD: \${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      K6_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+      K6_STUDENT_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+      K6_STUDENT_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
+      K6_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
+      K6_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
+      K6_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
+      K6_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
+      K6_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
+      K6_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -42,15 +42,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "\${K6_STUDENT_EMAIL}" || { echo "Missing Student load-test credential"; exit 1; }
-          test -n "\${K6_STUDENT_PASSWORD}" || { echo "Missing Student load-test password"; exit 1; }
-          test -n "\${K6_PARENT_EMAIL}" || { echo "Missing Parent load-test credential"; exit 1; }
-          test -n "\${K6_PARENT_PASSWORD}" || { echo "Missing Parent load-test password"; exit 1; }
-          test -n "\${K6_STAFF_EMAIL}" || { echo "Missing Staff load-test credential"; exit 1; }
-          test -n "\${K6_STAFF_PASSWORD}" || { echo "Missing Staff load-test password"; exit 1; }
-          test -n "\${K6_ADMIN_EMAIL}" || { echo "Missing Admin load-test credential"; exit 1; }
-          test -n "\${K6_ADMIN_PASSWORD}" || { echo "Missing Admin load-test password"; exit 1; }
-          test -n "\${VITE_SUPABASE_ANON_KEY}" || { echo "Missing Supabase anon/publishable key"; exit 1; }
+          test -n "${K6_STUDENT_EMAIL}" || { echo "Missing Student load-test credential"; exit 1; }
+          test -n "${K6_STUDENT_PASSWORD}" || { echo "Missing Student load-test password"; exit 1; }
+          test -n "${K6_PARENT_EMAIL}" || { echo "Missing Parent load-test credential"; exit 1; }
+          test -n "${K6_PARENT_PASSWORD}" || { echo "Missing Parent load-test password"; exit 1; }
+          test -n "${K6_STAFF_EMAIL}" || { echo "Missing Staff load-test credential"; exit 1; }
+          test -n "${K6_STAFF_PASSWORD}" || { echo "Missing Staff load-test password"; exit 1; }
+          test -n "${K6_ADMIN_EMAIL}" || { echo "Missing Admin load-test credential"; exit 1; }
+          test -n "${K6_ADMIN_PASSWORD}" || { echo "Missing Admin load-test password"; exit 1; }
+          test -n "${VITE_SUPABASE_ANON_KEY}" || { echo "Missing Supabase anon/publishable key"; exit 1; }
 
       - name: Setup current Grafana k6
         uses: grafana/setup-k6-action@v1
