@@ -1,0 +1,55 @@
+name: QuickBite Browser Functional Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/k6/quickbite-400-users.js'
+      - '.github/workflows/k6-browser-functional.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: quickbite-browser-functional
+  cancel-in-progress: false
+
+jobs:
+  browser:
+    name: ${{ matrix.role }} browser functional
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [student, parent, staff, admin]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      K6_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+      K6_BROWSER_${{ matrix.role }}: ${{ matrix.role }}
+      K6_BROWSER_VUS: 1
+      K6_BROWSER_ITERATIONS: 1
+      K6_STUDENT_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+      K6_STUDENT_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
+      K6_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
+      K6_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
+      K6_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
+      K6_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
+      K6_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
+      K6_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Select Chromium
+        run: |
+          set -euo pipefail
+          for c in google-chrome google-chrome-stable chromium chromium-browser; do
+            if command -v "$c" >/dev/null 2>&1; then
+              echo "K6_BROWSER_EXECUTABLE_PATH=$(command -v "$c")" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "No Chromium/Chrome executable found"; exit 1
+      - name: Run one functional browser audit
+        run: k6 run tests/k6/quickbite-400-users.js
