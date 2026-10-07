@@ -1,5 +1,6 @@
 # Login E2E isolation: browser auth storage is reset by role-login helpers before exercising the form.
 # Verification trigger: rerun exhaustive audit on the commit containing the Login isolation corrections.
+# Exhaustive verification trigger: fresh full-chain audit requested after prior green run.
 name: Auditoría Exhaustiva QuickBite
 
 on:
@@ -155,6 +156,11 @@ jobs:
         with:
           version: 11.11.0
           run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
