@@ -21,6 +21,8 @@ const controlsClicked = new Counter('ui_controls_clicked');
 const controlsTrialOnly = new Counter('ui_controls_trial_only');
 const routesChecked = new Counter('ui_routes_checked');
 const routeLatency = new Trend('ui_route_latency', true);
+const browserHttpFailures = new Rate('browser_http_failures');
+const browserNetworkFailures = new Counter('browser_network_failures');
 
 const ROLE_ROUTES = {
   student: [
@@ -155,6 +157,7 @@ export const options = {
   thresholds: {
     checks: ['rate>0.995'],
     ui_function_failures: ['rate<0.01'],
+    browser_http_failures: ['rate<0.01'],
   },
 };
 
@@ -430,6 +433,36 @@ async function runBrowserAudit(role, sessionData) {
     if (type === 'error') consoleErrors.push(message.text());
   });
 
+  const httpErrors = [];
+  page.on('response', (response) => {
+    const status = response.status();
+    if (status >= 400) {
+      const url = response.url();
+      const request = response.request();
+      const resourceType = request.resourceType();
+      if (resourceType === 'document' || resourceType === 'fetch' || resourceType === 'xhr') {
+        httpErrors.push({
+          status,
+          method: request.method(),
+          url,
+          resourceType,
+        });
+        browserHttpFailures.add(true, { role });
+      }
+    }
+  });
+
+  page.on('requestfailed', (request) => {
+    browserNetworkFailures.add(1, { role });
+    console.error(
+      'BROWSER_REQUEST_FAILED',
+      role,
+      request.method(),
+      request.url(),
+      JSON.stringify(request.failure() || {}),
+    );
+  });
+
   try {
     await auditRoute(page, role, ROLE_ROUTES[role][0]);
 
@@ -445,13 +478,14 @@ async function runBrowserAudit(role, sessionData) {
     }
 
     check(
-      { consoleErrors },
+      { consoleErrors, httpErrors },
       {
         'no browser console errors were emitted': (v) => v.consoleErrors.length === 0,
+        'no document/fetch/xhr response errors were emitted': (v) => v.httpErrors.length === 0,
       },
     );
 
-    if (consoleErrors.length) failures.add(true, { role });
+    if (consoleErrors.length || httpErrors.length) failures.add(true, { role });
   } finally {
     await page.close();
   }
