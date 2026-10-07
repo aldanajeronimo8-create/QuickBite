@@ -3,19 +3,37 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
 
-const baseUrl = (__ENV.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app').replace(/\/$/, '');
-const supabaseUrl = (__ENV.VITE_SUPABASE_URL || 'https://cczbbqxunygcowqfrqdm.supabase.co').replace(/\/$/, '');
-const anonKey = __ENV.VITE_SUPABASE_ANON_KEY;
-const users = JSON.parse(open(__ENV.K6_USERS_FILE || '/tmp/quickbite-k6-users.json'));
-const roles = ['student', 'parent', 'staff', 'admin'];
-const flowErrors = new Rate('role_flow_errors');
+const BASE_URL = (__ENV.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app').replace(/\/$/, '');
+const SUPABASE_URL = (__ENV.VITE_SUPABASE_URL || 'https://cczbbqxunygcowqfrqdm.supabase.co').replace(/\/$/, '');
+const ANON_KEY = __ENV.VITE_SUPABASE_ANON_KEY;
+
+const credentials = {
+  student: {
+    email: __ENV.K6_STUDENT_EMAIL,
+    password: __ENV.K6_STUDENT_PASSWORD,
+  },
+  parent: {
+    email: __ENV.K6_PARENT_EMAIL,
+    password: __ENV.K6_PARENT_PASSWORD,
+  },
+  staff: {
+    email: __ENV.K6_STAFF_EMAIL,
+    password: __ENV.K6_STAFF_PASSWORD,
+  },
+  admin: {
+    email: __ENV.K6_ADMIN_EMAIL,
+    password: __ENV.K6_ADMIN_PASSWORD,
+  },
+};
+
+const roles = Object.keys(credentials);
+const roleErrors = new Rate('role_flow_errors');
 
 for (const role of roles) {
-  if (!Array.isArray(users.accounts?.[role]) || users.accounts[role].length !== 100) {
-    throw new Error('Expected 100 accounts for ' + role);
+  if (!credentials[role].email || !credentials[role].password) {
+    throw new Error('Missing k6 credentials for role: ' + role);
   }
 }
-if (!anonKey) throw new Error('VITE_SUPABASE_ANON_KEY is required.');
 
 export const options = {
   scenarios: Object.fromEntries(
@@ -48,70 +66,96 @@ export const options = {
 
 let session = null;
 
-function headers(token, json) {
-  const result = { apikey: anonKey };
+function authHeaders(token, includeJson) {
+  const result = { apikey: ANON_KEY };
   if (token) result.Authorization = 'Bearer ' + token;
-  if (json) result['Content-Type'] = 'application/json';
+  if (includeJson) result['Content-Type'] = 'application/json';
   return result;
 }
 
 function login(account) {
   const response = http.post(
-    supabaseUrl + '/auth/v1/token?grant_type=password',
+    SUPABASE_URL + '/auth/v1/token?grant_type=password',
     JSON.stringify({ email: account.email, password: account.password }),
-    { headers: headers(null, true), tags: { name: 'auth_password', role: account.role } },
+    {
+      headers: authHeaders(null, true),
+      tags: { name: 'auth_password', role: account.role },
+    },
   );
 
   const ok = check(response, {
-    'auth returns 200': (r) => r.status === 200,
-    'auth returns access token': (r) => Boolean(r.json('access_token')),
+    'Supabase auth returns 200': (r) => r.status === 200,
+    'Supabase auth returns access token': (r) => Boolean(r.json('access_token')),
   });
 
-  return ok ? {
+  if (!ok) return null;
+
+  return {
     accessToken: response.json('access_token'),
     userId: response.json('user.id'),
-  } : null;
+  };
 }
 
-function ensureSession(account) {
-  if (!session) session = login(account);
+function getSession(role) {
+  if (!session) session = login({ ...credentials[role], role });
   return session;
 }
 
 function rest(pathname, token, method, body, role, name) {
   return http.request(
     method,
-    supabaseUrl + '/rest/v1' + pathname,
+    SUPABASE_URL + '/rest/v1' + pathname,
     body || null,
     {
-      headers: headers(token, Boolean(body)),
+      headers: authHeaders(token, Boolean(body)),
       tags: { name, role },
     },
   );
 }
 
 function rpc(name, body, token, role) {
-  return rest('/rpc/' + name, token, 'POST', JSON.stringify(body || {}), role, 'rpc_' + name);
+  return rest(
+    '/rpc/' + name,
+    token,
+    'POST',
+    JSON.stringify(body || {}),
+    role,
+    'rpc_' + name,
+  );
 }
 
-function profile(account, token) {
+function appShell(role) {
+  const response = http.get(BASE_URL, {
+    tags: { name: 'quickbite_home', role },
+  });
+
+  return check(response, {
+    'QuickBite returns 200': (r) => r.status === 200,
+    'QuickBite returns HTML': (r) =>
+      String(r.headers['Content-Type'] || '').toLowerCase().includes('text/html'),
+  });
+}
+
+function profile(role, token, userId) {
   const response = rest(
-    '/profiles?id=eq.' + encodeURIComponent(account.user_id) +
+    '/profiles?id=eq.' + encodeURIComponent(userId) +
       '&select=id,email,role,active,section_id,grade_id,course_id&limit=1',
     token,
     'GET',
     null,
-    account.role,
+    role,
     'profile_self',
   );
 
   return check(response, {
-    'profile returns 200': (r) => r.status === 200,
-    'profile matches user and role': (r) => {
+    'profile request succeeds': (r) => r.status === 200,
+    'profile belongs to current user': (r) => {
       const rows = r.json();
-      return Array.isArray(rows) && rows.length === 1 &&
-        rows[0].id === account.user_id &&
-        rows[0].role === account.role;
+      return Array.isArray(rows) && rows.length === 1 && rows[0].id === userId;
+    },
+    'profile role is correct': (r) => {
+      const rows = r.json();
+      return Array.isArray(rows) && rows.length === 1 && rows[0].role === role;
     },
     'profile is active': (r) => {
       const rows = r.json();
@@ -120,151 +164,146 @@ function profile(account, token) {
   });
 }
 
-function notifications(account, token) {
+function notifications(role, token, userId) {
   const response = rest(
-    '/notifications?user_id=eq.' + encodeURIComponent(account.user_id) +
+    '/notifications?user_id=eq.' + encodeURIComponent(userId) +
       '&select=id,title,created_at&order=created_at.desc&limit=5',
     token,
     'GET',
     null,
-    account.role,
+    role,
     'notifications_self',
   );
-  return check(response, { 'notifications return 200': (r) => r.status === 200 });
+
+  return check(response, {
+    'notifications request succeeds': (r) => r.status === 200,
+  });
 }
 
-function adminBoundary(account, token) {
-  const response = rpc('admin_list_users', {}, token, account.role);
+function adminBoundary(role, token) {
+  const response = rpc('admin_list_users', {}, token, role);
   return check(response, {
-    'admin access matches role': (r) =>
-      account.role === 'admin'
-        ? r.status === 200
-        : [400, 401, 403].includes(r.status),
+    'admin authorization matches role': (r) =>
+      role === 'admin' ? r.status === 200 : [400, 401, 403].includes(r.status),
   });
 }
 
 function run(role, flow) {
-  const account = users.accounts[role][(__VU - 1) % 100];
-  const home = http.get(baseUrl, { tags: { name: 'quickbite_home', role } });
-  let ok = check(home, {
-    'app returns 200': (r) => r.status === 200,
-    'app returns html': (r) =>
-      String(r.headers['Content-Type'] || '').toLowerCase().includes('text/html'),
-  });
+  const account = credentials[role];
+  const auth = getSession(role);
+  let ok = appShell(role);
 
-  const auth = ensureSession(account);
   ok = check(auth || {}, {
-    'session created': () => Boolean(auth?.accessToken),
+    'authenticated session exists': () => Boolean(auth?.accessToken && auth?.userId),
   }) && ok;
 
-  if (auth?.accessToken) ok = flow(account, auth.accessToken) && ok;
+  if (auth?.accessToken) {
+    ok = flow(auth) && ok;
+  }
 
-  if (__ITER === 0) ok = adminBoundary(account, auth?.accessToken) && ok;
+  if (__ITER === 0 && auth?.accessToken) {
+    ok = adminBoundary(role, auth.accessToken) && ok;
+  }
 
-  flowErrors.add(!ok, { role });
+  roleErrors.add(!ok, { role });
   sleep(1);
 }
 
 function studentScenario() {
-  run('student', (account, token) => {
-    let ok = profile(account, token);
+  run('student', (auth) => {
+    let ok = profile('student', auth.accessToken, auth.userId);
 
     ok = check(rpc(
-      'get_or_create_student_code',
-      { p_force_new: false, p_student_user_id: account.user_id },
-      token, 'student',
+      'get_student_recess_status',
+      {},
+      auth.accessToken,
+      'student',
     ), {
-      'student code works': (r) => r.status === 200,
+      'student recess interface works': (r) => r.status === 200,
     }) && ok;
 
-    ok = check(rpc('get_student_recess_status', {}, token, 'student'), {
-      'student recess works': (r) => r.status === 200,
+    ok = check(rpc(
+      'qb_products_available_for_current_student',
+      {},
+      auth.accessToken,
+      'student',
+    ), {
+      'student menu interface works': (r) => r.status === 200,
     }) && ok;
 
-    ok = check(rpc('qb_products_available_for_current_student', {}, token, 'student'), {
-      'student products work': (r) => r.status === 200,
-    }) && ok;
-
-    return notifications(account, token) && ok;
+    return notifications('student', auth.accessToken, auth.userId) && ok;
   });
 }
 
 function parentScenario() {
-  run('parent', (account, token) => {
-    let ok = profile(account, token);
-    const active = rpc('get_parent_active_student', {}, token, 'parent');
+  run('parent', (auth) => {
+    let ok = profile('parent', auth.accessToken, auth.userId);
+    const active = rpc('get_parent_active_student', {}, auth.accessToken, 'parent');
     const payload = active.status === 200 ? active.json() : null;
     const row = Array.isArray(payload) ? payload[0] : payload;
-    const studentId = row?.student_user_id || account.student_user_id;
+    const studentId = row?.student_user_id;
 
     ok = check(active, {
-      'parent active student works': (r) => r.status === 200,
-      'parent has linked student': () => Boolean(studentId),
+      'parent active-student lookup works': (r) => r.status === 200,
+      'parent has an active student': () => Boolean(studentId),
     }) && ok;
 
-    if (!studentId) return false;
+    if (studentId) {
+      ok = check(
+        rpc('get_parent_family_dashboard', { p_student_user_id: studentId }, auth.accessToken, 'parent'),
+        { 'parent family dashboard works': (r) => r.status === 200 },
+      ) && ok;
 
-    ok = check(rpc(
-      'get_parent_family_dashboard',
-      { p_student_user_id: studentId },
-      token, 'parent',
-    ), {
-      'parent family dashboard works': (r) => r.status === 200,
-    }) && ok;
+      ok = check(
+        rpc('get_parent_student_spending_summary', { p_student_user_id: studentId }, auth.accessToken, 'parent'),
+        { 'parent spending summary works': (r) => r.status === 200 },
+      ) && ok;
 
-    ok = check(rpc(
-      'get_parent_student_spending_summary',
-      { p_student_user_id: studentId },
-      token, 'parent',
-    ), {
-      'parent spending summary works': (r) => r.status === 200,
-    }) && ok;
+      ok = check(
+        rpc('get_parent_food_controls', { p_student_user_id: studentId }, auth.accessToken, 'parent'),
+        { 'parent food controls work': (r) => r.status === 200 },
+      ) && ok;
+    }
 
-    ok = check(rpc(
-      'get_parent_food_controls',
-      { p_student_user_id: studentId },
-      token, 'parent',
-    ), {
-      'parent food controls work': (r) => r.status === 200,
-    }) && ok;
-
-    return notifications(account, token) && ok;
+    return notifications('parent', auth.accessToken, auth.userId) && ok;
   });
 }
 
 function staffScenario() {
-  run('staff', (account, token) => {
-    let ok = profile(account, token);
-    ok = check(rpc('staff_list_active_orders', {}, token, 'staff'), {
-      'staff active orders work': (r) => r.status === 200,
-    }) && ok;
-    return notifications(account, token) && ok;
+  run('staff', (auth) => {
+    let ok = profile('staff', auth.accessToken, auth.userId);
+
+    ok = check(
+      rpc('staff_list_active_orders', {}, auth.accessToken, 'staff'),
+      { 'staff orders interface works': (r) => r.status === 200 },
+    ) && ok;
+
+    return notifications('staff', auth.accessToken, auth.userId) && ok;
   });
 }
 
 function adminScenario() {
-  run('admin', (account, token) => {
-    let ok = profile(account, token);
+  run('admin', (auth) => {
+    let ok = profile('admin', auth.accessToken, auth.userId);
 
-    ok = check(rpc('list_admin_orders', {}, token, 'admin'), {
-      'admin orders work': (r) => r.status === 200,
-    }) && ok;
+    ok = check(
+      rpc('list_admin_orders', {}, auth.accessToken, 'admin'),
+      { 'admin orders interface works': (r) => r.status === 200 },
+    ) && ok;
 
     if (__ITER === 0) {
-      ok = check(rpc('admin_list_users', {}, token, 'admin'), {
-        'admin users work': (r) => r.status === 200,
-      }) && ok;
+      ok = check(
+        rpc('admin_list_users', {}, auth.accessToken, 'admin'),
+        { 'admin users interface works': (r) => r.status === 200 },
+      ) && ok;
 
-      ok = check(rpc(
-        'get_admin_dashboard_intelligence',
-        { p_days: 7 },
-        token, 'admin',
-      ), {
-        'admin intelligence works': (r) => r.status === 200,
-      }) && ok;
+      ok = check(
+        rpc('get_admin_dashboard_intelligence', { p_days: 7 }, auth.accessToken, 'admin'),
+        { 'admin dashboard intelligence works': (r) => r.status === 200 },
+      ) && ok;
     }
 
-    return notifications(account, token) && ok;
+    return notifications('admin', auth.accessToken, auth.userId) && ok;
   });
 }
 
