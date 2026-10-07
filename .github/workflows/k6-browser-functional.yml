@@ -27,7 +27,7 @@ jobs:
       VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       K6_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
-      K6_BROWSER_${{ matrix.role }}: ${{ matrix.role }}
+      K6_BROWSER_ROLE: ${{ matrix.role }}
       K6_BROWSER_VUS: 1
       K6_BROWSER_ITERATIONS: 1
       K6_STUDENT_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
