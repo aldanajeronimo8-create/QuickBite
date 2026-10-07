@@ -1,4 +1,4 @@
-name: QuickBite k6 Load Test
+name: QuickBite 400-User Functional Load Test
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - main
     paths:
       - 'tests/k6/**'
+      - 'scripts/provision-k6-users.mjs'
       - '.github/workflows/k6-load-test.yml'
-      - 'package.json'
   workflow_dispatch:
 
 permissions:
@@ -15,19 +15,48 @@ permissions:
 
 jobs:
   k6:
-    name: Run QuickBite k6 load test
+    name: 400 users — 100 per interface
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
+      VITE_SUPABASE_ANON_KEY: \${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      K6_BASE_URL: \${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+      K6_USERS_FILE: /tmp/quickbite-k6-users.json
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate load-test secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "\${VITE_SUPABASE_ANON_KEY}" || { echo "VITE_SUPABASE_ANON_KEY is missing"; exit 1; }
+          test -n "\${SUPABASE_SERVICE_ROLE_KEY}" || { echo "SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
+
+      - name: Provision 400 isolated accounts
+        run: node scripts/provision-k6-users.mjs
+
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
 
-      - name: Run k6 smoke/load test
+      - name: Run 400-user functional load test
         uses: grafana/run-k6-action@v1
         with:
-          path: ./tests/k6/quickbite-load.js
+          path: ./tests/k6/quickbite-400-users.js
         env:
-          K6_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+          K6_BASE_URL: \${{ env.K6_BASE_URL }}
+          VITE_SUPABASE_URL: \${{ env.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: \${{ env.VITE_SUPABASE_ANON_KEY }}
+          K6_USERS_FILE: \${{ env.K6_USERS_FILE }}
+
+      - name: Cleanup generated accounts
+        if: \${{ always() }}
+        run: node scripts/provision-k6-users.mjs
+        env:
+          K6_ACTION: cleanup
+          VITE_SUPABASE_URL: \${{ env.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: \${{ env.SUPABASE_SERVICE_ROLE_KEY }}
+          K6_USERS_FILE: \${{ env.K6_USERS_FILE }}
