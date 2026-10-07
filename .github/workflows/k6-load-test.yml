@@ -24,8 +24,6 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
       PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
-      PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
-      PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
       K6_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
 
     steps:
@@ -40,8 +38,6 @@ jobs:
           test -n "${SUPABASE_SERVICE_ROLE_KEY}" || { echo "SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
           test -n "${PLAYWRIGHT_E2E_EMAIL}" || { echo "PLAYWRIGHT_E2E_EMAIL is missing"; exit 1; }
           test -n "${PLAYWRIGHT_E2E_PASSWORD}" || { echo "PLAYWRIGHT_E2E_PASSWORD is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_ADMIN_EMAIL}" || { echo "PLAYWRIGHT_ADMIN_EMAIL is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_ADMIN_PASSWORD}" || { echo "PLAYWRIGHT_ADMIN_PASSWORD is missing"; exit 1; }
 
       - name: Provision/verify four isolated E2E role accounts
         run: node scripts/ensure-e2e-user.mjs
