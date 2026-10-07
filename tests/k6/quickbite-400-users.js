@@ -8,6 +8,10 @@ const BASE_URL = (__ENV.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app'
 const SUPABASE_URL = (__ENV.VITE_SUPABASE_URL || 'https://cczbbqxunygcowqfrqdm.supabase.co').replace(/\/$/, '');
 const ANON_KEY = __ENV.VITE_SUPABASE_ANON_KEY;
 
+const BROWSER_ROLE = (__ENV.K6_BROWSER_ROLE || 'all').toLowerCase();
+const BROWSER_VUS = Number(__ENV.K6_BROWSER_VUS || 100);
+const BROWSER_ITERATIONS = Number(__ENV.K6_BROWSER_ITERATIONS || 1);
+
 const accounts = {
   student: { email: __ENV.K6_STUDENT_EMAIL, password: __ENV.K6_STUDENT_PASSWORD },
   parent: { email: __ENV.K6_PARENT_EMAIL, password: __ENV.K6_PARENT_PASSWORD },
@@ -141,12 +145,14 @@ if (!ANON_KEY) throw new Error('Missing VITE_SUPABASE_ANON_KEY');
 
 export const options = {
   scenarios: Object.fromEntries(
-    Object.keys(accounts).map((role) => [
+    Object.keys(accounts)
+      .filter((role) => BROWSER_ROLE === 'all' || role === BROWSER_ROLE)
+      .map((role) => [
       role,
       {
         executor: 'per-vu-iterations',
-        vus: 100,
-        iterations: 1,
+        vus: BROWSER_VUS,
+        iterations: BROWSER_ITERATIONS,
         maxDuration: '12m',
         exec: role + 'BrowserAudit',
         tags: { role, test: 'ui-full-function-sweep' },
@@ -424,12 +430,8 @@ async function auditRoute(page, role, route) {
 }
 
 export function setup() {
-  return {
-    student: login('student'),
-    parent: login('parent'),
-    staff: login('staff'),
-    admin: login('admin'),
-  };
+  const roles = BROWSER_ROLE === 'all' ? Object.keys(accounts) : [BROWSER_ROLE];
+  return Object.fromEntries(roles.map((role) => [role, login(role)]));
 }
 
 async function runBrowserAudit(role, sessionData) {
