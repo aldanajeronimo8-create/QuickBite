@@ -11,6 +11,7 @@ import {
   type Profile,
   type SystemHealthCheck,
   type UserNotification,
+  type StaffOrder,
 } from '../lib/supabase';
 import { getErrorMessage } from '../lib/errorMessage';
 import { withRetry } from '../lib/retry';
@@ -41,6 +42,25 @@ async function getProductById(id: string) { const { data, error } = await requir
 export async function createProduct(product: NewProduct) { const supabase = requireSupabaseClient(); const { data: productId, error: rpcError } = await supabase.rpc('admin_create_product', { p_name: product.name, p_description: product.description ?? null, p_price: product.price, p_image_url: product.image_url ?? null, p_category_id: product.category_id, p_stock: product.stock, p_available: product.available }); if (!rpcError) return getProductById(String(productId)); if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { data, error } = await supabase.from('products').insert(product).select('*, category:categories(*)').single(); if (error) throw productRpcError(error); return data as Product; }
 export async function updateProduct(id: string, updates: ProductUpdate) { const supabase = requireSupabaseClient(); const { data: productId, error: rpcError } = await supabase.rpc('admin_update_product', { p_product_id: id, p_name: updates.name ?? null, p_description: updates.description ?? null, p_price: updates.price ?? null, p_image_url: updates.image_url ?? null, p_category_id: updates.category_id ?? null, p_stock: updates.stock ?? null, p_available: updates.available ?? null }); if (!rpcError) return getProductById(String(productId)); if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('*, category:categories(*)').single(); if (error) throw productRpcError(error); return data as Product; }
 export async function deleteProduct(id: string) { const supabase = requireSupabaseClient(); const { error: rpcError } = await supabase.rpc('admin_delete_product', { p_product_id: id }); if (!rpcError) return; if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { error } = await supabase.from('products').delete().eq('id', id); if (error) throw productRpcError(error); }
+export async function listStaffActiveOrders() {
+  const { data, error } = await requireSupabaseClient().rpc('staff_list_active_orders');
+  if (error) throw error;
+  return (data ?? []) as StaffOrder[];
+}
+
+export async function updateStaffOrderStatus(id: string, status: Extract<Order['status'], 'preparing' | 'ready' | 'delivered'>) {
+  const { data, error } = await requireSupabaseClient().rpc('staff_update_order_status', { p_order_id: id, p_status: status });
+  if (error) {
+    const message = getErrorMessage(error, 'No se pudo actualizar el pedido.');
+    if (/not_authorized|row-level security|permission denied/i.test(message)) throw new Error('Tu cuenta no tiene permisos de Staff.');
+    if (/invalid_order_transition/i.test(message)) throw new Error('El pedido debe avanzar en orden: pendiente, preparación, listo y entregado.');
+    if (/order_not_found/i.test(message)) throw new Error('El pedido ya no existe o no está disponible.');
+    if (/immutable/i.test(message)) throw new Error('Este pedido ya está cerrado.');
+    throw new Error(message);
+  }
+  return String(data ?? id);
+}
+
 export async function listOrders() { const data = await withRetry(async () => { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('admin_hidden', false).order('created_at', { ascending: false }); if (error) throw error; return data; }); return (data ?? []) as Order[]; }
 async function getOrderById(id: string) { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('id', id).single(); if (error) throw orderStatusRpcError(error); return data as Order; }
 export async function listOrdersForExport(sinceIso: string, limit = 10000) { const supabase = requireSupabaseClient(); const safeLimit = Math.min(Math.max(limit, 1), 10000); const batchSize = 1000; const orders: Order[] = []; while (orders.length < safeLimit) { const from = orders.length; const to = Math.min(from + batchSize - 1, safeLimit - 1); const { data, error } = await supabase.from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').gte('created_at', sinceIso).order('created_at', { ascending: false }).range(from, to); if (error) throw error; const batch = (data ?? []) as Order[]; orders.push(...batch); if (batch.length < to - from + 1) break; } return orders; }
@@ -70,6 +90,18 @@ export async function archiveOrders(ids: string[]) { if (!ids.length) return 0; 
 export async function resetOrdersForNewPeriod() { const { data, error } = await requireSupabaseClient().rpc('reset_all_orders'); if (error) throw error; return Number(data ?? 0); }
 export async function updateOrderStatus(id: string, status: Order['status']) { const supabase = requireSupabaseClient(); const { data: updatedOrderId, error: rpcError } = await supabase.rpc('admin_update_order_status', { p_order_id: id, p_status: status }); if (!rpcError) return getOrderById(String(updatedOrderId ?? id)); if (!isMissingRpc(rpcError)) throw orderStatusRpcError(rpcError); const { data, error } = await supabase.from('orders').update({ status }).eq('id', id).select('*, order_items(*, product:products(*)), user:profiles(*)').single(); if (error) throw orderStatusRpcError(error); return data as Order; }
 export async function moderateOrderPayment(id: string, action: 'approve' | 'reject') { const { error } = await requireSupabaseClient().rpc('admin_moderate_order_payment', { p_order_id: id, p_action: action }); if (error) throw paymentModerationError(error); return getOrderById(id); }
+export async function setManagedUserActive(userId: string, active: boolean) {
+  const { error } = await requireSupabaseClient().rpc('admin_set_user_active', { p_user_id: userId, p_active: active });
+  if (error) {
+    const message = getErrorMessage(error, 'No se pudo cambiar el estado del usuario.');
+    if (/not_authorized/i.test(message)) throw new Error('No tienes permisos de administrador para gestionar usuarios.');
+    if (/cannot_change_own_active_status/i.test(message)) throw new Error('No puedes cambiar tu propio estado.');
+    if (/protected_account_cannot_be_deactivated/i.test(message)) throw new Error('Esta cuenta administrativa está protegida.');
+    if (/user_not_found/i.test(message)) throw new Error('Usuario no encontrado.');
+    throw new Error(message);
+  }
+}
+
 export async function listUserNotifications(userId: string, limit = 30) { const { data, error } = await requireSupabaseClient().from('notifications').select('id,user_id,order_id,type,title,body,read_at,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(Math.min(Math.max(limit, 1), 100)); if (error) throw error; return (data ?? []) as UserNotification[]; }
 export async function markUserNotificationsRead(notificationIds?: string[]) { const { error } = await requireSupabaseClient().rpc('mark_notifications_read', { p_notification_ids: notificationIds?.length ? notificationIds : null }); if (error) throw error; }
 export async function getLoyaltySettings() { const { data, error } = await requireSupabaseClient().from('loyalty_settings').select('id,enabled,points_per_currency_unit,updated_at').eq('id', true).single(); if (error) throw error; return data as LoyaltySettings; }
