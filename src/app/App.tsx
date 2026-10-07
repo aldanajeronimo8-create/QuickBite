@@ -33,9 +33,10 @@ function SessionRestorer() {
         const { data, error } = await supabaseClient.auth.getSession();
         if (error) throw error;
         if (cancelled || !data.session?.user) return;
-        const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('id,role').eq('id', data.session.user.id).maybeSingle();
+        const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('id,role,active').eq('id', data.session.user.id).maybeSingle();
         if (profileError) throw profileError;
         if (cancelled || !profile) return;
+        if (profile.active === false) { await supabaseClient.auth.signOut(); return; }
         const pathname = window.location.pathname;
         if (pathname !== '/' && pathname !== '/login') return;
         if (context === 'admin' && canAccessAdmin(profile.role)) await router.navigate('/admin', { replace: true });
