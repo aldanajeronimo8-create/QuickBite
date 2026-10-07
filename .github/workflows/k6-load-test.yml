@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - 'tests/k6/**'
-      - 'scripts/prepare-k6-role-accounts.mjs'
       - '.github/workflows/k6-load-test.yml'
   workflow_dispatch:
 
@@ -25,26 +24,33 @@ jobs:
     env:
       VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
       VITE_SUPABASE_ANON_KEY: \${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      PLAYWRIGHT_E2E_EMAIL: \${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
-      PLAYWRIGHT_E2E_PASSWORD: \${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
       K6_BASE_URL: \${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+      K6_STUDENT_EMAIL: \${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+      K6_STUDENT_PASSWORD: \${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
+      K6_PARENT_EMAIL: \${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
+      K6_PARENT_PASSWORD: \${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
+      K6_STAFF_EMAIL: \${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
+      K6_STAFF_PASSWORD: \${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
+      K6_ADMIN_EMAIL: \${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
+      K6_ADMIN_PASSWORD: \${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate load-test configuration
+      - name: Validate four role credentials
         shell: bash
         run: |
           set -euo pipefail
-          test -n "\${VITE_SUPABASE_ANON_KEY}" || { echo "VITE_SUPABASE_ANON_KEY is missing"; exit 1; }
-          test -n "\${SUPABASE_SERVICE_ROLE_KEY}" || { echo "SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
-          test -n "\${PLAYWRIGHT_E2E_EMAIL}" || { echo "PLAYWRIGHT_E2E_EMAIL is missing"; exit 1; }
-          test -n "\${PLAYWRIGHT_E2E_PASSWORD}" || { echo "PLAYWRIGHT_E2E_PASSWORD is missing"; exit 1; }
-
-      - name: Prepare four role identities
-        run: node scripts/prepare-k6-role-accounts.mjs
+          test -n "\${K6_STUDENT_EMAIL}" || { echo "Missing Student load-test credential"; exit 1; }
+          test -n "\${K6_STUDENT_PASSWORD}" || { echo "Missing Student load-test password"; exit 1; }
+          test -n "\${K6_PARENT_EMAIL}" || { echo "Missing Parent load-test credential"; exit 1; }
+          test -n "\${K6_PARENT_PASSWORD}" || { echo "Missing Parent load-test password"; exit 1; }
+          test -n "\${K6_STAFF_EMAIL}" || { echo "Missing Staff load-test credential"; exit 1; }
+          test -n "\${K6_STAFF_PASSWORD}" || { echo "Missing Staff load-test password"; exit 1; }
+          test -n "\${K6_ADMIN_EMAIL}" || { echo "Missing Admin load-test credential"; exit 1; }
+          test -n "\${K6_ADMIN_PASSWORD}" || { echo "Missing Admin load-test password"; exit 1; }
+          test -n "\${VITE_SUPABASE_ANON_KEY}" || { echo "Missing Supabase anon/publishable key"; exit 1; }
 
       - name: Setup current Grafana k6
         uses: grafana/setup-k6-action@v1
@@ -54,5 +60,3 @@ jobs:
         run: |
           set -euo pipefail
           k6 run tests/k6/quickbite-400-users.js
-
-    
