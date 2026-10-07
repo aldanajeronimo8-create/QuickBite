@@ -184,7 +184,33 @@ export interface Profile {
   section_id?: string | null;
   grade_id?: string | null;
   course_id?: string | null;
+  active: boolean;
 }
+
+export interface StaffOrderItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  price: number;
+  product_name: string;
+}
+
+export interface StaffOrder {
+  id: string;
+  order_number: string;
+  status: 'pending' | 'preparing' | 'ready' | 'delivered';
+  total: number;
+  payment_method: string;
+  payment_status: 'pending' | 'confirmed' | 'rejected';
+  pickup_code?: string | null;
+  estimated_minutes?: number | null;
+  created_at: string;
+  student_name: string;
+  student_email: string;
+  student_comment?: string | null;
+  order_items: StaffOrderItem[];
+}
+
 
 export interface Category { id: string; name: string; description?: string; created_at: string; }
 export interface Product { id: string; name: string; description?: string; price: number; image_url?: string; category_id: string; stock: number; available: boolean; created_at: string; category?: Category; }
