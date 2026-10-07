@@ -132,6 +132,8 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.admin_manage_user(uuid,text,text,text,text,text,text,text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_manage_user(uuid,text,text,text,text,text,text,text) TO authenticated;
 REVOKE ALL ON FUNCTION public.admin_manage_user_legacy(uuid,text,text,text,text,text,text,text) FROM PUBLIC, anon;
 
 CREATE OR REPLACE FUNCTION public.admin_set_user_active(p_user_id UUID,p_active BOOLEAN)
