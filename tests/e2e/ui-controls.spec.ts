@@ -19,9 +19,12 @@ const routes: Record<Role, string[]> = {
 async function loginAs(page: Page, role: Role) {
   const { email, password } = credentials[role]();
   if (!email || !password) throw new Error('Missing credentials for ' + role);
+  // Isolate each login from any previous Supabase session so SessionRestorer cannot navigate away while the form is being exercised.
+  await page.goto('about:blank');
+  await page.evaluate(() => { window.sessionStorage.clear(); window.localStorage.removeItem('quickbite.auth.context'); });
   await page.goto('/login?preview_role=' + role);
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
+  await page.locator('#login-email').fill(email);
+  await page.locator('#login-password').fill(password);
   await page.getByRole('button', { name: /iniciar sesión|login|entrar/i }).click();
   await page.waitForLoadState('domcontentloaded');
 }
