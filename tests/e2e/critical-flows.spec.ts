@@ -202,7 +202,7 @@ test.describe('critical functional flows', () => {
     const paymentCard = adminPage.getByTestId(`admin-payment-${orderNumber}`);
     await expect(paymentCard).toBeVisible({ timeout: 15_000 });
     await paymentCard.getByRole('button', { name: /^confirmar$/i }).click();
-    await expect(paymentCard).not.toContainText(/pendiente/i);
+    await expect(paymentCard.getByText('Confirmado', { exact: true })).toBeVisible({ timeout: 15_000 });
 
     await adminPage.goto('/admin/orders');
     await healthy(adminPage, adminState);
