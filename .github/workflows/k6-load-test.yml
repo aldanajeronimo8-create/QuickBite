@@ -46,18 +46,7 @@ jobs:
         uses: grafana/setup-k6-action@v1
 
       - name: Run 400-user functional load test
-        uses: grafana/run-k6-action@v1
-        with:
-          path: ./tests/k6/quickbite-400-users.js
-        env:
-          K6_BASE_URL: ${{ env.K6_BASE_URL }}
-          VITE_SUPABASE_URL: ${{ env.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ env.VITE_SUPABASE_ANON_KEY }}
-          K6_STUDENT_EMAIL: ${{ env.K6_STUDENT_EMAIL }}
-          K6_STUDENT_PASSWORD: ${{ env.K6_STUDENT_PASSWORD }}
-          K6_PARENT_EMAIL: ${{ env.K6_PARENT_EMAIL }}
-          K6_PARENT_PASSWORD: ${{ env.K6_PARENT_PASSWORD }}
-          K6_STAFF_EMAIL: ${{ env.K6_STAFF_EMAIL }}
-          K6_STAFF_PASSWORD: ${{ env.K6_STAFF_PASSWORD }}
-          K6_ADMIN_EMAIL: ${{ env.K6_ADMIN_EMAIL }}
-          K6_ADMIN_PASSWORD: ${{ env.K6_ADMIN_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          k6 run tests/k6/quickbite-400-users.js
