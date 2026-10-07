@@ -13,6 +13,10 @@ const credentials = {
     email: process.env.PLAYWRIGHT_ADMIN_EMAIL,
     password: process.env.PLAYWRIGHT_ADMIN_PASSWORD,
   }),
+  staff: () => ({
+    email: process.env.PLAYWRIGHT_STAFF_EMAIL,
+    password: process.env.PLAYWRIGHT_STAFF_PASSWORD,
+  }),
 };
 
 async function collectBrowserErrors(page: Page) {
@@ -40,7 +44,7 @@ async function collectBrowserErrors(page: Page) {
   return { consoleErrors, pageErrors, failedResponses };
 }
 
-async function loginAs(page: Page, role: 'student' | 'parent' | 'admin') {
+async function loginAs(page: Page, role: 'student' | 'parent' | 'staff' | 'admin') {
   const account = credentials[role]();
   test.skip(!account.email || !account.password, `Missing Playwright credentials for ${role}.`);
 
@@ -48,6 +52,8 @@ async function loginAs(page: Page, role: 'student' | 'parent' | 'admin') {
 
   if (role === 'parent') {
     await page.getByRole('button', { name: /iniciar sesi[oó]n como padre/i }).click();
+  } else if (role === 'staff') {
+    await page.getByRole('button', { name: /personal de cafeter[ií]a/i }).click();
   } else if (role === 'admin') {
     await page.getByRole('button', { name: /acceso de administraci[oó]n/i }).click();
   }
@@ -56,7 +62,7 @@ async function loginAs(page: Page, role: 'student' | 'parent' | 'admin') {
   await page.locator('#login-password').fill(account.password!);
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
 
-  const destination = role === 'student' ? /\/menu$/ : role === 'parent' ? /\/parent\/family$/ : /\/admin(?:\/)?$/;
+  const destination = role === 'student' ? /\/menu$/ : role === 'parent' ? /\/parent\/family$/ : role === 'staff' ? /\/staff(?:\/orders)?$/ : /\/admin(?:\/)?$/;
   await page.waitForURL(destination, { timeout: 30_000 });
 }
 
@@ -123,6 +129,26 @@ test.describe('parent interface', () => {
     await page.waitForLoadState('networkidle');
     await assertHealthyInterface(page, errors);
     await expect(page.locator('body')).toContainText(/padre|familia|registro/i);
+  });
+});
+
+test.describe('staff interface', () => {
+  test('staff can authenticate and open the cafeteria interface', async ({ page }) => {
+    const errors = await collectBrowserErrors(page);
+    await loginAs(page, 'staff');
+    await assertHealthyInterface(page, errors);
+    await expect(page).toHaveURL(/\/staff(?:\/)?$/);
+    await expect(page.getByRole('heading', { name: 'Operación de cafetería' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Cola de pedidos' })).toBeVisible();
+  });
+
+  test('staff orders route loads without browser errors', async ({ page }) => {
+    const errors = await collectBrowserErrors(page);
+    await loginAs(page, 'staff');
+    await page.goto('/staff/orders');
+    await page.waitForLoadState('networkidle');
+    await assertHealthyInterface(page, errors);
+    await expect(page).toHaveURL(/\/staff\/orders$/);
   });
 });
 
