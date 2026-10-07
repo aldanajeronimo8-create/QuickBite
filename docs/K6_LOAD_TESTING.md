@@ -1,27 +1,57 @@
 # QuickBite performance tests with Grafana k6
 
-QuickBite now has two performance baselines:
+QuickBite has two k6 baselines:
 
-- `tests/k6/quickbite-load.js`: public-shell baseline.
-- `tests/k6/quickbite-400-users.js`: authenticated functional load test with **400 concurrent virtual users**, split into **100 student + 100 parent + 100 staff + 100 admin**.
+- `tests/k6/quickbite-load.js`: public-shell HTTP baseline.
+- `tests/k6/quickbite-400-users.js`: authenticated Chromium browser audit with **400 concurrent VUs**, split into **100 Student + 100 Parent + 100 Staff + 100 Admin**.
 
-## 400-user test
+## 400-user browser test
 
-The 400-user scenario authenticates the existing isolated E2E identities, so it does not create hundreds of new production profiles or write test orders. Each k6 VU keeps its own session and exercises real Supabase/RLS-backed reads.
+The browser test uses four pre-existing, isolated role identities supplied through GitHub Actions secrets. It does **not** provision hundreds of production accounts.
 
-Student flow checks the app shell, profile, recess status, available products, notifications, and non-admin authorization.
+Each role scenario runs 100 VUs in Chromium. Every VU audits the current routed interface for that role and, for each routed page, checks:
 
-Parent flow checks the app shell, profile, active student, family dashboard, spending summary, food controls, notifications, and non-admin authorization.
+1. The page renders a non-empty application shell.
+2. Every discoverable button/action control is inspected for actionability.
+3. Controls classified as read-only/navigation are actually clicked.
+4. Mutating controls are actionability-tested without changing production data.
+5. Every internal link is opened and checked for an HTTP status below 500.
+6. Every visible form control is actionability-tested and safely populated where supported.
+7. Browser console errors are captured.
+8. Document/fetch/XHR responses with HTTP 4xx/5xx are captured.
+9. Network-level request failures are captured.
 
-Staff flow checks the app shell, profile, active orders, notifications, and non-admin authorization.
+The four interfaces currently covered are Student, Parent, Staff and Admin. The route inventory is kept in `tests/k6/quickbite-400-users.js`.
 
-Admin flow checks the app shell, profile, orders, user management, dashboard intelligence, notifications, and admin authorization.
+### Important functional boundary
 
-Peak concurrency is 400 VUs. The test ramps 25 → 50 → 100 VUs per interface, holds 100 per interface, then ramps down.
+This is an **authenticated full-UI/load audit**, not a blind destructive test. A passing run proves that the tested role sessions can load the routed interfaces and that the discovered controls are actionable under 400 concurrent browser VUs.
+
+It does **not** claim that destructive business operations such as placing orders, deleting users, approving/rejecting payments, changing inventory, resetting data, or closing a sales period were executed against production. Those operations require an isolated test database/tenant with disposable fixtures before they should be clicked for real.
+
+## Role credentials
+
+The workflow expects these existing GitHub Actions secrets:
+
+```
+PLAYWRIGHT_E2E_EMAIL
+PLAYWRIGHT_E2E_PASSWORD
+
+PLAYWRIGHT_PARENT_EMAIL
+PLAYWRIGHT_PARENT_PASSWORD
+
+PLAYWRIGHT_STAFF_EMAIL
+PLAYWRIGHT_STAFF_PASSWORD
+
+PLAYWRIGHT_ADMIN_EMAIL
+PLAYWRIGHT_ADMIN_PASSWORD
+```
+
+No passwords are stored in the repository.
 
 ## Run locally
 
-Install Grafana k6 and export the same role credentials used by CI:
+Install the current Grafana k6 release, then export the same variables used by CI:
 
 ```bash
 K6_BASE_URL=https://your-host.example \
@@ -34,14 +64,20 @@ K6_ADMIN_EMAIL=... K6_ADMIN_PASSWORD=... \
 k6 run tests/k6/quickbite-400-users.js
 ```
 
-The CI workflow validates all credentials before starting the test.
+Or from the repository package scripts:
+
+```bash
+pnpm test:k6:400
+```
 
 ## Thresholds
 
-- HTTP failure rate: below 2%
-- p95 response time: below 2000 ms
-- p99 response time: below 4000 ms
-- overall checks: above 98.5%
-- per-role flow errors: below 2%
+The browser suite currently enforces:
 
-A passing run means the tested authenticated flows sustained the configured 400-VU workload under these thresholds. It does not by itself prove an unlimited number of students or guarantee behaviour for every browser/device.
+- overall checks above 99.5%;
+- UI function failure rate below 1%;
+- browser document/fetch/XHR HTTP failure rate below 1%.
+
+The test is configured for 100 VUs in each role scenario, for a peak of 400 concurrent browser VUs.
+
+A passing run is evidence for this exact workload and test data. It is not a guarantee for unlimited traffic, every device/browser combination, or every destructive production workflow.
