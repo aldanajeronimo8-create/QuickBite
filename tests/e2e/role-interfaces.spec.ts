@@ -48,6 +48,9 @@ async function loginAs(page: Page, role: 'student' | 'parent' | 'staff' | 'admin
   const account = credentials[role]();
   test.skip(!account.email || !account.password, `Missing Playwright credentials for ${role}.`);
 
+  // Start each role authentication from an empty browser auth context. Clearing cookies alone does not clear Supabase's sessionStorage session.
+  await page.goto('about:blank');
+  await page.evaluate(() => { window.sessionStorage.clear(); window.localStorage.removeItem('quickbite.auth.context'); });
   await page.goto('/login');
 
   if (role === 'parent') {
