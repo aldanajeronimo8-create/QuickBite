@@ -229,3 +229,26 @@ test.describe('admin interface', () => {
     await expect(page.getByRole('heading', { name: 'Ranking de productos' })).toBeVisible();
   });
 });
+
+
+test.describe('exhaustive role permission matrix', () => {
+  const protectedRoutes = ['/menu','/student/wallet','/parent/family','/staff','/staff/orders','/admin','/admin/users','/admin/orders'];
+  test('staff and non-admin roles cannot reach admin surfaces', async ({ page }) => {
+    for (const role of ['student','parent','staff'] as const) {
+      await loginAs(page, role);
+      for (const path of ['/admin','/admin/users','/admin/orders']) {
+        await page.goto(path);
+        await page.waitForLoadState('domcontentloaded');
+        await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
+      }
+      await page.context().clearCookies();
+    }
+  });
+
+  test('anonymous access is denied for every protected role surface', async ({ page }) => {
+    for (const path of protectedRoutes) {
+      await page.goto(path);
+      await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
+    }
+  });
+});
