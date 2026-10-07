@@ -30,7 +30,7 @@ async function loginAs(page: Page, role: Role) {
   await page.goto('/login?preview_role=' + role);
   await page.locator('#login-email').fill(email);
   await page.locator('#login-password').fill(password);
-  await page.getByRole('button', { name: /iniciar sesión|login|entrar/i }).click();
+  await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
   await page.waitForLoadState('domcontentloaded');
 }
 
