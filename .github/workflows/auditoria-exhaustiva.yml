@@ -109,7 +109,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --config.only-built-dependencies=@tailwindcss/oxide,esbuild
+        run: pnpm install --frozen-lockfile --config.allow-builds='{"@tailwindcss/oxide":true,"esbuild":true}'
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
       - name: Validate required audit credentials
@@ -157,7 +157,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --config.allow-builds='{"@tailwindcss/oxide":true,"esbuild":true}'
       - name: Excel-only export guard
         run: pnpm verify:excel-only
       - name: Typecheck
