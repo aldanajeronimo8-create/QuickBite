@@ -1,4 +1,4 @@
-/* global __ENV */
+/* global __ENV, sessionStorage, console */
 import { browser } from 'k6/browser';
 import http from 'k6/http';
 import { check } from 'k6';
