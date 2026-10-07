@@ -11,7 +11,7 @@ const order = {
   payment_status: 'confirmed',
   order_number: 'QB-001',
   created_at: '2026-08-28T12:00:00.000Z',
-  user: { id: 'user-1', email: 'ana@example.com', full_name: 'Ana "Pérez"', ti: '123', role: 'student', created_at: '2026-08-01T00:00:00.000Z' },
+  user: { id: 'user-1', email: 'ana@example.com', full_name: 'Ana "Pérez"', ti: '123', role: 'student', active: true, created_at: '2026-08-01T00:00:00.000Z' },
   order_items: [
     {
       id: 'item-1',
