@@ -94,8 +94,30 @@ jobs:
       - name: Setup current Grafana k6
         uses: grafana/setup-k6-action@v1
 
+      - name: Select CI-safe Chromium executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome=""
+          for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
+            if command -v "${candidate}" >/dev/null 2>&1; then
+              chrome="$(command -v "${candidate}")"
+              break
+            fi
+          done
+
+          if [ -z "${chrome}" ]; then
+            echo "No system Chromium/Chrome executable is available on this runner."
+            exit 1
+          fi
+
+          echo "K6_BROWSER_EXECUTABLE_PATH=${chrome}" >> "${GITHUB_ENV}"
+          echo "Using system browser: ${chrome}"
+          "${chrome}" --version || true
+
       - name: Run exhaustive 400-VU browser functional test
         shell: bash
         run: |
           set -euo pipefail
+          test -n "${K6_BROWSER_EXECUTABLE_PATH}" || { echo "K6_BROWSER_EXECUTABLE_PATH was not configured"; exit 1; }
           k6 run tests/k6/quickbite-400-users.js
