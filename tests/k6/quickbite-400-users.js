@@ -88,8 +88,6 @@ const SAFE_ACTION_PATTERNS = [
   /\brefrescar\b/i,
   /\bver\b/i,
   /\bdetalle\b/i,
-  /\bcontinuar\b/i,
-  /\bcancelar\b/i,
   /\bseleccionar\b/i,
   /\bmodo\b/i,
   /\bpestaña\b/i,
@@ -432,9 +430,11 @@ async function runBrowserAudit(role, sessionData) {
   });
 
   try {
+    await auditRoute(page, role, ROLE_ROUTES[role][0]);
+
     await setSession(page, role, sessionData);
 
-    for (const route of ROLE_ROUTES[role]) {
+    for (const route of ROLE_ROUTES[role].slice(1)) {
       try {
         await auditRoute(page, role, route);
       } catch (error) {
