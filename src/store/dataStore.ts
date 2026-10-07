@@ -48,6 +48,7 @@ interface DataState {
   updateUser: (user: repo.ManagedUserUpdate) => Promise<void>;
   updateProtectedCredentials: (user: repo.ProtectedCredentialsUpdate) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  setUserActive: (id: string, active: boolean) => Promise<void>;
   getProductsByCategory: (categoryId?: string) => Product[];
   getOrdersByUser: (userId: string) => Order[];
   subscribeRealtime: () => () => void;
@@ -276,6 +277,12 @@ export const useDataStore = create<DataState>((set, get) => ({
       metadata: { protectedCredentialsChanged: true, passwordChanged: Boolean(user.password) },
     });
     await get().loadData({ silent: true });
+  },
+
+  setUserActive: async (id, active) => {
+    await repo.setManagedUserActive(id, active);
+    await remoteAudit({ action: 'settings.update', entity: 'user', entityId: id, metadata: { active } });
+    set({ users: get().users.map((user) => (user.id === id ? { ...user, active } : user)) });
   },
 
   deleteUser: async (id) => {
