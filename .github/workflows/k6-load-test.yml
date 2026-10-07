@@ -38,6 +38,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Provision and validate four load-test accounts
+        shell: bash
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+          PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
+          PLAYWRIGHT_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
+          PLAYWRIGHT_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
+          PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
+          PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
+          PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
+          PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_SERVICE_ROLE_KEY}" || { echo "Missing SUPABASE_SERVICE_ROLE_KEY for safe account provisioning"; exit 1; }
+          node scripts/ensure-e2e-user.mjs
+
       - name: Validate four role credentials
         shell: bash
         run: |
