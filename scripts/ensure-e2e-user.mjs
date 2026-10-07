@@ -182,6 +182,7 @@ const configured = [
   ['student', process.env.PLAYWRIGHT_E2E_EMAIL?.trim().toLowerCase(), process.env.PLAYWRIGHT_E2E_PASSWORD],
   ['parent', process.env.PLAYWRIGHT_PARENT_EMAIL?.trim().toLowerCase(), process.env.PLAYWRIGHT_PARENT_PASSWORD],
   ['admin', process.env.PLAYWRIGHT_ADMIN_EMAIL?.trim().toLowerCase(), process.env.PLAYWRIGHT_ADMIN_PASSWORD],
+  ['staff', process.env.PLAYWRIGHT_STAFF_EMAIL?.trim().toLowerCase(), process.env.PLAYWRIGHT_STAFF_PASSWORD],
 ];
 
 const accounts = configured.map(([role, email, password]) => ({
@@ -232,6 +233,7 @@ for (const account of accounts) {
         email: account.email,
         full_name: `QuickBite E2E ${account.role}`,
         role: account.role,
+        active: true,
       }),
     });
   }
