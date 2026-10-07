@@ -158,6 +158,14 @@ export const options = {
     checks: ['rate>0.995'],
     ui_function_failures: ['rate<0.01'],
     browser_http_failures: ['rate<0.01'],
+    'checks{role:student}': ['rate>0.995'],
+    'checks{role:parent}': ['rate>0.995'],
+    'checks{role:staff}': ['rate>0.995'],
+    'checks{role:admin}': ['rate>0.995'],
+    'ui_function_failures{role:student}': ['rate<0.01'],
+    'ui_function_failures{role:parent}': ['rate<0.01'],
+    'ui_function_failures{role:staff}': ['rate<0.01'],
+    'ui_function_failures{role:admin}': ['rate<0.01'],
   },
 };
 
