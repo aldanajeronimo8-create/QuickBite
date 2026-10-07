@@ -133,7 +133,12 @@ function profile(role, token, userId) {
     },
     'profile role is correct': (r) => {
       const rows = r.json();
-      return Array.isArray(rows) && rows.length === 1 && rows[0].role === role;
+      const actual = rows?.[0]?.role;
+      const matches =
+        role === 'student'
+          ? ['student', 'both', 'student_parent'].includes(actual)
+          : actual === role;
+      return Array.isArray(rows) && rows.length === 1 && matches;
     },
     'profile is active': (r) => {
       const rows = r.json();

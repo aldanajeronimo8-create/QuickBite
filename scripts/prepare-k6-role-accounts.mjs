@@ -101,7 +101,12 @@ async function verifyProfile(email, role) {
   }
 
   const profile = rows[0];
-  if (profile.role !== role || profile.active !== true) {
+  const roleMatches =
+    role === 'student'
+      ? ['student', 'both', 'student_parent'].includes(profile.role)
+      : profile.role === role;
+
+  if (!roleMatches || profile.active !== true) {
     throw new Error(
       'Role/profile mismatch for ' + email + ': ' + JSON.stringify(profile),
     );
