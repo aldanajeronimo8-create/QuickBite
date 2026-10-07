@@ -1,3 +1,4 @@
+# Login E2E isolation: browser auth storage is reset by role-login helpers before exercising the form.
 name: Auditoría Exhaustiva QuickBite
 
 on:
