@@ -9,14 +9,14 @@ import { useDataStore } from '../store/dataStore';
 import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
-import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
+import { canAccessAdmin, canAccessParent, canAccessStaff, canAccessStudent } from '../lib/access';
 import { UserThemePreference } from './components/UserThemePreference';
 import { VisualThemeProvider, useVisualTheme } from './contexts/VisualThemeProvider';
 
 function syncVisualInterfaceScope(pathname: string) {
   if (typeof document === 'undefined') return;
   const body = document.body;
-  const scope = pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : pathname === '/' || pathname === '/login' ? 'login_student' : null;
+  const scope = pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/staff') ? 'staff' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : pathname === '/' || pathname === '/login' ? 'login_student' : null;
   if (scope) body.dataset.qbInterface = scope;
   else delete body.dataset.qbInterface;
   document.documentElement.classList.toggle('qb-public-home', pathname === '/');
@@ -40,6 +40,7 @@ function SessionRestorer() {
         if (pathname !== '/' && pathname !== '/login') return;
         if (context === 'admin' && canAccessAdmin(profile.role)) await router.navigate('/admin', { replace: true });
         else if (context === 'user' && canAccessParent(profile.role)) await router.navigate('/parent/family', { replace: true });
+        else if (context === 'user' && canAccessStaff(profile.role)) await router.navigate('/staff', { replace: true });
         else if (context === 'user' && canAccessStudent(profile.role)) await router.navigate('/menu', { replace: true });
       } catch (error) { console.warn('[QuickBite] No se pudo restaurar la sesión automáticamente.', error); }
     };
