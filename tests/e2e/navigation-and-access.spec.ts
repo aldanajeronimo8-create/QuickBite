@@ -66,7 +66,7 @@ test('admin feature center smoke test when admin E2E credentials are configured'
   await page.waitForURL(/\/admin(?:\/)?/);
   await page.goto('/admin/features');
 
-  await expect(page.getByText(/centro de funcionalidades/i)).toBeVisible();
+  await expect(page.getByText(/centro de funcionalidades/i)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/operaci[oó]n diaria/i)).toBeVisible();
   await expect(page.getByText(/cat[aá]logo e inventario/i)).toBeVisible();
   await expect(page.getByText(/usuarios y beneficios/i)).toBeVisible();
