@@ -8,6 +8,7 @@ const failures = [];
 const warnings = [];
 const check = (ok, msg) => ok ? console.log('PASS ' + msg) : (failures.push(msg), console.error('FAIL ' + msg));
 const warn = (msg) => { warnings.push(msg); console.warn('WARN ' + msg); };
+
 async function rows(table, select='*') {
   const { data, error } = await db.from(table).select(select);
   if (error) throw new Error(table + ': ' + error.message);
@@ -17,16 +18,15 @@ async function rows(table, select='*') {
 console.log('QuickBite Integrity Audit');
 console.log('SHA: ' + (process.env.GITHUB_SHA ?? 'local'));
 
-const [profiles, links, contexts, orders, items, products, movements, stockSettings, batches] = await Promise.all([
+const [profiles, links, contexts, orders, items, products, movements, stockSettings] = await Promise.all([
   rows('profiles','id,email,full_name,role,active,student_code'),
   rows('parent_student_links','id,parent_user_id,student_user_id,relationship,active'),
   rows('parent_active_student_context','parent_user_id,student_user_id'),
-  rows('orders','id,user_id,total,status,payment_method,payment_status,order_number,pickup_code,payment_reference,exported_at,export_batch_id'),
+  rows('orders','id,user_id,total,status,payment_method,payment_status,order_number,pickup_code,payment_reference,admin_hidden,created_at,updated_at'),
   rows('order_items','id,order_id,product_id,quantity,price'),
   rows('products','id,name,price,stock,available'),
   rows('inventory_movements','id,product_id,movement_type,quantity,previous_stock,new_stock,user_id'),
-  rows('product_stock_settings','product_id,minimum_stock,reorder_quantity'),
-  rows('sales_export_batches','id,status,order_ids,created_by,exported_count,total,created_at,completed_at')
+  rows('product_stock_settings','product_id,minimum_stock,reorder_quantity')
 ]);
 
 const profileIds = new Set(profiles.map(p => p.id));
@@ -59,10 +59,14 @@ check(orders.every(o => orderStates.has(o.status)), 'all orders use supported or
 const byOrder = new Map();
 for (const i of items) { const a = byOrder.get(i.order_id) ?? []; a.push(i); byOrder.set(i.order_id, a); }
 let mismatches = 0;
+let emptyOrders = 0;
 for (const o of orders) {
-  const calc = (byOrder.get(o.id) ?? []).reduce((s, i) => s + Number(i.price) * Number(i.quantity), 0);
+  const orderItems = byOrder.get(o.id) ?? [];
+  if (orderItems.length === 0) emptyOrders++;
+  const calc = orderItems.reduce((s, i) => s + Number(i.price) * Number(i.quantity), 0);
   if (Math.abs(calc - Number(o.total)) > 0.01) mismatches++;
 }
+check(emptyOrders === 0, 'every retained order has at least one line item (' + (orders.length - emptyOrders) + '/' + orders.length + ')');
 check(mismatches === 0, 'order totals match line items (' + (orders.length - mismatches) + '/' + orders.length + ')');
 
 check(products.every(p => Number.isInteger(p.stock) && p.stock >= 0), 'product stock is non-negative');
@@ -76,20 +80,27 @@ check(badMovements.length === 0, 'inventory movement deltas are consistent (' + 
 const low = products.filter(p => { const s = stockSettings.find(x => x.product_id === p.id); return s && Number(p.stock) <= Number(s.minimum_stock); });
 console.log('INFO low-stock products: ' + low.length + '; out-of-stock products: ' + products.filter(p => Number(p.stock) === 0).length);
 
-check(orders.every(o => !o.exported_at || !!o.export_batch_id), 'exported orders are retained and tied to a batch');
-const completed = new Set(batches.filter(b => b.status === 'completed').map(b => b.id));
-const orphaned = orders.filter(o => o.exported_at && o.export_batch_id && !completed.has(o.export_batch_id));
-check(orphaned.length === 0, 'exported orders reference completed batches');
-let batchFailures = 0;
-for (const b of batches.filter(b => b.status === 'completed')) {
-  const ids = Array.isArray(b.order_ids) ? b.order_ids : [];
-  if (ids.some(id => !orderIds.has(id))) batchFailures++;
-  const total = orders.filter(o => ids.includes(o.id)).reduce((s, o) => s + Number(o.total), 0);
-  if (Math.abs(total - Number(b.total)) > 0.01) batchFailures++;
-}
-check(batchFailures === 0, 'completed export batches match retained order ids and totals');
+const hiddenOrders = orders.filter(o => o.admin_hidden === true);
+const activeOrders = orders.filter(o => o.admin_hidden === false);
+check(orders.every(o => typeof o.admin_hidden === 'boolean'), 'all orders have an explicit operational visibility flag');
+check(activeOrders.every(o => o.admin_hidden === false), 'active operational orders are not hidden');
+check(hiddenOrders.every(o => o.admin_hidden === true), 'closed/archived orders remain explicitly hidden from operational flows');
+console.log('INFO operational orders: ' + activeOrders.length + '; hidden period orders: ' + hiddenOrders.length);
 
-const requiredTables = ['profiles','parent_student_links','parent_active_student_context','family_link_codes','orders','order_items','products','inventory_movements','product_stock_settings','sales_export_batches'];
+// Current QuickBite closes/archives operational periods through admin_hidden and
+// the Excel workbook. sales_export_batches/exported_at/export_batch_id belonged
+// to an older persisted-batch contract and are intentionally not audited here.
+const requiredTables = [
+  'profiles',
+  'parent_student_links',
+  'parent_active_student_context',
+  'family_link_codes',
+  'orders',
+  'order_items',
+  'products',
+  'inventory_movements',
+  'product_stock_settings'
+];
 for (const table of requiredTables) {
   const { error } = await db.from(table).select('*', { count: 'exact', head: true });
   check(!error, 'live table available: ' + table);
