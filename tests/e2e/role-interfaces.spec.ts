@@ -1,23 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-const credentials = {
-  student: () => ({
-    email: process.env.PLAYWRIGHT_E2E_EMAIL,
-    password: process.env.PLAYWRIGHT_E2E_PASSWORD,
-  }),
-  parent: () => ({
-    email: process.env.PLAYWRIGHT_PARENT_EMAIL,
-    password: process.env.PLAYWRIGHT_PARENT_PASSWORD,
-  }),
-  admin: () => ({
-    email: process.env.PLAYWRIGHT_ADMIN_EMAIL,
-    password: process.env.PLAYWRIGHT_ADMIN_PASSWORD,
-  }),
-  staff: () => ({
-    email: process.env.PLAYWRIGHT_STAFF_EMAIL,
-    password: process.env.PLAYWRIGHT_STAFF_PASSWORD,
-  }),
-};
+import { test, expect, type Page } from './auth-fixture';
 
 async function collectBrowserErrors(page: Page) {
   const consoleErrors: string[] = [];
@@ -44,44 +25,10 @@ async function collectBrowserErrors(page: Page) {
   return { consoleErrors, pageErrors, failedResponses };
 }
 
-async function loginAs(page: Page, role: 'student' | 'parent' | 'staff' | 'admin') {
-  const account = credentials[role]();
-  test.skip(!account.email || !account.password, `Missing Playwright credentials for ${role}.`);
-
-  // Reset auth storage only when entering the real app origin. about:blank has an opaque origin,
-  // so accessing sessionStorage there throws SecurityError in Chromium.
-  await page.addInitScript(() => {
-    if (window.location.pathname === '/login') {
-      window.sessionStorage.clear();
-      window.localStorage.removeItem('quickbite.auth.context');
-    }
-  });
-  await page.goto('/login');
-
-  if (role === 'parent') {
-    await page.getByRole('button', { name: /iniciar sesi[oó]n como padre/i }).click();
-  } else if (role === 'staff' || role === 'admin') {
-    // Internal roles are intentionally hidden from the public login. Unlock the
-    // internal access modal through the same 2.5s logo long-press used by users.
-    const logo = page.getByRole('button', { name: 'QuickBite' });
-    await expect(logo).toBeVisible({ timeout: 15_000 });
-    const box = await logo.boundingBox();
-    expect(box).not.toBeNull();
-    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    await page.mouse.down();
-    await page.waitForTimeout(2_600);
-    await page.mouse.up();
-    await expect(page.getByRole('dialog', { name: 'Acceso interno' })).toBeVisible();
-    const internalRole = role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i;
-    await page.getByRole('dialog', { name: 'Acceso interno' }).getByRole('button', { name: internalRole }).click();
-  }
-
-  await page.locator('#login-email').fill(account.email!);
-  await page.locator('#login-password').fill(account.password!);
-  await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
-
-  const destination = role === 'student' ? /\/menu$/ : role === 'parent' ? /\/parent\/family$/ : role === 'staff' ? /\/staff(?:\/orders)?$/ : /\/admin(?:\/)?$/;
-  await page.waitForURL(destination, { timeout: 45_000 });
+async function loginAs(page: Page, role: 'student' | 'parent' | 'staff' | 'admin', e2eAuth: { install: (page: Page, role: 'student' | 'parent' | 'staff' | 'admin') => Promise<void> }) {
+  await e2eAuth.install(page, role);
+  await page.goto(role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : role === 'staff' ? '/staff' : '/admin');
+  await page.waitForLoadState('domcontentloaded');
 }
 
 async function assertHealthyInterface(
@@ -105,9 +52,9 @@ async function assertHealthyInterface(
 }
 
 test.describe('student interface', () => {
-  test('student can authenticate and open the main interface', async ({ page }) => {
+  test('student can authenticate and open the main interface', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
-    await loginAs(page, 'student');
+    await loginAs(page, 'student', e2eAuth);
     await assertHealthyInterface(page, errors);
   });
 
@@ -122,9 +69,9 @@ test.describe('student interface', () => {
     '/student/notifications',
     '/student/rewards',
   ]) {
-    test(`student interface route ${path} loads without browser errors`, async ({ page }) => {
+    test(`student interface route ${path} loads without browser errors`, async ({ page, e2eAuth }) => {
       const errors = await collectBrowserErrors(page);
-      await loginAs(page, 'student');
+      await loginAs(page, 'student', e2eAuth);
       await page.goto(path);
       await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
       await assertHealthyInterface(page, errors);
@@ -133,14 +80,14 @@ test.describe('student interface', () => {
 });
 
 test.describe('parent interface', () => {
-  test('parent can authenticate and open the family interface', async ({ page }) => {
+  test('parent can authenticate and open the family interface', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
-    await loginAs(page, 'parent');
+    await loginAs(page, 'parent', e2eAuth);
     await assertHealthyInterface(page, errors);
     await expect(page).toHaveURL(/\/parent\/family$/);
   });
 
-  test('parent registration interface opens without browser errors', async ({ page }) => {
+  test('parent registration interface opens without browser errors', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
     await page.goto('/register-parent');
     await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
@@ -150,18 +97,18 @@ test.describe('parent interface', () => {
 });
 
 test.describe('staff interface', () => {
-  test('staff can authenticate and open the cafeteria interface', async ({ page }) => {
+  test('staff can authenticate and open the cafeteria interface', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
-    await loginAs(page, 'staff');
+    await loginAs(page, 'staff', e2eAuth);
     await assertHealthyInterface(page, errors);
     await expect(page).toHaveURL(/\/staff(?:\/)?$/);
     await expect(page.getByRole('heading', { name: 'Operación de cafetería' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Cola de pedidos' })).toBeVisible();
   });
 
-  test('staff orders route loads without browser errors', async ({ page }) => {
+  test('staff orders route loads without browser errors', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
-    await loginAs(page, 'staff');
+    await loginAs(page, 'staff', e2eAuth);
     await page.goto('/staff/orders');
     await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
@@ -190,9 +137,9 @@ test.describe('admin interface', () => {
   ];
 
   for (const path of adminRoutes) {
-    test(`admin interface route ${path} loads without browser errors`, async ({ page }) => {
+    test(`admin interface route ${path} loads without browser errors`, async ({ page, e2eAuth }) => {
       const errors = await collectBrowserErrors(page);
-      await loginAs(page, 'admin');
+      await loginAs(page, 'admin', e2eAuth);
       await page.goto(path);
       await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
       await assertHealthyInterface(page, errors);
@@ -200,9 +147,9 @@ test.describe('admin interface', () => {
     });
   }
 
-  test('admin reports page exposes the report controls', async ({ page }) => {
+  test('admin reports page exposes the report controls', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
-    await loginAs(page, 'admin');
+    await loginAs(page, 'admin', e2eAuth);
     await page.goto('/admin/reports');
     await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
@@ -212,9 +159,9 @@ test.describe('admin interface', () => {
     await expect(page.getByRole('button', { name: 'Mensual', exact: true })).toBeVisible();
   });
 
-  test('admin traceability page exposes audit and cancellation sections', async ({ page }) => {
+  test('admin traceability page exposes audit and cancellation sections', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
-    await loginAs(page, 'admin');
+    await loginAs(page, 'admin', e2eAuth);
     await page.goto('/admin/history');
     await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
@@ -223,9 +170,9 @@ test.describe('admin interface', () => {
     await expect(page.getByRole('heading', { name: 'Registro remoto' })).toBeVisible();
   });
 
-  test('admin system page exposes health and operational sections', async ({ page }) => {
+  test('admin system page exposes health and operational sections', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
-    await loginAs(page, 'admin');
+    await loginAs(page, 'admin', e2eAuth);
     await page.goto('/admin/system');
     await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
@@ -234,9 +181,9 @@ test.describe('admin interface', () => {
     await expect(page.getByRole('heading', { name: '¿Qué hace cada módulo?' })).toBeVisible();
   });
 
-  test('admin operations page exposes windows, inventory and ranking', async ({ page }) => {
+  test('admin operations page exposes windows, inventory and ranking', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
-    await loginAs(page, 'admin');
+    await loginAs(page, 'admin', e2eAuth);
     await page.goto('/admin/operations');
     await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
@@ -250,9 +197,9 @@ test.describe('admin interface', () => {
 
 test.describe('exhaustive role permission matrix', () => {
   const protectedRoutes = ['/menu','/student/wallet','/parent/family','/staff','/staff/orders','/admin','/admin/users','/admin/orders'];
-  test('staff and non-admin roles cannot reach admin surfaces', async ({ page }) => {
+  test('staff and non-admin roles cannot reach admin surfaces', async ({ page, e2eAuth }) => {
     for (const role of ['student','parent','staff'] as const) {
-      await loginAs(page, role);
+      await loginAs(page, role, e2eAuth);
       for (const path of ['/admin','/admin/users','/admin/orders']) {
         await page.goto(path);
         await page.waitForLoadState('domcontentloaded');
@@ -262,7 +209,7 @@ test.describe('exhaustive role permission matrix', () => {
     }
   });
 
-  test('anonymous access is denied for every protected role surface', async ({ page }) => {
+  test('anonymous access is denied for every protected role surface', async ({ page, e2eAuth }) => {
     for (const path of protectedRoutes) {
       await page.goto(path);
       await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
