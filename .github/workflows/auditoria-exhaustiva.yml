@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: quickbite-exhaustive-audit
+  group: quickbite-exhaustive-audit-${{ github.sha }}
   cancel-in-progress: false
 
 env:
