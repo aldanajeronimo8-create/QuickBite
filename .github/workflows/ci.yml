@@ -1,4 +1,5 @@
 name: CI
+# Main quality and E2E gate for the QuickBite pipeline.
 
 on:
   workflow_dispatch:
