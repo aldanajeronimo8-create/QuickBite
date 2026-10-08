@@ -246,20 +246,25 @@ for (const account of accounts) {
         );
       }
 
-      const reconcileResponse = await globalThis.fetch(
-        `${url}/rest/v1/profiles?id=eq.${encodeURIComponent(conflictingProfile.id)}`,
+      // profiles.id is referenced by multiple child tables. Re-keying the
+      // orphan profile in place is unsafe because existing child rows still
+      // point at the old UUID (for example user_theme_preferences).
+      // The profile is orphaned by design after Auth cleanup, so remove the
+      // orphan profile first; CASCADE/SET NULL rules clean up its dependent
+      // E2E state, and the normal upsert below recreates it with the new Auth id.
+      const deleteOrphanResponse = await globalThis.fetch(
+        \`${url}/rest/v1/profiles?id=eq.\${encodeURIComponent(conflictingProfile.id)}\`,
         {
-          method: 'PATCH',
+          method: 'DELETE',
           headers: { ...headers, Prefer: 'return=minimal' },
-          body: JSON.stringify({ id: user.id }),
         },
       );
-      if (!reconcileResponse.ok) {
+      if (!deleteOrphanResponse.ok) {
         throw new Error(
-          `Supabase REST PATCH /profiles/${conflictingProfile.id} failed (${reconcileResponse.status}): ${await reconcileResponse.text()}`,
+          \`Supabase REST DELETE orphan /profiles/\${conflictingProfile.id} failed (\${deleteOrphanResponse.status}): \${await deleteOrphanResponse.text()}\`,
         );
       }
-      console.log(`Reconciled orphan E2E profile ${conflictingProfile.id} to auth user ${user.id} for ${account.email}.`);
+      console.log(\`Removed orphan E2E profile \${conflictingProfile.id}; recreating it for auth user \${user.id} (\${account.email}).\`);
     }
 
     await restRequest('/profiles?on_conflict=id', {
