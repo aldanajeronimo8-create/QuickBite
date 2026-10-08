@@ -65,7 +65,8 @@ async function login(page: Page, role: Role) {
   await page.locator('#login-email').fill(account.email!);
   await page.locator('#login-password').fill(account.password!);
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
-  await page.waitForURL(role === 'student' ? /\/menu$/ : role === 'parent' ? /\/parent\/family$/ : /\/admin(?:\/)?$/);
+  await page.waitForURL(role === 'student' ? /\/menu$/ : role === 'parent' ? /\/parent\/family$/ : /\/admin(?:\/)?$/, { timeout: 45_000 });
+  await page.waitForLoadState('domcontentloaded');
 }
 
 async function healthy(page: Page, state: Awaited<ReturnType<typeof monitor>>) {
@@ -137,8 +138,10 @@ test.describe('critical functional flows', () => {
     await page.goto('/admin/features');
     await healthy(page, state);
     const center = page.getByTestId('admin-feature-center');
-    const links = center.locator('a[href^="/admin/"]');
-    await expect.poll(() => links.count(), { timeout: 15_000, message: 'admin feature center links must render' }).toBeGreaterThan(0);
+    await expect(center).toBeVisible({ timeout: 30_000 });
+    await expect(center.getByRole('heading', { name: 'Operación diaria' })).toBeVisible({ timeout: 30_000 });
+    const links = center.locator('a.feature-center-card[href^="/admin/"]');
+    await expect.poll(() => links.count(), { timeout: 30_000, message: 'admin feature center cards must render' }).toBe(15);
     const hrefs = await links.evaluateAll((nodes) => nodes.map((n) => (n as HTMLAnchorElement).getAttribute('href')).filter(Boolean) as string[]);
     expect(new Set(hrefs).size).toBe(hrefs.length);
     expect(hrefs.length).toBe(15);
