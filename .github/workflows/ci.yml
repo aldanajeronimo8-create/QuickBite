@@ -113,6 +113,9 @@ jobs:
       - name: Provision E2E user
         run: node scripts/ensure-e2e-user.mjs
 
+      - name: Prepare deterministic E2E purchase data
+        run: node scripts/prepare-e2e-data.mjs
+
       - name: Run Playwright E2E
         run: pnpm test:e2e
 
