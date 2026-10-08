@@ -181,13 +181,22 @@ export const useDataStore = create<DataState>((set, get) => ({
     const order = updates.status && Object.keys(updates).length === 1
       ? await repo.updateOrderStatus(id, updates.status)
       : await repo.updateOrder(id, updates);
-    await remoteAudit({
+    // The order mutation is the critical path. Persist the UI state as soon as
+    // Supabase confirms the mutation; remote audit logging must not keep action
+    // controls disabled while an auxiliary audit request is still in flight.
+    set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
+
+    void remoteAudit({
       action: updates.payment_status ? 'payment.update' : updates.status ? 'order.status_change' : 'order.update',
       entity: 'order',
       entityId: id,
       metadata: updates as Record<string, unknown>,
+    }).catch((error) => {
+      writeAuditLog({
+        action: 'app.error',
+        metadata: { source: 'order_status_audit', message: String(error) },
+      });
     });
-    set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
   },
 
   moderateOrderPayment: async (id, action) => {
