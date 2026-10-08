@@ -1,0 +1,223 @@
+name: QuickBite — Prueba de Aceptación Integral
+
+# Final production gate.
+# This workflow is intentionally manual-capable so the first execution can audit an
+# already-validated SHA without replaying CI/E2E/K6/Integrity. After this first run,
+# the workflow also chains automatically after the Integrity audit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Exact SHA already validated by CI → Exhaustive → Integrity'
+        required: true
+        type: string
+      production_url:
+        description: 'Production URL to validate'
+        required: false
+        default: 'https://quick-bite-snowy-ten.vercel.app'
+        type: string
+  workflow_run:
+    workflows: ['Auditoría de Integridad QuickBite']
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: quickbite-integral-acceptance-${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
+  cancel-in-progress: false
+
+env:
+  SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
+  PRODUCTION_URL: ${{ inputs.production_url || vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+
+jobs:
+  resolve:
+    name: Resolve approved SHA and previous evidence
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+      ci: ${{ steps.evidence.outputs.ci }}
+      exhaustive: ${{ steps.evidence.outputs.exhaustive }}
+      integrity: ${{ steps.evidence.outputs.integrity }}
+    steps:
+      - name: Resolve exact SHA
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}"
+          test "${#sha}" -eq 40
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Acceptance SHA: $sha"
+
+      - name: Verify prior audit conclusions for this exact SHA
+        id: evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          json="$(curl --fail --silent --show-error             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/$REPOSITORY/actions/runs?head_sha=$SHA&per_page=100")"
+
+          check() {
+            local workflow="$1"
+            local result
+            result="$(printf '%s' "$json" | jq -r --arg w "$workflow" '
+              [.workflow_runs[] | select(.name == $w and .head_sha == "'"$SHA"'")]
+              | sort_by(.run_started_at) | reverse | .[0].conclusion // "missing"
+            ')"
+            echo "$workflow => $result"
+            printf '%s=%s\n' "$2" "$result" >> "$GITHUB_OUTPUT"
+          }
+
+          check "CI" ci
+          check "Auditoría Exhaustiva QuickBite" exhaustive
+          check "Auditoría de Integridad QuickBite" integrity
+
+          for value in "$ci" "$exhaustive" "$integrity"; do
+            test "$value" = success
+          done
+
+  production-smoke:
+    name: Production deployment smoke
+    needs: resolve
+    runs-on: ubuntu-latest
+    outputs:
+      reachable: ${{ steps.smoke.outputs.reachable }}
+    steps:
+      - name: Validate production URL
+        id: smoke
+        env:
+          URL: ${{ env.PRODUCTION_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          u = urlparse(os.environ["URL"])
+          assert u.scheme == "https", "Production URL must use HTTPS"
+          assert u.netloc, "Production URL must have a host"
+          print(f"Production target: {u.geturl()}")
+          PY
+
+          status="$(curl --silent --show-error --location             --connect-timeout 15 --max-time 45 --retry 2             --output /tmp/quickbite-production.html             --write-out '%{http_code}' "$URL")"
+
+          test "$status" = "200"
+          grep -qi "QuickBite" /tmp/quickbite-production.html
+          echo "reachable=true" >> "$GITHUB_OUTPUT"
+
+  integral-e2e:
+    name: Integral cross-role acceptance
+    needs: [resolve, production-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+      PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
+      PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
+      PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
+      PLAYWRIGHT_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
+      PLAYWRIGHT_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
+      PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
+      PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
+      VITE_E2E_AUTH_AUTO_REFRESH: 'false'
+      PLAYWRIGHT_BASE_URL: ${{ env.PRODUCTION_URL }}
+    steps:
+      - name: Checkout exact approved SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Validate acceptance credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in VITE_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY PLAYWRIGHT_E2E_EMAIL PLAYWRIGHT_E2E_PASSWORD PLAYWRIGHT_PARENT_EMAIL PLAYWRIGHT_PARENT_PASSWORD PLAYWRIGHT_STAFF_EMAIL PLAYWRIGHT_STAFF_PASSWORD PLAYWRIGHT_ADMIN_EMAIL PLAYWRIGHT_ADMIN_PASSWORD; do
+            test -n "${!name:-}" || { echo "Missing required secret: $name"; exit 1; }
+          done
+
+      - name: Provision acceptance accounts
+        run: node scripts/ensure-e2e-user.mjs
+
+      - name: Run integral cross-role, persistence, theme and responsive acceptance
+        run: >
+          pnpm test:e2e
+          tests/e2e/critical-flows.spec.ts
+          tests/e2e/role-interfaces.spec.ts
+          --reporter=line
+
+      - name: Upload acceptance evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: quickbite-integral-acceptance-evidence
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  final:
+    name: PRODUCTION APPROVED 100% gate
+    if: always()
+    needs: [resolve, production-smoke, integral-e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate final acceptance result
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SHA: ${{ needs.resolve.outputs.sha }}"
+          echo "CI: ${{ needs.resolve.outputs.ci }}"
+          echo "Exhaustive: ${{ needs.resolve.outputs.exhaustive }}"
+          echo "Integrity: ${{ needs.resolve.outputs.integrity }}"
+          echo "Production smoke: ${{ needs.production-smoke.result }}"
+          echo "Integral E2E: ${{ needs.integral-e2e.result }}"
+
+          if [ "${{ needs.resolve.result }}" != "success" ] ||
+             [ "${{ needs.production-smoke.result }}" != "success" ] ||
+             [ "${{ needs.integral-e2e.result }}" != "success" ]; then
+            echo "PRODUCTION APPROVAL: BLOCKED"
+            exit 1
+          fi
+
+          if [ "${{ needs.resolve.outputs.ci }}" != "success" ] ||
+             [ "${{ needs.resolve.outputs.exhaustive }}" != "success" ] ||
+             [ "${{ needs.resolve.outputs.integrity }}" != "success" ]; then
+            echo "PRODUCTION APPROVAL: BLOCKED"
+            exit 1
+          fi
+
+          echo "PRODUCTION APPROVAL: 100%"
+          echo "All required prior gates, production reachability, and integral acceptance checks passed for the same SHA."
