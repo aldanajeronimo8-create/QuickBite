@@ -253,7 +253,7 @@ for (const account of accounts) {
       // orphan profile first; CASCADE/SET NULL rules clean up its dependent
       // E2E state, and the normal upsert below recreates it with the new Auth id.
       const deleteOrphanResponse = await globalThis.fetch(
-        \`${url}/rest/v1/profiles?id=eq.\${encodeURIComponent(conflictingProfile.id)}\`,
+        `${url}/rest/v1/profiles?id=eq.${encodeURIComponent(conflictingProfile.id)}`,
         {
           method: 'DELETE',
           headers: { ...headers, Prefer: 'return=minimal' },
@@ -261,10 +261,10 @@ for (const account of accounts) {
       );
       if (!deleteOrphanResponse.ok) {
         throw new Error(
-          \`Supabase REST DELETE orphan /profiles/\${conflictingProfile.id} failed (\${deleteOrphanResponse.status}): \${await deleteOrphanResponse.text()}\`,
+          `Supabase REST DELETE orphan /profiles/${conflictingProfile.id} failed (${deleteOrphanResponse.status}): ${await deleteOrphanResponse.text()}`,
         );
       }
-      console.log(\`Removed orphan E2E profile \${conflictingProfile.id}; recreating it for auth user \${user.id} (\${account.email}).\`);
+      console.log(`Removed orphan E2E profile ${conflictingProfile.id}; recreating it for auth user ${user.id} (${account.email}).`);
     }
 
     await restRequest('/profiles?on_conflict=id', {
