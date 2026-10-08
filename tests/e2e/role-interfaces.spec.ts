@@ -143,7 +143,7 @@ test.describe('admin interface', () => {
       await page.goto(path);
       await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
       await assertHealthyInterface(page, errors);
-      await expect(page).toHaveURL(new RegExp(`${path.replaceAll('/', '\\\\/')}$`));
+      await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe(path);
     });
   }
 
