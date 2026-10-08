@@ -138,6 +138,7 @@ test.describe('critical functional flows', () => {
     await healthy(page, state);
     const center = page.getByTestId('admin-feature-center');
     const links = center.locator('a[href^="/admin/"]');
+    await expect.poll(() => links.count(), { timeout: 15_000, message: 'admin feature center links must render' }).toBeGreaterThan(0);
     const hrefs = await links.evaluateAll((nodes) => nodes.map((n) => (n as HTMLAnchorElement).getAttribute('href')).filter(Boolean) as string[]);
     expect(new Set(hrefs).size).toBe(hrefs.length);
     expect(hrefs.length).toBe(15);
