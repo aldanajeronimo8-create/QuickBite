@@ -19,8 +19,6 @@ async function fetchWithTransientRetry(input: RequestInfo | URL, init?: RequestI
     try {
       return await fetch(input, init);
     } catch (error) {
-      // Do not retry an intentionally aborted request. Other network failures can
-      // happen transiently while Auth is initializing or a session is refreshing.
       if (error instanceof DOMException && error.name === 'AbortError') throw error;
       if (attempt === maxAttempts - 1) throw error;
       await new Promise((resolve) => window.setTimeout(resolve, 250 * 2 ** attempt));
@@ -28,6 +26,31 @@ async function fetchWithTransientRetry(input: RequestInfo | URL, init?: RequestI
   }
   throw new Error('Supabase request failed after retries.');
 }
+
+function isRetryableAuthError(error: { status?: number; message?: string } | null | undefined) {
+  const status = error?.status;
+  return status === 408 || status === 425 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504
+    || /failed to fetch|network request failed|fetch failed|timeout|timed out|connection (?:reset|refused|closed)/i.test(error?.message ?? '');
+}
+
+export async function signInWithPasswordWithRetry(
+  client: SupabaseClient,
+  credentials: { email: string; password: string },
+) {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const result = await client.auth.signInWithPassword(credentials);
+      if (!result.error || !isRetryableAuthError(result.error) || attempt === maxAttempts) return result;
+      await new Promise((resolve) => window.setTimeout(resolve, 500 * 2 ** (attempt - 1)));
+    } catch (error) {
+      if (attempt === maxAttempts || !isRetryableAuthError({ message: error instanceof Error ? error.message : String(error) })) throw error;
+      await new Promise((resolve) => window.setTimeout(resolve, 500 * 2 ** (attempt - 1)));
+    }
+  }
+  throw new Error('No fue posible iniciar sesión después de varios intentos.');
+}
+
 
 function createAuthClient(storageKey: string) {
   if (!hasSupabaseConfig()) return null;
