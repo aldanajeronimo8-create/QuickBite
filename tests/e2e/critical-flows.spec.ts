@@ -12,6 +12,18 @@ function isExpectedUnauthenticatedAuthResponse(response: { status: () => number;
   return response.status() === 401 && response.request().method() === 'GET' && /\/auth\/v1\/user(?:$|\?)/.test(response.url());
 }
 
+async function openInternalAccess(page: Page, role: 'staff' | 'admin') {
+  await page.goto('/login');
+  const logo = page.getByRole('button', { name: 'QuickBite', exact: true });
+  await logo.hover();
+  await logo.dispatchEvent('pointerdown');
+  await page.waitForTimeout(2600);
+  await logo.dispatchEvent('pointerup');
+  const dialog = page.getByRole('dialog', { name: 'Acceso interno' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i }).click();
+}
+
 async function monitor(page: Page) {
   const errors: string[] = [];
   const responses: string[] = [];
@@ -47,9 +59,7 @@ async function monitor(page: Page) {
 async function login(page: Page, role: Role) {
   const account = credentials[role]();
   test.skip(!account.email || !account.password, `Missing Playwright credentials for ${role}.`);
-  await page.goto('/login');
-  if (role === 'parent') await page.getByRole('button', { name: /iniciar sesi[oó]n como padre/i }).click();
-  if (role === 'admin') await page.getByRole('button', { name: /acceso de administraci[oó]n/i }).click();
+  if (role === 'admin') await openInternalAccess(page, 'admin'); else { await page.goto('/login'); if (role === 'parent') await page.getByRole('button', { name: /iniciar sesi[oó]n como padre/i }).click(); }
   await page.locator('#login-email').fill(account.email!);
   await page.locator('#login-password').fill(account.password!);
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
