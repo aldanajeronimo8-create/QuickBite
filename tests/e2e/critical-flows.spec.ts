@@ -57,7 +57,7 @@ async function login(page: Page, role: Role) {
 }
 
 async function healthy(page: Page, state: Awaited<ReturnType<typeof monitor>>) {
-  await page.waitForLoadState('networkidle');
+  await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
   expect(state.errors, JSON.stringify(state.errors)).toEqual([]);
   expect(state.responses, JSON.stringify(state.responses)).toEqual([]);
   await expect(page.locator('body')).toBeVisible();
@@ -82,7 +82,7 @@ test.describe('critical functional flows', () => {
     await login(page, 'student');
     await healthy(page, state);
     const search = page.locator('input[type="search"], input[placeholder*="Buscar" i], input[placeholder*="buscar" i]').first();
-    if (await search.count()) { await search.fill('zzzz-no-match'); await page.waitForTimeout(250); await search.fill(''); }
+    if (await search.count()) { await search.fill('zzzz-no-match'); await expect(search).toHaveValue('zzzz-no-match'); await search.fill(''); }
     const categoryControls = page.getByRole('button').filter({ hasText: /^(Todas|Todo|Menú|Bebidas|Comidas|Snacks)$/i });
     if (await categoryControls.count()) await categoryControls.first().click();
     const addButtons = page.getByRole('button', { name: /agregar|añadir|sumar al carrito|comprar/i });
