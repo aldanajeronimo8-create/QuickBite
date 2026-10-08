@@ -13,6 +13,22 @@ function getTabStorage(): Storage | undefined {
   return window.sessionStorage;
 }
 
+async function fetchWithTransientRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      return await fetch(input, init);
+    } catch (error) {
+      // Do not retry an intentionally aborted request. Other network failures can
+      // happen transiently while Auth is initializing or a session is refreshing.
+      if (error instanceof DOMException && error.name === 'AbortError') throw error;
+      if (attempt === maxAttempts - 1) throw error;
+      await new Promise((resolve) => window.setTimeout(resolve, 250 * 2 ** attempt));
+    }
+  }
+  throw new Error('Supabase request failed after retries.');
+}
+
 function createAuthClient(storageKey: string) {
   if (!hasSupabaseConfig()) return null;
   return createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
@@ -23,6 +39,7 @@ function createAuthClient(storageKey: string) {
       storageKey,
       storage: getTabStorage(),
     },
+    global: { fetch: fetchWithTransientRetry },
     realtime: { params: { eventsPerSecond: 10 } },
   });
 }
