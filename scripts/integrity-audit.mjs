@@ -43,7 +43,11 @@ check(items.every(i => orderIds.has(i.order_id) && (i.product_id == null || prod
 const familyCounts = new Map();
 for (const l of links.filter(l => l.active)) familyCounts.set(l.parent_user_id, (familyCounts.get(l.parent_user_id) ?? 0) + 1);
 const multi = [...familyCounts.values()].filter(n => n > 1).length;
-multi ? check(true, multi + ' parent account(s) currently link to multiple students') : warn('No live parent has multiple active students; structural support is verified, but live multi-student coverage needs a fixture.');
+if (multi > 0) {
+  check(true, multi + ' parent account(s) currently link to multiple students');
+} else {
+  warn('No live parent has multiple active students; structural support is verified, but live multi-student coverage needs a fixture.');
+}
 
 const methods = new Set(['nequi','cash','bre-b','credits']);
 const paymentStates = new Set(['pending','confirmed','rejected']);
