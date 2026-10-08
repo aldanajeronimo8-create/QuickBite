@@ -98,9 +98,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate integrity stages
+        id: evaluate
         shell: bash
         run: |
           set -euo pipefail
+          sha="${{needs.integrity-trigger.outputs.sha}}"
+          test -n "$sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "Trigger: ${{ needs.integrity-trigger.result }}"
           echo "Database: ${{ needs.database-integrity.result }}"
           echo "Excel: ${{ needs.export-contract.result }}"
