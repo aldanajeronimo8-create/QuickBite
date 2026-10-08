@@ -179,7 +179,7 @@ test.describe('QuickBite production acceptance — security matrix', () => {
 test.describe('QuickBite production acceptance — persistence and UX', () => {
   test('theme preference is account-specific and survives logout', async ({ browser, e2eAuth }) => {
     const student = await browser.newPage();
-    await installRole(student, 'student', e2eAuth);
+    await e2eAuth.login(student, 'student');
     await student.goto('/student/account');
     await assertNoRuntimeFailures(student);
 
@@ -195,7 +195,7 @@ test.describe('QuickBite production acceptance — persistence and UX', () => {
     await student.close();
 
     const parent = await browser.newPage();
-    await installRole(parent, 'parent', e2eAuth);
+    await e2eAuth.login(parent, 'parent');
     await parent.goto('/parent/family');
     const dark = parent.getByRole('radio', { name: /oscuro/i });
     await expect(dark).toBeVisible();
@@ -228,7 +228,7 @@ test.describe('QuickBite production acceptance — persistence and UX', () => {
   });
 
   test('logout terminates the current role session', async ({ page, e2eAuth }) => {
-    await installRole(page, 'student', e2eAuth);
+    await e2eAuth.login(page, 'student');
     const logout = page.getByRole('button', { name: /cerrar sesión/i }).first();
     await expect(logout).toBeVisible();
     await logout.click();
