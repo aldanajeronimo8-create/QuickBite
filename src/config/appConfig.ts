@@ -12,6 +12,10 @@ export const appConfig = {
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
   supabaseStorageBucket: import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? '',
   supabaseRealtimeEnabled: import.meta.env.VITE_SUPABASE_REALTIME_ENABLED !== 'false',
+  // E2E workers intentionally share captured sessions. Disabling background refresh
+  // for the short-lived test build prevents concurrent refresh-token rotation across
+  // isolated browser contexts. Production keeps the normal Supabase auto-refresh.
+  e2eAuthAutoRefresh: import.meta.env.VITE_E2E_AUTH_AUTO_REFRESH !== 'false',
   dataRefreshIntervalMs: Number(import.meta.env.VITE_DATA_REFRESH_INTERVAL_MS ?? 5000),
   // Password recovery is handled exclusively by Supabase Auth email links.
   passwordResetMode: 'email' as const,
