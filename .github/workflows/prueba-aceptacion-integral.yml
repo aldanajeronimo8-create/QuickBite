@@ -4,10 +4,7 @@ name: QuickBite — Prueba de Aceptación Integral
 # Final production gate. The normal execution is automatic after the Integrity audit,
 # which itself is chained from Exhaustive, which is chained from CI.
 
-on:
-  # The normal path is automatic: CI → Exhaustive → Integrity → this final gate.
-  # No SHA is requested from the user; workflow_run supplies the exact upstream SHA.
-  workflow_dispatch:
+'on':
   workflow_run:
     workflows: ['Auditoría de Integridad QuickBite']
     types: [completed]
@@ -28,9 +25,9 @@ jobs:
   resolve:
     name: Resolve approved SHA and previous evidence
     if: >-
-      ${{ github.event_name == 'workflow_dispatch' ||
-          (github.event.workflow_run.conclusion == 'success' &&
-           github.event.workflow_run.head_branch == 'main') }}
+      ${{ github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.resolve.outputs.sha }}
@@ -43,7 +40,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sha="${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}"
+          sha="${{ github.event.workflow_run.head_sha }}"
           test "${#sha}" -eq 40
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "Acceptance SHA: $sha"
