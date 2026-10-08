@@ -227,8 +227,7 @@ jobs:
           fi
 
           if [ "${{ needs.resolve.outputs.ci }}" != "success" ] ||
-             [ "${{ needs.resolve.outputs.exhaustive }}" != "success" ] ||
-             ]; then
+             [ "${{ needs.resolve.outputs.exhaustive }}" != "success" ]; then
             echo "PRODUCTION APPROVAL: BLOCKED"
             exit 1
           fi
