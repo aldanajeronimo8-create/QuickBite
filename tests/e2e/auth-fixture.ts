@@ -73,6 +73,8 @@ async function loginWithCredentials(page: Page, role: E2ERole) {
 
 export const test = base.extend<Record<string, never>, WorkerFixtures>({
   e2eAuth: [async ({}, use) => {
+    const workerSessions = new Map<E2ERole, string>();
+
     const getWorkerSession = async (role: E2ERole) => {
       const url = process.env.VITE_SUPABASE_URL;
       const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
@@ -87,6 +89,19 @@ export const test = base.extend<Record<string, never>, WorkerFixtures>({
       const [email, password] = credentials;
       if (!email || !password) throw new Error(`Missing Playwright credentials for ${role}.`);
 
+      const cached = workerSessions.get(role);
+      if (cached) {
+        const probe = createClient(url, anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+        });
+        const { data: sessionData } = await probe.auth.setSession(JSON.parse(cached));
+        if (sessionData.session) {
+          const { error: userError } = await probe.auth.getUser(sessionData.session.access_token);
+          if (!userError) return JSON.stringify(sessionData.session);
+        }
+        workerSessions.delete(role);
+      }
+
       const client = createClient(url, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       });
@@ -94,7 +109,9 @@ export const test = base.extend<Record<string, never>, WorkerFixtures>({
       if (error || !data.session) {
         throw new Error(`Could not create the worker E2E session for ${role}: ${error?.message ?? 'missing session'}`);
       }
-      return JSON.stringify(data.session);
+      const value = JSON.stringify(data.session);
+      workerSessions.set(role, value);
+      return value;
     };
 
     await use({
