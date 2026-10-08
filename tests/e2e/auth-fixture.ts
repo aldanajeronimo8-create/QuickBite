@@ -101,6 +101,8 @@ export const test = base.extend<{}, WorkerFixtures>({
         const key = AUTH_STORAGE_KEYS[role];
 
         await page.context().addInitScript(({ storageKey, storageValue }) => {
+          window.sessionStorage.removeItem('quickbite.user.auth');
+          window.sessionStorage.removeItem('quickbite.admin.auth');
           window.sessionStorage.setItem(storageKey, storageValue);
         }, { storageKey: key, storageValue: session });
       },
