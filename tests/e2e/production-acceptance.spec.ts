@@ -188,9 +188,8 @@ test.describe('QuickBite production acceptance — persistence and UX', () => {
     await light.click();
     await expect.poll(() => student.locator('html').getAttribute('data-qb-theme')).toBe('light');
 
-    const logout = student.getByRole('button', { name: /cerrar sesión/i }).first();
-    await logout.click();
-    await student.waitForURL(/\/login$/);
+    // Mi cuenta no contiene el control de cierre de sesión. El logout real del estudiante
+    // está en el header de /menu, que es el mismo control usado por el flujo crítico.
     await student.goto('/menu');
     await expect.poll(() => student.locator('html').getAttribute('data-qb-theme')).toBe('light');
     await student.getByRole('button', { name: /cerrar sesión/i }).first().click();
