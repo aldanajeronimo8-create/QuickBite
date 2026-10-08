@@ -92,7 +92,7 @@ test.describe('critical functional flows', () => {
 
   test('student account surfaces and logout work', async ({ page, e2eAuth }) => {
     const state = await monitor(page);
-    await login(page, 'student', e2eAuth);
+    await e2eAuth.login(page, 'student');
     for (const path of ['/student/features', '/student/account', '/student/wallet', '/student/history', '/student/favorites', '/student/link-code', '/student/notifications']) { await page.goto(path); await healthy(page, state); }
     const logout = page.getByRole('button', { name: /cerrar sesi[oó]n/i }).first();
     if (await logout.count()) { await logout.click(); await page.waitForURL(/\/(?:login)?$/); }
