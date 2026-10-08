@@ -201,18 +201,27 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   moderateOrderPayment: async (id, action) => {
     const order = await repo.moderateOrderPayment(id, action);
-    await remoteAudit({
-      action: 'payment.update',
-      entity: 'order',
-      entityId: id,
-      metadata: { action, payment_status: order.payment_status, status: order.status },
-    });
 
+    // The moderation RPC is the critical path. Publish the confirmed state
+    // immediately after the mutation succeeds; audit logging is auxiliary and
+    // must never delay the store/UI transition.
     if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin') && action === 'approve') {
       set({ orders: [...get().orders.filter((item) => item.id !== id), order] });
     } else {
       set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
     }
+
+    void remoteAudit({
+      action: 'payment.update',
+      entity: 'order',
+      entityId: id,
+      metadata: { action, payment_status: order.payment_status, status: order.status },
+    }).catch((error) => {
+      writeAuditLog({
+        action: 'app.error',
+        metadata: { source: 'payment_moderation_audit', message: String(error) },
+      });
+    });
   },
 
   archiveOrders: async (ids) => {
