@@ -81,18 +81,20 @@ jobs:
 
           check() {
             local workflow="$1"
+            local output_name="$2"
             local result
             result="$(printf '%s' "$json" | jq -r --arg w "$workflow" --arg sha "$SHA" '
               [.workflow_runs[] | select(.name == $w and .head_sha == $sha)]
               | sort_by(.run_started_at) | reverse | .[0].conclusion // "missing"
             ')"
-            echo "$workflow => $result"
-            printf '%s=%s\n' "$2" "$result" >> "$GITHUB_OUTPUT"
+            echo "$workflow => $result" >&2
+            printf '%s=%s\n' "$output_name" "$result" >> "$GITHUB_OUTPUT"
+            printf '%s' "$result"
           }
 
-          check "CI" ci
-          check "Auditoría Exhaustiva QuickBite" exhaustive
-          check "Auditoría de Integridad QuickBite" integrity
+          ci="$(check "CI" ci)"
+          exhaustive="$(check "Auditoría Exhaustiva QuickBite" exhaustive)"
+          integrity="$(check "Auditoría de Integridad QuickBite" integrity)"
 
           for value in "$ci" "$exhaustive" "$integrity"; do
             test "$value" = success
@@ -148,7 +150,7 @@ jobs:
       PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
       PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
       VITE_E2E_AUTH_AUTO_REFRESH: 'false'
-      PLAYWRIGHT_BASE_URL: ${{ env.PRODUCTION_URL }}
+      PLAYWRIGHT_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
     steps:
       - name: Checkout exact approved SHA
         uses: actions/checkout@v4
