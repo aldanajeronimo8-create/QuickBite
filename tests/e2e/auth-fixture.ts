@@ -67,7 +67,7 @@ async function loginWithCredentials(page: Page, role: E2ERole) {
   await page.locator('#login-email').fill(email);
   await page.locator('#login-password').fill(password);
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
-  await page.waitForURL(new RegExp(`${DESTINATIONS[role].replaceAll('/', '\\\\/')}$`), { timeout: 45_000 });
+  await page.waitForURL((url) => url.pathname === DESTINATIONS[role], { timeout: 45_000 });
   await page.waitForLoadState('domcontentloaded');
 }
 
