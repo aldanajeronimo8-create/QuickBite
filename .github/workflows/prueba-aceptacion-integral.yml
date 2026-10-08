@@ -1,13 +1,36 @@
 name: QuickBite — Prueba de Aceptación Integral
 
 # Final production gate.
-# Final production gate. The normal execution is automatic after the Integrity audit,
-# which itself is chained from Exhaustive, which is chained from CI.
+# Invoked only by the successful Integrity audit so the approved SHA is explicit.
 
-'on':
-  workflow_run:
-    workflows: ['Auditoría de Integridad QuickBite']
-    types: [completed]
+on:
+  workflow_call:
+    inputs:
+      sha:
+        description: 'Exact commit SHA approved by the Integrity audit'
+        required: true
+        type: string
+    secrets:
+      VITE_SUPABASE_ANON_KEY:
+        required: true
+      SUPABASE_SERVICE_ROLE_KEY:
+        required: true
+      PLAYWRIGHT_E2E_EMAIL:
+        required: true
+      PLAYWRIGHT_E2E_PASSWORD:
+        required: true
+      PLAYWRIGHT_ADMIN_EMAIL:
+        required: true
+      PLAYWRIGHT_ADMIN_PASSWORD:
+        required: true
+      PLAYWRIGHT_PARENT_EMAIL:
+        required: true
+      PLAYWRIGHT_PARENT_PASSWORD:
+        required: true
+      PLAYWRIGHT_STAFF_EMAIL:
+        required: true
+      PLAYWRIGHT_STAFF_PASSWORD:
+        required: true
 
 permissions:
   actions: read
