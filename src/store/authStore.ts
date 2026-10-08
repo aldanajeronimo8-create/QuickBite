@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     clearDelegatedStudentContext();
     const supabase = requireSupabaseClient();
     const normalizedEmail = email.trim().toLowerCase();
-    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    const { data, error } = await signInWithPasswordWithRetry(supabase, { email: normalizedEmail, password });
     if (error || !data.user) {
       writeAuditLog({ action: 'auth.error', actorEmail: normalizedEmail, metadata: { reason: error?.message } });
       throw new Error('Correo o contraseña incorrectos.');
