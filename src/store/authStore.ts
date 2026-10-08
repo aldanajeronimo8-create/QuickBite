@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { requireSupabaseClient, type Profile } from '../lib/supabase';
+import { requireSupabaseClient, signInWithPasswordWithRetry, type Profile } from '../lib/supabase';
 import { writeAuditLog } from '../lib/auditLog';
 import { getProfile } from '../repositories/quickbiteRepository';
 import { canAccessAdmin } from '../lib/access';
