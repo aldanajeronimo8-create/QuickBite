@@ -2,10 +2,12 @@
 async function openInternalAccess(page: import('@playwright/test').Page, role: 'staff' | 'admin') {
   await page.goto('/login');
   const logo = page.getByRole('button', { name: 'QuickBite', exact: true });
-  await logo.hover();
-  await logo.dispatchEvent('pointerdown');
+  const box = await logo.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
   await page.waitForTimeout(2600);
-  await logo.dispatchEvent('pointerup');
+  await page.mouse.up();
   const dialog = page.getByRole('dialog', { name: 'Acceso interno' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i }).click();
@@ -100,8 +102,7 @@ test('admin users page exposes Staff lifecycle controls', async ({ page }) => {
     'Set admin credentials to enable Staff management coverage.',
   );
 
-  await page.goto('/login');
-  await page.getByRole('button', { name: /acceso de administraci[oó]n/i }).click();
+  await openInternalAccess(page, 'admin');
   await page.locator('#login-email').fill(process.env.PLAYWRIGHT_ADMIN_EMAIL!);
   await page.locator('#login-password').fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD!);
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
