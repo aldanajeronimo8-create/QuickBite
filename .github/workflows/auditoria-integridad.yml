@@ -1,0 +1,112 @@
+# Stage 3: waits for the exhaustive audit of the exact same SHA.
+name: Auditoría de Integridad QuickBite
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'scripts/integrity-audit.mjs'
+      - '.github/workflows/auditoria-integridad.yml'
+      - '.github/workflows/auditoria-exhaustiva.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quickbite-integrity-audit-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  exhaustive-gate:
+    name: Wait for exhaustive audit on exact SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Wait for matching exhaustive audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 270); do
+            run_json=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/auditoria-exhaustiva.yml/runs?head_sha=${GITHUB_SHA}&per_page=20")
+            status=$(echo "$run_json" | jq -r '[.workflow_runs[] | select(.name=="Auditoría Exhaustiva QuickBite")][0] | if . == null then "missing" else (.status + ":" + (.conclusion // "")) end')
+            echo "Exhaustive audit for $GITHUB_SHA: $status"
+            if [ "$status" = "completed:success" ]; then exit 0; fi
+            if echo "$status" | grep -q '^completed:' && [ "$status" != "completed:success" ]; then
+              echo "Exhaustive audit did not pass for this SHA"; exit 1
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for exhaustive audit"; exit 1
+
+  database-integrity:
+    name: Live database integrity
+    needs: exhaustive-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GITHUB_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate service credentials
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Run live relational, order, payment, inventory and export assertions
+        run: node scripts/integrity-audit.mjs
+
+  export-contract:
+    name: Excel export contract
+    needs: exhaustive-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify Excel-only implementation
+        run: pnpm verify:excel-only
+      - name: Run export service tests
+        run: pnpm test -- src/services/orderExportService.test.ts
+
+  final:
+    name: Auditoría de integridad final
+    if: always()
+    needs: [exhaustive-gate, database-integrity, export-contract]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate integrity stages
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Gate: ${{ needs.exhaustive-gate.result }}"
+          echo "Database: ${{ needs.database-integrity.result }}"
+          echo "Excel: ${{ needs.export-contract.result }}"
+          if [ "${{ needs.exhaustive-gate.result }}" != "success" ] || [ "${{ needs.database-integrity.result }}" != "success" ] || [ "${{ needs.export-contract.result }}" != "success" ]; then
+            echo "AUDITORÍA DE INTEGRIDAD: FAIL"; exit 1
+          fi
+          echo "AUDITORÍA DE INTEGRIDAD: PASS"
