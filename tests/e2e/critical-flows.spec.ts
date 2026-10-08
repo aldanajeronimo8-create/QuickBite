@@ -58,7 +58,6 @@ async function login(page: Page, role: Role) {
 
 async function healthy(page: Page, state: Awaited<ReturnType<typeof monitor>>) {
   await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(700);
   expect(state.errors, JSON.stringify(state.errors)).toEqual([]);
   expect(state.responses, JSON.stringify(state.responses)).toEqual([]);
   await expect(page.locator('body')).toBeVisible();
@@ -114,7 +113,6 @@ test.describe('critical functional flows', () => {
     await healthy(page, state);
     const actionButtons = page.getByRole('button').filter({ hasText: /usar|seleccionar|ver|estudiante|entrar/i });
     if (await actionButtons.count()) await actionButtons.first().click();
-    await page.waitForTimeout(300);
     await healthy(page, state);
   });
 
