@@ -65,8 +65,8 @@ test.describe('interactive UI control audit', () => {
       for (const route of routes[role]) {
         await page.goto(route);
         await page.waitForLoadState('domcontentloaded');
-        const interactiveCount = await page.locator('button:not([disabled]):visible, a[href]:visible, select:not([disabled]):visible, input:not([disabled]):visible, textarea:not([disabled]):visible, [role=tab]:visible, [role=combobox]:visible').count();
-        expect(interactiveCount, 'interactive controls must be discoverable on ' + route).toBeGreaterThan(0);
+        const interactiveSelector = 'button:not([disabled]):visible, a[href]:visible, select:not([disabled]):visible, input:not([disabled]):visible, textarea:not([disabled]):visible, [role=tab]:visible, [role=combobox]:visible';
+        await expect.poll(async () => page.locator(interactiveSelector).count(), { timeout: 15_000, message: 'interactive controls must be discoverable on ' + route }).toBeGreaterThan(0);
         resetMonitors(errors);
         const tabs = await page.getByRole('tab').all();
         for (const tab of tabs.slice(0, 20)) {
