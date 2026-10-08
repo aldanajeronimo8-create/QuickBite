@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Local auth state is still cleared even if the remote session cannot be read.
     } finally {
       try {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
       } finally {
         set({ user: null, session: null, loading: false });
       }
