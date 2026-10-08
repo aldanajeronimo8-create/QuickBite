@@ -87,7 +87,7 @@ test.describe('parent interface', () => {
     await expect(page).toHaveURL(/\/parent\/family$/);
   });
 
-  test('parent registration interface opens without browser errors', async ({ page, e2eAuth }) => {
+  test('parent registration interface opens without browser errors', async ({ page }) => {
     const errors = await collectBrowserErrors(page);
     await page.goto('/register-parent');
     await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
@@ -197,19 +197,33 @@ test.describe('admin interface', () => {
 
 test.describe('exhaustive role permission matrix', () => {
   const protectedRoutes = ['/menu','/student/wallet','/parent/family','/staff','/staff/orders','/admin','/admin/users','/admin/orders'];
-  test('staff and non-admin roles cannot reach admin surfaces', async ({ page, e2eAuth }) => {
+  test('staff and non-admin roles cannot reach admin surfaces', async ({ browser, e2eAuth }) => {
     for (const role of ['student','parent','staff'] as const) {
-      await loginAs(page, role, e2eAuth);
-      for (const path of ['/admin','/admin/users','/admin/orders']) {
-        await page.goto(path);
-        await page.waitForLoadState('domcontentloaded');
-        await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
+      const context = await browser.newContext();
+      const rolePage = await context.newPage();
+      try {
+        await loginAs(rolePage, role, e2eAuth);
+        for (const path of ['/admin','/admin/users','/admin/orders']) {
+          await rolePage.goto(path);
+          await rolePage.waitForLoadState('domcontentloaded');
+          await expect(rolePage).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '
+
+  test('anonymous access is denied for every protected role surface', async ({ page }) => {
+    for (const path of protectedRoutes) {
+      await page.goto(path);
+      await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
+    }
+  });
+});
+));
+        }
+      } finally {
+        await context.close();
       }
-      await page.context().clearCookies();
     }
   });
 
-  test('anonymous access is denied for every protected role surface', async ({ page, e2eAuth }) => {
+  test('anonymous access is denied for every protected role surface', async ({ page }) => {
     for (const path of protectedRoutes) {
       await page.goto(path);
       await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
