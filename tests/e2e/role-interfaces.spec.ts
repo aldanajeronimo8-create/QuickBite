@@ -143,7 +143,7 @@ test.describe('admin interface', () => {
       await page.goto(path);
       await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
       await assertHealthyInterface(page, errors);
-      await expect(page).toHaveURL(new RegExp(`${path.replaceAll('/', '\\/')}$`));
+      await expect(page).toHaveURL(new RegExp(`${path.replaceAll('/', '\\\\/')}$`));
     });
   }
 
@@ -194,7 +194,6 @@ test.describe('admin interface', () => {
   });
 });
 
-
 test.describe('exhaustive role permission matrix', () => {
   const protectedRoutes = ['/menu', '/student/wallet', '/parent/family', '/staff', '/staff/orders', '/admin', '/admin/users', '/admin/orders'];
 
@@ -221,4 +220,4 @@ test.describe('exhaustive role permission matrix', () => {
       await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
     }
   });
-}
+});
