@@ -34,7 +34,7 @@ const publicRoutes = [
   { path: '/forgot-password', heading: /recuper|contrase[nñ]a/i },
 ];
 
-test.describe('public navigation', () => {
+test.describe('public navigation @student', () => {
   for (const route of publicRoutes) {
     test(`loads ${route.path} without a fatal page error`, async ({ page }) => {
       const consoleErrors: string[] = [];
@@ -50,7 +50,7 @@ test.describe('public navigation', () => {
   }
 });
 
-test('protected admin feature center does not expose admin UI to an anonymous visitor', async ({ page }) => {
+test('protected admin feature center does not expose admin UI to an anonymous visitor @student', async ({ page }) => {
   await page.goto('/admin/features');
   await page.waitForLoadState('domcontentloaded');
 
@@ -59,7 +59,7 @@ test('protected admin feature center does not expose admin UI to an anonymous vi
   await expect(page).toHaveURL(/\/login$|\/$/);
 });
 
-test('admin feature center smoke test when admin E2E credentials are configured', async ({ page }) => {
+test('admin feature center smoke test when admin E2E credentials are configured @admin', async ({ page }) => {
   test.skip(
     !process.env.PLAYWRIGHT_ADMIN_EMAIL || !process.env.PLAYWRIGHT_ADMIN_PASSWORD,
     'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD to enable authenticated admin E2E coverage.',
@@ -88,7 +88,7 @@ test('admin feature center smoke test when admin E2E credentials are configured'
 });
 
 
-test('staff cannot access admin routes', async ({ page }) => {
+test('staff cannot access admin routes @staff', async ({ page }) => {
   await loginAsStaff(page);
   await page.goto('/admin/features');
   await page.waitForLoadState('domcontentloaded');
@@ -96,7 +96,7 @@ test('staff cannot access admin routes', async ({ page }) => {
   await expect(page.getByText(/centro de funcionalidades/i)).not.toBeVisible();
 });
 
-test('admin users page exposes Staff lifecycle controls', async ({ page }) => {
+test('admin users page exposes Staff lifecycle controls @admin', async ({ page }) => {
   test.skip(
     !process.env.PLAYWRIGHT_ADMIN_EMAIL || !process.env.PLAYWRIGHT_ADMIN_PASSWORD,
     'Set admin credentials to enable Staff management coverage.',
