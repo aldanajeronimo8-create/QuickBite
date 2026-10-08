@@ -72,8 +72,7 @@ async function loginWithCredentials(page: Page, role: E2ERole) {
 }
 
 export const test = base.extend<Record<string, never>, WorkerFixtures>({
-  e2eAuth: [async ({ ...fixtures }, use) => {
-    void fixtures;
+  e2eAuth: [async ({}, use) => {
     const createFreshSession = async (role: E2ERole) => {
       const url = process.env.VITE_SUPABASE_URL;
       const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
