@@ -64,7 +64,10 @@ async function loginAs(page: Page, role: 'student' | 'parent' | 'staff' | 'admin
     // Internal roles are intentionally hidden from the public login. Unlock the
     // internal access modal through the same 2.5s logo long-press used by users.
     const logo = page.getByRole('button', { name: 'QuickBite' });
-    await logo.hover();
+    await expect(logo).toBeVisible({ timeout: 15_000 });
+    const box = await logo.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
     await page.mouse.down();
     await page.waitForTimeout(2_600);
     await page.mouse.up();
@@ -78,7 +81,7 @@ async function loginAs(page: Page, role: 'student' | 'parent' | 'staff' | 'admin
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
 
   const destination = role === 'student' ? /\/menu$/ : role === 'parent' ? /\/parent\/family$/ : role === 'staff' ? /\/staff(?:\/orders)?$/ : /\/admin(?:\/)?$/;
-  await page.waitForURL(destination, { timeout: 30_000 });
+  await page.waitForURL(destination, { timeout: 45_000 });
 }
 
 async function assertHealthyInterface(
