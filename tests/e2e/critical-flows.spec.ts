@@ -53,7 +53,7 @@ async function healthy(page: Page, state: Awaited<ReturnType<typeof monitor>>) {
   await expect(page.locator('body')).not.toContainText(/application error|chunkloaderror|uncaught|algo sali[oó] mal/i);
 }
 
-test.describe('critical functional flows', () => {
+test.describe('critical functional flows @student', () => {
   // These flows share the real E2E Student/Admin accounts and include one real purchase.
   // Keep this stateful suite ordered while independent UI/read-only suites use CI workers in parallel.
   test.describe.configure({ mode: 'serial' });
