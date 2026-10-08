@@ -68,7 +68,7 @@ async function assertNoRuntimeFailures(page: Page) {
   expect(apiFailures, JSON.stringify(apiFailures)).toEqual([]);
 }
 
-test.describe('QuickBite production acceptance — role coverage', () => {
+test.describe('QuickBite production acceptance — role coverage @student', () => {
   test('all four roles reach their correct production interface', async ({ page, e2eAuth }) => {
     for (const role of ['student', 'parent', 'staff', 'admin'] as const) {
       await installRole(page, role, e2eAuth);
@@ -133,7 +133,7 @@ test.describe('QuickBite production acceptance — role coverage', () => {
   });
 });
 
-test.describe('QuickBite production acceptance — security matrix', () => {
+test.describe('QuickBite production acceptance — security matrix @student', () => {
   test('anonymous users are denied from every protected role surface', async ({ page }) => {
     for (const route of [
       '/menu',
@@ -176,7 +176,7 @@ test.describe('QuickBite production acceptance — security matrix', () => {
   });
 });
 
-test.describe('QuickBite production acceptance — persistence and UX', () => {
+test.describe('QuickBite production acceptance — persistence and UX @student', () => {
   test('theme preference is account-specific and survives logout', async ({ browser, e2eAuth }) => {
     const student = await browser.newPage();
     await e2eAuth.login(student, 'student');
