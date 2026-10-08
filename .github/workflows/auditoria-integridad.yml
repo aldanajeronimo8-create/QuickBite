@@ -116,6 +116,9 @@ jobs:
     name: Prueba de Aceptación Integral
     if: ${{ needs.final.result == 'success' }}
     needs: final
+    permissions:
+      actions: read
+      contents: read
     uses: ./.github/workflows/prueba-aceptacion-integral.yml
     with:
       sha: ${{ needs.final.outputs.sha }}
