@@ -1,13 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './auth-fixture';
 
 type Role = 'student' | 'parent' | 'staff' | 'admin';
-
-const credentials = {
-  student: () => ({ email: process.env.PLAYWRIGHT_E2E_EMAIL, password: process.env.PLAYWRIGHT_E2E_PASSWORD }),
-  parent: () => ({ email: process.env.PLAYWRIGHT_PARENT_EMAIL, password: process.env.PLAYWRIGHT_PARENT_PASSWORD }),
-  staff: () => ({ email: process.env.PLAYWRIGHT_STAFF_EMAIL, password: process.env.PLAYWRIGHT_STAFF_PASSWORD }),
-  admin: () => ({ email: process.env.PLAYWRIGHT_ADMIN_EMAIL, password: process.env.PLAYWRIGHT_ADMIN_PASSWORD }),
-};
 
 const routes: Record<Role, string[]> = {
   student: ['/student/features', '/menu?tab=menu', '/menu?tab=orders', '/student/reviews', '/student/order-windows', '/student/account', '/student/wallet', '/student/history', '/student/rewards', '/student/favorites', '/student/link-code', '/student/notifications'],
@@ -16,24 +9,10 @@ const routes: Record<Role, string[]> = {
   admin: ['/admin', '/admin/features', '/admin/operations', '/admin/rankings', '/admin/reviews', '/admin/orders', '/admin/payments', '/admin/wallet', '/admin/inventory', '/admin/menu', '/admin/nutrition', '/admin/verification', '/admin/users', '/admin/academic', '/admin/recess', '/admin/loyalty', '/admin/reports', '/admin/history', '/admin/system', '/admin/reset'],
 };
 
-async function loginAs(page: Page, role: Role) {
-  const { email, password } = credentials[role]();
-  if (!email || !password) throw new Error('Missing credentials for ' + role);
-  // Reset auth storage only when entering the real app origin. about:blank has an opaque origin,
-  // so accessing sessionStorage there throws SecurityError in Chromium.
-  await page.addInitScript(() => {
-    if (window.location.pathname === '/login') {
-      window.sessionStorage.clear();
-      window.localStorage.removeItem('quickbite.auth.context');
-    }
-  });
-  await page.goto('/login?preview_role=' + role);
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
+async function loginAs(page: Page, role: Role, e2eAuth: { install: (page: Page, role: Role) => Promise<void> }) {
+  await e2eAuth.install(page, role);
+  await page.goto(role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : role === 'staff' ? '/staff' : '/admin');
   await page.waitForLoadState('domcontentloaded');
-  const expectedPath = role === 'staff' ? /\/staff(?:\/)?$/ : role === 'admin' ? /\/admin(?:\/)?/ : role === 'parent' ? /\/parent\/family/ : /\/menu/;
-  await expect(page).toHaveURL(expectedPath);
 }
 
 async function installErrorMonitors(page: Page) {
@@ -59,9 +38,9 @@ async function assertMonitorsClean(errors: { console: string[]; page: string[]; 
 
 test.describe('interactive UI control audit', () => {
   for (const role of ['student', 'parent', 'staff', 'admin'] as const) {
-    test(role + ': visible interface and safe controls respond without runtime/API errors', async ({ page }) => {
+    test(role + ': visible interface and safe controls respond without runtime/API errors', async ({ page, e2eAuth }) => {
       const errors = await installErrorMonitors(page);
-      await loginAs(page, role);
+      await loginAs(page, role, e2eAuth);
       for (const route of routes[role]) {
         await page.goto(route);
         await page.waitForLoadState('domcontentloaded');
