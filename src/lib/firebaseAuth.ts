@@ -82,7 +82,7 @@ export async function signInWithFirebaseGoogle() {
 
   try {
     const result = await firebaseAuth.signInWithPopup(provider);
-    const credential = window.firebase.auth.GoogleAuthProvider.credentialFromResult(result);
+    const credential = window.firebase.auth.GoogleAuthProvider.credentialFromResult(result) ?? result.credential ?? null;
     const idToken = credential?.idToken ?? '';
 
     if (!idToken) throw new Error('google_id_token_missing');
