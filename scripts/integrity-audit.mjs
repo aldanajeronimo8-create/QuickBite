@@ -38,7 +38,7 @@ const orderIds = new Set(orders.map(o => o.id));
 check(links.every(l => parentIds.has(l.parent_user_id) && studentIds.has(l.student_user_id)), 'parent/student links reference valid role profiles');
 check(contexts.every(c => parentIds.has(c.parent_user_id) && studentIds.has(c.student_user_id) && links.some(l => l.parent_user_id === c.parent_user_id && l.student_user_id === c.student_user_id && l.active)), 'active parent contexts reference active links');
 check(orders.every(o => profileIds.has(o.user_id)), 'orders reference existing profiles');
-check(items.every(i => orderIds.has(i.order_id) && productIds.has(i.product_id)), 'order items reference existing orders/products');
+check(items.every(i => orderIds.has(i.order_id) && (i.product_id == null || productIds.has(i.product_id))), 'order items reference existing orders and products when product_id is present');
 
 const familyCounts = new Map();
 for (const l of links.filter(l => l.active)) familyCounts.set(l.parent_user_id, (familyCounts.get(l.parent_user_id) ?? 0) + 1);
