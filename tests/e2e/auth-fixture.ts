@@ -22,8 +22,8 @@ type WorkerFixtures = {
 };
 
 export const test = base.extend<Record<string, never>, WorkerFixtures>({
-  e2eAuth: [async ({ baseURL }, use) => {
-    if (!baseURL) throw new Error('Playwright baseURL is required for E2E auth setup.');
+  e2eAuth: [async ({ browserName }, use) => {
+    void browserName;
     const raw = await readFile(join(process.cwd(), 'test-results', 'e2e-auth-sessions.json'), 'utf8');
     const sessions = JSON.parse(raw) as Record<E2ERole, string>;
 
