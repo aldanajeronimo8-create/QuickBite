@@ -236,8 +236,11 @@ for (const account of accounts) {
     const conflictingProfile = Array.isArray(matchingProfiles) ? matchingProfiles[0] : null;
 
     if (conflictingProfile?.id && conflictingProfile.id !== user.id) {
-      const existingAuth = await adminRequest(`/admin/users/${encodeURIComponent(conflictingProfile.id)}`);
-      if (existingAuth?.id === conflictingProfile.id) {
+      // The profile may outlive its Auth identity after the intentional E2E
+      // cleanup. Check the authoritative paginated Auth list rather than
+      // treating GET /admin/users/:id 404 as an exceptional failure.
+      const conflictingAuth = users.find((candidate) => candidate.id === conflictingProfile.id);
+      if (conflictingAuth) {
         throw new Error(
           `E2E profile email ${account.email} belongs to another existing auth user ${conflictingProfile.id}; refusing to overwrite it.`,
         );
