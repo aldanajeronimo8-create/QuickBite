@@ -56,8 +56,6 @@ async function assertMonitorsClean(errors: { console: string[]; page: string[]; 
 }
 
 test.describe('interactive UI control audit', () => {
-  test.describe.configure({ mode: 'serial' });
-
   for (const role of ['student', 'parent', 'staff', 'admin'] as const) {
     test(role + ': visible interface and safe controls respond without runtime/API errors', async ({ page }) => {
       const errors = await installErrorMonitors(page);
