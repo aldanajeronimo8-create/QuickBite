@@ -116,7 +116,7 @@ test.describe('student interface', () => {
       const errors = await collectBrowserErrors(page);
       await loginAs(page, 'student');
       await page.goto(path);
-      await page.waitForLoadState('networkidle');
+      await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
       await assertHealthyInterface(page, errors);
     });
   }
@@ -133,7 +133,7 @@ test.describe('parent interface', () => {
   test('parent registration interface opens without browser errors', async ({ page }) => {
     const errors = await collectBrowserErrors(page);
     await page.goto('/register-parent');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
     await expect(page.locator('body')).toContainText(/padre|familia|registro/i);
   });
@@ -153,7 +153,7 @@ test.describe('staff interface', () => {
     const errors = await collectBrowserErrors(page);
     await loginAs(page, 'staff');
     await page.goto('/staff/orders');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
     await expect(page).toHaveURL(/\/staff\/orders$/);
   });
@@ -184,7 +184,7 @@ test.describe('admin interface', () => {
       const errors = await collectBrowserErrors(page);
       await loginAs(page, 'admin');
       await page.goto(path);
-      await page.waitForLoadState('networkidle');
+      await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
       await assertHealthyInterface(page, errors);
       await expect(page).toHaveURL(new RegExp(`${path.replaceAll('/', '\\/')}$`));
     });
@@ -194,7 +194,7 @@ test.describe('admin interface', () => {
     const errors = await collectBrowserErrors(page);
     await loginAs(page, 'admin');
     await page.goto('/admin/reports');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
     await expect(page.getByRole('heading', { name: 'Informes' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Diario', exact: true })).toBeVisible();
@@ -206,7 +206,7 @@ test.describe('admin interface', () => {
     const errors = await collectBrowserErrors(page);
     await loginAs(page, 'admin');
     await page.goto('/admin/history');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
     await expect(page.getByRole('heading', { name: 'Auditoría y cancelaciones' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Solicitudes de cancelación' })).toBeVisible();
@@ -217,7 +217,7 @@ test.describe('admin interface', () => {
     const errors = await collectBrowserErrors(page);
     await loginAs(page, 'admin');
     await page.goto('/admin/system');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
     await expect(page.getByRole('heading', { name: 'Salud, auditoría y automatizaciones' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Health checks' })).toBeVisible();
@@ -228,7 +228,7 @@ test.describe('admin interface', () => {
     const errors = await collectBrowserErrors(page);
     await loginAs(page, 'admin');
     await page.goto('/admin/operations');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible({ timeout: 15_000 });
     await assertHealthyInterface(page, errors);
     await expect(page.getByRole('heading', { name: 'Control operativo' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Ventanas de pedidos' })).toBeVisible();
