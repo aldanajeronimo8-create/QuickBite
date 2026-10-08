@@ -1,11 +1,22 @@
 
+async function openInternalAccess(page: import('@playwright/test').Page, role: 'staff' | 'admin') {
+  await page.goto('/login');
+  const logo = page.getByRole('button', { name: 'QuickBite', exact: true });
+  await logo.hover();
+  await logo.dispatchEvent('pointerdown');
+  await page.waitForTimeout(2600);
+  await logo.dispatchEvent('pointerup');
+  const dialog = page.getByRole('dialog', { name: 'Acceso interno' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i }).click();
+}
+
 async function loginAsStaff(page: import('@playwright/test').Page) {
   const email = process.env.PLAYWRIGHT_STAFF_EMAIL;
   const password = process.env.PLAYWRIGHT_STAFF_PASSWORD;
   test.skip(!email || !password, 'Missing Playwright Staff credentials.');
 
-  await page.goto('/login');
-  await page.getByRole('button', { name: /personal de cafeter[ií]a/i }).click();
+  await openInternalAccess(page, 'staff');
   await page.locator('#login-email').fill(email!);
   await page.locator('#login-password').fill(password!);
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
@@ -57,8 +68,7 @@ test('admin feature center smoke test when admin E2E credentials are configured'
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
 
-  await page.goto('/login');
-  await page.getByRole('button', { name: /acceso de administraci[oó]n/i }).click();
+  await openInternalAccess(page, 'admin');
   await page.getByLabel(/correo|email/i).fill(process.env.PLAYWRIGHT_ADMIN_EMAIL!);
   await page.getByLabel(/contrase[nñ]a|password/i).fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD!);
   await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
