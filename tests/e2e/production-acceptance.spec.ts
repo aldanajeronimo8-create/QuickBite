@@ -191,6 +191,10 @@ test.describe('QuickBite production acceptance — persistence and UX', () => {
     const logout = student.getByRole('button', { name: /cerrar sesión/i }).first();
     await logout.click();
     await student.waitForURL(/\/login$/);
+    await student.goto('/menu');
+    await expect.poll(() => student.locator('html').getAttribute('data-qb-theme')).toBe('light');
+    await student.getByRole('button', { name: /cerrar sesión/i }).first().click();
+    await student.waitForURL(/\/login$/);
     await expect.poll(() => student.locator('html').getAttribute('data-qb-theme')).toBe('light');
     await student.close();
 
@@ -200,6 +204,8 @@ test.describe('QuickBite production acceptance — persistence and UX', () => {
     const dark = parent.getByRole('radio', { name: /oscuro/i });
     await expect(dark).toBeVisible();
     await dark.click();
+    await expect.poll(() => parent.locator('html').getAttribute('data-qb-theme')).toBe('dark');
+    await parent.goto('/menu');
     await expect.poll(() => parent.locator('html').getAttribute('data-qb-theme')).toBe('dark');
     await parent.getByRole('button', { name: /cerrar sesión/i }).first().click();
     await parent.waitForURL(/\/login$/);
