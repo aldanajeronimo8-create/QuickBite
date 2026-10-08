@@ -1,19 +1,9 @@
-# Login E2E isolation: browser auth storage is reset by role-login helpers before exercising the form.
-# Verification trigger: rerun exhaustive audit on the commit containing the Login isolation corrections.
-# Exhaustive verification trigger: fresh full-chain audit requested after prior green run.
+# Stage 2: waits for CI to pass for this exact SHA before starting.
 name: Auditoría Exhaustiva QuickBite
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - '.github/workflows/auditoria-exhaustiva.yml'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-  pull_request:
     branches: [main]
     paths:
       - 'src/**'
@@ -34,6 +24,32 @@ env:
   K6_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
 
 jobs:
+  ci-gate:
+    name: Wait for CI on exact SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Wait for matching CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 150); do
+            run_json=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}&event=push&per_page=20")
+            ci_status=$(echo "$run_json" | jq -r '[.workflow_runs[] | select(.name=="CI")][0] | if . == null then "missing" else (.status + ":" + (.conclusion // "")) end')
+            echo "CI for $GITHUB_SHA: $ci_status"
+            if [ "$ci_status" = "completed:success" ]; then exit 0; fi
+            if echo "$ci_status" | grep -q '^completed:' && [ "$ci_status" != "completed:success" ]; then
+              echo "CI did not pass for this SHA"; exit 1
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for CI"; exit 1
+
   k6-browser:
     name: K6 ${{ matrix.role }}
     runs-on: ubuntu-latest
