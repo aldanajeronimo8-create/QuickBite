@@ -57,7 +57,7 @@ function createAuthClient(storageKey: string) {
   return createClient(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
     auth: {
       persistSession: true,
-      autoRefreshToken: true,
+      autoRefreshToken: appConfig.e2eAuthAutoRefresh,
       detectSessionInUrl: true,
       storageKey,
       storage: getTabStorage(),
