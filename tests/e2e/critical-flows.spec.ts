@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './auth-fixture';
 
 type Role = 'student' | 'parent' | 'admin';
 
@@ -58,14 +58,10 @@ async function monitor(page: Page) {
   return { errors, responses };
 }
 
-async function login(page: Page, role: Role) {
-  const account = credentials[role]();
-  test.skip(!account.email || !account.password, `Missing Playwright credentials for ${role}.`);
-  if (role === 'admin') await openInternalAccess(page, 'admin'); else { await page.goto('/login'); if (role === 'parent') await page.getByRole('button', { name: /iniciar sesi[oó]n como padre/i }).click(); }
-  await page.locator('#login-email').fill(account.email!);
-  await page.locator('#login-password').fill(account.password!);
-  await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
-  await page.waitForURL(role === 'student' ? /\/menu$/ : role === 'parent' ? /\/parent\/family$/ : /\/admin(?:\/)?$/, { timeout: 45_000 });
+async function login(page: Page, role: Role, e2eAuth: { install: (page: Page, role: Role) => Promise<void> }) {
+  await e2eAuth.install(page, role);
+  const destination = role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : '/admin';
+  await page.goto(destination);
   await page.waitForLoadState('domcontentloaded');
 }
 
@@ -90,9 +86,9 @@ test.describe('critical functional flows', () => {
     }
   });
 
-  test('student menu supports search, category filtering and cart lifecycle', async ({ page }) => {
+  test('student menu supports search, category filtering and cart lifecycle', async ({ page, e2eAuth }) => {
     const state = await monitor(page);
-    await login(page, 'student');
+    await login(page, 'student', e2eAuth);
     await healthy(page, state);
     const search = page.locator('input[type="search"], input[placeholder*="Buscar" i], input[placeholder*="buscar" i]').first();
     if (await search.count()) { await search.fill('zzzz-no-match'); await expect(search).toHaveValue('zzzz-no-match'); await search.fill(''); }
@@ -114,27 +110,27 @@ test.describe('critical functional flows', () => {
     await healthy(page, state);
   });
 
-  test('student account surfaces and logout work', async ({ page }) => {
+  test('student account surfaces and logout work', async ({ page, e2eAuth }) => {
     const state = await monitor(page);
-    await login(page, 'student');
+    await login(page, 'student', e2eAuth);
     for (const path of ['/student/features', '/student/account', '/student/wallet', '/student/history', '/student/favorites', '/student/link-code', '/student/notifications']) { await page.goto(path); await healthy(page, state); }
     const logout = page.getByRole('button', { name: /cerrar sesi[oó]n/i }).first();
     if (await logout.count()) { await logout.click(); await page.waitForURL(/\/(?:login)?$/); }
     await healthy(page, state);
   });
 
-  test('parent family interface exposes student-selection workflow', async ({ page }) => {
+  test('parent family interface exposes student-selection workflow', async ({ page, e2eAuth }) => {
     const state = await monitor(page);
-    await login(page, 'parent');
+    await login(page, 'parent', e2eAuth);
     await healthy(page, state);
     const actionButtons = page.getByRole('button').filter({ hasText: /usar|seleccionar|ver|estudiante|entrar/i });
     if (await actionButtons.count()) await actionButtons.first().click();
     await healthy(page, state);
   });
 
-  test('admin feature center has unique functional destinations', async ({ page }) => {
+  test('admin feature center has unique functional destinations', async ({ page, e2eAuth }) => {
     const state = await monitor(page);
-    await login(page, 'admin');
+    await login(page, 'admin', e2eAuth);
     await page.goto('/admin/features');
     await healthy(page, state);
     const center = page.getByTestId('admin-feature-center');
@@ -148,9 +144,9 @@ test.describe('critical functional flows', () => {
     for (const href of hrefs) { await page.goto(href); await healthy(page, state); await expect(page).toHaveURL(new RegExp(`${href.replaceAll('/', '\\/')}$`)); }
   });
 
-  test('admin orders supports detail/filter controls when data exists', async ({ page }) => {
+  test('admin orders supports detail/filter controls when data exists', async ({ page, e2eAuth }) => {
     const state = await monitor(page);
-    await login(page, 'admin');
+    await login(page, 'admin', e2eAuth);
     await page.goto('/admin/orders');
     await healthy(page, state);
     const filter = page.getByRole('combobox').first();
@@ -160,9 +156,9 @@ test.describe('critical functional flows', () => {
     await healthy(page, state);
   });
 
-  test('admin system and reset pages expose operational controls without runtime errors', async ({ page }) => {
+  test('admin system and reset pages expose operational controls without runtime errors', async ({ page, e2eAuth }) => {
     const state = await monitor(page);
-    await login(page, 'admin');
+    await login(page, 'admin', e2eAuth);
     for (const path of ['/admin/system', '/admin/reset', '/admin/payments', '/admin/wallet', '/admin/inventory', '/admin/menu', '/admin/verification', '/admin/users', '/admin/loyalty', '/admin/reports', '/admin/history']) { await page.goto(path); await healthy(page, state); }
   });
 
@@ -175,10 +171,10 @@ test.describe('critical functional flows', () => {
     await healthy(page, state);
   });
 
-  test('student completes a real purchase and admin processes it through delivery', async ({ browser }) => {
+  test('student completes a real purchase and admin processes it through delivery', async ({ browser, e2eAuth }) => {
     const studentPage = await browser.newPage();
     const studentState = await monitor(studentPage);
-    await login(studentPage, 'student');
+    await login(studentPage, 'student', e2eAuth);
     await healthy(studentPage, studentState);
 
     const addButtons = studentPage.getByRole('button', { name: /^agregar$/i });
@@ -212,7 +208,7 @@ test.describe('critical functional flows', () => {
 
     const adminPage = await browser.newPage();
     const adminState = await monitor(adminPage);
-    await login(adminPage, 'admin');
+    await login(adminPage, 'admin', e2eAuth);
     await adminPage.goto('/admin/payments');
     await healthy(adminPage, adminState);
 
@@ -247,7 +243,7 @@ test.describe('critical functional flows', () => {
 
     const verificationPage = await browser.newPage();
     const verificationState = await monitor(verificationPage);
-    await login(verificationPage, 'student');
+    await login(verificationPage, 'student', e2eAuth);
     await verificationPage.goto('/student/history');
     await healthy(verificationPage, verificationState);
     const historyCard = verificationPage.locator('article').filter({ hasText: orderNumber! }).first();
@@ -259,10 +255,10 @@ test.describe('critical functional flows', () => {
     await verificationPage.close();
   });
 
-  test('theme preference remains account-specific across logout and login', async ({ browser }) => {
+  test('theme preference remains account-specific across logout and login', async ({ browser, e2eAuth }) => {
     const studentPage = await browser.newPage();
     const studentState = await monitor(studentPage);
-    await login(studentPage, 'student');
+    await login(studentPage, 'student', e2eAuth);
     await studentPage.goto('/student/account');
     await healthy(studentPage, studentState);
 
@@ -273,7 +269,7 @@ test.describe('critical functional flows', () => {
 
     const studentMenu = await browser.newPage();
     const studentMenuState = await monitor(studentMenu);
-    await login(studentMenu, 'student');
+    await login(studentMenu, 'student', e2eAuth);
     await studentMenu.goto('/menu');
     await healthy(studentMenu, studentMenuState);
     await studentMenu.getByRole('button', { name: /cerrar sesión/i }).first().click();
@@ -286,7 +282,7 @@ test.describe('critical functional flows', () => {
 
     const parentPage = await browser.newPage();
     const parentState = await monitor(parentPage);
-    await login(parentPage, 'parent');
+    await login(parentPage, 'parent', e2eAuth);
     await parentPage.goto('/parent/family');
     await healthy(parentPage, parentState);
 
@@ -307,17 +303,17 @@ test.describe('critical functional flows', () => {
 
     const studentAgain = await browser.newPage();
     const studentAgainState = await monitor(studentAgain);
-    await login(studentAgain, 'student');
+    await login(studentAgain, 'student', e2eAuth);
     await expect.poll(async () => studentAgain.locator('html').getAttribute('data-qb-theme')).toBe('light');
     await healthy(studentAgain, studentAgainState);
     await studentAgain.close();
   });
 
-  test('student and admin critical surfaces do not overflow on mobile and tablet widths', async ({ browser }) => {
+  test('student and admin critical surfaces do not overflow on mobile and tablet widths', async ({ browser, e2eAuth }) => {
     for (const width of [390, 768, 1024]) {
       const page = await browser.newPage({ viewport: { width, height: 844 } });
       const state = await monitor(page);
-      await login(page, 'student');
+      await login(page, 'student', e2eAuth);
       await page.goto('/menu');
       await healthy(page, state);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -327,7 +323,7 @@ test.describe('critical functional flows', () => {
 
     const adminPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const adminState = await monitor(adminPage);
-    await login(adminPage, 'admin');
+    await login(adminPage, 'admin', e2eAuth);
     await adminPage.goto('/admin/orders');
     await healthy(adminPage, adminState);
     const adminOverflow = await adminPage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
