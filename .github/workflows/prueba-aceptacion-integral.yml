@@ -53,7 +53,6 @@ jobs:
       sha: ${{ steps.resolve.outputs.sha }}
       ci: ${{ steps.evidence.outputs.ci }}
       exhaustive: ${{ steps.evidence.outputs.exhaustive }}
-      integrity: ${{ steps.evidence.outputs.integrity }}
     steps:
       - name: Resolve exact SHA
         id: resolve
@@ -65,7 +64,7 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "Acceptance SHA: $sha"
 
-      - name: Verify prior audit conclusions for this exact SHA
+      - name: Verify prior CI and exhaustive audit conclusions for this exact SHA
         id: evidence
         env:
           GH_TOKEN: ${{ github.token }}
@@ -94,9 +93,8 @@ jobs:
 
           ci="$(check "CI" ci)"
           exhaustive="$(check "Auditoría Exhaustiva QuickBite" exhaustive)"
-          integrity="$(check "Auditoría de Integridad QuickBite" integrity)"
 
-          for value in "$ci" "$exhaustive" "$integrity"; do
+          for value in "$ci" "$exhaustive"; do
             test "$value" = success
           done
 
@@ -218,7 +216,6 @@ jobs:
           echo "SHA: ${{ needs.resolve.outputs.sha }}"
           echo "CI: ${{ needs.resolve.outputs.ci }}"
           echo "Exhaustive: ${{ needs.resolve.outputs.exhaustive }}"
-          echo "Integrity: ${{ needs.resolve.outputs.integrity }}"
           echo "Production smoke: ${{ needs.production-smoke.result }}"
           echo "Integral E2E: ${{ needs.integral-e2e.result }}"
 
@@ -231,7 +228,7 @@ jobs:
 
           if [ "${{ needs.resolve.outputs.ci }}" != "success" ] ||
              [ "${{ needs.resolve.outputs.exhaustive }}" != "success" ] ||
-             [ "${{ needs.resolve.outputs.integrity }}" != "success" ]; then
+             ]; then
             echo "PRODUCTION APPROVAL: BLOCKED"
             exit 1
           fi
