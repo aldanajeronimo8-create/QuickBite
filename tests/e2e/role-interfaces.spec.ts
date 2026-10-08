@@ -206,7 +206,7 @@ test.describe('exhaustive role permission matrix', () => {
         for (const path of ['/admin', '/admin/users', '/admin/orders']) {
           await rolePage.goto(path);
           await rolePage.waitForLoadState('domcontentloaded');
-          await expect(rolePage).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
+          await expect.poll(() => new URL(rolePage.url()).pathname, { timeout: 10_000 }).not.toBe(path);
         }
       } finally {
         await context.close();
@@ -217,7 +217,7 @@ test.describe('exhaustive role permission matrix', () => {
   test('anonymous access is denied for every protected role surface', async ({ page }) => {
     for (const path of protectedRoutes) {
       await page.goto(path);
-      await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
+      await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).not.toBe(path);
     }
   });
 });
