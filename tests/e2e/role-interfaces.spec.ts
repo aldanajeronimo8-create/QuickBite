@@ -196,26 +196,18 @@ test.describe('admin interface', () => {
 
 
 test.describe('exhaustive role permission matrix', () => {
-  const protectedRoutes = ['/menu','/student/wallet','/parent/family','/staff','/staff/orders','/admin','/admin/users','/admin/orders'];
+  const protectedRoutes = ['/menu', '/student/wallet', '/parent/family', '/staff', '/staff/orders', '/admin', '/admin/users', '/admin/orders'];
+
   test('staff and non-admin roles cannot reach admin surfaces', async ({ browser, e2eAuth }) => {
-    for (const role of ['student','parent','staff'] as const) {
+    for (const role of ['student', 'parent', 'staff'] as const) {
       const context = await browser.newContext();
       const rolePage = await context.newPage();
       try {
         await loginAs(rolePage, role, e2eAuth);
-        for (const path of ['/admin','/admin/users','/admin/orders']) {
+        for (const path of ['/admin', '/admin/users', '/admin/orders']) {
           await rolePage.goto(path);
           await rolePage.waitForLoadState('domcontentloaded');
-          await expect(rolePage).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '
-
-  test('anonymous access is denied for every protected role surface', async ({ page }) => {
-    for (const path of protectedRoutes) {
-      await page.goto(path);
-      await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
-    }
-  });
-});
-));
+          await expect(rolePage).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
         }
       } finally {
         await context.close();
@@ -229,4 +221,4 @@ test.describe('exhaustive role permission matrix', () => {
       await expect(page).not.toHaveURL(new RegExp(path.replaceAll('/', '\\/') + '$'));
     }
   });
-});
+}
