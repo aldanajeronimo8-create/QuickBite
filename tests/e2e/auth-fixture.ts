@@ -67,7 +67,7 @@ async function loginWithCredentials(page: Page, role: E2ERole) {
   await page.locator('#login-email').fill(email);
   await page.locator('#login-password').fill(password);
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
-  await page.waitForURL(new RegExp(`${DESTINATIONS[role].replaceAll('/', '\\/')}$`), { timeout: 45_000 });
+  await page.waitForURL(new RegExp(`${DESTINATIONS[role].replaceAll('/', '\\\\/')}$`), { timeout: 45_000 });
   await page.waitForLoadState('domcontentloaded');
 }
 
@@ -102,11 +102,17 @@ export const test = base.extend<Record<string, never>, WorkerFixtures>({
         const storageValue = await getWorkerSession(role);
         const key = AUTH_STORAGE_KEYS[role];
 
-        await page.context().addInitScript(({ storageKey, storageValue: value }) => {
+        // The browser page may already contain a live Supabase client from a
+        // previous role/session. Writing sessionStorage alone does not replace
+        // that in-memory client. Reloading after installing the fresh session
+        // guarantees the application creates a new client from this exact JWT.
+        await page.goto('/login', { waitUntil: 'domcontentloaded' });
+        await page.evaluate(({ storageKey, value }) => {
           window.sessionStorage.removeItem('quickbite.user.auth');
           window.sessionStorage.removeItem('quickbite.admin.auth');
           window.sessionStorage.setItem(storageKey, value);
-        }, { storageKey: key, storageValue });
+        }, { storageKey: key, value: storageValue });
+        await page.reload({ waitUntil: 'domcontentloaded' });
       },
       login: loginWithCredentials,
     });
