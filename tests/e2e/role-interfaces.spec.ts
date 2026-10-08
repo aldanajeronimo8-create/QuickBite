@@ -60,10 +60,17 @@ async function loginAs(page: Page, role: 'student' | 'parent' | 'staff' | 'admin
 
   if (role === 'parent') {
     await page.getByRole('button', { name: /iniciar sesi[oó]n como padre/i }).click();
-  } else if (role === 'staff') {
-    await page.getByRole('button', { name: /personal de cafeter[ií]a/i }).click();
-  } else if (role === 'admin') {
-    await page.getByRole('button', { name: /acceso de administraci[oó]n/i }).click();
+  } else if (role === 'staff' || role === 'admin') {
+    // Internal roles are intentionally hidden from the public login. Unlock the
+    // internal access modal through the same 2.5s logo long-press used by users.
+    const logo = page.getByRole('button', { name: 'QuickBite' });
+    await logo.hover();
+    await page.mouse.down();
+    await page.waitForTimeout(2_600);
+    await page.mouse.up();
+    await expect(page.getByRole('dialog', { name: 'Acceso interno' })).toBeVisible();
+    const internalRole = role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i;
+    await page.getByRole('dialog', { name: 'Acceso interno' }).getByRole('button', { name: internalRole }).click();
   }
 
   await page.locator('#login-email').fill(account.email!);
