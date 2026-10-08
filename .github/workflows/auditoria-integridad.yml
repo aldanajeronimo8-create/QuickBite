@@ -118,5 +118,5 @@ jobs:
     needs: final
     uses: ./.github/workflows/prueba-aceptacion-integral.yml
     with:
-      sha: ${{ needs.integrity-trigger.outputs.sha }}
+      sha: ${{ needs.final.outputs.sha }}
     secrets: inherit
