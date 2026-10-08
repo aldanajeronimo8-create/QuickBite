@@ -76,7 +76,7 @@ type WorkerFixtures = {
   e2eAuth: E2EAuth;
 };
 
-export const test = base.extend<{}, WorkerFixtures>({
+export const test = base.extend<Record<string, never>, WorkerFixtures>({
   e2eAuth: [async ({ browser }, use) => {
     const sessions = new Map<E2ERole, string>();
     const getSession = async (role: E2ERole) => {
