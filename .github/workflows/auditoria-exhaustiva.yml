@@ -52,6 +52,7 @@ jobs:
 
   k6-browser:
     name: K6 ${{ matrix.role }}
+    needs: ci-gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
