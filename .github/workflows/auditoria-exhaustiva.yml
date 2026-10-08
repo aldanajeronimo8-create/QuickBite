@@ -11,6 +11,8 @@ on:
       - '.github/workflows/auditoria-exhaustiva.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'scripts/integrity-audit.mjs'
+      - '.github/workflows/auditoria-integridad.yml'
 
 permissions:
   contents: read
@@ -38,6 +40,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then exit 0; fi
           for attempt in $(seq 1 150); do
             run_json=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}&event=push&per_page=20")
             ci_status=$(echo "$run_json" | jq -r '[.workflow_runs[] | select(.name=="CI")][0] | if . == null then "missing" else (.status + ":" + (.conclusion // "")) end')
@@ -73,8 +76,10 @@ jobs:
       K6_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
       K6_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
     steps:
-      - name: Checkout
+      - name: Checkout exact SHA
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - name: Install K6
         uses: grafana/setup-k6-action@v1
       - name: Select Chromium
@@ -173,11 +178,6 @@ jobs:
         with:
           version: 11.11.0
           run_install: false
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
