@@ -1,24 +1,22 @@
-# Stage 2: waits for CI to pass for this exact SHA before starting.
+# Stage 2: starts automatically after a successful CI run and audits that exact CI SHA.
 name: Auditoría Exhaustiva QuickBite
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - '.github/workflows/auditoria-exhaustiva.yml'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'scripts/integrity-audit.mjs'
-      - '.github/workflows/auditoria-integridad.yml'
+    inputs:
+      sha:
+        description: 'Commit SHA to audit'
+        required: false
+        type: string
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
 
 permissions:
   contents: read
 
 concurrency:
-  group: quickbite-exhaustive-audit-${{ github.sha }}
+  group: quickbite-exhaustive-audit-${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
   cancel-in-progress: false
 
 env:
@@ -26,36 +24,29 @@ env:
   K6_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
 
 jobs:
-  ci-gate:
-    name: Wait for CI on exact SHA
+  audit-trigger:
+    name: Validate CI gate
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    permissions:
-      actions: read
-      contents: read
+    outputs:
+      sha: ${{ steps.resolve-sha.outputs.sha }}
     steps:
-      - name: Wait for matching CI run
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Resolve exact CI SHA
+        id: resolve-sha
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then exit 0; fi
-          for attempt in $(seq 1 150); do
-            run_json=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}&event=push&per_page=20")
-            ci_status=$(echo "$run_json" | jq -r '[.workflow_runs[] | select(.name=="CI")][0] | if . == null then "missing" else (.status + ":" + (.conclusion // "")) end')
-            echo "CI for $GITHUB_SHA: $ci_status"
-            if [ "$ci_status" = "completed:success" ]; then exit 0; fi
-            if echo "$ci_status" | grep -q '^completed:' && [ "$ci_status" != "completed:success" ]; then
-              echo "CI did not pass for this SHA"; exit 1
-            fi
-            sleep 10
-          done
-          echo "Timed out waiting for CI"; exit 1
+          sha="${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}"
+          test -n "$sha"
+          echo "Auditing exact CI SHA: $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   k6-browser:
     name: K6 ${{ matrix.role }}
-    needs: ci-gate
+    needs: audit-trigger
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -76,10 +67,10 @@ jobs:
       K6_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
       K6_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
     steps:
-      - name: Checkout exact SHA
+      - name: Checkout exact CI SHA
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.audit-trigger.outputs.sha }}
       - name: Install K6
         uses: grafana/setup-k6-action@v1
       - name: Select Chromium
@@ -121,8 +112,10 @@ jobs:
       PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
       PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
     steps:
-      - name: Checkout
+      - name: Checkout exact CI SHA
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.audit-trigger.outputs.sha }}
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -171,8 +164,10 @@ jobs:
     timeout-minutes: 20
     needs: e2e-exhaustive
     steps:
-      - name: Checkout
+      - name: Checkout exact CI SHA
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.audit-trigger.outputs.sha }}
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -202,16 +197,17 @@ jobs:
     name: Auditoría exhaustiva final
     runs-on: ubuntu-latest
     if: always()
-    needs: [k6-browser, e2e-exhaustive, quality]
+    needs: [audit-trigger, k6-browser, e2e-exhaustive, quality]
     steps:
       - name: Evaluate audit stages
         shell: bash
         run: |
           set -euo pipefail
+          echo "Trigger: ${{ needs.audit-trigger.result }}"
           echo "K6 result: ${{ needs.k6-browser.result }}"
           echo "Playwright result: ${{ needs.e2e-exhaustive.result }}"
           echo "Quality result: ${{ needs.quality.result }}"
-          if [ "${{ needs.k6-browser.result }}" != "success" ] || [ "${{ needs.e2e-exhaustive.result }}" != "success" ] || [ "${{ needs.quality.result }}" != "success" ]; then
+          if [ "${{ needs.audit-trigger.result }}" != "success" ] || [ "${{ needs.k6-browser.result }}" != "success" ] || [ "${{ needs.e2e-exhaustive.result }}" != "success" ] || [ "${{ needs.quality.result }}" != "success" ]; then
             echo "AUDITORÍA EXHAUSTIVA: FAIL"
             exit 1
           fi
