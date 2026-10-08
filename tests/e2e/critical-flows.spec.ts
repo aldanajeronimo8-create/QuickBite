@@ -65,6 +65,9 @@ async function healthy(page: Page, state: Awaited<ReturnType<typeof monitor>>) {
 }
 
 test.describe('critical functional flows', () => {
+  // These flows share the real E2E Student/Admin accounts and include one real purchase.
+  // Keep this stateful suite ordered while independent UI/read-only suites use CI workers in parallel.
+  test.describe.configure({ mode: 'serial' });
   test('public authentication and recovery surfaces are usable', async ({ page }) => {
     const state = await monitor(page);
     for (const path of ['/login', '/register-student', '/register-student/form', '/register-parent', '/forgot-password']) {
