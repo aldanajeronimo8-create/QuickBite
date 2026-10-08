@@ -36,6 +36,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then exit 0; fi
           for attempt in $(seq 1 270); do
             run_json=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/auditoria-exhaustiva.yml/runs?head_sha=${GITHUB_SHA}&per_page=20")
             status=$(echo "$run_json" | jq -r '[.workflow_runs[] | select(.name=="Auditoría Exhaustiva QuickBite")][0] | if . == null then "missing" else (.status + ":" + (.conclusion // "")) end')
