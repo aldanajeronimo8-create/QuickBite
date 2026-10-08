@@ -225,6 +225,40 @@ for (const account of accounts) {
   if (isProtected) {
     await validateProtectedProfile(user.id, account.role);
   } else {
+    const profileResponse = await globalThis.fetch(
+      `${url}/rest/v1/profiles?email=eq.${encodeURIComponent(account.email)}&select=id`,
+      { method: 'GET', headers },
+    );
+    if (!profileResponse.ok) {
+      throw new Error(`Supabase REST GET /profiles failed (${profileResponse.status}): ${await profileResponse.text()}`);
+    }
+    const matchingProfiles = await profileResponse.json();
+    const conflictingProfile = Array.isArray(matchingProfiles) ? matchingProfiles[0] : null;
+
+    if (conflictingProfile?.id && conflictingProfile.id !== user.id) {
+      const existingAuth = await adminRequest(`/admin/users/${encodeURIComponent(conflictingProfile.id)}`);
+      if (existingAuth?.id === conflictingProfile.id) {
+        throw new Error(
+          `E2E profile email ${account.email} belongs to another existing auth user ${conflictingProfile.id}; refusing to overwrite it.`,
+        );
+      }
+
+      const reconcileResponse = await globalThis.fetch(
+        `${url}/rest/v1/profiles?id=eq.${encodeURIComponent(conflictingProfile.id)}`,
+        {
+          method: 'PATCH',
+          headers: { ...headers, Prefer: 'return=minimal' },
+          body: JSON.stringify({ id: user.id }),
+        },
+      );
+      if (!reconcileResponse.ok) {
+        throw new Error(
+          `Supabase REST PATCH /profiles/${conflictingProfile.id} failed (${reconcileResponse.status}): ${await reconcileResponse.text()}`,
+        );
+      }
+      console.log(`Reconciled orphan E2E profile ${conflictingProfile.id} to auth user ${user.id} for ${account.email}.`);
+    }
+
     await restRequest('/profiles?on_conflict=id', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
