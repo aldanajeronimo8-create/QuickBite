@@ -73,38 +73,28 @@ async function loginWithCredentials(page: Page, role: E2ERole) {
 
 export const test = base.extend<Record<string, never>, WorkerFixtures>({
   e2eAuth: [async ({}, use) => {
-    const workerSessions = new Map<E2ERole, Promise<string>>();
+    const getWorkerSession = async (role: E2ERole) => {
+      const url = process.env.VITE_SUPABASE_URL;
+      const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+      const credentials = {
+        student: [process.env.PLAYWRIGHT_E2E_EMAIL, process.env.PLAYWRIGHT_E2E_PASSWORD],
+        parent: [process.env.PLAYWRIGHT_PARENT_EMAIL, process.env.PLAYWRIGHT_PARENT_PASSWORD],
+        staff: [process.env.PLAYWRIGHT_STAFF_EMAIL, process.env.PLAYWRIGHT_STAFF_PASSWORD],
+        admin: [process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD],
+      }[role];
 
-    const getWorkerSession = (role: E2ERole) => {
-      const cached = workerSessions.get(role);
-      if (cached) return cached;
+      if (!url || !anonKey) throw new Error('Missing Supabase E2E configuration.');
+      const [email, password] = credentials;
+      if (!email || !password) throw new Error(`Missing Playwright credentials for ${role}.`);
 
-      const sessionPromise = (async () => {
-        const url = process.env.VITE_SUPABASE_URL;
-        const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
-        const credentials = {
-          student: [process.env.PLAYWRIGHT_E2E_EMAIL, process.env.PLAYWRIGHT_E2E_PASSWORD],
-          parent: [process.env.PLAYWRIGHT_PARENT_EMAIL, process.env.PLAYWRIGHT_PARENT_PASSWORD],
-          staff: [process.env.PLAYWRIGHT_STAFF_EMAIL, process.env.PLAYWRIGHT_STAFF_PASSWORD],
-          admin: [process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD],
-        }[role];
-
-        if (!url || !anonKey) throw new Error('Missing Supabase E2E configuration.');
-        const [email, password] = credentials;
-        if (!email || !password) throw new Error(`Missing Playwright credentials for ${role}.`);
-
-        const client = createClient(url, anonKey, {
-          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-        });
-        const { data, error } = await client.auth.signInWithPassword({ email, password });
-        if (error || !data.session) {
-          throw new Error(`Could not create the worker E2E session for ${role}: ${error?.message ?? 'missing session'}`);
-        }
-        return JSON.stringify(data.session);
-      })();
-
-      workerSessions.set(role, sessionPromise);
-      return sessionPromise;
+      const client = createClient(url, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      });
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      if (error || !data.session) {
+        throw new Error(`Could not create the worker E2E session for ${role}: ${error?.message ?? 'missing session'}`);
+      }
+      return JSON.stringify(data.session);
     };
 
     await use({
