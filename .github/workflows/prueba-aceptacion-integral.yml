@@ -1,22 +1,13 @@
 name: QuickBite — Prueba de Aceptación Integral
 
 # Final production gate.
-# This workflow is intentionally manual-capable so the first execution can audit an
-# already-validated SHA without replaying CI/E2E/K6/Integrity. After this first run,
-# the workflow also chains automatically after the Integrity audit.
+# Final production gate. The normal execution is automatic after the Integrity audit,
+# which itself is chained from Exhaustive, which is chained from CI.
 
 on:
+  # The normal path is automatic: CI → Exhaustive → Integrity → this final gate.
+  # No SHA is requested from the user; workflow_run supplies the exact upstream SHA.
   workflow_dispatch:
-    inputs:
-      sha:
-        description: 'Exact SHA already validated by CI → Exhaustive → Integrity'
-        required: true
-        type: string
-      production_url:
-        description: 'Production URL to validate'
-        required: false
-        default: 'https://quick-bite-snowy-ten.vercel.app'
-        type: string
   workflow_run:
     workflows: ['Auditoría de Integridad QuickBite']
     types: [completed]
@@ -26,12 +17,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: quickbite-integral-acceptance-${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
+  group: quickbite-integral-acceptance-${{ github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: false
 
 env:
   SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
-  PRODUCTION_URL: ${{ inputs.production_url || vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+  PRODUCTION_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
 
 jobs:
   resolve:
