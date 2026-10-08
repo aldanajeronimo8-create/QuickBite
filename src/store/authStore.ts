@@ -21,13 +21,15 @@ interface AuthState {
   signOut: () => Promise<void>;
   signUp: (email: string, password: string, fullName: string, inviteCode: string) => Promise<void>;
   checkSession: () => Promise<void>;
+  authEpoch: number;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   session: null,
   loading: true,
-  setUser: (user) => set({ user }),
+  authEpoch: 0,
+  setUser: (user) => set((state) => ({ user, loading: false, authEpoch: state.authEpoch + 1 })),
 
   signIn: async (email, password) => {
     clearDelegatedStudentContext();
@@ -45,7 +47,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       throw new Error('No tienes permisos de administrador.');
     }
     writeAuditLog({ action: 'auth.login', actorId: profile.id, actorEmail: profile.email });
-    set({ user: profile, session: { token: data.session?.access_token ?? '' }, loading: false });
+    set((state) => ({ user: profile, session: { token: data.session?.access_token ?? '' }, loading: false, authEpoch: state.authEpoch + 1 }));
   },
 
   signUp: async (email, password, fullName, inviteCode) => {
@@ -70,7 +72,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     const profile = await getProfile(userId);
     writeAuditLog({ action: 'auth.signup', actorId: userId, actorEmail: normalizedEmail, metadata: { role: 'admin' } });
-    set({ user: profile, session: profile ? { token: data.session.access_token } : null, loading: false });
+    set((state) => ({ user: profile, session: profile ? { token: data.session.access_token } : null, loading: false, authEpoch: state.authEpoch + 1 }));
   },
 
   signOut: async () => {
@@ -94,20 +96,27 @@ export const useAuthStore = create<AuthState>((set) => ({
       try {
         await supabase.auth.signOut({ scope: 'local' });
       } finally {
-        set({ user: null, session: null, loading: false });
+        set((state) => ({ user: null, session: null, loading: false, authEpoch: state.authEpoch + 1 }));
       }
     }
   },
 
   checkSession: async () => {
+    const bootstrapEpoch = get().authEpoch;
     try {
       const supabase = requireSupabaseClient();
       const { data } = await supabase.auth.getSession();
+      if (get().authEpoch !== bootstrapEpoch) return;
       const userId = data.session?.user.id;
-      if (!userId) { set({ loading: false, user: null, session: null }); return; }
+      if (!userId) {
+        set({ loading: false, user: null, session: null });
+        return;
+      }
       const profile = await getProfile(userId);
+      if (get().authEpoch !== bootstrapEpoch) return;
       set({ user: profile, session: profile ? { token: data.session?.access_token ?? '' } : null, loading: false });
     } catch {
+      if (get().authEpoch !== bootstrapEpoch) return;
       set({ loading: false, user: null, session: null });
     }
   },
