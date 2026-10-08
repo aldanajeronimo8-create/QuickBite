@@ -93,6 +93,8 @@ jobs:
     name: Auditoría de integridad final
     if: always()
     needs: [integrity-trigger, database-integrity, export-contract]
+    outputs:
+      sha: ${{steps.evaluate.outputs.sha}}
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate integrity stages
