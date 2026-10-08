@@ -10,8 +10,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.ref == 'refs/heads/main' && format('ci-{0}-{1}', github.workflow, github.sha) || format('ci-{0}-{1}', github.workflow, github.ref) }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # Keep at most one running main CI plus one latest pending run.
+  # A running main CI is never canceled; obsolete pending runs are replaced.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   quality:
