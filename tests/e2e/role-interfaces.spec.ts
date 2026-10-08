@@ -78,7 +78,6 @@ async function assertHealthyInterface(
   page: Page,
   errors: { consoleErrors: string[]; pageErrors: string[]; failedResponses: string[] },
 ) {
-  await page.waitForTimeout(500);
   if (errors.failedResponses.length > 0) {
     console.log('E2E_SUPABASE_FAILURES', JSON.stringify(errors.failedResponses, null, 2));
   }
