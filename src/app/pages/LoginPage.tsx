@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, GraduationCap, Loader2, Lock, Mail, ShieldCheck, Users } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -19,8 +19,8 @@ export function LoginPage(){
  const { resolvedThemeMode } = useVisualTheme();
  const navigate=useNavigate(); const{setUser}=useAuthStore(); const previewRole=typeof window!=='undefined'?new URLSearchParams(window.location.search).get('preview_role'):null; const initialMode:Mode=previewRole==='admin'||previewRole==='parent'||previewRole==='staff'||previewRole==='student'?previewRole:'student';
  const[mode,setMode]=useState<Mode>(initialMode); const[secretAccessUnlocked,setSecretAccessUnlocked]=useState(initialMode==='admin'||initialMode==='staff'); const[secretAccessVisible,setSecretAccessVisible]=useState(false); const[logoPressing,setLogoPressing]=useState(false); const[email,setEmail]=useState(''); const[password,setPassword]=useState(''); const[showPassword,setShowPassword]=useState(false); const[loading,setLoading]=useState(false); const[error,setError]=useState('');
- const handleSecretPressStart=()=>{setLogoPressing(true);window.setTimeout(()=>{setLogoPressing(current=>{if(current){setSecretAccessUnlocked(true);setSecretAccessVisible(true);return false;}return current})},2500)};
- const handleSecretPressEnd=()=>setLogoPressing(false);
+ const handleSecretPressStart=()=>{if(secretPressTimer.current!==null)window.clearTimeout(secretPressTimer.current);secretPressTimer.current=window.setTimeout(()=>{setSecretAccessUnlocked(true);setSecretAccessVisible(true);secretPressTimer.current=null},2500)};
+ const handleSecretPressEnd=()=>{if(secretPressTimer.current!==null){window.clearTimeout(secretPressTimer.current);secretPressTimer.current=null;}};
  const handleLogin=async(event:React.FormEvent,intent:LoginIntent=mode)=>{event.preventDefault();setError('');if(!email||!password){setError('Ingresa correo y contraseña.');return;}setLoading(true);try{setAuthContext(intent==='admin'?'admin':'user');const client=requireSupabaseClient();const normalizedEmail=email.trim().toLowerCase();const{data, error:signInError}=await client.auth.signInWithPassword({email:normalizedEmail,password});if(signInError||!data.user){if(signInError){const{data:emailExists,error:emailExistsError}=await client.rpc('login_email_exists',{p_email:normalizedEmail});if(!emailExistsError&&emailExists===false){const message=intent==='student'?'Esta cuenta de estudiante no está creada. Crea una cuenta de estudiante para continuar.':intent==='parent'?'Esta cuenta de Padre de Familia no está creada. Crea una cuenta de Padre de Familia para continuar.':'Esta cuenta no existe.';throw new Error(message);}}throw new Error('Correo o contraseña incorrectos.');}
   if(intent==='parent'){const{error:completeError}=await client.rpc('complete_pending_parent_registration');if(completeError&&!/not_authorized|invalid_parent_registration/i.test(completeError.message))throw completeError;}
   if(intent==='student'){const{error:studentCompleteError}=await client.rpc('complete_pending_student_registration');if(studentCompleteError&&!/pending_student_registration_incomplete|not_authorized/i.test(studentCompleteError.message))throw studentCompleteError;}
