@@ -2,28 +2,8 @@ import { test, expect, type Page } from './auth-fixture';
 
 type Role = 'student' | 'parent' | 'admin';
 
-const credentials: Record<Role, () => { email?: string; password?: string }> = {
-  student: () => ({ email: process.env.PLAYWRIGHT_E2E_EMAIL, password: process.env.PLAYWRIGHT_E2E_PASSWORD }),
-  parent: () => ({ email: process.env.PLAYWRIGHT_PARENT_EMAIL, password: process.env.PLAYWRIGHT_PARENT_PASSWORD }),
-  admin: () => ({ email: process.env.PLAYWRIGHT_ADMIN_EMAIL, password: process.env.PLAYWRIGHT_ADMIN_PASSWORD }),
-};
-
 function isExpectedUnauthenticatedAuthResponse(response: { status: () => number; url: () => string; request: () => { method: () => string } }) {
   return response.status() === 401 && response.request().method() === 'GET' && /\/auth\/v1\/user(?:$|\?)/.test(response.url());
-}
-
-async function openInternalAccess(page: Page, role: 'staff' | 'admin') {
-  await page.goto('/login');
-  const logo = page.getByRole('button', { name: 'QuickBite', exact: true });
-  const box = await logo.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
-  await page.mouse.down();
-  await page.waitForTimeout(2600);
-  await page.mouse.up();
-  const dialog = page.getByRole('dialog', { name: 'Acceso interno' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i }).click();
 }
 
 async function monitor(page: Page) {
