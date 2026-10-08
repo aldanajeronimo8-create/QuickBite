@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, GraduationCap, Loader2, Lock, Mail, ShieldCheck, Users } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { requireSupabaseClient, setAuthContext } from '../../lib/supabase';
+import { requireSupabaseClient, setAuthContext, signInWithPasswordWithRetry } from '../../lib/supabase';
 import { getProfile } from '../../repositories/quickbiteRepository';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
