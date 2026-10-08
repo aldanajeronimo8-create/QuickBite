@@ -72,7 +72,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     const profile = await getProfile(userId);
     writeAuditLog({ action: 'auth.signup', actorId: userId, actorEmail: normalizedEmail, metadata: { role: 'admin' } });
-    set((state) => ({ user: profile, session: profile ? { token: data.session.access_token } : null, loading: false, authEpoch: state.authEpoch + 1 }));
+    set((state) => ({ user: profile, session: profile ? { token: data.session?.access_token ?? '' } : null, loading: false, authEpoch: state.authEpoch + 1 }));
   },
 
   signOut: async () => {
