@@ -120,5 +120,5 @@ export const test = base.extend<Record<string, never>, WorkerFixtures>({
       },
       login: loginWithCredentials,
     });
-  }, { scope: 'test' }],
+  }, { scope: 'worker' }],
 });
