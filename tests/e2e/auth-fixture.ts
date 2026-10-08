@@ -1,6 +1,5 @@
 import { test as base, type Page } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createClient } from '@supabase/supabase-js';
 
 export * from '@playwright/test';
 
@@ -73,15 +72,34 @@ async function loginWithCredentials(page: Page, role: E2ERole) {
 }
 
 export const test = base.extend<Record<string, never>, WorkerFixtures>({
-  e2eAuth: [async ({ browserName }, use) => {
-    void browserName;
-    const raw = await readFile(join(process.cwd(), 'test-results', 'e2e-auth-sessions.json'), 'utf8');
-    const sessions = JSON.parse(raw) as Record<E2ERole, string>;
+  e2eAuth: [async ({}, use) => {
+    const createFreshSession = async (role: E2ERole) => {
+      const url = process.env.VITE_SUPABASE_URL;
+      const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+      const credentials = {
+        student: [process.env.PLAYWRIGHT_E2E_EMAIL, process.env.PLAYWRIGHT_E2E_PASSWORD],
+        parent: [process.env.PLAYWRIGHT_PARENT_EMAIL, process.env.PLAYWRIGHT_PARENT_PASSWORD],
+        staff: [process.env.PLAYWRIGHT_STAFF_EMAIL, process.env.PLAYWRIGHT_STAFF_PASSWORD],
+        admin: [process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD],
+      }[role];
+
+      if (!url || !anonKey) throw new Error('Missing Supabase E2E configuration.');
+      const [email, password] = credentials;
+      if (!email || !password) throw new Error(`Missing Playwright credentials for ${role}.`);
+
+      const client = createClient(url, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      });
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      if (error || !data.session) {
+        throw new Error(`Could not create a fresh E2E session for ${role}: ${error?.message ?? 'missing session'}`);
+      }
+      return JSON.stringify(data.session);
+    };
 
     await use({
       install: async (page, role) => {
-        const storageValue = sessions[role];
-        if (!storageValue) throw new Error(`Missing captured auth session for ${role}.`);
+        const storageValue = await createFreshSession(role);
         const key = AUTH_STORAGE_KEYS[role];
 
         await page.context().addInitScript(({ storageKey, storageValue: value }) => {
@@ -92,5 +110,5 @@ export const test = base.extend<Record<string, never>, WorkerFixtures>({
       },
       login: loginWithCredentials,
     });
-  }, { scope: 'worker' }],
+  }, { scope: 'test' }],
 });
