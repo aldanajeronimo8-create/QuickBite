@@ -106,3 +106,11 @@ jobs:
             echo "AUDITORÍA DE INTEGRIDAD: FAIL"; exit 1
           fi
           echo "AUDITORÍA DE INTEGRIDAD: PASS"
+  integral-acceptance:
+    name: Prueba de Aceptación Integral
+    if: ${{ needs.final.result == 'success' }}
+    needs: final
+    uses: ./.github/workflows/prueba-aceptacion-integral.yml
+    with:
+      sha: ${{ needs.integrity-trigger.outputs.sha }}
+    secrets: inherit
