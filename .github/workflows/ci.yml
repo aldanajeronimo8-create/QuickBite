@@ -57,7 +57,8 @@ jobs:
   e2e:
     name: E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 120 Playwright tests run serially with up to 2 retries; the previous 20m cap killed valid runs mid-suite.
+    timeout-minutes: 45
     env:
       VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
