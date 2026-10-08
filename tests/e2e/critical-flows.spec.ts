@@ -15,10 +15,12 @@ function isExpectedUnauthenticatedAuthResponse(response: { status: () => number;
 async function openInternalAccess(page: Page, role: 'staff' | 'admin') {
   await page.goto('/login');
   const logo = page.getByRole('button', { name: 'QuickBite', exact: true });
-  await logo.hover();
-  await logo.dispatchEvent('pointerdown');
+  const box = await logo.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
   await page.waitForTimeout(2600);
-  await logo.dispatchEvent('pointerup');
+  await page.mouse.up();
   const dialog = page.getByRole('dialog', { name: 'Acceso interno' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i }).click();
