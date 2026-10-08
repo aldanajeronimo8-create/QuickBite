@@ -51,7 +51,7 @@ async function assertHealthyInterface(
   expect(errors.failedResponses).toEqual([]);
 }
 
-test.describe('student interface', () => {
+test.describe('student interface @student', () => {
   test('student can authenticate and open the main interface', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
     await loginAs(page, 'student', e2eAuth);
@@ -79,7 +79,7 @@ test.describe('student interface', () => {
   }
 });
 
-test.describe('parent interface', () => {
+test.describe('parent interface @parent', () => {
   test('parent can authenticate and open the family interface', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
     await loginAs(page, 'parent', e2eAuth);
@@ -96,7 +96,7 @@ test.describe('parent interface', () => {
   });
 });
 
-test.describe('staff interface', () => {
+test.describe('staff interface @staff', () => {
   test('staff can authenticate and open the cafeteria interface', async ({ page, e2eAuth }) => {
     const errors = await collectBrowserErrors(page);
     await loginAs(page, 'staff', e2eAuth);
@@ -116,7 +116,7 @@ test.describe('staff interface', () => {
   });
 });
 
-test.describe('admin interface', () => {
+test.describe('admin interface @admin', () => {
   const adminRoutes = [
     '/admin',
     '/admin/features',
@@ -194,7 +194,7 @@ test.describe('admin interface', () => {
   });
 });
 
-test.describe('exhaustive role permission matrix', () => {
+test.describe('exhaustive role permission matrix @student', () => {
   const protectedRoutes = ['/menu', '/student/wallet', '/parent/family', '/staff', '/staff/orders', '/admin', '/admin/users', '/admin/orders'];
 
   test('staff and non-admin roles cannot reach admin surfaces', async ({ browser, e2eAuth }) => {
