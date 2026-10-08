@@ -32,6 +32,8 @@ async function loginAs(page: Page, role: Role) {
   await page.locator('#login-password').fill(password);
   await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
   await page.waitForLoadState('domcontentloaded');
+  const expectedPath = role === 'staff' ? /\/staff(?:\/)?$/ : role === 'admin' ? /\/admin(?:\/)?/ : role === 'parent' ? /\/parent\/family/ : /\/menu/;
+  await expect(page).toHaveURL(expectedPath);
 }
 
 async function installErrorMonitors(page: Page) {
