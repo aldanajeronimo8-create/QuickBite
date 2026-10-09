@@ -366,19 +366,26 @@ async function probeLinks(page, role, route) {
     }
 
     const finalUrl = await page.url();
-    const targetUrl = new URL(href, BASE_URL).href;
-    const expected = new URL(targetUrl);
-    const actual = new URL(finalUrl);
+    const targetUrl = BASE_URL + href;
     const status = response ? response.status() : null;
     const bodyText = (await page.locator('body').textContent().catch(() => '') || '').trim();
-    const normalizePath = (path) => path === '/' ? '/' : '/' + path.split('/').filter(Boolean).join('/');
-    const reachedTarget = actual.origin === expected.origin
-      && normalizePath(actual.pathname) === normalizePath(expected.pathname)
-      && actual.search === expected.search;
+    const normalizeUrl = (value) => {
+      let relative = value.split('#')[0];
+      if (relative === BASE_URL) relative = '/';
+      else if (relative.startsWith(BASE_URL + '/')) relative = relative.slice(BASE_URL.length);
+      else if (relative.startsWith(BASE_URL + '?')) relative = '/' + relative.slice(BASE_URL.length);
+      else if (!relative.startsWith('/')) return null;
+      const queryIndex = relative.indexOf('?');
+      const path = queryIndex >= 0 ? relative.slice(0, queryIndex) : relative;
+      const query = queryIndex >= 0 ? relative.slice(queryIndex) : '';
+      return (path.replace(/\\/+$/, '') || '/') + query;
+    };
+    const onExpectedOrigin = finalUrl === BASE_URL || finalUrl.startsWith(BASE_URL + '/') || finalUrl.startsWith(BASE_URL + '?');
+    const reachedTarget = onExpectedOrigin && normalizeUrl(finalUrl) === normalizeUrl(targetUrl);
     const documentRendered = bodyText.length > 40;
     const notFoundPage = /page not found|404 not found|página no encontrada|página no existe|ruta no encontrada/i.test(bodyText);
-    // A 4xx is a broken destination too. A null response is allowed only for a
-    // same-document navigation that reaches the exact normalized target and renders content.
+    // K6's JS runtime does not expose the browser's URL constructor. Keep this
+    // comparison string-based and fail for 4xx, redirects off-target, or empty documents.
     const ok = !navigationError && !notFoundPage && (
       (Boolean(response) && status >= 200 && status < 400 && reachedTarget && documentRendered) ||
       (!response && reachedTarget && documentRendered)
