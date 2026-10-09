@@ -366,15 +366,13 @@ async function probeLinks(page, role, route) {
     }
 
     const finalUrl = await page.url();
-    const targetUrl = new URL(href, BASE_URL).href;
-    const expected = new URL(targetUrl);
-    const actual = new URL(finalUrl);
+    const targetUrl = BASE_URL.replace(/\/+$/, '') + href;
     const status = response ? response.status() : null;
     const bodyText = (await page.locator('body').textContent().catch(() => '') || '').trim();
-    const normalizePath = (path) => path === '/' ? '/' : '/' + path.split('/').filter(Boolean).join('/');
-    const reachedTarget = actual.origin === expected.origin
-      && normalizePath(actual.pathname) === normalizePath(expected.pathname)
-      && actual.search === expected.search;
+    // k6's JS runtime does not provide the browser URL constructor. Normalize
+    // trailing slashes/fragments with strings while preserving query parameters.
+    const normalizeUrl = (value) => value.split('#')[0].replace(/\/+([?]|$)/, '$1');
+    const reachedTarget = normalizeUrl(finalUrl) === normalizeUrl(targetUrl);
     const documentRendered = bodyText.length > 40;
     const notFoundPage = /page not found|404 not found|página no encontrada|página no existe|ruta no encontrada/i.test(bodyText);
     // A 4xx is a broken destination too. A null response is allowed only for a
