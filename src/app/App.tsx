@@ -79,7 +79,15 @@ function AppContent() {
   const needsSetup = needsFirstRunSetup();
   const hasSupabase = hasSupabaseConfig();
   useEffect(() => { if (hasSupabase) void checkSession(); }, [checkSession, hasSupabase]);
-  useEffect(() => { if (!hasSupabase || !user) return; void loadData({ silent: true }); }, [hasSupabase, loadData, user]);
+  useEffect(() => {
+    if (!hasSupabase || !user) return;
+    // AdminProtectedDataGate owns the admin-scoped initial load. Avoid a competing
+    // global load that can duplicate protected requests before the gate completes.
+    if (window.location.pathname.startsWith('/admin') || getAuthContext() === 'admin') return;
+    void loadData({ silent: true }).catch((error) => {
+      console.warn('[QuickBite] No se pudieron cargar los datos iniciales.', error);
+    });
+  }, [hasSupabase, loadData, user]);
   useEffect(() => { if (!hasSupabase || !user) return; const cleanupRealtime = subscribeRealtime(); return () => cleanupRealtime(); }, [hasSupabase, subscribeRealtime, user]);
   useEffect(() => { syncVisualInterfaceScope(router.state.location.pathname); return router.subscribe((state) => syncVisualInterfaceScope(state.location.pathname)); }, []);
   return <ErrorBoundary><VisualThemeProvider>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><AdminStudentPreviewBar /><SessionRestorer />{user && <UserThemePreference />}<ThemePreferenceBoundary /></>}<Toaster position="top-center" /></VisualThemeProvider></ErrorBoundary>;

@@ -13,17 +13,48 @@ function getTabStorage(): Storage | undefined {
   return window.sessionStorage;
 }
 
+const SUPABASE_REQUEST_TIMEOUT_MS = 12_000;
+
 async function fetchWithTransientRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const maxAttempts = 3;
+  const callerSignal = init?.signal ?? (typeof Request !== 'undefined' && input instanceof Request ? input.signal : undefined);
+
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    try {
-      return await fetch(input, init);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') throw error;
-      if (attempt === maxAttempts - 1) throw error;
-      await new Promise((resolve) => window.setTimeout(resolve, 250 * 2 ** attempt));
+    if (callerSignal?.aborted) {
+      throw callerSignal.reason ?? new Error('La solicitud a Supabase fue cancelada.');
     }
+
+    const controller = new AbortController();
+    const abortFromCaller = () => controller.abort(callerSignal?.reason);
+    callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
+
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, SUPABASE_REQUEST_TIMEOUT_MS);
+
+    try {
+      return await fetch(input, { ...init, signal: controller.signal });
+    } catch (error) {
+      if (timedOut) {
+        throw new Error(`La solicitud a Supabase no respondió en ${SUPABASE_REQUEST_TIMEOUT_MS / 1000} segundos.`);
+      }
+      if (
+        callerSignal?.aborted ||
+        (error instanceof DOMException && error.name === 'AbortError')
+      ) {
+        throw error;
+      }
+      if (attempt === maxAttempts - 1) throw error;
+    } finally {
+      clearTimeout(timeoutId);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
   }
+
   throw new Error('Supabase request failed after retries.');
 }
 

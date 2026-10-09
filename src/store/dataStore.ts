@@ -34,7 +34,7 @@ interface DataState {
   users: Profile[];
   history: HistoryEntry[];
   loading: boolean;
-  loadData: (options?: { silent?: boolean }) => Promise<void>;
+  loadData: (options?: { silent?: boolean; force?: boolean }) => Promise<void>;
   addProduct: (product: repo.NewProduct) => Promise<void>;
   updateProduct: (id: string, updates: repo.ProductUpdate) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
@@ -71,6 +71,8 @@ async function remoteAudit(entry: Parameters<typeof writeAuditLog>[0]) {
   }
 }
 
+let inFlightDataLoad: Promise<void> | null = null;
+
 export const useDataStore = create<DataState>((set, get) => ({
   categories: [],
   products: [],
@@ -80,49 +82,66 @@ export const useDataStore = create<DataState>((set, get) => ({
   loading: false,
 
   loadData: async (options) => {
-    if (!options?.silent) set({ loading: true });
+    if (inFlightDataLoad && !options?.force) {
+      if (!options?.silent) set({ loading: true });
+      try {
+        await inFlightDataLoad;
+      } finally {
+        if (!options?.silent) set({ loading: false });
+      }
+      return;
+    }
+
+    const request = (async () => {
+      if (!options?.silent) set({ loading: true });
+      try {
+        const isAdminContext = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+        const client = requireSupabaseClient();
+        const { data: sessionData } = await client.auth.getSession();
+        const isAuthenticated = Boolean(sessionData.session?.user);
+
+        const [categories, products] = await Promise.all([
+          repo.listCategories(),
+          repo.listProducts(),
+        ]);
+
+        let allOrders: Order[] = [];
+        if (isAuthenticated) {
+          try {
+            allOrders = await repo.listOrders();
+          } catch (error) {
+            writeAuditLog({
+              action: 'app.error',
+              metadata: { source: 'data_load.orders', message: String(error) },
+            });
+            if (isAdminContext) throw error;
+          }
+        }
+
+        let users: Profile[] = [];
+        if (isAdminContext && isAuthenticated) {
+          try {
+            users = await repo.listProfiles();
+          } catch (error) {
+            writeAuditLog({
+              action: 'app.error',
+              metadata: { source: 'data_load.profiles', message: String(error) },
+            });
+            throw error;
+          }
+        }
+
+        set({ categories, products, orders: allOrders, users });
+      } finally {
+        if (!options?.silent) set({ loading: false });
+      }
+    })();
+
+    inFlightDataLoad = request;
     try {
-      const isAdminContext = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
-      const client = requireSupabaseClient();
-      const { data: sessionData } = await client.auth.getSession();
-      const isAuthenticated = Boolean(sessionData.session?.user);
-
-      const [categories, products] = await Promise.all([
-        repo.listCategories(),
-        repo.listProducts(),
-      ]);
-
-      let allOrders: Order[] = [];
-      if (isAuthenticated) {
-        try {
-          allOrders = await repo.listOrders();
-        } catch (error) {
-          writeAuditLog({
-            action: 'app.error',
-            metadata: { source: 'data_load.orders', message: String(error) },
-          });
-        }
-      }
-
-      let users: Profile[] = [];
-      if (isAdminContext && isAuthenticated) {
-        try {
-          users = await repo.listProfiles();
-        } catch (error) {
-          writeAuditLog({
-            action: 'app.error',
-            metadata: { source: 'data_load.profiles', message: String(error) },
-          });
-        }
-      }
-
-      const orders = isAdminContext
-        ? allOrders
-        : allOrders;
-
-      set({ categories, products, orders, users });
+      await request;
     } finally {
-      if (!options?.silent) set({ loading: false });
+      if (inFlightDataLoad === request) inFlightDataLoad = null;
     }
   },
 
@@ -167,7 +186,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       metadata: { payment_method: orderData.payment_method },
     });
 
-    void get().loadData({ silent: true }).catch((error) => {
+    void get().loadData({ silent: true, force: true }).catch((error) => {
       writeAuditLog({
         action: 'app.error',
         metadata: { source: 'post_order_refresh', message: String(error) },
@@ -200,15 +219,24 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
 
   moderateOrderPayment: async (id, action) => {
-    const order = await repo.moderateOrderPayment(id, action);
+    const updatedOrder = await repo.moderateOrderPayment(id, action);
+    const currentOrders = get().orders;
+    const existingOrder = currentOrders.find((item) => item.id === id);
+    const order = {
+      ...(existingOrder ?? {}),
+      ...updatedOrder,
+      order_items: existingOrder?.order_items ?? updatedOrder.order_items ?? [],
+      ...(existingOrder?.user ? { user: existingOrder.user } : updatedOrder.user ? { user: updatedOrder.user } : {}),
+    } as Order;
 
-    // The moderation RPC is the critical path. Publish the confirmed state
-    // immediately after the mutation succeeds; audit logging is auxiliary and
-    // must never delay the store/UI transition.
+    // The RPC row is authoritative; keep already-loaded joins for rendering and
+    // avoid a second database round trip after the payment transaction commits.
     if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin') && action === 'approve') {
-      set({ orders: [...get().orders.filter((item) => item.id !== id), order] });
+      set({ orders: [...currentOrders.filter((item) => item.id !== id), order] });
+    } else if (existingOrder) {
+      set({ orders: currentOrders.map((item) => (item.id === id ? order : item)) });
     } else {
-      set({ orders: get().orders.map((item) => (item.id === id ? order : item)) });
+      set({ orders: [...currentOrders, order] });
     }
 
     void remoteAudit({
@@ -270,7 +298,7 @@ export const useDataStore = create<DataState>((set, get) => ({
   addUser: async (user) => {
     await createAdminManagedUser(user);
     await remoteAudit({ action: 'auth.signup', actorEmail: user.email, entity: 'user', metadata: { role: user.role } });
-    await get().loadData({ silent: true });
+    await get().loadData({ silent: true, force: true });
   },
 
   updateUser: async (user) => {
@@ -282,7 +310,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       entityId: user.id,
       metadata: { role: user.role, passwordChanged: Boolean(user.password) },
     });
-    await get().loadData({ silent: true });
+    await get().loadData({ silent: true, force: true });
   },
 
   updateProtectedCredentials: async (user) => {
@@ -294,7 +322,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       entityId: user.id,
       metadata: { protectedCredentialsChanged: true, passwordChanged: Boolean(user.password) },
     });
-    await get().loadData({ silent: true });
+    await get().loadData({ silent: true, force: true });
   },
 
   setUserActive: async (id, active) => {

@@ -89,7 +89,19 @@ export async function updateOrder(id: string, updates: Partial<Order>) { const {
 export async function archiveOrders(ids: string[]) { if (!ids.length) return 0; const { data, error } = await requireSupabaseClient().from('orders').update({ admin_hidden: true }).in('id', ids).select('id'); if (error) throw error; return data?.length ?? 0; }
 export async function resetOrdersForNewPeriod() { const { data, error } = await requireSupabaseClient().rpc('reset_all_orders'); if (error) throw error; return Number(data ?? 0); }
 export async function updateOrderStatus(id: string, status: Order['status']) { const supabase = requireSupabaseClient(); const { data: updatedOrderId, error: rpcError } = await supabase.rpc('admin_update_order_status', { p_order_id: id, p_status: status }); if (!rpcError) return getOrderById(String(updatedOrderId ?? id)); if (!isMissingRpc(rpcError)) throw orderStatusRpcError(rpcError); const { data, error } = await supabase.from('orders').update({ status }).eq('id', id).select('*, order_items(*, product:products(*)), user:profiles(*)').single(); if (error) throw orderStatusRpcError(error); return data as Order; }
-export async function moderateOrderPayment(id: string, action: 'approve' | 'reject') { const { error } = await requireSupabaseClient().rpc('admin_moderate_order_payment', { p_order_id: id, p_action: action }); if (error) throw paymentModerationError(error); return getOrderById(id); }
+export async function moderateOrderPayment(id: string, action: 'approve' | 'reject') {
+  const { data, error } = await requireSupabaseClient().rpc('admin_moderate_order_payment', {
+    p_order_id: id,
+    p_action: action,
+  });
+  if (error) throw paymentModerationError(error);
+
+  const updatedOrder = Array.isArray(data) ? data[0] : data;
+  if (!updatedOrder || typeof updatedOrder !== 'object') {
+    throw new Error('La base de datos no devolvió el pedido actualizado después de revisar el pago.');
+  }
+  return updatedOrder as Order;
+}
 export async function setManagedUserActive(userId: string, active: boolean) {
   const { error } = await requireSupabaseClient().rpc('admin_set_user_active', { p_user_id: userId, p_active: active });
   if (error) {
