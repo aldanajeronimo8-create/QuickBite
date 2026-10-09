@@ -75,33 +75,67 @@ export function isFirebaseConfigured() {
   return hasFirebaseConfig();
 }
 
-export async function signInWithFirebaseGoogle() {
+type FirebaseGoogleIdentity = {
+  uid: string;
+  email: string;
+  fullName: string;
+  idToken: string;
+  accessToken: string;
+};
+
+function normalizeGoogleResult(result: any): FirebaseGoogleIdentity {
+  const credential = window.firebase.auth.GoogleAuthProvider.credentialFromResult(result) ?? result.credential ?? null;
+  const idToken = credential?.idToken ?? '';
+  if (!idToken) throw new Error('google_id_token_missing');
+  return {
+    uid: result.user.uid,
+    email: result.user.email?.trim().toLowerCase() ?? '',
+    fullName: result.user.displayName ?? '',
+    idToken,
+    accessToken: credential?.accessToken ?? '',
+  };
+}
+
+function isMobileBrowser() {
+  return typeof navigator !== 'undefined'
+    && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+      || (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches));
+}
+
+function normalizeFirebaseError(error: any): never {
+  if (error?.code === 'auth/popup-closed-by-user') throw new Error('google_popup_closed');
+  if (error?.code === 'auth/popup-blocked') throw new Error('google_popup_blocked');
+  if (error?.code === 'auth/unauthorized-domain') throw new Error('google_domain_not_authorized');
+  if (error?.code === 'auth/account-exists-with-different-credential') {
+    throw new Error('google_account_exists_with_different_credential');
+  }
+  throw error;
+}
+
+export async function signInWithFirebaseGoogle(): Promise<FirebaseGoogleIdentity | null> {
   const firebaseAuth = await getFirebaseAuth();
   const provider = new window.firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
 
   try {
-    const result = await firebaseAuth.signInWithPopup(provider);
-    const credential = window.firebase.auth.GoogleAuthProvider.credentialFromResult(result) ?? result.credential ?? null;
-    const idToken = credential?.idToken ?? '';
-
-    if (!idToken) throw new Error('google_id_token_missing');
-
-    return {
-      uid: result.user.uid,
-      email: result.user.email?.trim().toLowerCase() ?? '',
-      fullName: result.user.displayName ?? '',
-      idToken,
-      accessToken: credential?.accessToken ?? '',
-    };
-  } catch (error: any) {
-    if (error?.code === 'auth/popup-closed-by-user') throw new Error('google_popup_closed');
-    if (error?.code === 'auth/popup-blocked') throw new Error('google_popup_blocked');
-    if (error?.code === 'auth/unauthorized-domain') throw new Error('google_domain_not_authorized');
-    if (error?.code === 'auth/account-exists-with-different-credential') {
-      throw new Error('google_account_exists_with_different_credential');
+    if (isMobileBrowser()) {
+      await firebaseAuth.signInWithRedirect(provider);
+      return null;
     }
-    throw error;
+    const result = await firebaseAuth.signInWithPopup(provider);
+    return normalizeGoogleResult(result);
+  } catch (error: any) {
+    normalizeFirebaseError(error);
+  }
+}
+
+export async function getFirebaseGoogleRedirectResult(): Promise<FirebaseGoogleIdentity | null> {
+  const firebaseAuth = await getFirebaseAuth();
+  try {
+    const result = await firebaseAuth.getRedirectResult();
+    return result?.user ? normalizeGoogleResult(result) : null;
+  } catch (error: any) {
+    normalizeFirebaseError(error);
   }
 }
 
