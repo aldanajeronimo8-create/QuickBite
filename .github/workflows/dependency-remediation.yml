@@ -1,0 +1,112 @@
+name: Dependency Remediation
+
+on:
+  push:
+    branches:
+      - security/incremental-hardening-oct-2026
+    paths:
+      - '.github/workflows/dependency-remediation.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dependency-remediation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    name: Regenerate lockfile and validate fixes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout security branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install current locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply pnpm's vulnerability remediation suggestions
+        shell: bash
+        run: |
+          set +e
+          pnpm audit --fix
+          code=$?
+          set -e
+          echo "pnpm audit --fix exit code: $code"
+          echo "Continuing to regenerate the lockfile and run the strict audit."
+
+      - name: Regenerate pnpm lockfile
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Commit generated manifest and lockfile
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "No dependency remediation changes were generated."
+          else
+            git commit -m "fix(security): remediate vulnerable dependencies"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Strict dependency audit
+        id: audit
+        continue-on-error: true
+        run: pnpm audit --audit-level high
+
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: pnpm typecheck
+
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: pnpm lint
+
+      - name: Unit tests
+        id: tests
+        continue-on-error: true
+        run: pnpm test
+
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: pnpm build
+
+      - name: Fail if any validation failed
+        if: always()
+        env:
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          TESTS_OUTCOME: ${{ steps.tests.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        run: |
+          printf 'audit=%s typecheck=%s lint=%s tests=%s build=%s\n' "$AUDIT_OUTCOME" "$TYPECHECK_OUTCOME" "$LINT_OUTCOME" "$TESTS_OUTCOME" "$BUILD_OUTCOME"
+          test "$AUDIT_OUTCOME" = success &&
+          test "$TYPECHECK_OUTCOME" = success &&
+          test "$LINT_OUTCOME" = success &&
+          test "$TESTS_OUTCOME" = success &&
+          test "$BUILD_OUTCOME" = success
