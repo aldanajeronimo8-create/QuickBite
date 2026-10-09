@@ -41,16 +41,21 @@ const STUDENT_ROUTES = [
 ];
 
 async function installRole(page: Page, role: Role, e2eAuth: { install: (page: Page, role: Role) => Promise<void> }) {
+  monitorRuntimeFailures(page);
   await e2eAuth.install(page, role);
   await page.goto(HOME[role]);
   await page.waitForLoadState('domcontentloaded');
 }
 
-async function assertNoRuntimeFailures(page: Page) {
-  const pageErrors: string[] = [];
-  const apiFailures: string[] = [];
+type RuntimeFailureState = { pageErrors: string[]; apiFailures: string[] };
+const runtimeFailureStates = new WeakMap<Page, RuntimeFailureState>();
 
-  page.on('pageerror', (error) => pageErrors.push(error.message));
+function monitorRuntimeFailures(page: Page): RuntimeFailureState {
+  const existing = runtimeFailureStates.get(page);
+  if (existing) return existing;
+  const state: RuntimeFailureState = { pageErrors: [], apiFailures: [] };
+  runtimeFailureStates.set(page, state);
+  page.on('pageerror', (error) => state.pageErrors.push(error.message));
   page.on('response', async (response) => {
     if (response.status() < 400) return;
     const url = response.url();
@@ -58,14 +63,18 @@ async function assertNoRuntimeFailures(page: Page) {
     if (response.status() === 401 && /\/auth\/v1\/user(?:$|\?)/.test(url)) return;
     let body = '';
     try { body = (await response.text()).slice(0, 250); } catch { body = '<unreadable>'; }
-    apiFailures.push(`${response.status()} ${response.request().method()} ${url} ${body}`);
+    state.apiFailures.push(String(response.status()) + ' ' + response.request().method() + ' ' + url + ' ' + body);
   });
+  return state;
+}
 
+async function assertNoRuntimeFailures(page: Page) {
+  const state = monitorRuntimeFailures(page);
   await expect(page.locator('body')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('body')).not.toContainText(/application error|chunkloaderror|uncaught|algo sali[oó] mal/i);
   await page.waitForTimeout(500);
-  expect(pageErrors, JSON.stringify(pageErrors)).toEqual([]);
-  expect(apiFailures, JSON.stringify(apiFailures)).toEqual([]);
+  expect(state.pageErrors, JSON.stringify(state.pageErrors)).toEqual([]);
+  expect(state.apiFailures, JSON.stringify(state.apiFailures)).toEqual([]);
 }
 
 test.describe('QuickBite production acceptance — role coverage @student', () => {
@@ -102,17 +111,11 @@ test.describe('QuickBite production acceptance — role coverage @student', () =
     await expect(page.getByRole('heading', { name: 'Cola de pedidos' })).toBeVisible();
     await assertNoRuntimeFailures(page);
 
-    const orderLink = page.getByRole('link', { name: /pedidos|cola/i }).first();
-    if (await orderLink.count()) {
-      await orderLink.click();
-      await expect(page).toHaveURL(/\/staff\/orders$/);
-      await assertNoRuntimeFailures(page);
-    }
-
-    const actionable = page.getByRole('button').filter({ hasText: /preparar|listo|entregado|procesar|confirmar/i });
-    if (await actionable.count()) {
-      await expect(actionable.first()).toBeEnabled();
-    }
+    await page.goto('/staff/orders');
+    await expect(page).toHaveURL(/\/staff\/orders$/);
+    await expect(page.getByRole('heading', { name: 'Cola de pedidos' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Actualizar', exact: true })).toBeVisible();
+    await assertNoRuntimeFailures(page);
   });
 
   test('parent family context is usable and does not expose admin surfaces', async ({ page, e2eAuth }) => {
@@ -135,6 +138,7 @@ test.describe('QuickBite production acceptance — role coverage @student', () =
 
 test.describe('QuickBite production acceptance — security matrix @student', () => {
   test('anonymous users are denied from every protected role surface', async ({ page }) => {
+    monitorRuntimeFailures(page);
     for (const route of [
       '/menu',
       '/student/account',
@@ -179,6 +183,7 @@ test.describe('QuickBite production acceptance — security matrix @student', ()
 test.describe('QuickBite production acceptance — persistence and UX @student', () => {
   test('theme preference is account-specific and survives logout', async ({ browser, e2eAuth }) => {
     const student = await browser.newPage();
+    monitorRuntimeFailures(student);
     await e2eAuth.login(student, 'student');
     await student.goto('/student/account');
     await assertNoRuntimeFailures(student);
@@ -198,6 +203,7 @@ test.describe('QuickBite production acceptance — persistence and UX @student',
     await student.close();
 
     const parent = await browser.newPage();
+    monitorRuntimeFailures(parent);
     await e2eAuth.login(parent, 'parent');
     await parent.goto('/parent/family');
     const dark = parent.getByRole('radio', { name: /oscuro/i });
@@ -233,6 +239,7 @@ test.describe('QuickBite production acceptance — persistence and UX @student',
   });
 
   test('logout terminates the current role session', async ({ page, e2eAuth }) => {
+    monitorRuntimeFailures(page);
     await e2eAuth.login(page, 'student');
     const logout = page.getByRole('button', { name: /cerrar sesión/i }).first();
     await expect(logout).toBeVisible();
