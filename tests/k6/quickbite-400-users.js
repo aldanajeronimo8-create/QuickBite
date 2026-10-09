@@ -244,15 +244,24 @@ async function safeClick(page, locator) {
 }
 
 async function collectMeta(locator) {
-  return locator.evaluate((element) => ({
-    text: (element.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 180),
-    aria: element.getAttribute('aria-label') || '',
-    title: element.getAttribute('title') || '',
-    name: element.getAttribute('name') || '',
-    type: element.getAttribute('type') || '',
-    testId: element.getAttribute('data-testid') || '',
-    disabled: element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true',
-  }));
+  const text = await locator.textContent();
+  const aria = await locator.getAttribute('aria-label');
+  const title = await locator.getAttribute('title');
+  const name = await locator.getAttribute('name');
+  const type = await locator.getAttribute('type');
+  const testId = await locator.getAttribute('data-testid');
+  const disabled = await locator.isDisabled();
+  const ariaDisabled = await locator.getAttribute('aria-disabled');
+
+  return {
+    text: (text || '').trim().replace(/\s+/g, ' ').slice(0, 180),
+    aria: aria || '',
+    title: title || '',
+    name: name || '',
+    type: type || '',
+    testId: testId || '',
+    disabled: disabled || ariaDisabled === 'true',
+  };
 }
 
 async function probeControls(page, role, route) {
@@ -331,7 +340,7 @@ async function probeLinks(page, role, route) {
   const links = await page.locator('a[href]').all();
   for (let i = 0; i < links.length; i += 1) {
     const meta = await collectMeta(links[i]);
-    const href = await links[i].evaluate((element) => element.getAttribute('href') || '');
+    const href = (await links[i].getAttribute('href')) || '';
     const internal = href.startsWith('/') && !href.startsWith('//');
 
     if (!internal || href.startsWith('/logout')) continue;
@@ -368,14 +377,16 @@ async function probeFormControls(page, role, route) {
     try {
       await field.click({ trial: true, timeout: 10000 });
 
-      const tag = await field.evaluate((el) => el.tagName.toLowerCase());
-      const type = (await field.evaluate((el) => el.getAttribute('type') || 'text')).toLowerCase();
+      const type = (await field.getAttribute('type') || '').toLowerCase();
+      const optionCount = await field.locator('option').count();
 
-      if (['text', 'email', 'search', 'tel', 'url'].includes(type) || tag === 'textarea') {
+      if (
+        ['text', 'email', 'search', 'tel', 'url'].includes(type) ||
+        (!type && optionCount === 0)
+      ) {
         await field.fill('k6-test-value');
-      } else if (tag === 'select') {
-        const optionCount = await field.locator('option').count();
-        if (optionCount > 0) await field.selectOption({ index: 0 });
+      } else if (optionCount > 0) {
+        await field.selectOption({ index: 0 });
       }
 
       check(meta, {
@@ -438,6 +449,14 @@ async function runBrowserAudit(role, sessionData) {
   const page = await browser.newPage();
 
   const consoleErrors = [];
+  const pageErrors = [];
+  page.on('pageerror', (error) => {
+    const detail = error && error.stack ? error.stack : String(error);
+    pageErrors.push(detail);
+    failures.add(true, { role, kind: 'uncaught-page-error' });
+    console.error('BROWSER_UNCAUGHT_ERROR', role, detail);
+  });
+
   page.on('console', (message) => {
     const type = message.type();
     if (type === 'error') consoleErrors.push(message.text());
@@ -488,14 +507,15 @@ async function runBrowserAudit(role, sessionData) {
     }
 
     check(
-      { consoleErrors, httpErrors },
+      { consoleErrors, pageErrors, httpErrors },
       {
         'no browser console errors were emitted': (v) => v.consoleErrors.length === 0,
+        'no uncaught browser runtime errors were emitted': (v) => v.pageErrors.length === 0,
         'no document/fetch/xhr response errors were emitted': (v) => v.httpErrors.length === 0,
       },
     );
 
-    if (consoleErrors.length || httpErrors.length) failures.add(true, { role });
+    if (consoleErrors.length || pageErrors.length || httpErrors.length) failures.add(true, { role });
   } finally {
     await page.close();
   }
