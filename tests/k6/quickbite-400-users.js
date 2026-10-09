@@ -341,11 +341,16 @@ async function probeControls(page, role, route) {
 
 async function probeLinks(page, role, route) {
   const links = await page.locator('a[href]').all();
-  for (let i = 0; i < links.length; i += 1) {
-    const meta = await collectMeta(links[i]);
-    const href = (await links[i].getAttribute('href')) || '';
-    const internal = href.startsWith('/') && !href.startsWith('//');
+  const probes = [];
+  for (const link of links) {
+    probes.push({
+      meta: await collectMeta(link),
+      href: (await link.getAttribute('href')) || '',
+    });
+  }
 
+  for (const { meta, href } of probes) {
+    const internal = href.startsWith('/') && !href.startsWith('//');
     if (!internal || href.startsWith('/logout')) continue;
 
     controlsChecked.add(1, { role, kind: 'link' });
