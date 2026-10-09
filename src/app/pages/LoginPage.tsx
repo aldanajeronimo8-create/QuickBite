@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, GraduationCap, Loader2, Lock, Mail, ShieldCheck, Users } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -13,13 +13,84 @@ import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 import { bindStudentUser, clearBoundStudentUser, getBoundStudentUserId } from '../../lib/studentDeviceSession';
 import { toast } from 'sonner';
 import { useVisualTheme } from '../contexts/VisualThemeProvider';
-import { signInWithFirebaseGoogle } from '../../lib/firebaseAuth';
+import { getFirebaseGoogleRedirectResult, signInWithFirebaseGoogle } from '../../lib/firebaseAuth';
 
 type Mode='student'|'parent'|'staff'|'admin'; type LoginIntent=Mode;
 export function LoginPage(){
  const { resolvedThemeMode } = useVisualTheme();
  const navigate=useNavigate(); const{setUser}=useAuthStore(); const previewRole=typeof window!=='undefined'?new URLSearchParams(window.location.search).get('preview_role'):null; const initialMode:Mode=previewRole==='admin'||previewRole==='parent'||previewRole==='staff'||previewRole==='student'?previewRole:'student';
  const[mode,setMode]=useState<Mode>(initialMode); const[secretAccessUnlocked,setSecretAccessUnlocked]=useState(initialMode==='admin'||initialMode==='staff'); const[secretAccessVisible,setSecretAccessVisible]=useState(false); const secretPressTimer=useRef<number|null>(null); const[email,setEmail]=useState(''); const[password,setPassword]=useState(''); const[showPassword,setShowPassword]=useState(false); const[loading,setLoading]=useState(false); const[error,setError]=useState('');
+ useEffect(() => {
+  let cancelled = false;
+  const finishRedirectSignIn = async () => {
+   const pendingMode = window.sessionStorage.getItem('quickbite.google.login.mode');
+   if (!pendingMode) return;
+   try {
+    const google = await getFirebaseGoogleRedirectResult();
+    if (!google) {
+     window.sessionStorage.removeItem('quickbite.google.login.mode');
+     return;
+    }
+    window.sessionStorage.removeItem('quickbite.google.login.mode');
+    if (cancelled) return;
+    const intent: Mode = pendingMode === 'parent' ? 'parent' : 'student';
+    setMode(intent);
+    setLoading(true);
+    setAuthContext('user');
+    const client = requireSupabaseClient();
+    const { data, error: tokenError } = await client.auth.signInWithIdToken({
+     provider: 'google',
+     token: google.idToken,
+     access_token: google.accessToken || undefined,
+    });
+    if (tokenError || !data.user) {
+     if (/provider.*not enabled|issuer.*not enabled/i.test(tokenError?.message ?? '')) {
+      throw new Error('Google no está habilitado en Supabase Auth. Activa el proveedor Google en Authentication → Sign In / Providers y configura sus credenciales.');
+     }
+     throw new Error(tokenError?.message || 'No se pudo crear la sesión de QuickBite.');
+    }
+    const fullProfile = await getProfile(data.user.id);
+    if (!fullProfile) {
+     await client.auth.signOut();
+     throw new Error('La cuenta de Google no tiene un perfil de QuickBite. Crea primero la cuenta con el registro de QuickBite.');
+    }
+    if (!fullProfile.active) {
+     await client.auth.signOut();
+     setUser(null);
+     throw new Error('Esta cuenta está desactivada. Contacta a un administrador.');
+    }
+    setUser(fullProfile);
+    if (intent === 'parent') {
+     if (!canAccessParent(fullProfile.role)) {
+      await client.auth.signOut();
+      setUser(null);
+      throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');
+     }
+     navigate('/parent/family');
+    } else {
+     if (!canAccessStudent(fullProfile.role)) {
+      await client.auth.signOut();
+      setUser(null);
+      throw new Error('Esta cuenta no tiene acceso de estudiante.');
+     }
+     bindStudentUser(fullProfile.id);
+     navigate('/menu');
+    }
+    toast.success('Bienvenido a QuickBite.');
+   } catch (err) {
+    window.sessionStorage.removeItem('quickbite.google.login.mode');
+    if (!cancelled) {
+     const message = getErrorMessage(err, 'No se pudo completar el inicio de sesión con Google.');
+     setError(message);
+     toast.error(message);
+    }
+   } finally {
+    if (!cancelled) setLoading(false);
+   }
+  };
+  void finishRedirectSignIn();
+  return () => { cancelled = true; };
+ }, [navigate, setUser]);
  const handleSecretPressStart=()=>{if(secretPressTimer.current!==null)window.clearTimeout(secretPressTimer.current);secretPressTimer.current=window.setTimeout(()=>{setSecretAccessUnlocked(true);setSecretAccessVisible(true);secretPressTimer.current=null},2500)};
  const handleSecretPressEnd=()=>{if(secretPressTimer.current!==null){window.clearTimeout(secretPressTimer.current);secretPressTimer.current=null;}};
  const handleLogin=async(event:React.FormEvent,intent:LoginIntent=mode)=>{event.preventDefault();setError('');if(!email||!password){setError('Ingresa correo y contraseña.');return;}setLoading(true);try{setAuthContext(intent==='admin'?'admin':'user');const client=requireSupabaseClient();const normalizedEmail=email.trim().toLowerCase();const{data, error:signInError}=await signInWithPasswordWithRetry(client,{email:normalizedEmail,password});if(signInError||!data.user){if(signInError){const{data:emailExists,error:emailExistsError}=await client.rpc('login_email_exists',{p_email:normalizedEmail});if(!emailExistsError&&emailExists===false){const message=intent==='student'?'Esta cuenta de estudiante no está creada. Crea una cuenta de estudiante para continuar.':intent==='parent'?'Esta cuenta de Padre de Familia no está creada. Crea una cuenta de Padre de Familia para continuar.':'Esta cuenta no existe.';throw new Error(message);}}throw new Error('Correo o contraseña incorrectos.');}
@@ -33,7 +104,7 @@ export function LoginPage(){
   if(profile.role==='both'&&intent==='parent'){if(!canAccessParent(profile.role))throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');navigate('/parent/family');toast.success('Bienvenido a QuickBite Family.');return;}
   if(intent==='student'){const boundUserId=getBoundStudentUserId();if(boundUserId&&boundUserId!==data.user.id){const{data:boundProfile,error:boundProfileError}=await client.from('profiles').select('id').eq('id',boundUserId).maybeSingle();if(boundProfileError)throw boundProfileError;if(!boundProfile)clearBoundStudentUser();else{await client.auth.signOut();setUser(null);throw new Error('Este dispositivo ya está vinculado a otra cuenta de estudiante. Usa “Cambiar estudiante en este dispositivo”.');}}if(!canAccessStudent(profile.role)){await client.auth.signOut();setUser(null);throw new Error('Esta cuenta no tiene acceso de estudiante.');}bindStudentUser(data.user.id);navigate('/menu');} else if(intent==='parent'){if(!canAccessParent(profile.role)){await client.auth.signOut();setUser(null);throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');}navigate('/parent/family');} else {await client.auth.signOut();setUser(null);throw new Error('Esta cuenta no tiene acceso administrativo.');}toast.success('Bienvenido.');
  }catch(err){const message=getErrorMessage(err,'No se pudo iniciar sesión.');setError(message);toast.error(message);}finally{setLoading(false)}};
- const handleGoogleLogin=async()=>{setError('');setLoading(true);try{if(mode==='admin'||mode==='staff')throw new Error('Este acceso usa correo y contraseña.');setAuthContext('user');const google=await signInWithFirebaseGoogle();if(!google.idToken)throw new Error('No se pudo obtener la identidad de Google.');const client=requireSupabaseClient();const{data,error:tokenError}=await client.auth.signInWithIdToken({provider:'google',token:google.idToken,access_token:google.accessToken||undefined});if(tokenError||!data.user)throw new Error(tokenError?.message||'No se pudo crear la sesión de QuickBite.');const fullProfile=await getProfile(data.user.id);if(!fullProfile){await client.auth.signOut();throw new Error('La cuenta de Google no tiene un perfil de QuickBite. Crea primero la cuenta con el registro de QuickBite.');}if(!fullProfile.active){await client.auth.signOut();setUser(null);throw new Error('Esta cuenta está desactivada. Contacta a un administrador.');}setUser(fullProfile);if(mode==='parent'){if(!canAccessParent(fullProfile.role)){await client.auth.signOut();setUser(null);throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');}navigate('/parent/family');}else{if(!canAccessStudent(fullProfile.role)){await client.auth.signOut();setUser(null);throw new Error('Esta cuenta no tiene acceso de estudiante.');}bindStudentUser(fullProfile.id);navigate('/menu');}toast.success('Bienvenido a QuickBite.');}catch(err){const message=getErrorMessage(err,'No se pudo iniciar sesión con Google.');setError(message);toast.error(message);}finally{setLoading(false)}};
+ const handleGoogleLogin=async()=>{setError('');setLoading(true);try{if(mode==='admin'||mode==='staff')throw new Error('Este acceso usa correo y contraseña.');setAuthContext('user');window.sessionStorage.setItem('quickbite.google.login.mode',mode);const google=await signInWithFirebaseGoogle();if(!google)return;window.sessionStorage.removeItem('quickbite.google.login.mode');if(!google.idToken)throw new Error('No se pudo obtener la identidad de Google.');const client=requireSupabaseClient();const{data,error:tokenError}=await client.auth.signInWithIdToken({provider:'google',token:google.idToken,access_token:google.accessToken||undefined});if(tokenError||!data.user){if(/provider.*not enabled|issuer.*not enabled/i.test(tokenError?.message??''))throw new Error('Google no está habilitado en Supabase Auth. Activa el proveedor Google en Authentication → Sign In / Providers y configura sus credenciales.');throw new Error(tokenError?.message||'No se pudo crear la sesión de QuickBite.');}const fullProfile=await getProfile(data.user.id);if(!fullProfile){await client.auth.signOut();throw new Error('La cuenta de Google no tiene un perfil de QuickBite. Crea primero la cuenta con el registro de QuickBite.');}if(!fullProfile.active){await client.auth.signOut();setUser(null);throw new Error('Esta cuenta está desactivada. Contacta a un administrador.');}setUser(fullProfile);if(mode==='parent'){if(!canAccessParent(fullProfile.role)){await client.auth.signOut();setUser(null);throw new Error('Esta cuenta no tiene acceso de Padre de Familia.');}navigate('/parent/family');}else{if(!canAccessStudent(fullProfile.role)){await client.auth.signOut();setUser(null);throw new Error('Esta cuenta no tiene acceso de estudiante.');}bindStudentUser(fullProfile.id);navigate('/menu');}toast.success('Bienvenido a QuickBite.');}catch(err){const message=getErrorMessage(err,'No se pudo iniciar sesión con Google.');setError(message);toast.error(message);}finally{setLoading(false)}};
  const changeStudentOnDevice=async()=>{setAuthContext('user');const client=requireSupabaseClient();await client.auth.signOut();clearBoundStudentUser();setUser(null);setEmail('');setPassword('');setError('');toast.success('Este dispositivo ya puede vincularse a otro estudiante.');}; const isStudent=mode==='student'; const isParent=mode==='parent'; const isStaff=mode==='staff'; const studentIsBound=Boolean(getBoundStudentUserId());
  const roleAccent = isStudent ? 'green' : isParent ? 'blue' : isStaff ? 'staff' : 'admin';
  return <div data-qb-auth-mode={roleAccent} className={`qb-auth qb-auth--${roleAccent} min-h-screen flex flex-col items-center justify-center p-5 transition-colors duration-500`}><div className="w-full max-w-sm relative z-10"><div className="qb-auth-brand text-center mb-7"><button type="button" aria-label="QuickBite" onPointerDown={handleSecretPressStart} onPointerUp={handleSecretPressEnd} onPointerCancel={handleSecretPressEnd} onPointerLeave={handleSecretPressEnd} className="mx-auto block rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 select-none"><QuickBiteLogo className="mb-3 h-[4.5rem] w-[4.5rem] rounded-3xl"/></button><h1 style={{ color: resolvedThemeMode === 'dark' ? '#FFFFFF' : '#0F172A', WebkitTextFillColor: resolvedThemeMode === 'dark' ? '#FFFFFF' : '#0F172A' }} className="qb-auth-brand-title text-3xl font-bold tracking-tight">QuickBite</h1><p style={{ color: resolvedThemeMode === 'dark' ? '#AAB7C9' : '#475569', WebkitTextFillColor: resolvedThemeMode === 'dark' ? '#AAB7C9' : '#475569' }} className="qb-auth-brand-subtitle text-sm mt-1">{isStudent?'Portal estudiante':isParent?'Portal padre de familia':isStaff?'Portal de cafetería':'Portal administrativo'}</p></div><div className="qb-auth-card rounded-3xl shadow-2xl p-7">
