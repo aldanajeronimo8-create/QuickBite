@@ -195,7 +195,22 @@ test.describe('critical functional flows @student', () => {
     const paymentCard = adminPage.getByTestId(`admin-payment-${orderNumber}`);
     await expect(paymentCard).toBeVisible({ timeout: 15_000 });
     await paymentCard.getByRole('button', { name: /^confirmar$/i }).click();
-    await expect(paymentCard.getByText('Confirmado', { exact: true })).toBeVisible({ timeout: 15_000 });
+    try {
+      await expect(paymentCard.getByText('Confirmado', { exact: true })).toBeVisible({ timeout: 15_000 });
+    } catch (error) {
+      const [cardText, pageText] = await Promise.all([
+        paymentCard.innerText().catch(() => '<payment card unavailable>'),
+        adminPage.locator('body').innerText().catch(() => '<body unavailable>'),
+      ]);
+      console.error('PAYMENT_CONFIRMATION_DIAGNOSTICS', JSON.stringify({
+        orderNumber,
+        cardText,
+        apiResponses: adminState.responses,
+        browserErrors: adminState.errors,
+        visiblePaymentFeedback: pageText.split('\n').filter((line) => /pago|confirm|error|falló|fallo|permiso|pedido/i.test(line)).slice(-30),
+      }));
+      throw error;
+    }
 
     await adminPage.goto('/admin/orders');
     await healthy(adminPage, adminState);

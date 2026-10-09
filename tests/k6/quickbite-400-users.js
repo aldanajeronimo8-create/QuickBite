@@ -143,6 +143,15 @@ for (const role of Object.keys(accounts)) {
 }
 if (!ANON_KEY) throw new Error('Missing VITE_SUPABASE_ANON_KEY');
 
+const auditedRoles = BROWSER_ROLE === 'all' ? Object.keys(accounts) : [BROWSER_ROLE];
+const roleThresholds = Object.fromEntries(
+  auditedRoles.flatMap((role) => [
+    [`ui_routes_checked{role:${role}}`, ['count>0']],
+    [`checks{role:${role}}`, ['rate>0.995']],
+    [`ui_function_failures{role:${role}}`, ['rate<0.01']],
+  ]),
+);
+
 export const options = {
   scenarios: Object.fromEntries(
     Object.keys(accounts)
@@ -163,20 +172,9 @@ export const options = {
   thresholds: {
     checks: ['rate>0.995'],
     ui_routes_checked: ['count>0'],
-    'ui_routes_checked{role:student}': ['count>0'],
-    'ui_routes_checked{role:parent}': ['count>0'],
-    'ui_routes_checked{role:staff}': ['count>0'],
-    'ui_routes_checked{role:admin}': ['count>0'],
     ui_function_failures: ['rate<0.01'],
     browser_http_failures: ['rate<0.01'],
-    'checks{role:student}': ['rate>0.995'],
-    'checks{role:parent}': ['rate>0.995'],
-    'checks{role:staff}': ['rate>0.995'],
-    'checks{role:admin}': ['rate>0.995'],
-    'ui_function_failures{role:student}': ['rate<0.01'],
-    'ui_function_failures{role:parent}': ['rate<0.01'],
-    'ui_function_failures{role:staff}': ['rate<0.01'],
-    'ui_function_failures{role:admin}': ['rate<0.01'],
+    ...roleThresholds,
   },
 };
 
@@ -343,20 +341,61 @@ async function probeControls(page, role, route) {
 
 async function probeLinks(page, role, route) {
   const links = await page.locator('a[href]').all();
-  for (let i = 0; i < links.length; i += 1) {
-    const meta = await collectMeta(links[i]);
-    const href = (await links[i].getAttribute('href')) || '';
-    const internal = href.startsWith('/') && !href.startsWith('//');
+  const probes = [];
+  for (const link of links) {
+    probes.push({
+      meta: await collectMeta(link),
+      href: (await link.getAttribute('href')) || '',
+    });
+  }
 
+  for (const { meta, href } of probes) {
+    const internal = href.startsWith('/') && !href.startsWith('//');
     if (!internal || href.startsWith('/logout')) continue;
 
     controlsChecked.add(1, { role, kind: 'link' });
 
-    const response = await page.goto(BASE_URL + href, {
-      waitUntil: 'domcontentloaded',
-    });
+    let response = null;
+    let navigationError = '';
+    try {
+      response = await page.goto(BASE_URL + href, {
+        waitUntil: 'domcontentloaded',
+      });
+    } catch (error) {
+      navigationError = String(error);
+    }
 
-    const ok = Boolean(response) && response.status < 500;
+    const finalUrl = await page.url();
+    const targetUrl = BASE_URL + href;
+    const status = response ? response.status() : null;
+    const bodyText = (await page.locator('body').textContent().catch(() => '') || '').trim();
+    const reachedTarget = finalUrl === targetUrl;
+    const documentRendered = bodyText.length > 40;
+    // K6 Chromium can report a null navigation response for a same-document
+    // navigation. Treat it as successful only when the exact target URL was
+    // reached, the document rendered, and no navigation error occurred.
+    const ok = !navigationError && (
+      (Boolean(response) && status < 500) ||
+      (!response && reachedTarget && documentRendered)
+    );
+    console.error(
+      'INTERNAL_LINK_PROBE',
+      JSON.stringify({
+        role,
+        sourceRoute: route,
+        href,
+        targetUrl,
+        status,
+        responseUrl: response ? response.url() : null,
+        finalUrl,
+        navigationError,
+        bodyTextLength: bodyText.length,
+        reachedTarget,
+        documentRendered,
+        ok,
+        linkText: meta.text,
+      }),
+    );
 
     check(
       { ok, href, meta },
