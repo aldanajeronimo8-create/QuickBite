@@ -1,6 +1,9 @@
 import { test, expect, type Page } from './auth-fixture';
+import { createClient } from '@supabase/supabase-js';
+import { readFileSync } from 'node:fs';
+import * as XLSX from '@redoper1/xlsx-js-style';
 
-type Role = 'student' | 'parent' | 'admin';
+type Role = 'student' | 'parent' | 'staff' | 'admin';
 
 function isExpectedUnauthenticatedAuthResponse(response: { status: () => number; url: () => string; request: () => { method: () => string } }) {
   return response.status() === 401 && response.request().method() === 'GET' && /\/auth\/v1\/user(?:$|\?)/.test(response.url());
@@ -40,7 +43,7 @@ async function monitor(page: Page) {
 
 async function login(page: Page, role: Role, e2eAuth: { install: (page: Page, role: Role) => Promise<void> }) {
   await e2eAuth.install(page, role);
-  const destination = role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : '/admin';
+  const destination = role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : role === 'staff' ? '/staff' : '/admin';
   await page.goto(destination);
   await page.waitForLoadState('domcontentloaded');
 }
@@ -151,7 +154,18 @@ test.describe('critical functional flows @student', () => {
     await healthy(page, state);
   });
 
-  test('student completes a real purchase and admin processes it through delivery', async ({ browser, e2eAuth }) => {
+  test('student completes purchase, admin confirms payment, staff prepares and delivers, and records reconcile', async ({ browser, e2eAuth }, testInfo) => {
+    const auditUrl = process.env.VITE_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const studentEmail = process.env.PLAYWRIGHT_E2E_EMAIL;
+    if (!auditUrl || !serviceRoleKey || !studentEmail) {
+      throw new Error('Missing read-only database evidence configuration for integral purchase acceptance.');
+    }
+    // This privileged client is read-only in this test. All mutations below are made through the real UI.
+    const auditDb = createClient(auditUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+
     const studentPage = await browser.newPage();
     const studentState = await monitor(studentPage);
     await login(studentPage, 'student', e2eAuth);
@@ -159,12 +173,29 @@ test.describe('critical functional flows @student', () => {
 
     const addButtons = studentPage.getByRole('button', { name: /^agregar$/i });
     await expect(addButtons.first()).toBeVisible();
-    await addButtons.first().click();
+    const productCard = addButtons.first().locator('xpath=ancestor::article[1]');
+    const productName = (await productCard.locator('p').first().innerText()).trim();
+    const { data: productBeforeData, error: productBeforeError } = await auditDb
+      .from('products')
+      .select('id,name,stock,price')
+      .eq('name', productName)
+      .eq('available', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (productBeforeError) throw productBeforeError;
+    if (!productBeforeData) throw new Error('No pude obtener el producto desde la base de datos: ' + productName);
+    const productBefore = productBeforeData as { id: string; name: string; stock: number; price: number };
+    const stockBefore = Number(productBefore.stock);
+    expect(stockBefore, productName + ' debe tener existencias antes de comprar').toBeGreaterThan(0);
+    await expect(productCard).toContainText(productName);
 
+    await addButtons.first().click();
     await studentPage.getByRole('button', { name: /abrir carrito/i }).click();
     const cartSheet = studentPage.getByRole('heading', { name: 'Tu pedido', exact: true }).locator('xpath=../..');
     await expect(cartSheet).toBeVisible();
     await expect(cartSheet).toContainText(/método de pago/i);
+    await expect(cartSheet).toContainText(productName);
 
     const nequi = cartSheet.getByRole('button', { name: /^nequi/i });
     await expect(nequi).toBeVisible();
@@ -179,6 +210,70 @@ test.describe('critical functional flows @student', () => {
     await expect(receiptOrder).toBeVisible({ timeout: 15_000 });
     const orderNumber = (await receiptOrder.textContent())?.trim();
     expect(orderNumber).toMatch(/^QB\d{6}[A-Z0-9]+$/);
+    if (!orderNumber) throw new Error('La aplicación no devolvió número de pedido.');
+
+    const { data: studentProfile, error: studentProfileError } = await auditDb
+      .from('profiles')
+      .select('id,email')
+      .ilike('email', studentEmail)
+      .maybeSingle();
+    if (studentProfileError) throw studentProfileError;
+    if (!studentProfile) throw new Error('No encontré el perfil del estudiante E2E en la base de datos.');
+
+    const { data: createdOrderData, error: createdOrderError } = await auditDb
+      .from('orders')
+      .select('id,user_id,total,status,payment_status,admin_hidden,created_at,order_items(id,product_id,quantity,price)')
+      .eq('order_number', orderNumber)
+      .maybeSingle();
+    if (createdOrderError) throw createdOrderError;
+    if (!createdOrderData) throw new Error('El pedido ' + orderNumber + ' no está persistido después de la compra.');
+    const createdOrder = createdOrderData as {
+      id: string;
+      user_id: string;
+      total: number;
+      status: string;
+      payment_status: string;
+      admin_hidden: boolean;
+      created_at: string;
+      order_items: Array<{ id: string; product_id: string; quantity: number; price: number }>;
+    };
+    expect(createdOrder.user_id).toBe(studentProfile.id);
+    expect(createdOrder.status).toBe('pending');
+    expect(createdOrder.payment_status).toBe('pending');
+    expect(createdOrder.admin_hidden).toBe(false);
+    expect(createdOrder.order_items).toHaveLength(1);
+    expect(createdOrder.order_items[0].product_id).toBe(productBefore.id);
+    expect(Number(createdOrder.total)).toBe(
+      createdOrder.order_items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0),
+    );
+
+    const purchasedQuantity = createdOrder.order_items.reduce((sum, item) => sum + Number(item.quantity), 0);
+    const { data: productAfterCheckoutData, error: productAfterCheckoutError } = await auditDb
+      .from('products')
+      .select('stock')
+      .eq('id', productBefore.id)
+      .single();
+    if (productAfterCheckoutError) throw productAfterCheckoutError;
+    const stockAfterCheckout = Number(productAfterCheckoutData.stock);
+    expect(stockAfterCheckout).toBe(stockBefore - purchasedQuantity);
+
+    const movementSince = new Date(Date.parse(createdOrder.created_at) - 5_000).toISOString();
+    const { data: movementData, error: movementError } = await auditDb
+      .from('inventory_movements')
+      .select('id,product_id,movement_type,quantity,previous_stock,new_stock,created_at')
+      .eq('product_id', productBefore.id)
+      .gte('created_at', movementSince)
+      .order('created_at', { ascending: false });
+    if (movementError) throw movementError;
+    const matchingMovement = (movementData ?? []).filter((movement) =>
+      Number(movement.previous_stock) === stockBefore
+      && Number(movement.new_stock) === stockAfterCheckout
+      && Number(movement.quantity) === purchasedQuantity,
+    );
+    expect(
+      matchingMovement.length,
+      'Debe existir un movimiento que concilie stock ' + stockBefore + ' → ' + stockAfterCheckout + ' para ' + orderNumber,
+    ).toBeGreaterThanOrEqual(1);
 
     const studentLogout = studentPage.getByRole('button', { name: /cerrar sesión/i }).first();
     await studentPage.getByRole('button', { name: /^cerrar$/i }).click().catch(() => undefined);
@@ -192,7 +287,7 @@ test.describe('critical functional flows @student', () => {
     await adminPage.goto('/admin/payments');
     await healthy(adminPage, adminState);
 
-    const paymentCard = adminPage.getByTestId(`admin-payment-${orderNumber}`);
+    const paymentCard = adminPage.getByTestId('admin-payment-' + orderNumber);
     await expect(paymentCard).toBeVisible({ timeout: 15_000 });
     await paymentCard.getByRole('button', { name: /^confirmar$/i }).click();
     try {
@@ -212,22 +307,22 @@ test.describe('critical functional flows @student', () => {
       throw error;
     }
 
+    await expect.poll(async () => {
+      const { data, error } = await auditDb.from('orders').select('payment_status,status').eq('id', createdOrder.id).maybeSingle();
+      if (error) throw error;
+      return data?.payment_status ?? null;
+    }, { timeout: 15_000 }).toBe('confirmed');
+    await expect.poll(async () => {
+      const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
+      if (error) throw error;
+      return data?.status ?? null;
+    }, { timeout: 15_000 }).toBe('pending');
+
     await adminPage.goto('/admin/orders');
     await healthy(adminPage, adminState);
-    const orderCard = adminPage.getByTestId(`admin-order-${orderNumber}`);
+    const orderCard = adminPage.getByTestId('admin-order-' + orderNumber);
     await expect(orderCard).toBeVisible({ timeout: 15_000 });
     await expect(orderCard).toContainText(/pedido recibido|confirmado/i);
-
-    await orderCard.getByRole('button', { name: /^en preparación$/i }).click();
-    await expect(orderCard).toContainText(/en preparación/i);
-    await healthy(adminPage, adminState);
-    await orderCard.getByRole('button', { name: /^listo para recoger$/i }).click();
-    await expect(orderCard).toContainText(/listo para recoger/i);
-    await healthy(adminPage, adminState);
-    await orderCard.getByRole('button', { name: /^entregado$/i }).click();
-    await expect(orderCard).toContainText(/entregado/i);
-    await healthy(adminPage, adminState);
-
     const openAdminMenu = adminPage.getByRole('button', { name: 'Abrir menú lateral', exact: true });
     if (await openAdminMenu.count() && await openAdminMenu.isVisible()) await openAdminMenu.click();
     const adminLogout = adminPage.getByRole('button', { name: /cerrar sesión/i }).first();
@@ -236,18 +331,91 @@ test.describe('critical functional flows @student', () => {
     await adminPage.waitForURL(/\/login$/);
     await adminPage.close();
 
+    const staffPage = await browser.newPage();
+    const staffState = await monitor(staffPage);
+    await login(staffPage, 'staff', e2eAuth);
+    await healthy(staffPage, staffState);
+    const staffOrderCard = staffPage.locator('article').filter({ hasText: orderNumber }).first();
+    await expect(staffOrderCard).toBeVisible({ timeout: 20_000 });
+    await staffOrderCard.getByRole('button', { name: 'Comenzar preparación', exact: true }).click();
+    await expect(staffOrderCard).toContainText(/En preparación/i);
+    await expect.poll(async () => {
+      const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
+      if (error) throw error;
+      return data?.status ?? null;
+    }, { timeout: 15_000 }).toBe('preparing');
+    await healthy(staffPage, staffState);
+
+    await staffOrderCard.getByRole('button', { name: 'Marcar como listo', exact: true }).click();
+    await expect(staffOrderCard).toContainText(/\bListo\b/i);
+    await expect.poll(async () => {
+      const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
+      if (error) throw error;
+      return data?.status ?? null;
+    }, { timeout: 15_000 }).toBe('ready');
+    await healthy(staffPage, staffState);
+
+    await staffOrderCard.getByRole('button', { name: 'Marcar como entregado', exact: true }).click();
+    await expect.poll(async () => {
+      const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
+      if (error) throw error;
+      return data?.status ?? null;
+    }, { timeout: 15_000 }).toBe('delivered');
+    await expect(staffOrderCard).toHaveCount(0, { timeout: 15_000 });
+    await healthy(staffPage, staffState);
+    await staffPage.close();
+
+    const { data: productAfterDeliveryData, error: productAfterDeliveryError } = await auditDb
+      .from('products')
+      .select('stock')
+      .eq('id', productBefore.id)
+      .single();
+    if (productAfterDeliveryError) throw productAfterDeliveryError;
+    expect(Number(productAfterDeliveryData.stock)).toBe(stockAfterCheckout);
+
     const verificationPage = await browser.newPage();
     const verificationState = await monitor(verificationPage);
     await login(verificationPage, 'student', e2eAuth);
     await verificationPage.goto('/student/history');
     await healthy(verificationPage, verificationState);
-    const historyCard = verificationPage.locator('article').filter({ hasText: orderNumber! }).first();
+    const historyCard = verificationPage.locator('article').filter({ hasText: orderNumber }).first();
     await expect(historyCard).toBeVisible({ timeout: 15_000 });
     await expect(historyCard).toContainText(/Recogida/i);
     const pickupLine = historyCard.locator('div.grid').filter({ hasText: /Recogida/i }).last();
     await expect(pickupLine).toContainText(/[A-Z0-9]{6,}/);
     await expect(historyCard.getByText(/entregado/i).first()).toBeVisible();
     await verificationPage.close();
+
+    const reportPage = await browser.newPage();
+    const reportState = await monitor(reportPage);
+    await login(reportPage, 'admin', e2eAuth);
+    await reportPage.goto('/admin/reports');
+    await healthy(reportPage, reportState);
+    const purchaseDate = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(createdOrder.created_at));
+    await reportPage.getByLabel('Fecha de referencia del informe').fill(purchaseDate);
+    await reportPage.getByRole('button', { name: 'Diario', exact: true }).click();
+    const downloadPromise = reportPage.waitForEvent('download');
+    await reportPage.getByRole('button', { name: /descargar excel/i }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.xlsx$/i);
+    const downloadPath = testInfo.outputPath(download.suggestedFilename());
+    await download.saveAs(downloadPath);
+    const workbook = XLSX.read(readFileSync(downloadPath), { type: 'buffer' });
+    expect(workbook.Sheets['Ventas']).toBeDefined();
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets['Ventas'], { header: 1, raw: true }) as unknown[][];
+    const exportedOrder = rows.find((row) => String(row[0] ?? '') === orderNumber);
+    expect(exportedOrder, 'El Excel diario debe incluir el pedido ' + orderNumber).toBeDefined();
+    if (!exportedOrder) throw new Error('El Excel diario no contiene el pedido ' + orderNumber + '.');
+    expect(String(exportedOrder[6])).toBe('Entregado');
+    expect(String(exportedOrder[7])).toBe('Confirmado');
+    expect(Number(exportedOrder[11])).toBe(Number(createdOrder.total));
+    await healthy(reportPage, reportState);
+    await reportPage.close();
   });
 
   test('theme preference remains account-specific across logout and login', async ({ browser, e2eAuth }) => {
