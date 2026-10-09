@@ -122,4 +122,5 @@ jobs:
     uses: ./.github/workflows/prueba-aceptacion-integral.yml
     with:
       sha: ${{ needs.final.outputs.sha }}
+      exhaustive_run_id: ${{ github.event.workflow_run.id || 0 }}
     secrets: inherit

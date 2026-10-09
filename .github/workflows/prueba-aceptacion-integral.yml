@@ -10,6 +10,11 @@ on:
         description: 'Exact commit SHA approved by the Integrity audit'
         required: true
         type: string
+      exhaustive_run_id:
+        description: 'Exact upstream exhaustive-audit run id; use 0 for manual dispatch'
+        required: false
+        type: number
+        default: 0
     secrets:
       VITE_SUPABASE_ANON_KEY:
         required: true
@@ -70,33 +75,87 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           SHA: ${{ steps.resolve.outputs.sha }}
+          EXHAUSTIVE_RUN_ID: ${{ inputs.exhaustive_run_id }}
         shell: bash
         run: |
           set -euo pipefail
-          json="$(curl --fail --silent --show-error \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPOSITORY/actions/runs?head_sha=$SHA&per_page=100")"
-
-          check() {
-            local workflow="$1"
-            local output_name="$2"
-            local result
-            result="$(printf '%s' "$json" | jq -r --arg w "$workflow" --arg sha "$SHA" '
-              [.workflow_runs[] | select(.name == $w and .head_sha == $sha)]
-              | sort_by(.run_started_at) | reverse | .[0].conclusion // "missing"
-            ')"
-            echo "$workflow => $result" >&2
-            printf '%s=%s\n' "$output_name" "$result" >> "$GITHUB_OUTPUT"
-            printf '%s' "$result"
+          fetch_runs() {
+            curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$REPOSITORY/actions/runs?head_sha=$SHA&per_page=100"
           }
 
-          ci="$(check "CI" ci)"
-          exhaustive="$(check "Auditoría Exhaustiva QuickBite" exhaustive)"
+          conclusion_for() {
+            printf '%s' "$1" | jq -r --arg w "$2" --arg sha "$SHA" '
+              [.workflow_runs[] | select(.name == $w and .head_sha == $sha)]
+              | sort_by(.run_started_at) | reverse | .[0].conclusion // "missing"
+            '
+          }
 
-          for value in "$ci" "$exhaustive"; do
-            test "$value" = success
+          json="$(fetch_runs)"
+          ci="$(conclusion_for "$json" "CI")"
+          echo "CI => $ci" >&2
+
+          exhaustive="missing"
+          direct_audit=false
+          if [[ "$EXHAUSTIVE_RUN_ID" =~ ^[0-9]+$ ]] && [ "$EXHAUSTIVE_RUN_ID" -gt 0 ]; then
+            direct_audit=true
+            audit_json=""
+            for attempt in 1 2 3 4 5; do
+              if audit_json="$(curl --fail --silent --show-error \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPOSITORY/actions/runs/$EXHAUSTIVE_RUN_ID")"; then
+                break
+              fi
+              echo "Exact exhaustive run $EXHAUSTIVE_RUN_ID was not readable at attempt $attempt" >&2
+              sleep "$attempt"
+            done
+            if [ -n "$audit_json" ]; then
+              audit_name="$(printf '%s' "$audit_json" | jq -r '.name // ""')"
+              audit_sha="$(printf '%s' "$audit_json" | jq -r '.head_sha // ""')"
+              audit_branch="$(printf '%s' "$audit_json" | jq -r '.head_branch // ""')"
+              exhaustive="$(printf '%s' "$audit_json" | jq -r '.conclusion // "missing"')"
+              echo "Auditoría Exhaustiva QuickBite run #$EXHAUSTIVE_RUN_ID => $exhaustive (SHA $audit_sha; branch $audit_branch)" >&2
+              if [ "$audit_name" != "Auditoría Exhaustiva QuickBite" ] ||
+                 [ "$audit_sha" != "$SHA" ] ||
+                 [ "$audit_branch" != "main" ] ||
+                 [ "$exhaustive" != "success" ]; then
+                echo "Exact upstream exhaustive-audit evidence does not match the approved SHA and successful main-branch gate." >&2
+                exit 1
+              fi
+            fi
+          else
+            exhaustive="$(conclusion_for "$json" "Auditoría Exhaustiva QuickBite")"
+            echo "Auditoría Exhaustiva QuickBite (SHA lookup) => $exhaustive" >&2
+          fi
+
+          # GitHub's run-list endpoint can lag briefly after a workflow_run completes.
+          # Retry only missing evidence; never retry or override an explicit failed conclusion.
+          for attempt in 1 2 3 4 5; do
+            needs_refresh=false
+            [ "$ci" = "missing" ] && needs_refresh=true
+            if [ "$direct_audit" = false ] && [ "$exhaustive" = "missing" ]; then needs_refresh=true; fi
+            [ "$needs_refresh" = true ] || break
+            sleep "$attempt"
+            json="$(fetch_runs)"
+            if [ "$ci" = "missing" ]; then
+              ci="$(conclusion_for "$json" "CI")"
+              echo "CI retry $attempt => $ci" >&2
+            fi
+            if [ "$direct_audit" = false ] && [ "$exhaustive" = "missing" ]; then
+              exhaustive="$(conclusion_for "$json" "Auditoría Exhaustiva QuickBite")"
+              echo "Auditoría Exhaustiva QuickBite retry $attempt => $exhaustive" >&2
+            fi
           done
+
+          printf 'ci=%s\n' "$ci" >> "$GITHUB_OUTPUT"
+          printf 'exhaustive=%s\n' "$exhaustive" >> "$GITHUB_OUTPUT"
+          if [ "$ci" != "success" ] || [ "$exhaustive" != "success" ]; then
+            echo "Acceptance evidence rejected: CI=$ci, exhaustive=$exhaustive, SHA=$SHA" >&2
+            exit 1
+          fi
 
   production-smoke:
     name: Production deployment smoke
