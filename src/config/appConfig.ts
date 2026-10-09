@@ -24,7 +24,6 @@ export const appConfig = {
   analyticsProvider: import.meta.env.VITE_ANALYTICS_PROVIDER ?? 'none',
   analyticsKey: import.meta.env.VITE_ANALYTICS_KEY ?? '',
   otelEndpoint: import.meta.env.VITE_OTEL_EXPORTER_OTLP_ENDPOINT ?? '',
-  adminInviteCode: import.meta.env.VITE_ADMIN_INVITE_CODE ?? '',
   allowedOrigins: (import.meta.env.VITE_ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
   primaryDomain: import.meta.env.VITE_PRIMARY_DOMAIN ?? '',
   cdnUrl: import.meta.env.VITE_CDN_URL ?? '',

@@ -6,7 +6,6 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { User, Mail, Lock, Eye, EyeOff, Shield, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { appConfig } from '../../config/appConfig';
 import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 
 export function RegisterPage() {
@@ -68,13 +67,8 @@ export function RegisterPage() {
       newErrors.confirmPassword = 'Las contraseñas no coinciden';
     }
 
-    if (appConfig.adminInviteCode) {
-      if (!formData.verificationCode) {
-        newErrors.verificationCode = 'El código de verificación es requerido';
-      } else if (appConfig.adminInviteCode && formData.verificationCode !== appConfig.adminInviteCode) {
-        newErrors.verificationCode = 'Código de verificación inválido';
-      }
-    }
+    // Invite codes are validated exclusively by the server-side create_admin_profile RPC.
+    // Never compare against a VITE_* secret because it is shipped to the browser.
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

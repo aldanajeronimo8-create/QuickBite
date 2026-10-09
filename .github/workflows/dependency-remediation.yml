@@ -1,0 +1,126 @@
+name: Dependency Remediation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dependency-remediation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    name: Regenerate lockfile and validate fixes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout security branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install current locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Normalize security overrides without cross-major dependency substitutions
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.dependencies['react-router'] = '7.18.2';
+          pkg.dependencies['react-router-dom'] = '7.18.2';
+          pkg.devDependencies.vitest = '5.0.3';
+          pkg.pnpm ??= {};
+          pkg.pnpm.overrides ??= {};
+          const overrides = pkg.pnpm.overrides;
+          for (const key of Object.keys(overrides)) {
+            if (
+              key.startsWith('brace-expansion@') ||
+              key.startsWith('react-router@') ||
+              key.startsWith('vitest@') ||
+              key.startsWith('@vitest/mocker@')
+            ) delete overrides[key];
+          }
+          overrides['minimatch@3>brace-expansion'] = '1.1.21';
+          overrides['minimatch@10>brace-expansion'] = '5.0.12';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+
+          const configPath = 'vite.config.ts';
+          const config = fs.readFileSync(configPath, 'utf8');
+          const oldImport = "import { defineConfig } from 'vite'";
+          if (!config.includes(oldImport)) throw new Error('Expected vite.config.ts defineConfig import was not found');
+          fs.writeFileSync(configPath, config.replace(oldImport, "import { defineConfig } from 'vitest/config'"));
+          NODE
+
+      - name: Regenerate pnpm lockfile
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Commit generated manifest, lockfile and compatible test config
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json pnpm-lock.yaml vite.config.ts
+          if git diff --cached --quiet; then
+            echo "No dependency remediation changes were generated."
+          else
+            git commit -m "fix(security): resolve dependency advisories compatibly"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Strict dependency audit
+        id: audit
+        continue-on-error: true
+        run: pnpm audit --audit-level high
+
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: pnpm typecheck
+
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: pnpm lint
+
+      - name: Unit tests
+        id: tests
+        continue-on-error: true
+        run: pnpm test
+
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: pnpm build
+
+      - name: Fail if any validation failed
+        if: always()
+        env:
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          TESTS_OUTCOME: ${{ steps.tests.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        run: |
+          printf 'audit=%s typecheck=%s lint=%s tests=%s build=%s\n' "$AUDIT_OUTCOME" "$TYPECHECK_OUTCOME" "$LINT_OUTCOME" "$TESTS_OUTCOME" "$BUILD_OUTCOME"
+          test "$AUDIT_OUTCOME" = success &&
+          test "$TYPECHECK_OUTCOME" = success &&
+          test "$LINT_OUTCOME" = success &&
+          test "$TESTS_OUTCOME" = success &&
+          test "$BUILD_OUTCOME" = success
