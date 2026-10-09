@@ -1,5 +1,6 @@
 import { test, expect, type Page } from './auth-fixture';
 import { createClient } from '@supabase/supabase-js';
+import { readFileSync } from 'node:fs';
 import * as XLSX from '@redoper1/xlsx-js-style';
 
 type Role = 'student' | 'parent' | 'staff' | 'admin';
@@ -153,7 +154,7 @@ test.describe('critical functional flows @student', () => {
     await healthy(page, state);
   });
 
-  test('student completes purchase, admin confirms payment, staff prepares and delivers, and records reconcile', async ({ browser, e2eAuth }) => {
+  test('student completes purchase, admin confirms payment, staff prepares and delivers, and records reconcile', async ({ browser, e2eAuth }, testInfo) => {
     const auditUrl = process.env.VITE_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const studentEmail = process.env.PLAYWRIGHT_E2E_EMAIL;
@@ -402,9 +403,9 @@ test.describe('critical functional flows @student', () => {
     await reportPage.getByRole('button', { name: /descargar excel/i }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.xlsx$/i);
-    const downloadPath = await download.path();
-    if (!downloadPath) throw new Error('Playwright no proporcionó el archivo descargado para verificar la exportación.');
-    const workbook = XLSX.readFile(downloadPath);
+    const downloadPath = testInfo.outputPath(download.suggestedFilename());
+    await download.saveAs(downloadPath);
+    const workbook = XLSX.read(readFileSync(downloadPath), { type: 'buffer' });
     expect(workbook.Sheets['Ventas']).toBeDefined();
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets['Ventas'], { header: 1, raw: true }) as unknown[][];
     const exportedOrder = rows.find((row) => String(row[0] ?? '') === orderNumber);
