@@ -1,11 +1,6 @@
 name: Dependency Remediation
 
 on:
-  push:
-    branches:
-      - security/incremental-hardening-oct-2026
-    paths:
-      - '.github/workflows/dependency-remediation.yml'
   workflow_dispatch:
 
 permissions:
