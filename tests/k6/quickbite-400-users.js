@@ -366,16 +366,21 @@ async function probeLinks(page, role, route) {
     }
 
     const finalUrl = await page.url();
-    const targetUrl = BASE_URL + href;
+    const targetUrl = new URL(href, BASE_URL).href;
+    const expected = new URL(targetUrl);
+    const actual = new URL(finalUrl);
     const status = response ? response.status() : null;
     const bodyText = (await page.locator('body').textContent().catch(() => '') || '').trim();
-    const reachedTarget = finalUrl === targetUrl;
+    const normalizePath = (path) => path === '/' ? '/' : '/' + path.split('/').filter(Boolean).join('/');
+    const reachedTarget = actual.origin === expected.origin
+      && normalizePath(actual.pathname) === normalizePath(expected.pathname)
+      && actual.search === expected.search;
     const documentRendered = bodyText.length > 40;
-    // K6 Chromium can report a null navigation response for a same-document
-    // navigation. Treat it as successful only when the exact target URL was
-    // reached, the document rendered, and no navigation error occurred.
-    const ok = !navigationError && (
-      (Boolean(response) && status < 500) ||
+    const notFoundPage = /page not found|404 not found|página no encontrada|página no existe|ruta no encontrada/i.test(bodyText);
+    // A 4xx is a broken destination too. A null response is allowed only for a
+    // same-document navigation that reaches the exact normalized target and renders content.
+    const ok = !navigationError && !notFoundPage && (
+      (Boolean(response) && status >= 200 && status < 400 && reachedTarget && documentRendered) ||
       (!response && reachedTarget && documentRendered)
     );
     console.error(
@@ -399,7 +404,7 @@ async function probeLinks(page, role, route) {
 
     check(
       { ok, href, meta },
-      { 'internal link resolves below 500': (v) => v.ok === true },
+      { 'internal link reaches its target with a successful response': (v) => v.ok === true },
     );
 
     if (!ok) failures.add(true, { role });
