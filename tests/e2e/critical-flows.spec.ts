@@ -1,6 +1,7 @@
 import { test, expect, type Page } from './auth-fixture';
+import * as XLSX from '@redoper1/xlsx-js-style';
 
-type Role = 'student' | 'parent' | 'admin';
+type Role = 'student' | 'parent' | 'staff' | 'admin';
 
 function isExpectedUnauthenticatedAuthResponse(response: { status: () => number; url: () => string; request: () => { method: () => string } }) {
   return response.status() === 401 && response.request().method() === 'GET' && /\/auth\/v1\/user(?:$|\?)/.test(response.url());
@@ -40,7 +41,7 @@ async function monitor(page: Page) {
 
 async function login(page: Page, role: Role, e2eAuth: { install: (page: Page, role: Role) => Promise<void> }) {
   await e2eAuth.install(page, role);
-  const destination = role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : '/admin';
+  const destination = role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : role === 'staff' ? '/staff' : '/admin';
   await page.goto(destination);
   await page.waitForLoadState('domcontentloaded');
 }
@@ -51,6 +52,109 @@ async function healthy(page: Page, state: Awaited<ReturnType<typeof monitor>>) {
   expect(state.responses, JSON.stringify(state.responses)).toEqual([]);
   await expect(page.locator('body')).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/application error|chunkloaderror|uncaught|algo sali[oó] mal/i);
+}
+
+
+type AuditOrderItem = {
+  product_id: string;
+  quantity: number;
+  price: number | string;
+  stock_before: number | null;
+  stock_after: number | null;
+};
+
+type AuditOrderSnapshot = {
+  id: string;
+  order_number: string;
+  user_id: string;
+  total: number | string;
+  status: string;
+  payment_status: string;
+  created_at: string;
+  order_items: AuditOrderItem[];
+};
+
+type AuditProfile = { id: string; email?: string; role: string };
+type AuditInventoryMovement = {
+  id: string;
+  product_id: string;
+  movement_type: string;
+  quantity: number;
+  previous_stock: number;
+  new_stock: number;
+  created_at: string;
+  reason: string | null;
+};
+type AuditStaffEvent = {
+  action: string;
+  actor_id: string | null;
+  entity_id: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+type AuditProduct = { id: string; name: string; stock: number };
+type DailyOrderAudit = {
+  order_number: string;
+  total: number | string;
+  payment_status: string;
+  created_at: string;
+  order_items: Array<{ quantity: number }>;
+};
+
+async function readServiceRows<T>(table: string, query: Record<string, string>): Promise<T[]> {
+  const baseUrl = process.env.VITE_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!baseUrl || !serviceRoleKey) {
+    throw new Error('Missing service-role read configuration for transactional E2E assertions.');
+  }
+
+  const endpoint = new URL('/rest/v1/' + table, baseUrl);
+  for (const [key, value] of Object.entries(query)) endpoint.searchParams.set(key, value);
+  const response = await fetch(endpoint, {
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: 'Bearer ' + serviceRoleKey,
+      Accept: 'application/json',
+    },
+  });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error('Transactional E2E read failed for ' + table + ' (' + response.status + '): ' + body.slice(0, 250));
+  }
+
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(body);
+  } catch {
+    throw new Error('Transactional E2E read returned invalid JSON for ' + table + '.');
+  }
+  if (!Array.isArray(decoded)) throw new Error('Transactional E2E read returned a non-array for ' + table + '.');
+  return decoded as T[];
+}
+
+async function readOrderSnapshot(orderNumber: string): Promise<AuditOrderSnapshot> {
+  const rows = await readServiceRows<AuditOrderSnapshot>('orders', {
+    select: 'id,order_number,user_id,total,status,payment_status,created_at,order_items(product_id,quantity,price,stock_before,stock_after)',
+    order_number: 'eq.' + orderNumber,
+  });
+  if (rows.length !== 1) {
+    throw new Error('Expected exactly one persisted order for ' + orderNumber + ', received ' + rows.length + '.');
+  }
+  return rows[0];
+}
+
+function bogotaDateForTest(value: string): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(value));
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  if (!year || !month || !day) throw new Error('Could not derive the Bogotá reporting date.');
+  return year + '-' + month + '-' + day;
 }
 
 test.describe('critical functional flows @student', () => {
@@ -151,7 +255,7 @@ test.describe('critical functional flows @student', () => {
     await healthy(page, state);
   });
 
-  test('student completes a real purchase and admin processes it through delivery', async ({ browser, e2eAuth }) => {
+  test('student completes purchase, admin confirms payment, staff prepares and delivers, inventory and Excel reconcile', async ({ browser, e2eAuth }) => {
     const studentPage = await browser.newPage();
     const studentState = await monitor(studentPage);
     await login(studentPage, 'student', e2eAuth);
@@ -160,16 +264,16 @@ test.describe('critical functional flows @student', () => {
     const addButtons = studentPage.getByRole('button', { name: /^agregar$/i });
     await expect(addButtons.first()).toBeVisible();
     await addButtons.first().click();
-
     await studentPage.getByRole('button', { name: /abrir carrito/i }).click();
+
     const cartSheet = studentPage.getByRole('heading', { name: 'Tu pedido', exact: true }).locator('xpath=../..');
     await expect(cartSheet).toBeVisible();
     await expect(cartSheet).toContainText(/método de pago/i);
-
     const nequi = cartSheet.getByRole('button', { name: /^nequi/i });
     await expect(nequi).toBeVisible();
     await nequi.click();
     await cartSheet.getByRole('button', { name: /continuar al pago/i }).click();
+
     const paymentSheet = studentPage.getByRole('heading', { name: 'Confirmar pago', exact: true }).locator('xpath=../..');
     await expect(paymentSheet).toBeVisible();
     await expect(paymentSheet).toContainText(/pago|referencia|total/i);
@@ -179,11 +283,50 @@ test.describe('critical functional flows @student', () => {
     await expect(receiptOrder).toBeVisible({ timeout: 15_000 });
     const orderNumber = (await receiptOrder.textContent())?.trim();
     expect(orderNumber).toMatch(/^QB\d{6}[A-Z0-9]+$/);
+    if (!orderNumber) throw new Error('The purchase confirmation did not expose an order number.');
 
-    const studentLogout = studentPage.getByRole('button', { name: /cerrar sesión/i }).first();
-    await studentPage.getByRole('button', { name: /^cerrar$/i }).click().catch(() => undefined);
-    await studentLogout.click();
-    await studentPage.waitForURL(/\/login$/);
+    const pendingOrder = await readOrderSnapshot(orderNumber);
+    expect(pendingOrder.order_number).toBe(orderNumber);
+    expect(pendingOrder.status).toBe('pending');
+    expect(pendingOrder.payment_status).toBe('pending');
+    expect(Number(pendingOrder.total)).toBeGreaterThan(0);
+    expect(pendingOrder.order_items).toHaveLength(1);
+
+    const studentEmail = process.env.PLAYWRIGHT_E2E_EMAIL;
+    if (!studentEmail) throw new Error('Missing student E2E identity for ownership verification.');
+    const studentProfiles = await readServiceRows<AuditProfile>('profiles', {
+      select: 'id,email,role',
+      email: 'eq.' + studentEmail,
+    });
+    expect(studentProfiles).toHaveLength(1);
+    expect(studentProfiles[0].role).toBe('student');
+    expect(pendingOrder.user_id).toBe(studentProfiles[0].id);
+
+    const item = pendingOrder.order_items[0];
+    expect(Number(item.price) * item.quantity).toBeCloseTo(Number(pendingOrder.total), 2);
+    expect(Number.isInteger(item.stock_before)).toBeTruthy();
+    expect(Number.isInteger(item.stock_after)).toBeTruthy();
+    expect((item.stock_before as number) - (item.stock_after as number)).toBe(item.quantity);
+
+    const products = await readServiceRows<AuditProduct>('products', {
+      select: 'id,name,stock',
+      id: 'eq.' + item.product_id,
+    });
+    expect(products).toHaveLength(1);
+    const product = products[0];
+
+    const movements = await readServiceRows<AuditInventoryMovement>('inventory_movements', {
+      select: 'id,product_id,movement_type,quantity,previous_stock,new_stock,created_at,reason',
+      product_id: 'eq.' + item.product_id,
+      quantity: 'eq.' + item.quantity,
+      previous_stock: 'eq.' + item.stock_before,
+      new_stock: 'eq.' + item.stock_after,
+      created_at: 'gte.' + pendingOrder.created_at,
+      order: 'created_at.asc',
+    });
+    expect(movements, 'the purchase must create one inventory movement with the exact before/after stock transition').toHaveLength(1);
+    expect(movements[0].movement_type).toBe('sale');
+
     await studentPage.close();
 
     const adminPage = await browser.newPage();
@@ -192,7 +335,7 @@ test.describe('critical functional flows @student', () => {
     await adminPage.goto('/admin/payments');
     await healthy(adminPage, adminState);
 
-    const paymentCard = adminPage.getByTestId(`admin-payment-${orderNumber}`);
+    const paymentCard = adminPage.getByTestId('admin-payment-' + orderNumber);
     await expect(paymentCard).toBeVisible({ timeout: 15_000 });
     await paymentCard.getByRole('button', { name: /^confirmar$/i }).click();
     try {
@@ -212,28 +355,125 @@ test.describe('critical functional flows @student', () => {
       throw error;
     }
 
+    const approvedOrder = await readOrderSnapshot(orderNumber);
+    expect(approvedOrder.payment_status).toBe('confirmed');
+    expect(approvedOrder.status).toBe('pending');
+    await healthy(adminPage, adminState);
+
+    const staffPage = await browser.newPage();
+    const staffState = await monitor(staffPage);
+    await login(staffPage, 'staff', e2eAuth);
+    await staffPage.goto('/staff');
+    await healthy(staffPage, staffState);
+
+    const staffOrder = staffPage.locator('article').filter({ hasText: orderNumber }).first();
+    await expect(staffOrder).toBeVisible({ timeout: 30_000 });
+    await expect(staffOrder).toContainText('Pendiente');
+    await staffOrder.getByRole('button', { name: 'Comenzar preparación', exact: true }).click();
+    await expect(staffOrder).toContainText('En preparación');
+    await expect(staffOrder.getByRole('button', { name: 'Marcar como listo', exact: true })).toBeVisible();
+    await healthy(staffPage, staffState);
+
+    await staffOrder.getByRole('button', { name: 'Marcar como listo', exact: true }).click();
+    await expect(staffOrder).toContainText('Listo');
+    await expect(staffOrder.getByRole('button', { name: 'Marcar como entregado', exact: true })).toBeVisible();
+    await healthy(staffPage, staffState);
+
+    await staffOrder.getByRole('button', { name: 'Marcar como entregado', exact: true }).click();
+    await expect.poll(
+      () => staffPage.locator('article').filter({ hasText: orderNumber }).count(),
+      { timeout: 20_000, message: 'a delivered order must leave the active staff queue' },
+    ).toBe(0);
+    await healthy(staffPage, staffState);
+    await staffPage.close();
+
+    const finalOrder = await readOrderSnapshot(orderNumber);
+    expect(finalOrder.status).toBe('delivered');
+    expect(finalOrder.payment_status).toBe('confirmed');
+
+    const staffEvents = await readServiceRows<AuditStaffEvent>('audit_logs', {
+      select: 'action,actor_id,entity_id,metadata,created_at',
+      action: 'eq.order.staff_status_change',
+      entity_id: 'eq.' + finalOrder.id,
+      order: 'created_at.asc',
+    });
+    expect(staffEvents).toHaveLength(3);
+    expect(staffEvents.map((event) => event.metadata.to)).toEqual(['preparing', 'ready', 'delivered']);
+    const actorIds = Array.from(new Set(staffEvents.map((event) => event.actor_id).filter((id): id is string => Boolean(id))));
+    expect(actorIds).toHaveLength(1);
+    const staffProfiles = await readServiceRows<AuditProfile>('profiles', {
+      select: 'id,role',
+      id: 'in.(' + actorIds.join(',') + ')',
+    });
+    expect(staffProfiles).toHaveLength(1);
+    expect(staffProfiles[0].role).toBe('staff');
+
     await adminPage.goto('/admin/orders');
+    await adminPage.reload({ waitUntil: 'domcontentloaded' });
     await healthy(adminPage, adminState);
-    const orderCard = adminPage.getByTestId(`admin-order-${orderNumber}`);
+    const orderCard = adminPage.getByTestId('admin-order-' + orderNumber);
     await expect(orderCard).toBeVisible({ timeout: 15_000 });
-    await expect(orderCard).toContainText(/pedido recibido|confirmado/i);
+    await expect(orderCard).toContainText(/Entregado/i);
+    await expect(orderCard).toContainText(/Pago:\s*Confirmado/i);
 
-    await orderCard.getByRole('button', { name: /^en preparación$/i }).click();
-    await expect(orderCard).toContainText(/en preparación/i);
+    await adminPage.goto('/admin/inventory');
     await healthy(adminPage, adminState);
-    await orderCard.getByRole('button', { name: /^listo para recoger$/i }).click();
-    await expect(orderCard).toContainText(/listo para recoger/i);
-    await healthy(adminPage, adminState);
-    await orderCard.getByRole('button', { name: /^entregado$/i }).click();
-    await expect(orderCard).toContainText(/entregado/i);
-    await healthy(adminPage, adminState);
+    const movementRow = adminPage.locator('tbody tr')
+      .filter({ hasText: product.name })
+      .filter({ hasText: String(item.stock_before) + ' → ' + String(item.stock_after) })
+      .first();
+    await expect(movementRow, 'admin inventory history must display the purchase stock movement').toBeVisible({ timeout: 20_000 });
+    await expect(movementRow).toContainText(/Venta/i);
 
-    const openAdminMenu = adminPage.getByRole('button', { name: 'Abrir menú lateral', exact: true });
-    if (await openAdminMenu.count() && await openAdminMenu.isVisible()) await openAdminMenu.click();
-    const adminLogout = adminPage.getByRole('button', { name: /cerrar sesión/i }).first();
-    await adminLogout.scrollIntoViewIfNeeded();
-    await adminLogout.click();
-    await adminPage.waitForURL(/\/login$/);
+    const reportDate = bogotaDateForTest(finalOrder.created_at);
+    const reportStart = new Date(reportDate + 'T00:00:00-05:00');
+    const reportEnd = new Date(reportStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayOrdersRaw = await readServiceRows<DailyOrderAudit>('orders', {
+      select: 'order_number,total,payment_status,created_at,order_items(quantity)',
+      created_at: 'gte.' + reportStart.toISOString(),
+      order: 'created_at.asc',
+    });
+    const dayOrders = dayOrdersRaw.filter((order) => new Date(order.created_at).getTime() < reportEnd.getTime());
+    const confirmedDayOrders = dayOrders.filter((order) => order.payment_status === 'confirmed');
+    const expectedConfirmedSales = confirmedDayOrders.reduce((sum, order) => sum + Number(order.total), 0);
+    const expectedConfirmedUnits = confirmedDayOrders.reduce(
+      (sum, order) => sum + order.order_items.reduce((units, orderItem) => units + Number(orderItem.quantity), 0),
+      0,
+    );
+
+    await adminPage.goto('/admin/reports');
+    await healthy(adminPage, adminState);
+    const reportDateInput = adminPage.locator('input[type="date"][aria-label="Fecha de referencia del informe"]');
+    await expect(reportDateInput).toBeVisible();
+    await reportDateInput.fill(reportDate);
+    await expect(adminPage.locator('body')).toContainText(orderNumber, { timeout: 20_000 });
+
+    const downloadPromise = adminPage.waitForEvent('download');
+    await adminPage.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('quickbite-informe-daily-' + reportDate + '.xlsx');
+    const downloadPath = await download.path();
+    expect(downloadPath).toBeTruthy();
+    const workbook = XLSX.readFile(downloadPath as string);
+    expect(workbook.SheetNames).toContain('Resumen');
+    expect(workbook.SheetNames).toContain('Ventas');
+
+    const summaryRows = XLSX.utils.sheet_to_json(workbook.Sheets['Resumen'], { header: 1, defval: null }) as unknown[][];
+    const metricValue = (name: string) => summaryRows.find((row) => row[0] === name)?.[1];
+    expect(Number(metricValue('Ventas confirmadas'))).toBeCloseTo(expectedConfirmedSales, 2);
+    expect(Number(metricValue('Pedidos totales'))).toBe(dayOrders.length);
+    expect(Number(metricValue('Pedidos confirmados'))).toBe(confirmedDayOrders.length);
+    expect(Number(metricValue('Unidades vendidas'))).toBe(expectedConfirmedUnits);
+
+    const salesRows = XLSX.utils.sheet_to_json(workbook.Sheets['Ventas'], { header: 1, defval: null }) as unknown[][];
+    const salesHeaders = salesRows[0].map(String);
+    const exportedOrder = salesRows.find((row) => row[salesHeaders.indexOf('N.º pedido')] === orderNumber);
+    expect(exportedOrder, 'the downloaded Excel must contain the order created by this test').toBeDefined();
+    expect(exportedOrder?.[salesHeaders.indexOf('Estado pedido')]).toBe('Entregado');
+    expect(exportedOrder?.[salesHeaders.indexOf('Estado pago')]).toBe('Confirmado');
+    expect(Number(exportedOrder?.[salesHeaders.indexOf('Total pedido')])).toBeCloseTo(Number(finalOrder.total), 2);
+    expect(Number(exportedOrder?.[salesHeaders.indexOf('Unidades')])).toBe(item.quantity);
+
     await adminPage.close();
 
     const verificationPage = await browser.newPage();
@@ -241,7 +481,7 @@ test.describe('critical functional flows @student', () => {
     await login(verificationPage, 'student', e2eAuth);
     await verificationPage.goto('/student/history');
     await healthy(verificationPage, verificationState);
-    const historyCard = verificationPage.locator('article').filter({ hasText: orderNumber! }).first();
+    const historyCard = verificationPage.locator('article').filter({ hasText: orderNumber }).first();
     await expect(historyCard).toBeVisible({ timeout: 15_000 });
     await expect(historyCard).toContainText(/Recogida/i);
     const pickupLine = historyCard.locator('div.grid').filter({ hasText: /Recogida/i }).last();
