@@ -207,7 +207,7 @@ test.describe('critical functional flows @student', () => {
         cardText,
         apiResponses: adminState.responses,
         browserErrors: adminState.errors,
-        visiblePaymentFeedback: pageText.split('\\n').filter((line) => /pago|confirm|error|falló|fallo|permiso|pedido/i.test(line)).slice(-30),
+        visiblePaymentFeedback: pageText.split('\n').filter((line) => /pago|confirm|error|falló|fallo|permiso|pedido/i.test(line)).slice(-30),
       }));
       throw error;
     }
