@@ -438,6 +438,14 @@ async function runBrowserAudit(role, sessionData) {
   const page = await browser.newPage();
 
   const consoleErrors = [];
+  const pageErrors = [];
+  page.on('pageerror', (error) => {
+    const detail = error && error.stack ? error.stack : String(error);
+    pageErrors.push(detail);
+    failures.add(true, { role, kind: 'uncaught-page-error' });
+    console.error('BROWSER_UNCAUGHT_ERROR', role, detail);
+  });
+
   page.on('console', (message) => {
     const type = message.type();
     if (type === 'error') consoleErrors.push(message.text());
@@ -488,14 +496,15 @@ async function runBrowserAudit(role, sessionData) {
     }
 
     check(
-      { consoleErrors, httpErrors },
+      { consoleErrors, pageErrors, httpErrors },
       {
         'no browser console errors were emitted': (v) => v.consoleErrors.length === 0,
+        'no uncaught browser runtime errors were emitted': (v) => v.pageErrors.length === 0,
         'no document/fetch/xhr response errors were emitted': (v) => v.httpErrors.length === 0,
       },
     );
 
-    if (consoleErrors.length || httpErrors.length) failures.add(true, { role });
+    if (consoleErrors.length || pageErrors.length || httpErrors.length) failures.add(true, { role });
   } finally {
     await page.close();
   }
