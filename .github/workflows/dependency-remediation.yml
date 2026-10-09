@@ -6,8 +6,6 @@ on:
       - security/incremental-hardening-oct-2026
     paths:
       - '.github/workflows/dependency-remediation.yml'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
   workflow_dispatch:
 
 permissions:
@@ -44,29 +42,50 @@ jobs:
       - name: Install current locked dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Apply pnpm's vulnerability remediation suggestions
+      - name: Normalize security overrides without cross-major dependency substitutions
         shell: bash
         run: |
-          set +e
-          pnpm audit --fix
-          code=$?
-          set -e
-          echo "pnpm audit --fix exit code: $code"
-          echo "Continuing to regenerate the lockfile and run the strict audit."
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.dependencies['react-router'] = '7.18.2';
+          pkg.dependencies['react-router-dom'] = '7.18.2';
+          pkg.devDependencies.vitest = '5.0.3';
+          pkg.pnpm ??= {};
+          pkg.pnpm.overrides ??= {};
+          const overrides = pkg.pnpm.overrides;
+          for (const key of Object.keys(overrides)) {
+            if (
+              key.startsWith('brace-expansion@') ||
+              key.startsWith('react-router@') ||
+              key.startsWith('vitest@') ||
+              key.startsWith('@vitest/mocker@')
+            ) delete overrides[key];
+          }
+          overrides['minimatch@3>brace-expansion'] = '1.1.21';
+          overrides['minimatch@10>brace-expansion'] = '5.0.12';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+
+          const configPath = 'vite.config.ts';
+          const config = fs.readFileSync(configPath, 'utf8');
+          const oldImport = "import { defineConfig } from 'vite'";
+          if (!config.includes(oldImport)) throw new Error('Expected vite.config.ts defineConfig import was not found');
+          fs.writeFileSync(configPath, config.replace(oldImport, "import { defineConfig } from 'vitest/config'"));
+          NODE
 
       - name: Regenerate pnpm lockfile
         run: pnpm install --no-frozen-lockfile
 
-      - name: Commit generated manifest and lockfile
+      - name: Commit generated manifest, lockfile and compatible test config
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json pnpm-lock.yaml
+          git add package.json pnpm-lock.yaml vite.config.ts
           if git diff --cached --quiet; then
             echo "No dependency remediation changes were generated."
           else
-            git commit -m "fix(security): remediate vulnerable dependencies"
+            git commit -m "fix(security): resolve dependency advisories compatibly"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
