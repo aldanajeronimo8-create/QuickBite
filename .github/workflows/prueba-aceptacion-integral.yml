@@ -263,7 +263,7 @@ jobs:
           retention-days: 14
 
   final:
-    name: PRODUCTION APPROVED 100% gate
+    name: Production acceptance gate
     if: always()
     needs: [resolve, production-smoke, integral-e2e]
     runs-on: ubuntu-latest
@@ -291,5 +291,5 @@ jobs:
             exit 1
           fi
 
-          echo "PRODUCTION APPROVAL: 100%"
-          echo "All required prior gates, production reachability, and integral acceptance checks passed for the same SHA."
+          echo "PRODUCTION ACCEPTANCE: PASS"
+          echo "All required prior gates, production reachability, and integral acceptance checks passed for the same SHA. This certifies the defined acceptance suite, not every possible app behavior."
