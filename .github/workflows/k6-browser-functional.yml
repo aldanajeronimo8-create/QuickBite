@@ -3,7 +3,7 @@ name: QuickBite Browser Functional Smoke
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, diagnose/k6-internal-links-payment]
     paths:
       - 'tests/k6/quickbite-400-users.js'
       - '.github/workflows/k6-browser-functional.yml'
