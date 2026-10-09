@@ -3,7 +3,7 @@ name: QuickBite Browser Functional Smoke
 on:
   workflow_dispatch:
   push:
-    branches: [main, diagnose/k6-internal-links-payment]
+    branches: [main]
     paths:
       - 'tests/k6/quickbite-400-users.js'
       - '.github/workflows/k6-browser-functional.yml'
@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: quickbite-browser-functional-${{ github.ref_name == 'main' && 'main' || github.sha }}
+  group: quickbite-browser-functional
   cancel-in-progress: false
 
 jobs:
