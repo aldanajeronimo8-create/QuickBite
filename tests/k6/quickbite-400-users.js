@@ -363,19 +363,32 @@ async function probeLinks(page, role, route) {
     }
 
     const finalUrl = await page.url();
+    const targetUrl = BASE_URL + href;
     const status = response ? response.status : null;
-    const ok = !navigationError && Boolean(response) && status < 500;
+    const bodyText = (await page.locator('body').textContent().catch(() => '') || '').trim();
+    const reachedTarget = finalUrl === targetUrl;
+    const documentRendered = bodyText.length > 40;
+    // K6 Chromium can report a null navigation response for a same-document
+    // navigation. Treat it as successful only when the exact target URL was
+    // reached, the document rendered, and no navigation error occurred.
+    const ok = !navigationError && (
+      (Boolean(response) && status < 500) ||
+      (!response && reachedTarget && documentRendered)
+    );
     console.error(
       'INTERNAL_LINK_PROBE',
       JSON.stringify({
         role,
         sourceRoute: route,
         href,
-        targetUrl: BASE_URL + href,
+        targetUrl,
         status,
         responseUrl: response ? response.url : null,
         finalUrl,
         navigationError,
+        bodyTextLength: bodyText.length,
+        reachedTarget,
+        documentRendered,
         ok,
         linkText: meta.text,
       }),
