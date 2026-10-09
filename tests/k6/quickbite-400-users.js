@@ -362,7 +362,7 @@ async function probeLinks(page, role, route) {
 
     const finalUrl = await page.url();
     const targetUrl = BASE_URL + href;
-    const status = response ? response.status : null;
+    const status = response ? response.status() : null;
     const bodyText = (await page.locator('body').textContent().catch(() => '') || '').trim();
     const reachedTarget = finalUrl === targetUrl;
     const documentRendered = bodyText.length > 40;
@@ -381,7 +381,7 @@ async function probeLinks(page, role, route) {
         href,
         targetUrl,
         status,
-        responseUrl: response ? response.url : null,
+        responseUrl: response ? response.url() : null,
         finalUrl,
         navigationError,
         bodyTextLength: bodyText.length,
