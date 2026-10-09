@@ -352,11 +352,34 @@ async function probeLinks(page, role, route) {
 
     controlsChecked.add(1, { role, kind: 'link' });
 
-    const response = await page.goto(BASE_URL + href, {
-      waitUntil: 'domcontentloaded',
-    });
+    let response = null;
+    let navigationError = '';
+    try {
+      response = await page.goto(BASE_URL + href, {
+        waitUntil: 'domcontentloaded',
+      });
+    } catch (error) {
+      navigationError = String(error);
+    }
 
-    const ok = Boolean(response) && response.status < 500;
+    const finalUrl = await page.url();
+    const status = response ? response.status : null;
+    const ok = !navigationError && Boolean(response) && status < 500;
+    console.error(
+      'INTERNAL_LINK_PROBE',
+      JSON.stringify({
+        role,
+        sourceRoute: route,
+        href,
+        targetUrl: BASE_URL + href,
+        status,
+        responseUrl: response ? response.url : null,
+        finalUrl,
+        navigationError,
+        ok,
+        linkText: meta.text,
+      }),
+    );
 
     check(
       { ok, href, meta },
