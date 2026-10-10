@@ -120,20 +120,24 @@ async function main() {
     stream = fs.createWriteStream(tempPath, { flags: 'wx' });
     stream.on('error', () => undefined);
     const hash = createHash('sha256');
+    const orphanIdsHash = createHash('sha256');
+    const projectedColumns = COLUMNS.map((column) => `n.${column}`).join(', ');
+    const hasAuthAccount = 'EXISTS (SELECT 1 FROM auth.users u WHERE u.id = n.admin_user_id) AS has_auth_account';
     await writeChunk(stream, hash, COLUMNS.map(csvValue).join(',') + '\r\n');
 
     let lastId = null;
     let exported = 0;
     while (true) {
       const sql = lastId
-        ? `SELECT ${COLUMNS.join(', ')} FROM public.admin_notifications WHERE id > $1::uuid ORDER BY id ASC LIMIT $2`
-        : `SELECT ${COLUMNS.join(', ')} FROM public.admin_notifications ORDER BY id ASC LIMIT $1`;
+        ? `SELECT ${projectedColumns}, ${hasAuthAccount} FROM public.admin_notifications n WHERE n.id > $1::uuid ORDER BY n.id ASC LIMIT $2`
+        : `SELECT ${projectedColumns}, ${hasAuthAccount} FROM public.admin_notifications n ORDER BY n.id ASC LIMIT $1`;
       const result = lastId
         ? await client.query(sql, [lastId, PAGE_SIZE])
         : await client.query(sql, [PAGE_SIZE]);
       if (result.rows.length === 0) break;
 
       for (const row of result.rows) {
+        if (!row.has_auth_account) orphanIdsHash.update(`${row.id}\n`);
         await writeChunk(stream, hash, COLUMNS.map((column) => csvValue(row[column])).join(',') + '\r\n');
       }
       exported += result.rows.length;
@@ -151,6 +155,7 @@ async function main() {
     stream = null;
 
     const digest = hash.digest('hex');
+    const orphanIdsDigest = orphanIdsHash.digest('hex');
     const stat = fs.statSync(tempPath);
     if (stat.size <= 0) throw new Error('El archivo de respaldo está vacío.');
     fs.renameSync(tempPath, finalPath);
@@ -163,6 +168,7 @@ async function main() {
       expected_rows: expected,
       notifications_without_auth_account: Number(counts.orphaned),
       notifications_with_auth_account: Number(counts.linked),
+      orphan_ids_sha256: orphanIdsDigest,
       csv_bytes: stat.size,
       csv_sha256: digest,
       null_encoding: '\\N',
