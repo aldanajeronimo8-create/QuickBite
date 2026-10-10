@@ -106,17 +106,6 @@ function buildOrphanQuery(authIds, cursor = null, select = COLUMNS.join(','), li
   return url.toString();
 }
 
-async function getOrphanCount(authIds) {
-  const url = buildOrphanQuery(authIds, null, 'id', 1);
-  const response = await requestJson(url, {
-    headers: { Prefer: 'count=exact', Range: '0-0' },
-  });
-  const contentRange = response.headers.get('content-range') ?? '';
-  const match = contentRange.match(/\/(\d+)$/);
-  if (!match) throw new Error('Could not verify exact orphan notification count from Content-Range.');
-  return Number(match[1]);
-}
-
 async function sha256File(filePath) {
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(filePath)) hash.update(chunk);
@@ -178,9 +167,6 @@ async function backup() {
   const serviceKey = required('SUPABASE_SERVICE_ROLE_KEY');
   const authIds = await getAuthIds();
   console.log('Verified Auth account list: ' + authIds.size + ' accounts.');
-  const initialCount = await getOrphanCount(authIds);
-  if (initialCount <= 0) throw new Error('There are no orphan notifications to clean; no data changed.');
-
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
   const outputDir = path.join(workspace, 'maintenance-backup');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -203,13 +189,10 @@ async function backup() {
   }
 
   const expectedHash = state.idHash.digest('hex');
-  // Avoid a second exact-count aggregate over the 400k+ row table. The streamed
-  // export must match the initial count, and the locked cleanup RPC independently
-  // recomputes both count and SHA-256 inside the transaction before any deletion.
-  if (state.count !== initialCount) {
-    throw new Error('Orphan count changed during backup (initial=' + initialCount +
-      ', exported=' + state.count + '); cleanup refused.');
-  }
+  // Avoid a table-wide exact-count aggregate, which times out on this 400k+ row
+  // table. The streamed set defines the expected count/hash; the locked cleanup
+  // RPC independently recomputes both inside the transaction and aborts on mismatch.
+  if (state.count <= 0) throw new Error('No orphan notifications were exported; cleanup refused.');
 
   const tag = cipher.getAuthTag();
   await verifyEncryptedBackup(backupPath, key, iv, tag, authIds, state.count, expectedHash);
@@ -296,13 +279,10 @@ async function cleanup() {
     throw new Error('Database cleanup response did not meet expected postconditions.');
   }
 
-  const authIds = await getAuthIds();
-  const remaining = await getOrphanCount(authIds);
-  if (remaining !== 0) throw new Error('Post-cleanup verification found ' + remaining + ' orphan notifications.');
   console.log('ORPHAN NOTIFICATION CLEANUP VERIFIED');
   console.log('Notifications removed: ' + cleanupResult.notifications_removed);
   console.log('Valid Auth notifications preserved: ' + cleanupResult.notifications_preserved);
-  console.log('Notifications without Auth remaining: ' + remaining);
+  console.log('Notifications without Auth remaining (transaction result): ' + cleanupResult.notifications_remaining_without_auth);
   console.log('Encrypted backup SHA-256: ' + manifest.encrypted_sha256);
   console.log('No Auth users, profiles, orders, or audit logs were deleted.');
 }
