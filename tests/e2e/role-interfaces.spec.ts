@@ -104,6 +104,22 @@ test.describe('staff interface @staff', () => {
     await expect(page).toHaveURL(/\/staff(?:\/)?$/);
     await expect(page.getByRole('heading', { name: 'Operación de cafetería' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Cola de pedidos' })).toBeVisible();
+    for (const label of ['Pedidos', 'Menú', 'Inventario', 'Recargas', 'Conectados', 'Alérgenos', 'Historial']) {
+      await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible();
+    }
+    await page.getByRole('button', { name: 'Menú', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Gestión del menú' })).toBeVisible();
+    await page.getByRole('button', { name: 'Inventario', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Inventario y stock' })).toBeVisible();
+    await page.getByRole('button', { name: 'Recargas', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Recargas' })).toBeVisible();
+    await page.getByRole('button', { name: 'Conectados', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Usuarios conectados' })).toBeVisible();
+    await page.getByRole('button', { name: 'Alérgenos', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Ingredientes y alérgenos' })).toBeVisible();
+    await page.getByRole('button', { name: 'Historial', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Historial' })).toBeVisible();
+    await assertHealthyInterface(page, errors);
   });
 
   test('staff orders route loads without browser errors', async ({ page, e2eAuth }) => {

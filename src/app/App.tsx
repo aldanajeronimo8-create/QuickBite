@@ -89,6 +89,29 @@ function AppContent() {
     });
   }, [hasSupabase, loadData, user]);
   useEffect(() => { if (!hasSupabase || !user) return; const cleanupRealtime = subscribeRealtime(); return () => cleanupRealtime(); }, [hasSupabase, subscribeRealtime, user]);
+  useEffect(() => {
+    if (!hasSupabase || !user || !user.active) return;
+    const pingPresence = async () => {
+      if (document.visibilityState === 'hidden') return;
+      try {
+        const client = getSupabaseClientForContext(getAuthContext());
+        if (!client) return;
+        const { error } = await client.rpc('staff_ping_presence');
+        if (error) console.warn('[QuickBite] No se pudo actualizar la presencia.', error.message);
+      } catch (error) {
+        console.warn('[QuickBite] No se pudo actualizar la presencia.', error);
+      }
+    };
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') void pingPresence(); };
+    void pingPresence();
+    const interval = window.setInterval(() => void pingPresence(), 30_000);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [hasSupabase, user]);
+
   useEffect(() => { syncVisualInterfaceScope(router.state.location.pathname); return router.subscribe((state) => syncVisualInterfaceScope(state.location.pathname)); }, []);
   return <ErrorBoundary><VisualThemeProvider>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><AdminStudentPreviewBar /><SessionRestorer />{user && <UserThemePreference />}<ThemePreferenceBoundary /></>}<Toaster position="top-center" /></VisualThemeProvider></ErrorBoundary>;
 }
