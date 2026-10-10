@@ -113,27 +113,26 @@ app.post(`${apiPrefix}/parents/create-from-student`, async (c) => {
       .select('id,role').eq('id', authData.user.id).maybeSingle();
     if (studentError) throw studentError;
     if (!student || !['student','both'].includes(student.role)) return c.json({ error: 'Solo un estudiante puede crear el vínculo familiar.' }, 403);
-    const body = await c.req.json() as { email?: string; full_name?: string; cedula?: string; relationship?: string };
+    const body = await c.req.json() as { email?: string; full_name?: string; relationship?: string };
     const email = normalizeEmail(body.email);
     const fullName = typeof body.full_name === 'string' ? body.full_name.trim() : '';
-    const cedula = typeof body.cedula === 'string' ? body.cedula.trim() : '';
     const relationship = typeof body.relationship === 'string' ? body.relationship.trim() : '';
     const allowedRelationships = ['Padre','Madre','Acudiente','Tutor legal','Abuelo/a','Tío/a','Hermano/a','Otro'];
-    if (!email || !email.includes('@') || !fullName || !/^\\d{6,12}$/.test(cedula) || !allowedRelationships.includes(relationship)) {
+    if (!email || !/^\\S+@\\S+\\.\\S+$/.test(email) || !fullName || !allowedRelationships.includes(relationship)) {
       return c.json({ error: 'Datos del representante incompletos o inválidos.' }, 400);
     }
-    const { data: existing } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    if (existing?.users.some((u) => normalizeEmail(u.email) === email)) {
-      return c.json({ error: 'El correo del representante ya tiene una cuenta. Inicia el proceso de vinculación con esa cuenta; no se cambiará su contraseña automáticamente.' }, 409);
+    const { data: created, error: createError } = await supabase.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: fullName, role: 'parent', parent_account_created_automatically: true, initial_parent_password_notice: true },
+    });
+    if (createError || !created.user) {
+      const duplicate = /already|registered|exists/i.test(createError?.message || '');
+      return c.json({ error: duplicate
+        ? 'El correo del representante ya tiene una cuenta. Debe iniciar sesión y solicitar la vinculación de forma segura.'
+        : (createError?.message || 'No se pudo enviar la invitación al representante.') }, duplicate ? 409 : 400);
     }
-    const { data: created, error: createError } = await supabase.auth.admin.createUser({
-      email, password: cedula, email_confirm: true,
-      user_metadata: { full_name: fullName, role: 'parent', parent_account_created_automatically: true, initial_parent_password_notice: true },
-    });
-    if (createError || !created.user) return c.json({ error: createError?.message || 'No se pudo crear la cuenta del representante.' }, 400);
-    const { error: profileError } = await supabase.from('profiles').insert({
+    const { error: profileError } = await supabase.from('profiles').upsert({
       id: created.user.id, email, full_name: fullName, role: 'parent',
-    });
+    }, { onConflict: 'id' });
     if (profileError) {
       await supabase.auth.admin.deleteUser(created.user.id);
       return c.json({ error: profileError.message }, 500);
@@ -146,7 +145,7 @@ app.post(`${apiPrefix}/parents/create-from-student`, async (c) => {
       await supabase.auth.admin.deleteUser(created.user.id);
       return c.json({ error: 'No se pudo vincular el representante al estudiante: ' + linkError.message }, 500);
     }
-    return c.json({ parent: { email, full_name: fullName }, initial_password: 'cedula', notice_on_first_login: true });
+    return c.json({ parent: { email, full_name: fullName }, invitation_sent: true, notice_on_first_login: true });
   } catch (error) {
     console.error('Automatic parent account creation failed', error instanceof Error ? error.message : error);
     return c.json({ error: error instanceof Error ? error.message : 'No se pudo crear la cuenta del representante.' }, 500);
