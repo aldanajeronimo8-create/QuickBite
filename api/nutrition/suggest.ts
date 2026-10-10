@@ -111,6 +111,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const runtimeOidcHeader = req.headers['x-vercel-oidc-token'];
     const runtimeOidcToken = Array.isArray(runtimeOidcHeader) ? runtimeOidcHeader[0] : runtimeOidcHeader;
     const gatewayToken = runtimeOidcToken || process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
+    const gatewayAuthSource = runtimeOidcToken
+      ? 'request_oidc'
+      : process.env.VERCEL_OIDC_TOKEN
+        ? 'environment_oidc'
+        : process.env.AI_GATEWAY_API_KEY
+          ? 'gateway_api_key'
+          : 'missing';
     if (!gatewayToken) return send(res, 503, { error: 'La IA no está habilitada para este despliegue. Configura Vercel AI Gateway en el servidor.' });
 
     const system = [
@@ -146,7 +153,30 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     if (!upstream.ok) {
       if (upstream.status === 401 || upstream.status === 403) {
-        return send(res, 503, { error: 'El servidor de IA rechazó la autenticación. Revisa la conexión de AI Gateway del proyecto.' });
+        let providerError = '';
+        try {
+          const providerPayload: unknown = await upstream.json();
+          if (providerPayload && typeof providerPayload === 'object' && 'error' in providerPayload) {
+            const value = (providerPayload as { error?: unknown }).error;
+            if (typeof value === 'string') providerError = value;
+            else if (value && typeof value === 'object' && 'message' in value) {
+              const message = (value as { message?: unknown }).message;
+              if (typeof message === 'string') providerError = message;
+            }
+          }
+        } catch {
+          // Provider error bodies are optional; do not log or expose arbitrary response data.
+        }
+        providerError = providerError.replace(/[\\r\\n\\t]+/g, ' ').slice(0, 240);
+        console.error('[nutrition-ai] AI Gateway rejected authentication', JSON.stringify({
+          status: upstream.status,
+          authSource: gatewayAuthSource,
+          providerError: providerError || 'no_provider_message',
+        }));
+        const detail = providerError ? ' Detalle del proveedor: ' + providerError : '';
+        return send(res, 503, {
+          error: 'AI Gateway rechazó la autenticación (HTTP ' + upstream.status + ', fuente ' + gatewayAuthSource + ').' + detail,
+        });
       }
       if (upstream.status === 402) return send(res, 503, { error: 'AI Gateway no tiene crédito o cuota disponible para generar la ficha.' });
       if (upstream.status === 429) return send(res, 503, { error: 'La IA está ocupada. Espera un momento y vuelve a intentarlo.' });
