@@ -28,7 +28,7 @@ function parseEnv(raw) {
 
 function csvValue(value) {
   if (value === null || value === undefined) return '\\N';
-  const rendered = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  const rendered = value instanceof Date ? value.toISOString() : typeof value === 'object' ? JSON.stringify(value) : String(value);
   return '"' + rendered.replace(/"/g, '""') + '"';
 }
 
