@@ -35,7 +35,7 @@ interface DataState {
   history: HistoryEntry[];
   loading: boolean;
   loadData: (options?: { silent?: boolean; force?: boolean }) => Promise<void>;
-  addProduct: (product: repo.NewProduct) => Promise<void>;
+  addProduct: (product: repo.NewProduct) => Promise<string>;
   updateProduct: (id: string, updates: repo.ProductUpdate) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   addOrder: (orderData: repo.NewOrder) => Promise<string>;
@@ -154,6 +154,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       metadata: { name: product.name },
     });
     set({ products: [product, ...get().products] });
+    return product.id;
   },
 
   updateProduct: async (id, updates) => {
