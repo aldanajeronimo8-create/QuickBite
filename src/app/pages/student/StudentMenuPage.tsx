@@ -26,6 +26,10 @@ interface CartItem extends Product { qty: number; }
 interface Student { id: string; name: string; grade: string; email?: string; }
 interface ProductNutrition {
   product_id: string;
+  detailed_description: string | null;
+  ingredients_verified: boolean;
+  nutrition_verified: boolean;
+  nutrition_source: string;
   calories: number | null;
   protein_g: number | null;
   carbohydrates_g: number | null;
@@ -128,7 +132,7 @@ export function StudentMenuPage() {
       try {
         const { data, error } = await requireSupabaseClient()
           .from('product_nutrition')
-          .select('product_id,calories,protein_g,carbohydrates_g,fat_g,fiber_g,ingredients,allergens,vegetarian,healthy_choice');
+          .select('product_id,detailed_description,ingredients_verified,nutrition_verified,nutrition_source,calories,protein_g,carbohydrates_g,fat_g,fiber_g,ingredients,allergens,vegetarian,healthy_choice');
         if (error) throw error;
         if (!active) return;
         const next: Record<string, ProductNutrition> = {};
@@ -493,6 +497,18 @@ function ProductCard({ product, nutrition, qty, onAdd, onRemove }: { product: Pr
         {nutrition.calories !== null && <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{fmt(Number(nutrition.calories))} kcal</span>}
         {allergens.length > 0 && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[10px] font-bold capitalize text-amber-700 dark:text-amber-300">Alérgenos: {allergens.slice(0, 2).join(', ')}{allergens.length > 2 ? '…' : ''}</span>}
       </div>}
+      {nutrition && <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left dark:border-slate-800 dark:bg-[#0D111D]">
+        <summary className="cursor-pointer text-xs font-black text-slate-700 dark:text-slate-200">Ver ingredientes y ficha detallada</summary>
+        <div className="mt-2 space-y-2">
+          {nutrition.detailed_description && <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{nutrition.detailed_description}</p>}
+          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Ingredientes</p>
+          <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{nutrition.ingredients?.trim() || 'No se han registrado ingredientes.'}</p>
+          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Alérgenos</p>
+          <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{nutrition.allergens?.trim() || 'No registrados; consulta con la cafetería si tienes una alergia.'}</p>
+          {!nutrition.ingredients_verified && <p className="rounded-lg bg-amber-100 p-2 text-[11px] leading-4 text-amber-900 dark:bg-amber-500/10 dark:text-amber-100">Ingredientes pendientes de verificación. Confirma la receta o etiqueta con la cafetería; la ficha de IA puede omitir componentes.</p>}
+          {nutrition.nutrition_verified && <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">Información nutricional verificada</p>}
+        </div>
+      </details>}
       <p className="mt-2 text-lg font-black text-emerald-600 dark:text-emerald-400">${fmt(product.price)}</p>
       {qty === 0 ? <button onClick={() => onAdd(product)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500"><Plus className="h-4 w-4" />Agregar</button> : <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 p-1 dark:border-emerald-500/20 dark:bg-emerald-500/10"><button onClick={() => onRemove(product.id)} className="grid h-8 w-8 place-items-center rounded-lg bg-white text-emerald-600 transition hover:bg-slate-100 dark:bg-[#131B2E] dark:text-emerald-400 dark:hover:bg-slate-800"><Minus className="h-4 w-4" /></button><span className="font-black text-slate-900 dark:text-white">{qty}</span><button onClick={() => onAdd(product)} className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-600 text-white transition hover:bg-emerald-500"><Plus className="h-4 w-4" /></button></div>}
     </div>
