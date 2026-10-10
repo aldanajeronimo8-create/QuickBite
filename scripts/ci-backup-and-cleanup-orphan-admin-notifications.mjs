@@ -203,10 +203,12 @@ async function backup() {
   }
 
   const expectedHash = state.idHash.digest('hex');
-  const afterCount = await getOrphanCount(authIds);
-  if (state.count !== initialCount || afterCount !== initialCount) {
+  // Avoid a second exact-count aggregate over the 400k+ row table. The streamed
+  // export must match the initial count, and the locked cleanup RPC independently
+  // recomputes both count and SHA-256 inside the transaction before any deletion.
+  if (state.count !== initialCount) {
     throw new Error('Orphan count changed during backup (initial=' + initialCount +
-      ', exported=' + state.count + ', after=' + afterCount + '); cleanup refused.');
+      ', exported=' + state.count + '); cleanup refused.');
   }
 
   const tag = cipher.getAuthTag();
