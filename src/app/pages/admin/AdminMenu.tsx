@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Product } from '../../../lib/supabase';
+import { requireSupabaseClient, type Product } from '../../../lib/supabase';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
 
@@ -75,7 +75,7 @@ export function AdminMenu() {
     setIsDialogOpen(true);
     void (async () => {
       try {
-        const { data, error } = await (await import('../../../lib/supabase')).requireSupabaseClient()
+        const { data, error } = await requireSupabaseClient()
           .from('product_nutrition')
           .select('detailed_description,ingredients,allergens,calories,protein_g,carbohydrates_g,fat_g,fiber_g,vegetarian,healthy_choice,ingredients_verified,nutrition_verified,nutrition_source')
           .eq('product_id', product.id)
