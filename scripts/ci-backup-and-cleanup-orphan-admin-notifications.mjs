@@ -1,4 +1,6 @@
 import fs from 'node:fs';
+import { Buffer } from 'node:buffer';
+import { AbortSignal } from 'node:abort_controller';
 import path from 'node:path';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { createHash, createCipheriv, createDecipheriv, randomBytes, hkdfSync } from 'node:crypto';
@@ -8,6 +10,7 @@ import { createGzip, createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { URL } from 'node:url';
 
+const fetchImpl = globalThis.fetch.bind(globalThis);
 const PROJECT_REF = 'cczbbqxunygcowqfrqdm';
 const API_URL = 'https://' + PROJECT_REF + '.supabase.co';
 const PAGE_SIZE = 1000;
@@ -30,7 +33,7 @@ async function requestJson(url, options = {}) {
   let lastError;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      const response = await fetch(url, {
+      const response = await fetchImpl(url, {
         ...options,
         signal: AbortSignal.timeout(90000),
         headers: {
