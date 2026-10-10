@@ -7,7 +7,7 @@
 ## Hallazgos confirmados
 
 - Tamaño informado por PostgreSQL: aproximadamente 733 MB.
-- `public.admin_notifications`: aproximadamente 320 MB y unas 404.000 filas.
+- `public.admin_notifications`: aproximadamente 321 MB y unas 408.000 filas (medición más reciente durante la revisión).
 - Un recuento agrupado encontró 359.696 notificaciones asociadas a 85 perfiles con rol administrativo que no tienen fila correspondiente en `auth.users`.
 - Se encontraron aproximadamente 44.606 notificaciones asociadas a perfiles que sí tienen fila en `auth.users`. Esas notificaciones se deben conservar.
 - La función `public.fanout_admin_notification_from_audit()` crea una notificación por cada perfil `admin` o `both` (salvo el actor), sin comprobar que el perfil esté activo ni que tenga una cuenta de autenticación no eliminada/no bloqueada. El trigger está conectado a las inserciones en `public.system_audit_logs`.
@@ -16,7 +16,7 @@ Las cifras de tamaño son aproximadas y deben medirse otra vez antes y después 
 
 ## Corrección permanente
 
-La migración `20261010183500_prevent_orphan_admin_notifications.sql` actualiza el disparador para crear notificaciones solo cuando:
+La migración `20261010190601_prevent_orphan_admin_notifications.sql` actualiza el disparador para crear notificaciones solo cuando:
 - el perfil tiene rol `admin` o `both`;
 - `profiles.active = true`;
 - existe una fila correspondiente en `auth.users` que no está eliminada ni bloqueada;
@@ -27,6 +27,15 @@ La migración no borra notificaciones históricas, perfiles ni cuentas.
 ## Procedimiento con respaldo externo obligatorio
 
 **No crear una tabla de respaldo dentro del mismo proyecto.** Eso duplicaría el uso de espacio. Exportar la tabla a un equipo o almacenamiento privado fuera de Supabase, mantener el archivo fuera del repositorio Git y no incluir credenciales en comandos guardados.
+
+La rama incluye el exportador `scripts/backup-admin-notifications.mjs`, invocable después de descargar el código con `pnpm backup:admin-notifications`. La exportación es de solo lectura, por páginas, dentro de una transacción `REPEATABLE READ READ ONLY`; crea un CSV y un manifiesto con el recuento y el SHA-256 fuera del repositorio. No se ha ejecutado desde este entorno porque no tengo acceso a la contraseña de conexión privada del usuario y el respaldo debe quedar bajo su control fuera de Supabase.
+
+Pasos locales:
+1. Usa el código actualizado de `main` después de fusionar el PR de respaldo.
+2. En el `.env` local (ignorado por Git), configura `SUPABASE_PROJECT_REF=cczbbqxunygcowqfrqdm` y `SUPABASE_DB_URL` con la cadena de conexión PostgreSQL del proyecto. No publiques ni compartas esa cadena.
+3. Ejecuta `pnpm install --frozen-lockfile` y después `pnpm backup:admin-notifications`.
+4. El comando debe terminar mostrando `RESPALDO VERIFICADO`, el mismo número de filas exportadas y esperado, la ruta del CSV y un SHA-256. Si no se completa sin errores, no uses el archivo parcial para autorizar la limpieza.
+5. Guarda una segunda copia privada en otro destino y conserva ambos archivos CSV y manifiesto hasta cerrar la validación. Solo entonces ejecuta la limpieza transaccional descrita abajo.
 
 1. En el Dashboard de Supabase, revisar si el proyecto está en modo de solo lectura. No intentar limpiezas hasta contar con un respaldo externo verificable y una ventana de mantenimiento.
 2. Con una conexión de base de datos configurada en el equipo operador, abrir `psql` contra el proyecto correcto. No pegar la cadena de conexión ni la contraseña en un issue, PR o chat.
@@ -134,5 +143,5 @@ SELECT pg_size_pretty(pg_total_relation_size('public.admin_notifications')) AS n
 ## Límites y reversión
 
 - La limpieza histórica no debe ejecutarse desde una migración automática: requiere respaldo externo, ventana de mantenimiento y comparación de recuentos antes/después.
-- Para restaurar desde el CSV si fuera necesario, detener escrituras de notificaciones, restaurar usando las diez columnas enumeradas y validar IDs/recuentos antes de reabrir el uso. No restaurar encima de filas existentes sin resolver previamente los IDs duplicados.
+- Para restaurar desde el CSV si fuera necesario, detener escrituras de notificaciones y restaurar usando las diez columnas enumeradas, con `FORMAT csv, HEADER true, NULL '\\N'`; validar IDs/recuentos antes de reabrir el uso. No restaurar encima de filas existentes sin resolver previamente los IDs duplicados.
 - No se debe borrar historial de auditoría como estrategia de ahorro. Si el tamaño posterior continúa por encima de la cuota, revisar la página Usage/Disk del proyecto y los objetos grandes restantes; el tamaño físico final debe volver a medirse, no inferirse solo del número de filas borradas.
