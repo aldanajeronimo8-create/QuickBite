@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import { Buffer } from 'node:buffer';
-import { AbortSignal } from 'node:abort_controller';
 import path from 'node:path';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { createHash, createCipheriv, createDecipheriv, randomBytes, hkdfSync } from 'node:crypto';
@@ -35,7 +34,7 @@ async function requestJson(url, options = {}) {
     try {
       const response = await fetchImpl(url, {
         ...options,
-        signal: AbortSignal.timeout(90000),
+        signal: globalThis.AbortSignal.timeout(90000),
         headers: {
           apikey: serviceKey,
           Authorization: 'Bearer ' + serviceKey,
