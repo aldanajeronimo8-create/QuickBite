@@ -112,7 +112,7 @@ test.describe('staff interface @staff', () => {
     await page.getByRole('button', { name: 'Inventario', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Inventario y stock' })).toBeVisible();
     await page.getByRole('button', { name: 'Recargas', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Recargas' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recargas', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Conectados', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Usuarios conectados' })).toBeVisible();
     await page.getByRole('button', { name: 'Alérgenos', exact: true }).click();
