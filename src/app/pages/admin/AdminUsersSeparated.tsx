@@ -52,6 +52,8 @@ export function AdminUsersSeparated() {
   const [credentialOnly, setCredentialOnly] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [protectedOriginalEmail, setProtectedOriginalEmail] = useState<string | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(() => new Set());
+  const [deletingSelected, setDeletingSelected] = useState(false);
 
   const loadConsents = async () => {
     try {
@@ -203,6 +205,47 @@ export function AdminUsersSeparated() {
     try { await deleteUser(user.id); toast.success('Usuario eliminado'); await loadConsents(); } catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo eliminar'); }
   };
 
+  const selectableFiltered = filtered.filter((user) => !isProtected(user) && user.id !== currentUser?.id);
+  const allFilteredSelected = selectableFiltered.length > 0 && selectableFiltered.every((user) => selectedUserIds.has(user.id));
+
+  const toggleUserSelection = (userId: string, checked: boolean) => {
+    setSelectedUserIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(userId); else next.delete(userId);
+      return next;
+    });
+  };
+
+  const toggleFilteredSelection = (checked: boolean) => {
+    setSelectedUserIds((current) => {
+      const next = new Set(current);
+      for (const user of selectableFiltered) {
+        if (checked) next.add(user.id); else next.delete(user.id);
+      }
+      return next;
+    });
+  };
+
+  const removeSelected = async () => {
+    const ids = selectableFiltered.filter((user) => selectedUserIds.has(user.id)).map((user) => user.id);
+    if (!ids.length) return toast.error('Selecciona al menos una cuenta eliminable.');
+    if (!window.confirm(`Vas a eliminar definitivamente ${ids.length} cuentas seleccionadas. Las 6 cuentas protegidas y tu propia sesión no se pueden eliminar. ¿Continuar?`)) return;
+    setDeletingSelected(true);
+    try {
+      const { data, error } = await requireSupabaseClient().rpc('admin_delete_users', { p_user_ids: ids });
+      if (error) throw error;
+      const count = Number(data ?? ids.length);
+      setSelectedUserIds(new Set());
+      await useDataStore.getState().loadData({ silent: true, force: true });
+      await loadConsents();
+      toast.success(`Se eliminaron ${count} cuentas correctamente.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron eliminar las cuentas seleccionadas.');
+    } finally {
+      setDeletingSelected(false);
+    }
+  };
+
   const studentRoleEditing = form.role === 'student' || form.role === 'both' || form.role === 'student_parent';
   const displayRole = CREATE_ROLES.find((option) => option.value === form.role) ?? CREATE_ROLES[0];
   const RoleIcon = displayRole.icon;
@@ -224,8 +267,8 @@ export function AdminUsersSeparated() {
       </button>
     </div>
 
-    <Card className="mb-5 border-0 bg-white p-4 shadow-sm"><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre, correo, rol, TI o representante" /></Card>
-    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm"><table className="w-full min-w-[1000px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-4 py-3">Nombre</th><th className="px-4 py-3">Correo</th><th className="px-4 py-3">Rol</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3">TI</th><th className="px-4 py-3">Representante</th><th className="px-4 py-3">Parentesco</th><th className="px-4 py-3 text-right">Acciones</th></tr></thead><tbody className="divide-y divide-gray-100">{filtered.map((user) => { const consent = consents[user.id]; return <tr key={user.id} className="hover:bg-gray-50"><td className="px-4 py-3 font-semibold text-gray-900">{user.full_name}</td><td className="px-4 py-3 text-gray-600">{user.email}</td><td className="px-4 py-3"><span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">{roleLabel(user.role)}</span></td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold ${user.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{user.active ? 'Activo' : 'Inactivo'}</span></td><td className="px-4 py-3 text-gray-600">{user.ti || '-'}</td><td className="px-4 py-3">{consent?.guardian_name || '-'}</td><td className="px-4 py-3">{consent?.guardian_relationship || '-'}</td><td className="px-4 py-3"><div className="flex justify-end gap-2">{isProtected(user) ? <Button variant="outline" size="sm" onClick={() => beginEdit(user)}><KeyRound className="h-4 w-4" /></Button> : <><Button variant="outline" size="sm" onClick={() => beginEdit(user)}><Edit2 className="h-4 w-4" /></Button><Button variant="outline" size="sm" onClick={() => remove(user)} className="border-red-200 text-red-600"><Trash2 className="h-4 w-4" /></Button></>} {!isProtected(user) && <Button variant="outline" size="sm" onClick={() => void toggleActive(user)} disabled={statusUpdatingId === user.id} title={user.active ? 'Desactivar cuenta' : 'Activar cuenta'}><Power className="h-4 w-4" /></Button>}</div></td></tr>; })}</tbody></table></div>
+    <Card className="mb-3 border-0 bg-white p-4 shadow-sm"><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre, correo, rol, TI o representante" /></Card>\n    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><div className="text-sm text-slate-600"><span className="font-bold text-slate-900">{selectedUserIds.size}</span> seleccionados <span className="mx-1">·</span>{selectableFiltered.length} cuentas eliminables en esta vista</div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" onClick={() => toggleFilteredSelection(!allFilteredSelected)} disabled={!selectableFiltered.length || deletingSelected}>{allFilteredSelected ? "Desmarcar visibles" : "Seleccionar visibles"}</Button><Button type="button" size="sm" onClick={() => void removeSelected()} disabled={!selectedUserIds.size || deletingSelected} className="bg-red-600 text-white hover:bg-red-700"><Trash2 className="mr-1 h-4 w-4" />{deletingSelected ? "Eliminando…" : `Eliminar seleccionados (${selectedUserIds.size})`}</Button></div></div>
+    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm"><table className="w-full min-w-[1000px] text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="w-10 px-3 py-3"><input aria-label="Seleccionar todas las cuentas visibles eliminables" type="checkbox" checked={allFilteredSelected} onChange={(event) => toggleFilteredSelection(event.target.checked)} disabled={!selectableFiltered.length || deletingSelected} /></th><th className="px-4 py-3">Nombre</th><th className="px-4 py-3">Correo</th><th className="px-4 py-3">Rol</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3">TI</th><th className="px-4 py-3">Representante</th><th className="px-4 py-3">Parentesco</th><th className="px-4 py-3 text-right">Acciones</th></tr></thead><tbody className="divide-y divide-gray-100">{filtered.map((user) => { const consent = consents[user.id]; return <tr key={user.id} className="hover:bg-gray-50"><td className="px-3 py-3">{!isProtected(user) && user.id !== currentUser?.id ? <input aria-label={`Seleccionar ${user.email}`} type="checkbox" checked={selectedUserIds.has(user.id)} onChange={(event) => toggleUserSelection(user.id, event.target.checked)} disabled={deletingSelected} /> : <span className="text-xs text-slate-400" title="Cuenta protegida o sesión actual">—</span>}</td><td className="px-4 py-3 font-semibold text-gray-900">{user.full_name}</td><td className="px-4 py-3 text-gray-600">{user.email}</td><td className="px-4 py-3"><span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">{roleLabel(user.role)}</span></td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold ${user.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{user.active ? 'Activo' : 'Inactivo'}</span></td><td className="px-4 py-3 text-gray-600">{user.ti || '-'}</td><td className="px-4 py-3">{consent?.guardian_name || '-'}</td><td className="px-4 py-3">{consent?.guardian_relationship || '-'}</td><td className="px-4 py-3"><div className="flex justify-end gap-2">{isProtected(user) ? <Button variant="outline" size="sm" onClick={() => beginEdit(user)}><KeyRound className="h-4 w-4" /></Button> : <><Button variant="outline" size="sm" onClick={() => beginEdit(user)}><Edit2 className="h-4 w-4" /></Button><Button variant="outline" size="sm" onClick={() => remove(user)} className="border-red-200 text-red-600"><Trash2 className="h-4 w-4" /></Button></>} {!isProtected(user) && <Button variant="outline" size="sm" onClick={() => void toggleActive(user)} disabled={statusUpdatingId === user.id} title={user.active ? 'Desactivar cuenta' : 'Activar cuenta'}><Power className="h-4 w-4" /></Button>}</div></td></tr>; })}</tbody></table></div>
 
     {open && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" style={{ maxHeight: '90vh' }}>
