@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { URL } from 'node:url';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
