@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { CheckCircle2, Loader2, Sparkles, Utensils } from 'lucide-react';
+import { suggestNutrition, type NutritionAiSuggestion } from '../../../services/nutritionAiService';
 import { useDataStore } from '../../../store/dataStore';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -13,6 +15,30 @@ import type { Product } from '../../../lib/supabase';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
 
+interface NutritionDraft {
+  detailed_description: string;
+  ingredients: string;
+  allergens: string;
+  calories: string;
+  protein_g: string;
+  carbohydrates_g: string;
+  fat_g: string;
+  fiber_g: string;
+  vegetarian: boolean;
+  healthy_choice: boolean;
+  ingredients_verified: boolean;
+  nutrition_verified: boolean;
+  nutrition_source: 'manual' | 'ai_draft' | 'label';
+  recipe_notes: string;
+}
+const emptyNutrition = (): NutritionDraft => ({
+  detailed_description: '', ingredients: '', allergens: '',
+  calories: '', protein_g: '', carbohydrates_g: '', fat_g: '', fiber_g: '',
+  vegetarian: false, healthy_choice: false, ingredients_verified: false,
+  nutrition_verified: false, nutrition_source: 'manual', recipe_notes: '',
+});
+const numericDraft = (value: string) => value.trim() === '' ? null : Number(value);
+
 export function AdminMenu() {
   const { products, categories, addProduct, updateProduct, deleteProduct } = useDataStore();
   const safeProducts = Array.isArray(products) ? products : [];
@@ -20,10 +46,16 @@ export function AdminMenu() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', price: '', image_url: '', category_id: '', stock: '', available: true });
+  const [nutritionForm, setNutritionForm] = useState<NutritionDraft>(emptyNutrition());
+  const [suggestingNutrition, setSuggestingNutrition] = useState(false);
+  const [savingNutrition, setSavingNutrition] = useState(false);
+  const [aiWarnings, setAiWarnings] = useState<string[]>([]);
 
   const openNewProductDialog = () => {
     setEditingProduct(null);
     setFormData({ name: '', description: '', price: '', image_url: '', category_id: safeCategories[0]?.id || '', stock: '', available: true });
+    setNutritionForm(emptyNutrition());
+    setAiWarnings([]);
     setIsDialogOpen(true);
   };
 
@@ -38,7 +70,80 @@ export function AdminMenu() {
       stock: String(Number(product.stock ?? 0)),
       available: product.available !== false,
     });
+    setNutritionForm(emptyNutrition());
+    setAiWarnings([]);
     setIsDialogOpen(true);
+    void (async () => {
+      try {
+        const { data, error } = await (await import('../../../lib/supabase')).requireSupabaseClient()
+          .from('product_nutrition')
+          .select('detailed_description,ingredients,allergens,calories,protein_g,carbohydrates_g,fat_g,fiber_g,vegetarian,healthy_choice,ingredients_verified,nutrition_verified,nutrition_source')
+          .eq('product_id', product.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) return;
+        setNutritionForm({
+          ...emptyNutrition(),
+          detailed_description: data.detailed_description ?? '',
+          ingredients: data.ingredients ?? '',
+          allergens: data.allergens ?? '',
+          calories: data.calories == null ? '' : String(data.calories),
+          protein_g: data.protein_g == null ? '' : String(data.protein_g),
+          carbohydrates_g: data.carbohydrates_g == null ? '' : String(data.carbohydrates_g),
+          fat_g: data.fat_g == null ? '' : String(data.fat_g),
+          fiber_g: data.fiber_g == null ? '' : String(data.fiber_g),
+          vegetarian: data.vegetarian === true,
+          healthy_choice: data.healthy_choice === true,
+          ingredients_verified: data.ingredients_verified === true,
+          nutrition_verified: data.nutrition_verified === true,
+          nutrition_source: data.nutrition_source === 'label' || data.nutrition_source === 'ai_draft' ? data.nutrition_source : 'manual',
+          recipe_notes: '',
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'No se pudo cargar la ficha nutricional.');
+      }
+    })();
+  };
+
+  const generateNutritionDraft = async () => {
+    if (!formData.name.trim()) {
+      toast.error('Escribe primero el nombre del alimento.');
+      return;
+    }
+    setSuggestingNutrition(true);
+    try {
+      const suggestion: NutritionAiSuggestion = await suggestNutrition({
+        name: formData.name.trim(),
+        category: safeCategories.find((category) => category.id === formData.category_id)?.name ?? '',
+        description: formData.description.trim(),
+        recipe_notes: nutritionForm.recipe_notes.trim(),
+      });
+      setNutritionForm((current) => ({
+        ...current,
+        detailed_description: suggestion.detailed_description,
+        ingredients: suggestion.ingredients.join('; '),
+        allergens: suggestion.allergens.join(', '),
+        calories: suggestion.calories == null ? '' : String(suggestion.calories),
+        protein_g: suggestion.protein_g == null ? '' : String(suggestion.protein_g),
+        carbohydrates_g: suggestion.carbohydrates_g == null ? '' : String(suggestion.carbohydrates_g),
+        fat_g: suggestion.fat_g == null ? '' : String(suggestion.fat_g),
+        fiber_g: suggestion.fiber_g == null ? '' : String(suggestion.fiber_g),
+        vegetarian: suggestion.vegetarian,
+        healthy_choice: suggestion.healthy_choice,
+        ingredients_verified: false,
+        nutrition_verified: false,
+        nutrition_source: 'ai_draft',
+      }));
+      if (!formData.description.trim()) {
+        setFormData((current) => ({ ...current, description: suggestion.detailed_description.slice(0, 260) }));
+      }
+      setAiWarnings(suggestion.warnings);
+      toast.success('Borrador generado. Revisa y confirma los ingredientes con la receta o etiqueta real.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo generar la ficha con IA.');
+    } finally {
+      setSuggestingNutrition(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,6 +153,17 @@ export function AdminMenu() {
     if (!Number.isFinite(price) || price <= 0) return void toast.error('Ingresa un precio válido');
     if (!Number.isInteger(stock) || stock < 0) return void toast.error('Ingresa un stock válido');
     if (!formData.name.trim() || !formData.category_id) return void toast.error('Completa todos los campos requeridos');
+    const ingredientList = nutritionForm.ingredients.split(/[,;|\\n\\r]+/).map((item) => item.trim()).filter(Boolean);
+    if (formData.available && ingredientList.length === 0) {
+      return void toast.error('Antes de publicar, registra la lista real de ingredientes o guarda el producto oculto mientras la completas.');
+    }
+    if (formData.available && !nutritionForm.ingredients_verified) {
+      return void toast.error('Confirma que los ingredientes coinciden con la receta o etiqueta real antes de publicar el alimento.');
+    }
+    const numericValues = [nutritionForm.calories, nutritionForm.protein_g, nutritionForm.carbohydrates_g, nutritionForm.fat_g, nutritionForm.fiber_g];
+    if (numericValues.some((value) => value.trim() !== '' && (!Number.isFinite(Number(value)) || Number(value) < 0))) {
+      return void toast.error('Los valores nutricionales deben ser números mayores o iguales a cero.');
+    }
 
     const productData = {
       name: formData.name.trim(),
@@ -60,16 +176,43 @@ export function AdminMenu() {
     };
 
     try {
+      let productId: string;
       if (editingProduct) {
         await updateProduct(editingProduct.id, productData);
-        toast.success('Producto actualizado exitosamente');
+        productId = editingProduct.id;
       } else {
-        await addProduct(productData);
-        toast.success('Producto agregado exitosamente');
+        productId = await addProduct(productData);
       }
+      setSavingNutrition(true);
+      const nutritionRow = {
+        product_id: productId,
+        detailed_description: nutritionForm.detailed_description.trim() || null,
+        ingredients: ingredientList.join('; '),
+        allergens: nutritionForm.allergens.trim() || null,
+        calories: numericDraft(nutritionForm.calories),
+        protein_g: numericDraft(nutritionForm.protein_g),
+        carbohydrates_g: numericDraft(nutritionForm.carbohydrates_g),
+        fat_g: numericDraft(nutritionForm.fat_g),
+        fiber_g: numericDraft(nutritionForm.fiber_g),
+        vegetarian: nutritionForm.vegetarian,
+        healthy_choice: nutritionForm.healthy_choice,
+        ingredients_verified: nutritionForm.ingredients_verified,
+        nutrition_verified: nutritionForm.nutrition_verified,
+        nutrition_source: nutritionForm.nutrition_source,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await (await import('../../../lib/supabase')).requireSupabaseClient()
+        .from('product_nutrition').upsert(nutritionRow, { onConflict: 'product_id' });
+      if (error) {
+        toast.error(`El producto se guardó, pero no se pudo guardar su ficha nutricional: ${error.message}`);
+        return;
+      }
+      toast.success(editingProduct ? 'Producto y ficha nutricional actualizados.' : 'Producto y ficha nutricional creados.');
       setIsDialogOpen(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo guardar el producto');
+    } finally {
+      setSavingNutrition(false);
     }
   };
 
@@ -122,7 +265,7 @@ export function AdminMenu() {
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle className="text-2xl">{editingProduct ? 'Editar Producto' : 'Agregar Producto'}</DialogTitle></DialogHeader>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle className="text-2xl">{editingProduct ? 'Editar Producto' : 'Agregar Producto'}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2"><Label htmlFor="name">Nombre del Producto *</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Ej: Hamburguesa Clásica" required /></div>
@@ -133,7 +276,24 @@ export function AdminMenu() {
               <div className="col-span-2"><Label htmlFor="image_url">URL de Imagen</Label><Input id="image_url" type="url" value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} placeholder="https://example.com/image.jpg" /><p className="mt-1 text-xs text-gray-500">Deja en blanco para usar imagen por defecto</p></div>
               <div className="col-span-2"><div className="flex items-center gap-2"><input type="checkbox" id="available" checked={formData.available} onChange={(e) => setFormData({ ...formData, available: e.target.checked })} className="h-4 w-4" /><Label htmlFor="available" className="cursor-pointer">Producto visible en el menú</Label></div></div>
             </div>
-            <div className="flex gap-3 pt-4"><Button type="submit" className="flex-1 bg-green-600 text-white hover:bg-green-700">{editingProduct ? 'Guardar Cambios' : 'Agregar Producto'}</Button><Button type="button" onClick={() => setIsDialogOpen(false)} variant="outline" className="flex-1">Cancelar</Button></div>
+            <section className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-300/20 dark:bg-emerald-500/5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-2"><Utensils className="mt-1 h-5 w-5 text-emerald-700" /><div><h3 className="font-black text-slate-900 dark:text-white">Ficha detallada e ingredientes</h3><p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">La IA crea un borrador con ingredientes, alérgenos y datos nutricionales. Debes verificarlo contra la receta o etiqueta del alimento antes de publicarlo.</p></div></div>
+                <Button type="button" onClick={() => void generateNutritionDraft()} disabled={suggestingNutrition || !formData.name.trim()} className="bg-violet-600 font-black text-white hover:bg-violet-700">
+                  {suggestingNutrition ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generando…</> : <><Sparkles className="mr-2 h-4 w-4"/>Completar con IA</>}
+                </Button>
+              </div>
+              {nutritionForm.nutrition_source === 'ai_draft' && <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900"><p className="font-black">Borrador de IA · no verificado</p><p>La IA puede omitir o inferir ingredientes. No uses esta sugerencia como garantía para una alergia. Contrasta cada ingrediente con la receta o etiqueta real.</p>{aiWarnings.map((warning) => <p key={warning} className="mt-1">• {warning}</p>)}</div>}
+              <label className="block space-y-1"><span className="text-xs font-bold text-slate-700 dark:text-slate-200">Notas reales de receta / etiqueta (ayudan a la IA)</span><Textarea value={nutritionForm.recipe_notes} onChange={(e) => setNutritionForm((current) => ({...current,recipe_notes:e.target.value,nutrition_source:current.nutrition_source==='ai_draft'?'ai_draft':'manual',ingredients_verified:false,nutrition_verified:false}))} rows={2} placeholder="Ej. pan de trigo, carne de res, queso, salsas y posibles subingredientes del proveedor" /></label>
+              <label className="block space-y-1"><span className="text-xs font-bold text-slate-700 dark:text-slate-200">Descripción detallada</span><Textarea value={nutritionForm.detailed_description} onChange={(e) => setNutritionForm((current) => ({...current,detailed_description:e.target.value,ingredients_verified:false}))} rows={3} placeholder="Descripción completa del alimento, preparación y porción" /></label>
+              <label className="block space-y-1"><span className="text-xs font-bold text-slate-700 dark:text-slate-200">Ingredientes (separados por punto y coma)</span><Textarea value={nutritionForm.ingredients} onChange={(e) => setNutritionForm((current) => ({...current,ingredients:e.target.value,ingredients_verified:false,nutrition_source:current.nutrition_source==='ai_draft'?'ai_draft':'manual'}))} rows={3} required={formData.available} placeholder="Harina de trigo; leche; huevo; queso; aceite vegetal…" /><p className="text-xs text-slate-500 dark:text-slate-400">Incluye todos los ingredientes y subingredientes tal como aparecen en la receta o empaque. Esta lista se usa para comparar bloqueos por ingrediente.</p></label>
+              <label className="block space-y-1"><span className="text-xs font-bold text-slate-700 dark:text-slate-200">Alérgenos (separados por coma)</span><Input value={nutritionForm.allergens} onChange={(e) => setNutritionForm((current) => ({...current,allergens:e.target.value,nutrition_verified:false}))} placeholder="Trigo, leche, huevo, soya…" /></label>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">{([['calories','Calorías kcal'],['protein_g','Proteína g'],['carbohydrates_g','Carbohidratos g'],['fat_g','Grasa g'],['fiber_g','Fibra g']] as const).map(([key,label]) => <label key={key} className="space-y-1"><span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{label}</span><Input type="number" min="0" step="0.1" value={nutritionForm[key]} onChange={(e) => setNutritionForm((current) => ({...current,[key]:e.target.value,nutrition_verified:false}))} /></label>)}</div>
+              <div className="flex flex-wrap gap-4 text-sm font-semibold text-slate-700 dark:text-slate-200"><label className="flex items-center gap-2"><input type="checkbox" checked={nutritionForm.vegetarian} onChange={(e) => setNutritionForm((current) => ({...current,vegetarian:e.target.checked}))} className="h-4 w-4"/>Vegetariano</label><label className="flex items-center gap-2"><input type="checkbox" checked={nutritionForm.healthy_choice} onChange={(e) => setNutritionForm((current) => ({...current,healthy_choice:e.target.checked}))} className="h-4 w-4"/>Opción saludable</label></div>
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"><label className="flex items-start gap-2 text-xs leading-5 text-slate-700 dark:text-slate-200"><input type="checkbox" checked={nutritionForm.ingredients_verified} onChange={(e) => setNutritionForm((current) => ({...current,ingredients_verified:e.target.checked,nutrition_source:current.nutrition_source==='ai_draft'?'ai_draft':'manual'}))} className="mt-1 h-4 w-4"/><span><strong>He verificado toda la lista de ingredientes</strong> usando la receta real o el empaque del proveedor. No basta con aceptar la respuesta de IA.</span></label><label className="flex items-start gap-2 text-xs leading-5 text-slate-700 dark:text-slate-200"><input type="checkbox" checked={nutritionForm.nutrition_verified} onChange={(e) => setNutritionForm((current) => ({...current,nutrition_verified:e.target.checked}))} className="mt-1 h-4 w-4"/><span>He verificado las cifras nutricionales contra una ficha o etiqueta fiable. Si son estimaciones de IA, deja esta casilla desmarcada.</span></label></div>
+              {!nutritionForm.ingredients_verified && <p className="flex items-start gap-2 text-xs leading-5 text-amber-800 dark:text-amber-200"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0"/>No publiques este alimento hasta verificar sus ingredientes. Puedes guardarlo oculto mientras completas la ficha.</p>}
+            </section>
+            <div className="flex gap-3 pt-4"><Button type="submit" disabled={savingNutrition || suggestingNutrition} className="flex-1 bg-green-600 text-white hover:bg-green-700">{savingNutrition ? 'Guardando…' : editingProduct ? 'Guardar Cambios' : 'Agregar Producto'}</Button><Button type="button" disabled={savingNutrition || suggestingNutrition} onClick={() => setIsDialogOpen(false)} variant="outline" className="flex-1">Cancelar</Button></div>
           </form>
         </DialogContent>
       </Dialog>
