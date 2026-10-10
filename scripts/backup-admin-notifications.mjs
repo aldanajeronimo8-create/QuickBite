@@ -50,8 +50,18 @@ async function main() {
 
   const parsedUrl = new URL(dbUrl);
   const dbHostMatch = parsedUrl.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/i);
-  if (dbHostMatch && dbHostMatch[1] !== PROJECT_REF) {
-    throw new Error('La conexión apunta a otro proyecto Supabase; no se exportó ningún dato.');
+  const poolerHost = parsedUrl.hostname.endsWith('.pooler.supabase.com');
+  const poolerUserMatch = parsedUrl.username.match(/^postgres\.([a-z0-9]+)$/i);
+  if (dbHostMatch) {
+    if (dbHostMatch[1] !== PROJECT_REF) {
+      throw new Error('La conexión apunta a otro proyecto Supabase; no se exportó ningún dato.');
+    }
+  } else if (poolerHost && poolerUserMatch) {
+    if (poolerUserMatch[1] !== PROJECT_REF) {
+      throw new Error('El usuario de conexión del pooler apunta a otro proyecto Supabase; no se exportó ningún dato.');
+    }
+  } else {
+    throw new Error('No se pudo verificar el proyecto desde el host de conexión. Usa el host directo db.<project-ref>.supabase.co o el pooler con usuario postgres.<project-ref>.');
   }
 
   const outputDir = path.resolve(
@@ -59,7 +69,10 @@ async function main() {
     path.resolve(root, '..', 'quickbite-private-backups'),
   );
   const relative = path.relative(root, outputDir);
-  if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+  const insideRepository = relative === '' ||
+    (!path.isAbsolute(relative) && relative !== '..' &&
+      !relative.startsWith(`..${path.sep}`));
+  if (insideRepository) {
     throw new Error('El respaldo debe guardarse fuera de la carpeta del repositorio para evitar subir datos privados a Git.');
   }
   fs.mkdirSync(outputDir, { recursive: true });
