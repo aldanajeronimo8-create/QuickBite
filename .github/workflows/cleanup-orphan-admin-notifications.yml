@@ -1,0 +1,80 @@
+name: QuickBite — Encrypted backup and authorized orphan-notification cleanup
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: quickbite-authorized-orphan-notification-cleanup
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: Validate explicit maintenance trigger
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          contains(github.event.workflow_run.head_commit.message, '[RUN-ORPHAN-ADMIN-NOTIFICATION-CLEANUP]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Resolve the exact successful main CI SHA
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="${{ github.event.workflow_run.head_sha }}"
+          test "${#sha}" -eq 40
+          echo "Maintenance target SHA: $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  backup-and-clean:
+    name: Encrypt backup, then clean only orphan notifications
+    needs: authorize
+    if: needs.authorize.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GITHUB_WORKSPACE: ${{ github.workspace }}
+    steps:
+      - name: Checkout the exact main SHA that passed CI
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.authorize.outputs.sha }}
+
+      - name: Select Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate maintenance credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_SERVICE_ROLE_KEY}"
+          test -f scripts/ci-backup-and-cleanup-orphan-admin-notifications.mjs
+          echo "Credentials are present; secret values are not printed."
+
+      - name: Export and encrypt the exact orphan-notification set
+        id: backup
+        run: node scripts/ci-backup-and-cleanup-orphan-admin-notifications.mjs backup
+
+      - name: Upload encrypted off-project backup before any deletion
+        uses: actions/upload-artifact@v4
+        with:
+          name: quickbite-orphan-notifications-encrypted-${{ needs.authorize.outputs.sha }}
+          path: |
+            maintenance-backup/orphan-admin-notifications.jsonl.gz.enc
+            maintenance-backup/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Delete only after artifact upload and database snapshot-hash match
+        run: node scripts/ci-backup-and-cleanup-orphan-admin-notifications.mjs cleanup

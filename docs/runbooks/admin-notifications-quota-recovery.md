@@ -24,32 +24,19 @@ La migración `20261010190601_prevent_orphan_admin_notifications.sql` actualiza 
 
 La migración no borra notificaciones históricas, perfiles ni cuentas.
 
-## Procedimiento con respaldo externo obligatorio
+## Procedimiento de limpieza automatizada con respaldo externo cifrado
 
-**No crear una tabla de respaldo dentro del mismo proyecto.** Eso duplicaría el uso de espacio. Exportar la tabla a un equipo o almacenamiento privado fuera de Supabase, mantener el archivo fuera del repositorio Git y no incluir credenciales en comandos guardados.
+La limpieza ya no requiere ejecutar comandos desde el PC. El workflow `.github/workflows/cleanup-orphan-admin-notifications.yml` está diseñado para ejecutarse solo después de una CI exitosa en `main` cuyo mensaje de commit contenga el marcador explícito `[RUN-ORPHAN-ADMIN-NOTIFICATION-CLEANUP]`. Un PR normal, una CI de una rama de trabajo o una CI fallida no autorizan la limpieza.
 
-El repositorio incluye el exportador `scripts/backup-admin-notifications.mjs`, invocable después de descargar el código con `pnpm backup:admin-notifications`. La exportación es de solo lectura, por páginas, dentro de una transacción `REPEATABLE READ READ ONLY`; crea un CSV y un manifiesto con el recuento y el SHA-256 fuera del repositorio. No se ha ejecutado desde este entorno porque no tengo acceso a la contraseña de conexión privada del usuario y el respaldo debe quedar bajo su control fuera de Supabase.
+1. Obtener con Supabase Auth Admin API la lista de IDs de cuentas reales.
+2. Exportar por páginas únicamente las filas de `public.admin_notifications` cuyo destinatario no aparece en `auth.users`, en formato JSONL y sin escribir una copia en texto claro a disco.
+3. Comprimir y cifrar el respaldo con AES-256-GCM. La clave se deriva con HKDF-SHA-256 del secreto `SUPABASE_SERVICE_ROLE_KEY`; el secreto nunca se registra. El manifiesto guarda tamaño, checksum del archivo cifrado, recuento, cantidad de destinatarios, huella SHA-256 ordenada de los IDs, salt, IV y tag de autenticación. El script vuelve a descifrar el archivo en el runner y compara recuento y huella antes de continuar.
+4. Subir el respaldo cifrado y el manifiesto como un artefacto de GitHub Actions con retención de 90 días. La limpieza no empieza si la exportación, su autotest de descifrado o la subida del artefacto fallan.
+5. Después de confirmar la subida del artefacto, invocar `public.admin_cleanup_orphan_admin_notifications(bigint,text)` con el recuento y la huella del manifiesto. La función bloquea la tabla, vuelve a calcular los IDs huérfanos dentro de la transacción y aborta si el conjunto cambió desde el respaldo.
+6. Si la huella coincide, reconstruir la tabla conservando todas las notificaciones cuyo destinatario mantiene una fila en `auth.users`. La función comprueba los recuentos antes del `COMMIT` y retorna un resultado verificable. Solo elimina notificaciones; no elimina perfiles, cuentas Auth, pedidos, movimientos ni filas de auditoría.
+7. Tras la limpieza, la automatización consulta de nuevo las notificaciones huérfanas. Se considera correcta solo si quedan cero. El artefacto cifrado queda disponible en la ejecución de GitHub Actions durante su retención configurada.
 
-Pasos locales:
-1. Actualiza tu copia local con el `main` que ya incluye el exportador y el limpiador.
-2. En el `.env` local (ignorado por Git), configura `SUPABASE_PROJECT_REF=cczbbqxunygcowqfrqdm` y `SUPABASE_DB_URL` con la cadena de conexión PostgreSQL del proyecto. No publiques ni compartas esa cadena.
-3. Ejecuta `pnpm install --frozen-lockfile` y después `pnpm backup:admin-notifications`.
-4. El comando debe terminar mostrando `RESPALDO VERIFICADO`, el mismo número de filas exportadas y esperado, la ruta del CSV y un SHA-256. Si no se completa sin errores, no uses el archivo parcial para autorizar la limpieza.
-5. Guarda una segunda copia privada en otro destino y conserva ambos archivos CSV y manifiesto hasta cerrar la validación. Solo entonces continúa.
-
-Para validar sin borrar nada, ejecuta en seco:
-```bash
-pnpm cleanup:orphan-admin-notifications -- --manifest "../quickbite-private-backups/<archivo>.manifest.json" --csv "../quickbite-private-backups/<archivo>.csv"
-```
-El script verifica el checksum del CSV y compara el hash ordenado de los IDs huérfanos del respaldo con los IDs actuales. Si no coinciden, aborta y pide generar otro respaldo. Si el resultado muestra `DRY RUN` y recuentos coherentes, revisa que las dos copias privadas existan. En la misma ventana de mantenimiento, la ejecución real sería:
-```bash
-pnpm cleanup:orphan-admin-notifications -- --manifest "../quickbite-private-backups/<archivo>.manifest.json" --csv "../quickbite-private-backups/<archivo>.csv" --apply
-```
-El modo `--apply` exige confirmar que hay dos copias privadas y escribir una frase de confirmación con el recuento exacto. Bajo bloqueo exclusivo, vuelve a comprobar los IDs huérfanos, reconstruye la tabla dentro de una transacción y verifica recuentos antes del `COMMIT`. Si un chequeo falla, la transacción se revierte.
-
-Antes de usar `--apply`, verifica en el Dashboard que el proyecto permita escrituras y confirma que la migración `20261010190601 / prevent_orphan_admin_notifications` aparece en el registro. Ejecuta la operación en una ventana de mantenimiento, sin cambios de usuarios ni de notificaciones en paralelo. Si el proyecto está en solo lectura, no intentes forzar la limpieza: sigue el procedimiento indicado por Supabase o resuelve primero la cuota.
-
-No ejecutes SQL manual alternativo para borrar la tabla. El exportador automatizado hace una exportación de solo lectura y genera los hashes; el limpiador compara el CSV con su manifiesto y los IDs huérfanos actuales. Si cambió el conjunto de IDs desde el respaldo, la limpieza se cancela y debe repetirse el respaldo. El script requiere confirmar dos copias privadas y una frase con el recuento exacto antes de modificar datos.
+Si la exportación no termina, no se sube el artefacto, la API de Supabase no permite escribir, o la huella no coincide, la operación se detiene sin confirmar la limpieza. El artefacto cifrado podría quedar disponible si la subida ocurrió antes del fallo de la base. No se habilitan limpiezas alternativas manuales.
 
 ## Consulta posterior de control
 
