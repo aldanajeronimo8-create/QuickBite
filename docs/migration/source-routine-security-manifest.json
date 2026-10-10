@@ -1,0 +1,3404 @@
+{
+  "enums": [],
+  "views": [
+    {
+      "name": "admin_order_activity",
+      "schema": "public",
+      "definition": " SELECT o.id,\n    o.order_number,\n    o.user_id,\n    o.created_at,\n    'order'::text AS activity_type,\n    NULL::uuid AS redemption_id,\n    NULL::uuid AS reward_id,\n    NULL::text AS reward_name,\n    NULL::integer AS points_spent,\n    o.status,\n    o.payment_status,\n    o.total,\n    o.pickup_code,\n    o.notes\n   FROM orders o\n  WHERE is_admin()\nUNION ALL\n SELECT r.id,\n    r.redemption_code AS order_number,\n    r.user_id,\n    r.created_at,\n    'redemption'::text AS activity_type,\n    r.id AS redemption_id,\n    r.reward_id,\n    COALESCE(lr.title, 'Recompensa'::text) AS reward_name,\n    r.points_spent,\n    r.status,\n    'confirmed'::text AS payment_status,\n    (0)::numeric AS total,\n    r.redemption_code AS pickup_code,\n    NULL::text AS notes\n   FROM (loyalty_redemptions r\n     LEFT JOIN loyalty_rewards lr ON ((lr.id = r.reward_id)))\n  WHERE is_admin();"
+    },
+    {
+      "name": "admin_sales_analytics",
+      "schema": "public",
+      "definition": " SELECT (date_trunc('day'::text, created_at))::date AS sale_date,\n    count(*) FILTER (WHERE ((payment_status = 'confirmed'::text) AND (status <> 'rejected'::text))) AS confirmed_orders,\n    COALESCE(sum(total) FILTER (WHERE ((payment_status = 'confirmed'::text) AND (status <> 'rejected'::text))), (0)::numeric) AS confirmed_revenue,\n    count(*) FILTER (WHERE (status = 'rejected'::text)) AS rejected_orders,\n    count(*) FILTER (WHERE (status = 'delivered'::text)) AS delivered_orders,\n    COALESCE(avg(total) FILTER (WHERE ((payment_status = 'confirmed'::text) AND (status <> 'rejected'::text))), (0)::numeric) AS average_ticket\n   FROM orders\n  GROUP BY ((date_trunc('day'::text, created_at))::date);"
+    },
+    {
+      "name": "admin_sales_daily",
+      "schema": "public",
+      "definition": " SELECT (date_trunc('day'::text, created_at))::date AS business_date,\n    (count(*))::integer AS orders_count,\n    COALESCE(sum(total), (0)::numeric) AS sales_total,\n    COALESCE(avg(total), (0)::numeric) AS average_ticket\n   FROM orders\n  WHERE ((payment_status = 'confirmed'::text) AND (status <> 'cancelled'::text))\n  GROUP BY ((date_trunc('day'::text, created_at))::date)\n  ORDER BY ((date_trunc('day'::text, created_at))::date) DESC;"
+    },
+    {
+      "name": "product_inventory_status",
+      "schema": "public",
+      "definition": " SELECT p.id,\n    p.name,\n    p.price,\n    p.stock AS available_stock,\n    (COALESCE(sum(\n        CASE\n            WHEN ((o.status = ANY (ARRAY['pending'::text, 'preparing'::text, 'ready'::text])) AND (o.payment_status = ANY (ARRAY['pending'::text, 'confirmed'::text]))) THEN oi.quantity\n            ELSE 0\n        END), (0)::bigint))::integer AS reserved_stock,\n    ((p.stock + COALESCE(sum(\n        CASE\n            WHEN ((o.status = ANY (ARRAY['pending'::text, 'preparing'::text, 'ready'::text])) AND (o.payment_status = ANY (ARRAY['pending'::text, 'confirmed'::text]))) THEN oi.quantity\n            ELSE 0\n        END), (0)::bigint)))::integer AS total_stock,\n    p.available\n   FROM ((products p\n     LEFT JOIN order_items oi ON ((oi.product_id = p.id)))\n     LEFT JOIN orders o ON ((o.id = oi.order_id)))\n  GROUP BY p.id, p.name, p.price, p.stock, p.available;"
+    },
+    {
+      "name": "product_review_summary",
+      "schema": "public",
+      "definition": " SELECT p.id AS product_id,\n    COALESCE(round(avg(r.stars), 1), (0)::numeric) AS average_stars,\n    (count(r.id))::integer AS review_count\n   FROM (products p\n     LEFT JOIN product_reviews r ON (((r.product_id = p.id) AND (r.status = 'approved'::text))))\n  GROUP BY p.id;"
+    },
+    {
+      "name": "product_sales_rankings",
+      "schema": "public",
+      "definition": " SELECT p.id AS product_id,\n    p.name,\n    COALESCE(sum(oi.quantity) FILTER (WHERE ((o.status = 'delivered'::text) AND (o.payment_status = 'confirmed'::text))), (0)::bigint) AS units_sold,\n    (COALESCE(sum(((oi.quantity)::numeric * oi.price)) FILTER (WHERE ((o.status = 'delivered'::text) AND (o.payment_status = 'confirmed'::text))), (0)::numeric))::numeric(12,2) AS revenue,\n    count(DISTINCT o.id) FILTER (WHERE ((o.status = 'delivered'::text) AND (o.payment_status = 'confirmed'::text))) AS order_count\n   FROM ((products p\n     LEFT JOIN order_items oi ON ((oi.product_id = p.id)))\n     LEFT JOIN orders o ON ((o.id = oi.order_id)))\n  GROUP BY p.id, p.name;"
+    }
+  ],
+  "policies": [
+    {
+      "name": "academic_courses_admin_write",
+      "roles": [
+        "public"
+      ],
+      "table": "academic_courses",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "academic_courses_public_read",
+      "roles": [
+        "public"
+      ],
+      "table": "academic_courses",
+      "using": "((active = true) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "academic_grades_admin_write",
+      "roles": [
+        "public"
+      ],
+      "table": "academic_grades",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "academic_grades_public_read",
+      "roles": [
+        "public"
+      ],
+      "table": "academic_grades",
+      "using": "((active = true) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "academic_sections_admin_write",
+      "roles": [
+        "public"
+      ],
+      "table": "academic_sections",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "academic_sections_public_read",
+      "roles": [
+        "public"
+      ],
+      "table": "academic_sections",
+      "using": "((active = true) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "admin_notifications_select_own",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "admin_notifications",
+      "using": "((admin_user_id = auth.uid()) AND is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "admin_notifications_update_own",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "admin_notifications",
+      "using": "((admin_user_id = auth.uid()) AND is_admin())",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "((admin_user_id = auth.uid()) AND is_admin())"
+    },
+    {
+      "name": "audit_logs_select_admin",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "audit_logs",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "jobs_admin_all",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "automation_jobs",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "automation_settings_admin_read",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "automation_settings",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "automation_settings_admin_update",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "automation_settings",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "categories_admin_write",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "categories",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "categories_public_read",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "table": "categories",
+      "using": "true",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "summaries_admin_read",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "daily_summaries",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "summaries_admin_write",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "daily_summaries",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "demand_admin_read",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "demand_observations",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "demand_admin_write",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "demand_observations",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "family_link_codes_student_insert",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "family_link_codes",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "(student_user_id = auth.uid())"
+    },
+    {
+      "name": "family_link_codes_student_select",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "family_link_codes",
+      "using": "(student_user_id = auth.uid())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "favorites_own_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "favorites",
+      "using": "((user_id = auth.uid()) OR is_linked_parent(user_id))",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "((user_id = auth.uid()) OR is_linked_parent(user_id))"
+    },
+    {
+      "name": "favorites_parent_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "favorites",
+      "using": "(user_id = effective_student_user_id())",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "(user_id = effective_student_user_id())"
+    },
+    {
+      "name": "Admins can read inventory movements",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "inventory_movements",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "loyalty_ledger_parent_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_point_ledger",
+      "using": "((user_id = effective_student_user_id()) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "loyalty_point_ledger_select_own_or_admin_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_point_ledger",
+      "using": "((user_id = auth.uid()) OR is_admin() OR is_linked_parent(user_id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "Admins can manage loyalty redemptions",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_redemptions",
+      "using": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.role = ANY (ARRAY['admin'::text, 'both'::text, 'administrator'::text])))))",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.role = ANY (ARRAY['admin'::text, 'both'::text, 'administrator'::text])))))"
+    },
+    {
+      "name": "loyalty_redemptions_admin_all",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_redemptions",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "loyalty_redemptions_parent_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_redemptions",
+      "using": "((user_id = effective_student_user_id()) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "loyalty_redemptions_select_own_or_admin_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_redemptions",
+      "using": "((user_id = auth.uid()) OR is_admin() OR is_linked_parent(user_id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "loyalty_rewards_admin_all",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_rewards",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "loyalty_rewards_admin_delete",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_rewards",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "DELETE",
+      "with_check": null
+    },
+    {
+      "name": "loyalty_rewards_admin_insert",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_rewards",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "loyalty_rewards_admin_update",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_rewards",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "loyalty_rewards_anon_select_active",
+      "roles": [
+        "anon"
+      ],
+      "table": "loyalty_rewards",
+      "using": "(active = true)",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "loyalty_rewards_authenticated_select",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_rewards",
+      "using": "((active = true) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "loyalty_settings_admin_all",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_settings",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "loyalty_settings_admin_update",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_settings",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "loyalty_settings_select_authenticated",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "loyalty_settings",
+      "using": "true",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "notifications_parent_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "notifications",
+      "using": "((user_id = effective_student_user_id()) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "notifications_select_own_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "notifications",
+      "using": "((user_id = auth.uid()) OR is_linked_parent(user_id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "order_cancellation_insert_own",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "order_cancellation_requests",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "(user_id = auth.uid())"
+    },
+    {
+      "name": "order_cancellation_select_own_or_admin",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "order_cancellation_requests",
+      "using": "((user_id = auth.uid()) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "order_cancellation_update_admin",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "order_cancellation_requests",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "order_items_parent_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "order_items",
+      "using": "(EXISTS ( SELECT 1\n   FROM orders o\n  WHERE ((o.id = order_items.order_id) AND ((o.user_id = effective_student_user_id()) OR is_admin()))))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "order_items_select_own_or_admin_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "order_items",
+      "using": "(is_admin() OR (EXISTS ( SELECT 1\n   FROM orders o\n  WHERE ((o.id = order_items.order_id) AND ((o.user_id = auth.uid()) OR is_linked_parent(o.user_id))))))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "order_window_settings_select_authenticated",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "order_window_settings",
+      "using": "true",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "orders_admin_update",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "orders",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "orders_parent_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "orders",
+      "using": "((user_id = effective_student_user_id()) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "orders_parent_notes_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "orders",
+      "using": "((user_id = effective_student_user_id()) OR is_admin())",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "((user_id = effective_student_user_id()) OR is_admin())"
+    },
+    {
+      "name": "orders_select_own_or_admin_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "orders",
+      "using": "((user_id = auth.uid()) OR is_admin() OR is_linked_parent(user_id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "orders_student_or_linked_parent_update_notes",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "orders",
+      "using": "((user_id = auth.uid()) OR is_linked_parent(user_id) OR is_admin())",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "((user_id = auth.uid()) OR is_linked_parent(user_id) OR is_admin())"
+    },
+    {
+      "name": "parent_active_context_own",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "parent_active_student_context",
+      "using": "(parent_user_id = auth.uid())",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "(parent_user_id = auth.uid())"
+    },
+    {
+      "name": "parent_food_blocks_no_direct_access",
+      "roles": [
+        "public"
+      ],
+      "table": "parent_food_blocks",
+      "using": "false",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "false"
+    },
+    {
+      "name": "parent_student_select_related",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "parent_student_links",
+      "using": "((auth.uid() = parent_user_id) OR (auth.uid() = student_user_id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "pickup_slots_admin_write",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "pickup_slots",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "pickup_slots_read",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "table": "pickup_slots",
+      "using": "((enabled = true) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "allergens_select_authenticated",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "product_allergens",
+      "using": "true",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "product_nutrition_admin_write",
+      "roles": [
+        "public"
+      ],
+      "table": "product_nutrition",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "product_nutrition_public_read",
+      "roles": [
+        "public"
+      ],
+      "table": "product_nutrition",
+      "using": "true",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "product_reviews_admin_manage",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "product_reviews",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "product_reviews_public_read_approved",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "table": "product_reviews",
+      "using": "((status = 'approved'::text) OR is_admin() OR (student_id = auth.uid()))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "product_reviews_student_insert_own",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "product_reviews",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "((student_id = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM (orders o\n     JOIN order_items oi ON ((oi.order_id = o.id)))\n  WHERE ((o.id = product_reviews.order_id) AND (o.user_id = auth.uid()) AND (o.status = 'delivered'::text) AND (oi.product_id = product_reviews.product_id)))))"
+    },
+    {
+      "name": "product_reviews_student_update_pending",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "product_reviews",
+      "using": "((student_id = auth.uid()) AND (status = 'pending'::text))",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "((student_id = auth.uid()) AND (status = 'pending'::text))"
+    },
+    {
+      "name": "stock_settings_admin_all",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "product_stock_settings",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "products_admin_write",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "products",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "products_public_read_available",
+      "roles": [
+        "public"
+      ],
+      "table": "products",
+      "using": "(is_admin() OR ((available = true) AND (NOT (EXISTS ( SELECT 1\n   FROM parent_food_blocks b\n  WHERE ((b.student_user_id = effective_student_user_id()) AND (b.product_id = products.id))))) AND (NOT (EXISTS ( SELECT 1\n   FROM ((product_nutrition n\n     CROSS JOIN LATERAL regexp_split_to_table(COALESCE(n.ingredients, ''::text), '[,;\\n\\r]+'::text) ingredient(value))\n     JOIN student_ingredient_blocks sb ON ((sb.student_user_id = effective_student_user_id())))\n  WHERE ((n.product_id = products.id) AND (POSITION((((' '::text || sb.ingredient_key) || ' '::text)) IN (((' '::text || TRIM(BOTH FROM regexp_replace(lower(ingredient.value), '[^[:alnum:]]+'::text, ' '::text, 'g'::text))) || ' '::text))) > 0)))))))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "profiles_admin_delete",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "profiles",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "DELETE",
+      "with_check": null
+    },
+    {
+      "name": "profiles_parent_linked",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "profiles",
+      "using": "((id = auth.uid()) OR is_admin() OR (EXISTS ( SELECT 1\n   FROM parent_student_links l\n  WHERE ((l.parent_user_id = auth.uid()) AND (l.student_user_id = l.id) AND (l.active = true)))))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "profiles_select_own_or_admin_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "profiles",
+      "using": "((id = auth.uid()) OR is_admin() OR is_linked_parent(id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "recess_targets_admin_write",
+      "roles": [
+        "public"
+      ],
+      "table": "recess_schedule_targets",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "recess_targets_read",
+      "roles": [
+        "public"
+      ],
+      "table": "recess_schedule_targets",
+      "using": "(EXISTS ( SELECT 1\n   FROM recess_schedules s\n  WHERE ((s.id = recess_schedule_targets.recess_schedule_id) AND ((s.active = true) OR is_admin()))))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "recess_schedules_admin_write",
+      "roles": [
+        "public"
+      ],
+      "table": "recess_schedules",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "recess_schedules_read",
+      "roles": [
+        "public"
+      ],
+      "table": "recess_schedules",
+      "using": "((active = true) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "report_periods_admin_insert",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "report_periods",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.role = ANY (ARRAY['admin'::text, 'both'::text])))))"
+    },
+    {
+      "name": "report_periods_admin_select",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "report_periods",
+      "using": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (p.role = ANY (ARRAY['admin'::text, 'both'::text])))))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "staff_roles_admin_all",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "staff_roles",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "student can revoke own data consent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "student_data_consents",
+      "using": "(auth.uid() = user_id)",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "(auth.uid() = user_id)"
+    },
+    {
+      "name": "student or admin can view data consent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "student_data_consents",
+      "using": "((auth.uid() = user_id) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "student_data_consents_select_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "student_data_consents",
+      "using": "((user_id = auth.uid()) OR is_linked_parent(user_id) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "student_data_consents_select_own_or_admin",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "student_data_consents",
+      "using": "((user_id = auth.uid()) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "dietary_insert_self_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "student_dietary_profiles",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "((student_user_id = auth.uid()) OR is_linked_parent(student_user_id))"
+    },
+    {
+      "name": "dietary_select_self_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "student_dietary_profiles",
+      "using": "((student_user_id = auth.uid()) OR is_linked_parent(student_user_id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "dietary_update_self_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "student_dietary_profiles",
+      "using": "((student_user_id = auth.uid()) OR is_linked_parent(student_user_id))",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "((student_user_id = auth.uid()) OR is_linked_parent(student_user_id))"
+    },
+    {
+      "name": "student_ingredient_blocks_no_direct_access",
+      "roles": [
+        "public"
+      ],
+      "table": "student_ingredient_blocks",
+      "using": "false",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "false"
+    },
+    {
+      "name": "student_ingredient_blocks_select_effective_student",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "student_ingredient_blocks",
+      "using": "can_manage_student_food(student_user_id)",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "spending_limits_parent_read",
+      "roles": [
+        "public"
+      ],
+      "table": "student_spending_limits",
+      "using": "((student_user_id = effective_student_user_id()) OR (EXISTS ( SELECT 1\n   FROM parent_student_links l\n  WHERE ((l.parent_user_id = auth.uid()) AND (l.student_user_id = student_spending_limits.student_user_id) AND (l.active = true)))))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "alerts_admin_all",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "system_alerts",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "name": "system_audit_logs_select_admin",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "system_audit_logs",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "system_health_checks_select_admin",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "system_health_checks",
+      "using": "is_admin()",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "user_theme_preferences_insert_own",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "user_theme_preferences",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "(user_id = auth.uid())"
+    },
+    {
+      "name": "user_theme_preferences_select_own",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "user_theme_preferences",
+      "using": "(user_id = auth.uid())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "user_theme_preferences_update_own",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "user_theme_preferences",
+      "using": "(user_id = auth.uid())",
+      "schema": "public",
+      "command": "UPDATE",
+      "with_check": "(user_id = auth.uid())"
+    },
+    {
+      "name": "wallet_accounts_parent_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "wallet_accounts",
+      "using": "((user_id = effective_student_user_id()) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "wallet_accounts_select_own_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "wallet_accounts",
+      "using": "((user_id = auth.uid()) OR is_linked_parent(user_id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "wallet_topups_insert_own_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "wallet_topup_requests",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "((user_id = auth.uid()) OR is_linked_parent(user_id))"
+    },
+    {
+      "name": "wallet_topups_parent_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "wallet_topup_requests",
+      "using": "((user_id = effective_student_user_id()) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "wallet_topups_parent_insert_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "wallet_topup_requests",
+      "using": null,
+      "schema": "public",
+      "command": "INSERT",
+      "with_check": "((user_id = effective_student_user_id()) OR is_admin())"
+    },
+    {
+      "name": "wallet_topups_select_own_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "wallet_topup_requests",
+      "using": "((user_id = auth.uid()) OR is_admin() OR is_linked_parent(user_id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "wallet_transactions_parent_effective",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "wallet_transactions",
+      "using": "((user_id = effective_student_user_id()) OR is_admin())",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "wallet_transactions_select_own_or_linked_parent",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "wallet_transactions",
+      "using": "((user_id = auth.uid()) OR is_linked_parent(user_id))",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "name": "weekly_menu_select_authenticated",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "weekly_menu_items",
+      "using": "(available = true)",
+      "schema": "public",
+      "command": "SELECT",
+      "with_check": null
+    }
+  ],
+  "triggers": [
+    {
+      "name": "academic_courses_updated_at",
+      "event": "UPDATE",
+      "table": "academic_courses",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION set_academic_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "academic_grades_updated_at",
+      "event": "UPDATE",
+      "table": "academic_grades",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION set_academic_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "academic_sections_updated_at",
+      "event": "UPDATE",
+      "table": "academic_sections",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION set_academic_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_categories_change",
+      "event": "DELETE",
+      "table": "categories",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_categories_change",
+      "event": "UPDATE",
+      "table": "categories",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_categories_change",
+      "event": "INSERT",
+      "table": "categories",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "loyalty_rewards_sync_points_cost",
+      "event": "UPDATE",
+      "table": "loyalty_rewards",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION sync_loyalty_reward_points_cost()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "loyalty_rewards_sync_points_cost",
+      "event": "INSERT",
+      "table": "loyalty_rewards",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION sync_loyalty_reward_points_cost()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "loyalty_rewards_touch_updated_at",
+      "event": "UPDATE",
+      "table": "loyalty_rewards",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION touch_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "loyalty_settings_touch_updated_at",
+      "event": "UPDATE",
+      "table": "loyalty_settings",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION touch_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "order_items_enforce_ingredient_restrictions",
+      "event": "INSERT",
+      "table": "order_items",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION enforce_order_item_ingredient_restrictions()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_enforce_parent_food_blocks",
+      "event": "INSERT",
+      "table": "order_items",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION enforce_parent_food_blocks()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_order_item_demand",
+      "event": "INSERT",
+      "table": "order_items",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION record_order_item_demand()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_refresh_daily_summary_item",
+      "event": "INSERT",
+      "table": "order_items",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION refresh_daily_summary_from_item()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_refresh_daily_summary_item",
+      "event": "UPDATE",
+      "table": "order_items",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION refresh_daily_summary_from_item()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_orders_change",
+      "event": "INSERT",
+      "table": "orders",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_orders_change",
+      "event": "DELETE",
+      "table": "orders",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_orders_change",
+      "event": "UPDATE",
+      "table": "orders",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "orders_sync_loyalty_points",
+      "event": "UPDATE",
+      "table": "orders",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION sync_loyalty_points_for_order()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "orders_sync_loyalty_points",
+      "event": "INSERT",
+      "table": "orders",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION sync_loyalty_points_for_order()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "orders_touch_updated_at",
+      "event": "UPDATE",
+      "table": "orders",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION touch_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_enforce_student_spending_limits",
+      "event": "INSERT",
+      "table": "orders",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION enforce_student_spending_limits()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_order_status_notification",
+      "event": "UPDATE",
+      "table": "orders",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION notify_order_status_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_refresh_daily_summary_order",
+      "event": "INSERT",
+      "table": "orders",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION refresh_daily_summary_from_order()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_refresh_daily_summary_order",
+      "event": "UPDATE",
+      "table": "orders",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION refresh_daily_summary_from_order()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_student_order_notes_only",
+      "event": "UPDATE",
+      "table": "orders",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION student_can_update_order_notes_only()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_sync_student_comment_from_notes",
+      "event": "UPDATE",
+      "table": "orders",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION sync_student_comment_from_notes()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "pickup_slots_touch_updated_at",
+      "event": "UPDATE",
+      "table": "pickup_slots",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION touch_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "product_reviews_touch_updated_at",
+      "event": "UPDATE",
+      "table": "product_reviews",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION touch_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_products_change",
+      "event": "UPDATE",
+      "table": "products",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_products_change",
+      "event": "INSERT",
+      "table": "products",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_products_change",
+      "event": "DELETE",
+      "table": "products",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "products_enforce_availability",
+      "event": "UPDATE",
+      "table": "products",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION enforce_product_availability()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "products_touch_updated_at",
+      "event": "UPDATE",
+      "table": "products",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION touch_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_product_low_stock_alert",
+      "event": "INSERT",
+      "table": "products",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION create_low_stock_alert()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_product_low_stock_alert",
+      "event": "UPDATE",
+      "table": "products",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION create_low_stock_alert()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_products_inventory_movement",
+      "event": "UPDATE",
+      "table": "products",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION record_inventory_movement()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_profiles_change",
+      "event": "UPDATE",
+      "table": "profiles",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_profiles_change",
+      "event": "INSERT",
+      "table": "profiles",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "audit_profiles_change",
+      "event": "DELETE",
+      "table": "profiles",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION audit_business_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "profiles_protect_admins",
+      "event": "UPDATE",
+      "table": "profiles",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION prevent_protected_admin_profile_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "profiles_protect_admins",
+      "event": "DELETE",
+      "table": "profiles",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION prevent_protected_admin_profile_change()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "profiles_touch_updated_at",
+      "event": "UPDATE",
+      "table": "profiles",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION touch_updated_at()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "protect_quickbite_student_delete",
+      "event": "DELETE",
+      "table": "profiles",
+      "schema": "public",
+      "timing": "BEFORE",
+      "statement": "EXECUTE FUNCTION protect_quickbite_student_account()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_sync_staff_role_from_profile",
+      "event": "UPDATE",
+      "table": "profiles",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION sync_staff_role_from_profile()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_sync_staff_role_from_profile",
+      "event": "INSERT",
+      "table": "profiles",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION sync_staff_role_from_profile()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_admin_notification_from_system_audit",
+      "event": "INSERT",
+      "table": "system_audit_logs",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION fanout_admin_notification_from_audit()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "wallet_low_balance_alert",
+      "event": "INSERT",
+      "table": "wallet_accounts",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION notify_low_wallet_balance()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "wallet_low_balance_alert",
+      "event": "UPDATE",
+      "table": "wallet_accounts",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION notify_low_wallet_balance()",
+      "orientation": "ROW"
+    },
+    {
+      "name": "trg_wallet_topup_review",
+      "event": "UPDATE",
+      "table": "wallet_topup_requests",
+      "schema": "public",
+      "timing": "AFTER",
+      "statement": "EXECUTE FUNCTION notify_wallet_topup_review()",
+      "orientation": "ROW"
+    }
+  ],
+  "functions": [
+    {
+      "name": "admin_adjust_inventory",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public, pg_catalog, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_product_id uuid, p_new_stock integer, p_movement_type text, p_reason text"
+    },
+    {
+      "name": "admin_approve_wallet_topup",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_request_id uuid"
+    },
+    {
+      "name": "admin_archive_orders",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "integer",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_ids uuid[]"
+    },
+    {
+      "name": "admin_cleanup_orphan_admin_notifications",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_expected_count bigint, p_expected_sha256 text"
+    },
+    {
+      "name": "admin_create_product",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_name text, p_description text, p_price numeric, p_image_url text, p_category_id uuid, p_stock integer, p_available boolean"
+    },
+    {
+      "name": "admin_create_user",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public, auth, extensions"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_email text, p_password text, p_full_name text, p_role text, p_ti text"
+    },
+    {
+      "name": "admin_delete_exported_redemptions",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "integer",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": false,
+      "identity_arguments": "p_redemption_ids uuid[]"
+    },
+    {
+      "name": "admin_delete_product",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_product_id uuid"
+    },
+    {
+      "name": "admin_delete_user",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid"
+    },
+    {
+      "name": "admin_delete_users",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_ids uuid[]"
+    },
+    {
+      "name": "admin_fulfill_loyalty_redemption",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_redemption_id uuid, p_redemption_code text"
+    },
+    {
+      "name": "admin_get_automation_settings",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(key text, label text, description text, enabled boolean, updated_at timestamp with time zone)",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "admin_get_loyalty_settings",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(id boolean, enabled boolean, points_per_currency_unit numeric, updated_at timestamp with time zone)",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "admin_list_audit_events",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(source text, id text, created_at timestamp with time zone, actor_id uuid, action text, module text, operation text, entity_type text, entity_id text, status text, metadata jsonb)",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_limit integer"
+    },
+    {
+      "name": "admin_list_loyalty_redemptions",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_limit integer"
+    },
+    {
+      "name": "admin_list_order_cancellation_requests",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(id uuid, order_id uuid, user_id uuid, order_number text, full_name text, email text, reason text, status text, refund_amount numeric, refund_method text, review_note text, reviewed_by uuid, reviewed_at timestamp with time zone, created_at timestamp with time zone, order_item_id uuid, product_name text, requested_quantity integer)",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "admin_list_report_orders",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_start timestamp with time zone, p_end timestamp with time zone"
+    },
+    {
+      "name": "admin_list_student_data_consents",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(user_id uuid, student_name text, guardian_name text, guardian_relationship text, guardian_email text, student_acknowledged boolean, guardian_authorized boolean, privacy_policy_version text, consent_at timestamp with time zone)",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "admin_list_users",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(id uuid, email text, full_name text, role text, ti text, created_at timestamp with time zone, active boolean)",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "admin_manage_user",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public, auth, extensions"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_email text, p_password text, p_full_name text, p_role text, p_ti text, p_student_code text, p_relationship text"
+    },
+    {
+      "name": "admin_moderate_order_payment",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "orders",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_id uuid, p_action text"
+    },
+    {
+      "name": "admin_notification_copy",
+      "schema": "public",
+      "volatility": "i",
+      "return_type": "TABLE(title text, body text)",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": false,
+      "identity_arguments": "p_action text, p_metadata jsonb, p_section text"
+    },
+    {
+      "name": "admin_notification_section",
+      "schema": "public",
+      "volatility": "i",
+      "return_type": "text",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": false,
+      "identity_arguments": "p_module text"
+    },
+    {
+      "name": "admin_set_automation_setting",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_key text, p_enabled boolean"
+    },
+    {
+      "name": "admin_set_low_balance_threshold",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "wallet_accounts",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_threshold numeric"
+    },
+    {
+      "name": "admin_set_order_windows_enabled",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_enabled boolean"
+    },
+    {
+      "name": "admin_set_user_active",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_active boolean"
+    },
+    {
+      "name": "admin_update_order_payment",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_id uuid, p_payment_status text"
+    },
+    {
+      "name": "admin_update_order_status",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_id uuid, p_status text"
+    },
+    {
+      "name": "admin_update_product",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_product_id uuid, p_name text, p_description text, p_price numeric, p_image_url text, p_category_id uuid, p_stock integer, p_available boolean"
+    },
+    {
+      "name": "admin_update_protected_credentials",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public, auth, extensions"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_email text, p_password text"
+    },
+    {
+      "name": "admin_update_user",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public, auth, extensions"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_email text, p_full_name text, p_role text, p_ti text, p_password text"
+    },
+    {
+      "name": "admin_upsert_pickup_slot",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "pickup_slots",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_id uuid, p_name text, p_starts_at time without time zone, p_ends_at time without time zone, p_enabled boolean, p_max_orders integer"
+    },
+    {
+      "name": "apply_wallet_transaction",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "wallet_transactions",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_amount numeric, p_type text, p_description text, p_reference_id text, p_order_id uuid"
+    },
+    {
+      "name": "approve_wallet_topup",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_request_id uuid"
+    },
+    {
+      "name": "audit_business_change",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "audit_payload_has_sensitive_key",
+      "schema": "public",
+      "volatility": "i",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": false,
+      "identity_arguments": "p_payload jsonb"
+    },
+    {
+      "name": "can_manage_student_food",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid"
+    },
+    {
+      "name": "check_request",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=pg_catalog, public, private"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "cleanup_system_health_checks",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "bigint",
+      "configuration": [
+        "search_path=public, pg_temp"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_days integer"
+    },
+    {
+      "name": "clear_exported_redemptions",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "integer",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "clear_parent_active_student",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "complete_pending_parent_registration",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "complete_pending_student_registration",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "profiles",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "create_admin_profile",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_email text, p_full_name text, p_invite_code text"
+    },
+    {
+      "name": "create_low_stock_alert",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "create_order_tx",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "text",
+      "configuration": [
+        "search_path=pg_catalog, public, auth, extensions"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_payment_method text, p_payment_status text, p_status text, p_pickup_code text, p_estimated_minutes integer, p_payment_reference text, p_items jsonb, p_notes text, p_request_id uuid"
+    },
+    {
+      "name": "create_order_tx_legacy",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "text",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_payment_method text, p_payment_status text, p_status text, p_pickup_code text, p_estimated_minutes integer, p_payment_reference text, p_items jsonb, p_notes text"
+    },
+    {
+      "name": "create_parent_profile_with_role",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_email text, p_full_name text"
+    },
+    {
+      "name": "create_student_profile",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_email text, p_full_name text, p_grade text, p_student_code text"
+    },
+    {
+      "name": "create_student_profile",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_email text, p_full_name text, p_ti text"
+    },
+    {
+      "name": "create_student_profile_with_consent",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_email text, p_full_name text, p_ti text, p_guardian_name text, p_guardian_relationship text, p_guardian_email text, p_student_acknowledged boolean, p_guardian_authorized boolean, p_purpose text, p_policy_version text"
+    },
+    {
+      "name": "create_student_profile_with_consent",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "profiles",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_email text, p_full_name text, p_ti text, p_guardian_name text, p_guardian_relationship text, p_guardian_email text, p_student_acknowledged boolean, p_guardian_authorized boolean, p_purpose text, p_section_id uuid, p_grade_id uuid, p_course_id uuid"
+    },
+    {
+      "name": "db_pre_request",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=pg_catalog, public, auth, extensions"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "effective_student_user_id",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "email_exists",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_email text"
+    },
+    {
+      "name": "enforce_order_item_ingredient_restrictions",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "enforce_parent_food_blocks",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "enforce_product_availability",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "name": "enforce_student_spending_limits",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "fanout_admin_notification_from_audit",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "get_admin_dashboard_intelligence",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public, pg_catalog, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_days integer"
+    },
+    {
+      "name": "get_my_theme_preference",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "text",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "get_or_create_student_code",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_force_new boolean, p_student_user_id uuid"
+    },
+    {
+      "name": "get_order_by_pickup_code",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_pickup_code text"
+    },
+    {
+      "name": "get_order_window_status",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(slot_id uuid, slot_name text, starts_at time without time zone, ends_at time without time zone, enabled boolean, max_orders integer, orders_count bigint, accepting_orders boolean)",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_slot_id uuid"
+    },
+    {
+      "name": "get_order_windows_enabled",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "get_parent_active_student",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "get_parent_family_dashboard",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public, pg_catalog, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid"
+    },
+    {
+      "name": "get_parent_food_controls",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(product_id uuid, product_name text, description text, price numeric, image_url text, category_id uuid, category_name text, blocked boolean, reason text)",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid"
+    },
+    {
+      "name": "get_parent_spending_limit",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "student_spending_limits",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid"
+    },
+    {
+      "name": "get_parent_student_spending_summary",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid"
+    },
+    {
+      "name": "get_repeat_order",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_id uuid"
+    },
+    {
+      "name": "get_student_ingredient_blocks",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(ingredient_name text, reason text, created_at timestamp with time zone, created_by uuid)",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid"
+    },
+    {
+      "name": "get_student_recess_status",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "get_system_health_summary",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(service text, status text, latency_ms integer, checked_at timestamp with time zone, details jsonb)",
+      "configuration": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "get_system_operational_snapshot",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "is_admin",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "is_linked_parent",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid"
+    },
+    {
+      "name": "is_protected_admin_email",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_email text"
+    },
+    {
+      "name": "is_staff",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "is_staff_or_admin",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "link_parent_to_student",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "parent_student_links",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_code text, p_relationship text"
+    },
+    {
+      "name": "link_student_by_code",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_code text, p_relationship text"
+    },
+    {
+      "name": "list_admin_orders",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "SETOF orders",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "list_admin_wallet_topup_requests",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(id uuid, user_id uuid, amount numeric, method text, reference text, comment text, status text, rejection_reason text, created_at timestamp with time zone, reviewed_at timestamp with time zone, reviewed_by uuid, full_name text, email text)",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_limit integer"
+    },
+    {
+      "name": "list_product_allergens",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(allergen text)",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_product_id uuid"
+    },
+    {
+      "name": "list_protected_admin_emails",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(email text)",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "login_email_exists",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=\"\""
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_email text"
+    },
+    {
+      "name": "mark_admin_notifications_read",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "integer",
+      "configuration": [
+        "search_path=public, pg_catalog, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_section text"
+    },
+    {
+      "name": "mark_notifications_read",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "integer",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_notification_ids uuid[], p_user_id uuid"
+    },
+    {
+      "name": "moderate_loyalty_redemption",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "loyalty_redemptions",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_redemption_id uuid, p_status text"
+    },
+    {
+      "name": "notify_low_wallet_balance",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "notify_order_status_change",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "notify_wallet_topup_review",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "prevent_protected_admin_auth_change",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "prevent_protected_admin_profile_change",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "protect_quickbite_student_account",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "qb_products_available_for_current_student",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "record_health_check",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "bigint",
+      "configuration": [
+        "search_path=public, pg_temp"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_service text, p_status text, p_latency_ms integer, p_details jsonb"
+    },
+    {
+      "name": "record_inventory_movement",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public, pg_catalog, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "record_order_item_demand",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "record_student_data_consent",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_student_name text, p_guardian_name text, p_guardian_relationship text, p_guardian_email text, p_student_acknowledged boolean, p_guardian_authorized boolean, p_purpose text, p_privacy_policy_version text"
+    },
+    {
+      "name": "record_system_audit",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public, pg_temp"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_action text, p_entity_type text, p_entity_id text, p_status text, p_metadata jsonb"
+    },
+    {
+      "name": "record_system_audit",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_actor_id uuid, p_action text, p_module text, p_operation text, p_entity_type text, p_entity_id text, p_status text, p_details jsonb"
+    },
+    {
+      "name": "record_system_health_check",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "bigint",
+      "configuration": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_service text, p_status text, p_latency_ms integer, p_details jsonb"
+    },
+    {
+      "name": "redeem_loyalty_reward",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_reward_id uuid"
+    },
+    {
+      "name": "redeem_loyalty_reward",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_reward_id uuid, p_user_id uuid"
+    },
+    {
+      "name": "refresh_daily_summary",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_business_date date"
+    },
+    {
+      "name": "refresh_daily_summary_from_item",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "refresh_daily_summary_from_order",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "reject_wallet_topup",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_request_id uuid, p_reason text"
+    },
+    {
+      "name": "request_order_cancellation",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_id uuid, p_reason text"
+    },
+    {
+      "name": "request_order_item_cancellation",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_item_id uuid, p_reason text"
+    },
+    {
+      "name": "request_order_item_cancellation",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_item_id uuid, p_reason text, p_requested_quantity integer"
+    },
+    {
+      "name": "request_wallet_topup",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_amount numeric, p_method text, p_reference text, p_user_id uuid, p_comment text"
+    },
+    {
+      "name": "reset_all_orders",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "integer",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "reset_all_test_data",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_confirmation_code text"
+    },
+    {
+      "name": "review_order_cancellation",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "order_cancellation_requests",
+      "configuration": [
+        "search_path=public, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_request_id uuid, p_approve boolean, p_note text"
+    },
+    {
+      "name": "rls_auto_enable",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "event_trigger",
+      "configuration": [
+        "search_path=pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "run_admin_health_check",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "jsonb",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "run_quickbite_automations",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "schedule_order_for_user",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(id uuid, order_number text, pickup_slot_id uuid, scheduled_for timestamp with time zone)",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_number text, p_user_id uuid, p_pickup_slot_id uuid, p_scheduled_for timestamp with time zone"
+    },
+    {
+      "name": "set_academic_updated_at",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "name": "set_admin_invite_code",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_code text"
+    },
+    {
+      "name": "set_app_visual_settings_updated_at",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "name": "set_my_theme_preference",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "text",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_theme_mode text"
+    },
+    {
+      "name": "set_order_status",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": false,
+      "identity_arguments": "p_order_id uuid, p_status text"
+    },
+    {
+      "name": "set_parent_active_student",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid"
+    },
+    {
+      "name": "set_parent_food_block",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid, p_product_id uuid, p_blocked boolean, p_reason text"
+    },
+    {
+      "name": "set_parent_spending_limits",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "student_spending_limits",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid, p_daily_limit numeric, p_weekly_limit numeric, p_monthly_limit numeric"
+    },
+    {
+      "name": "set_student_ingredient_block",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_user_id uuid, p_ingredient_name text, p_blocked boolean, p_reason text"
+    },
+    {
+      "name": "staff_adjust_inventory",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_product_id uuid, p_new_stock integer, p_reason text"
+    },
+    {
+      "name": "staff_delete_category",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_category_id uuid"
+    },
+    {
+      "name": "staff_list_active_orders",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(id uuid, order_number text, status text, total numeric, payment_method text, payment_status text, pickup_code text, estimated_minutes integer, created_at timestamp with time zone, student_name text, student_email text, student_comment text, order_items jsonb)",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "staff_list_categories",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(id uuid, name text, description text, created_at timestamp with time zone)",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "staff_list_inventory_movements",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(id uuid, product_id uuid, product_name text, movement_type text, quantity integer, previous_stock integer, new_stock integer, actor_name text, reason text, created_at timestamp with time zone)",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_limit integer"
+    },
+    {
+      "name": "staff_list_menu_catalog",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(id uuid, name text, description text, price numeric, image_url text, category_id uuid, category_name text, stock integer, available boolean, detailed_description text, ingredients text, allergens text, calories numeric, protein_g numeric, carbohydrates_g numeric, fat_g numeric, fiber_g numeric, vegetarian boolean, healthy_choice boolean, ingredients_verified boolean, nutrition_verified boolean, nutrition_source text)",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "staff_list_online_users",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(user_id uuid, full_name text, role text, last_seen_at timestamp with time zone)",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "staff_list_own_activity",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(id uuid, action text, entity text, entity_id text, metadata jsonb, created_at timestamp with time zone)",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_limit integer"
+    },
+    {
+      "name": "staff_list_topup_requests",
+      "schema": "public",
+      "volatility": "s",
+      "return_type": "TABLE(id uuid, user_id uuid, full_name text, amount numeric, method text, reference text, comment text, status text, rejection_reason text, created_at timestamp with time zone, reviewed_at timestamp with time zone)",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_limit integer"
+    },
+    {
+      "name": "staff_ping_presence",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "staff_review_order",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_id uuid, p_approve boolean, p_reason text"
+    },
+    {
+      "name": "staff_save_menu_product",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_product_id uuid, p_name text, p_description text, p_price numeric, p_image_url text, p_category_id uuid"
+    },
+    {
+      "name": "staff_save_product_nutrition",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_product_id uuid, p_detailed_description text, p_ingredients text, p_allergens text, p_calories numeric, p_protein_g numeric, p_carbohydrates_g numeric, p_fat_g numeric, p_fiber_g numeric, p_vegetarian boolean, p_healthy_choice boolean, p_ingredients_verified boolean, p_nutrition_verified boolean, p_nutrition_source text"
+    },
+    {
+      "name": "staff_set_product_availability",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_product_id uuid, p_available boolean"
+    },
+    {
+      "name": "staff_update_order_status",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_order_id uuid, p_status text"
+    },
+    {
+      "name": "staff_upsert_category",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_category_id uuid, p_name text, p_description text"
+    },
+    {
+      "name": "student_can_update_order_notes_only",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "submit_product_review",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "product_reviews",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_product_id uuid, p_order_id uuid, p_stars integer, p_comment text"
+    },
+    {
+      "name": "sync_loyalty_points_for_order",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "sync_loyalty_reward_points_cost",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "name": "sync_staff_role_from_profile",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "sync_student_comment_from_notes",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": ""
+    },
+    {
+      "name": "touch_updated_at",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "trigger",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": false,
+      "identity_arguments": ""
+    },
+    {
+      "name": "unlink_student",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "void",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_link_id uuid"
+    },
+    {
+      "name": "update_student_profile",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(id uuid, full_name text, email text, grade text, ti text, student_code text)",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_full_name text, p_ti text"
+    },
+    {
+      "name": "validate_student_link_code",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "TABLE(valid boolean)",
+      "configuration": [
+        "search_path=public"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_student_code text"
+    },
+    {
+      "name": "verify_student_identity",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "boolean",
+      "configuration": [
+        "search_path=public, auth, pg_catalog"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_user_id uuid, p_ti text"
+    },
+    {
+      "name": "write_system_audit_event",
+      "schema": "public",
+      "volatility": "v",
+      "return_type": "uuid",
+      "configuration": [
+        "search_path=pg_catalog, public, auth"
+      ],
+      "security_definer": true,
+      "identity_arguments": "p_action text, p_entity_type text, p_entity_id text, p_details jsonb, p_status text"
+    }
+  ],
+  "extensions": [
+    {
+      "name": "orioledb",
+      "schema": "extensions",
+      "version": "1.8"
+    },
+    {
+      "name": "pg_graphql",
+      "schema": "graphql",
+      "version": "1.6.1"
+    },
+    {
+      "name": "pg_stat_statements",
+      "schema": "extensions",
+      "version": "1.11"
+    },
+    {
+      "name": "pgcrypto",
+      "schema": "extensions",
+      "version": "1.3"
+    },
+    {
+      "name": "plpgsql",
+      "schema": "pg_catalog",
+      "version": "1.0"
+    },
+    {
+      "name": "supabase_vault",
+      "schema": "vault",
+      "version": "0.3.1"
+    },
+    {
+      "name": "uuid-ossp",
+      "schema": "extensions",
+      "version": "1.1"
+    }
+  ],
+  "captured_at": "2026-10-10",
+  "source_project_ref": "cczbbqxunygcowqfrqdm"
+}
