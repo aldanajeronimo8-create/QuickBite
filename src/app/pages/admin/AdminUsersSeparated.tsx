@@ -227,7 +227,7 @@ export function AdminUsersSeparated() {
   };
 
   const removeSelected = async () => {
-    const ids = selectableFiltered.filter((user) => selectedUserIds.has(user.id)).map((user) => user.id);
+    const ids = users.filter((user) => selectedUserIds.has(user.id) && !isProtected(user) && user.id !== currentUser?.id).map((user) => user.id);
     if (!ids.length) return toast.error('Selecciona al menos una cuenta eliminable.');
     if (!window.confirm(`Vas a eliminar definitivamente ${ids.length} cuentas seleccionadas. Las 6 cuentas protegidas y tu propia sesión no se pueden eliminar. ¿Continuar?`)) return;
     setDeletingSelected(true);
