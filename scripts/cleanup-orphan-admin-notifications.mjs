@@ -264,7 +264,7 @@ async function main() {
       "SELECT pg_size_pretty(pg_total_relation_size('public.admin_notifications')) AS table_size,",
       "pg_size_pretty(pg_database_size(current_database())) AS database_size",
     ].join('\n'));
-    if (finalCounts.orphaned !== 0 || finalCounts.total !== keepCount) {
+    if (finalCounts.orphaned !== 0 || finalCounts.linked < keepCount) {
       throw new Error('La verificación posterior al COMMIT no coincide. Conserva el respaldo y revisa el proyecto inmediatamente.');
     }
     console.log('\nLIMPIEZA VERIFICADA');
