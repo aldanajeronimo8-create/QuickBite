@@ -118,7 +118,7 @@ app.post(`${apiPrefix}/parents/create-from-student`, async (c) => {
     const fullName = typeof body.full_name === 'string' ? body.full_name.trim() : '';
     const relationship = typeof body.relationship === 'string' ? body.relationship.trim() : '';
     const allowedRelationships = ['Padre','Madre','Acudiente','Tutor legal','Abuelo/a','Tío/a','Hermano/a','Otro'];
-    if (!email || !/^\\S+@\\S+\\.\\S+$/.test(email) || !fullName || !allowedRelationships.includes(relationship)) {
+    if (!email || !/^\S+@\S+\.\S+$/.test(email) || !fullName || !allowedRelationships.includes(relationship)) {
       return c.json({ error: 'Datos del representante incompletos o inválidos.' }, 400);
     }
     const { data: created, error: createError } = await supabase.auth.admin.inviteUserByEmail(email, {
