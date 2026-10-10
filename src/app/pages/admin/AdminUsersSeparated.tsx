@@ -234,23 +234,59 @@ export function AdminUsersSeparated() {
     setDeletingSelected(true);
     setDeleteProgress({ completed: 0, total: ids.length });
     let deletedCount = 0;
+    let processedCount = 0;
+    const deletedIds = new Set<string>();
+    const failures: Array<{ user_id?: string; error?: string }> = [];
     try {
       const client = requireSupabaseClient();
-      const batchSize = 25;
+      const batchSize = 10;
       for (let offset = 0; offset < ids.length; offset += batchSize) {
         const batch = ids.slice(offset, offset + batchSize);
         const { data, error } = await client.rpc('admin_delete_users', { p_user_ids: batch });
-        if (error) throw new Error(`Se eliminaron ${deletedCount} de ${ids.length} cuentas. El siguiente lote falló: ${error.message}`);
-        deletedCount += Number(data ?? batch.length);
-        setDeleteProgress({ completed: deletedCount, total: ids.length });
+        if (error) {
+          failures.push(...batch.map((user_id) => ({ user_id, error: error.message })));
+          processedCount += batch.length;
+          setDeleteProgress({ completed: processedCount, total: ids.length });
+          continue;
+        }
+        const result = data as { deleted_count?: number; deleted_ids?: string[]; failures?: Array<{ user_id?: string; error?: string }> } | null;
+        const idsDeleted = Array.isArray(result?.deleted_ids) ? result.deleted_ids : [];
+        idsDeleted.forEach((id) => deletedIds.add(id));
+        deletedCount += Number(result?.deleted_count ?? idsDeleted.length);
+        failures.push(...(Array.isArray(result?.failures) ? result.failures : []));
+        processedCount += batch.length;
+        setDeleteProgress({ completed: processedCount, total: ids.length });
       }
-      setSelectedUserIds(new Set());
-      await useDataStore.getState().loadData({ silent: true, force: true });
-      await loadConsents();
-      toast.success(`Se eliminaron ${deletedCount} cuentas correctamente.`);
+
+      // Update the visible list immediately; do not reload orders, products and categories
+      // just to refresh the user table after deleting accounts.
+      useDataStore.setState((state) => ({ users: state.users.filter((user) => !deletedIds.has(user.id)) }));
+      setConsents((current) => {
+        const next = { ...current };
+        deletedIds.forEach((id) => { delete next[id]; });
+        return next;
+      });
+      const failedIds = new Set(failures.map((failure) => failure.user_id).filter((id): id is string => Boolean(id)));
+      setSelectedUserIds(failedIds);
+      if (failures.length) {
+        const firstReason = failures[0]?.error ?? 'error_desconocido';
+        const reasonLabel = firstReason.includes('protected_account_cannot_be_deleted')
+          ? 'Hay cuentas protegidas en la selección.'
+          : firstReason.includes('cannot_delete_self')
+            ? 'No se puede eliminar la sesión actual.'
+            : firstReason.includes('user_not_found')
+              ? 'Algunas cuentas ya no existen o estaban desactualizadas.'
+              : firstReason.includes('not_authorized')
+                ? 'Tu sesión no tiene permisos administrativos para eliminar cuentas.'
+                : 'Algunas cuentas no se pudieron eliminar por una restricción de la base de datos.';
+        if (deletedCount) toast.warning(`Eliminadas ${deletedCount} de ${ids.length}. ${failures.length} omitidas o con error. ${reasonLabel}`);
+        else toast.error(`No se pudo eliminar ninguna cuenta. ${reasonLabel}`);
+      } else {
+        toast.success(`Se eliminaron ${deletedCount} cuentas correctamente.`);
+        setSelectedUserIds(new Set());
+      }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Se eliminaron ${deletedCount} de ${ids.length} cuentas; revisa el resultado y vuelve a intentar con las restantes.`);
-      await useDataStore.getState().loadData({ silent: true, force: true }).catch(() => undefined);
+      toast.error(error instanceof Error ? error.message : 'No se pudo completar la eliminación masiva.');
     } finally {
       setDeletingSelected(false);
     }
