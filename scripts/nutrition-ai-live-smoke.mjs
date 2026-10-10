@@ -17,11 +17,11 @@ const key = requireValue(anonKey, 'VITE_SUPABASE_ANON_KEY');
 const email = requireValue(adminEmail, 'PLAYWRIGHT_ADMIN_EMAIL');
 const password = requireValue(adminPassword, 'PLAYWRIGHT_ADMIN_PASSWORD');
 
-const signIn = await fetch(authUrl + '/auth/v1/token?grant_type=password', {
+const signIn = await globalThis.fetch(authUrl + '/auth/v1/token?grant_type=password', {
   method: 'POST',
   headers: { apikey: key, 'Content-Type': 'application/json' },
   body: JSON.stringify({ email, password }),
-  signal: AbortSignal.timeout(20_000),
+  signal: globalThis.AbortSignal.timeout(20_000),
 });
 if (!signIn.ok) {
   throw new Error('Nutrition AI live smoke could not authenticate the acceptance administrator (HTTP ' + signIn.status + ').');
@@ -32,7 +32,7 @@ if (!accessToken) {
   throw new Error('Nutrition AI live smoke authenticated without receiving an access token.');
 }
 
-const response = await fetch(baseUrl + '/api/nutrition/suggest', {
+const response = await globalThis.fetch(baseUrl + '/api/nutrition/suggest', {
   method: 'POST',
   headers: {
     Authorization: 'Bearer ' + accessToken,
@@ -44,7 +44,7 @@ const response = await fetch(baseUrl + '/api/nutrition/suggest', {
     description: 'Borrador de prueba; no se guardará en el catálogo.',
     recipe_notes: 'Ingredientes declarados para probar la ficha: harina de trigo, leche pasteurizada y huevo. Muestra esos ingredientes como candidatos que debe verificar la cafetería; no afirmes que el alimento está libre de otros alérgenos.',
   }),
-  signal: AbortSignal.timeout(45_000),
+  signal: globalThis.AbortSignal.timeout(45_000),
 });
 
 let payload = {};
