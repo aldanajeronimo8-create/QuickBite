@@ -1,10 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { createHash, createCipheriv, randomBytes, hkdfSync } from 'node:crypto';
+import { createHash, createCipheriv, createDecipheriv, randomBytes, hkdfSync } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { createGzip } from 'node:zlib';
+import { createGzip, createGunzip } from 'node:zlib';
+import { createInterface } from 'node:readline';
+import { URL } from 'node:url';
 
 const PROJECT_REF = 'cczbbqxunygcowqfrqdm';
 const API_URL = 'https://' + PROJECT_REF + '.supabase.co';
@@ -148,6 +150,28 @@ async function* encryptedBackupSource(authIds, state) {
   }
 }
 
+async function verifyEncryptedBackup(filePath, key, iv, tag, authIds, expectedCount, expectedHash) {
+  const decipher = createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  const decryptedGzip = createReadStream(filePath).pipe(decipher).pipe(createGunzip());
+  const lines = createInterface({ input: decryptedGzip, crlfDelay: Infinity });
+  const hash = createHash('sha256');
+  let count = 0;
+  for await (const line of lines) {
+    if (!line) continue;
+    const row = JSON.parse(line);
+    if (!row.id || !row.admin_user_id || authIds.has(String(row.admin_user_id).toLowerCase())) {
+      throw new Error('Encrypted backup self-test found a non-orphan row; cleanup refused.');
+    }
+    hash.update(String(row.id).toLowerCase() + '\n');
+    count += 1;
+  }
+  const actualHash = hash.digest('hex');
+  if (count !== expectedCount || actualHash !== expectedHash) {
+    throw new Error('Encrypted backup self-test count/hash mismatch; cleanup refused.');
+  }
+}
+
 async function backup() {
   const serviceKey = required('SUPABASE_SERVICE_ROLE_KEY');
   const authIds = await getAuthIds();
@@ -184,6 +208,8 @@ async function backup() {
   }
 
   const tag = cipher.getAuthTag();
+  await verifyEncryptedBackup(backupPath, key, iv, tag, authIds, state.count, expectedHash);
+  console.log('Encrypted backup decryption self-test: PASS.');
   const encryptedSha256 = await sha256File(backupPath);
   const stat = fs.statSync(backupPath);
   if (stat.size < 32) throw new Error('Encrypted backup file is unexpectedly small.');
