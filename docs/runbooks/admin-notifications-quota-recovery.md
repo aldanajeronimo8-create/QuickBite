@@ -28,10 +28,10 @@ La migración no borra notificaciones históricas, perfiles ni cuentas.
 
 **No crear una tabla de respaldo dentro del mismo proyecto.** Eso duplicaría el uso de espacio. Exportar la tabla a un equipo o almacenamiento privado fuera de Supabase, mantener el archivo fuera del repositorio Git y no incluir credenciales en comandos guardados.
 
-La rama incluye el exportador `scripts/backup-admin-notifications.mjs`, invocable después de descargar el código con `pnpm backup:admin-notifications`. La exportación es de solo lectura, por páginas, dentro de una transacción `REPEATABLE READ READ ONLY`; crea un CSV y un manifiesto con el recuento y el SHA-256 fuera del repositorio. No se ha ejecutado desde este entorno porque no tengo acceso a la contraseña de conexión privada del usuario y el respaldo debe quedar bajo su control fuera de Supabase.
+El repositorio incluye el exportador `scripts/backup-admin-notifications.mjs`, invocable después de descargar el código con `pnpm backup:admin-notifications`. La exportación es de solo lectura, por páginas, dentro de una transacción `REPEATABLE READ READ ONLY`; crea un CSV y un manifiesto con el recuento y el SHA-256 fuera del repositorio. No se ha ejecutado desde este entorno porque no tengo acceso a la contraseña de conexión privada del usuario y el respaldo debe quedar bajo su control fuera de Supabase.
 
 Pasos locales:
-1. Usa el código actualizado de `main` después de fusionar el PR de respaldo.
+1. Actualiza tu copia local con el `main` que ya incluye el exportador y el limpiador.
 2. En el `.env` local (ignorado por Git), configura `SUPABASE_PROJECT_REF=cczbbqxunygcowqfrqdm` y `SUPABASE_DB_URL` con la cadena de conexión PostgreSQL del proyecto. No publiques ni compartas esa cadena.
 3. Ejecuta `pnpm install --frozen-lockfile` y después `pnpm backup:admin-notifications`.
 4. El comando debe terminar mostrando `RESPALDO VERIFICADO`, el mismo número de filas exportadas y esperado, la ruta del CSV y un SHA-256. Si no se completa sin errores, no uses el archivo parcial para autorizar la limpieza.
@@ -47,43 +47,9 @@ pnpm cleanup:orphan-admin-notifications -- --manifest "../quickbite-private-back
 ```
 El modo `--apply` exige confirmar que hay dos copias privadas y escribir una frase de confirmación con el recuento exacto. Bajo bloqueo exclusivo, vuelve a comprobar los IDs huérfanos, reconstruye la tabla dentro de una transacción y verifica recuentos antes del `COMMIT`. Si un chequeo falla, la transacción se revierte.
 
-1. En el Dashboard de Supabase, revisar si el proyecto está en modo de solo lectura. No intentar limpiezas hasta contar con un respaldo externo verificable y una ventana de mantenimiento.
-2. Con una conexión de base de datos configurada en el equipo operador, abrir `psql` contra el proyecto correcto. No pegar la cadena de conexión ni la contraseña en un issue, PR o chat.
-3. Antes de exportar, registrar los recuentos:
-   ```sql
-   SELECT count(*) AS total_notifications FROM public.admin_notifications;
+Antes de usar `--apply`, verifica en el Dashboard que el proyecto permita escrituras y confirma que la migración `20261010190601 / prevent_orphan_admin_notifications` aparece en el registro. Ejecuta la operación en una ventana de mantenimiento, sin cambios de usuarios ni de notificaciones en paralelo. Si el proyecto está en solo lectura, no intentes forzar la limpieza: sigue el procedimiento indicado por Supabase o resuelve primero la cuota.
 
-   SELECT count(*) AS notifications_without_auth_account
-   FROM public.admin_notifications n
-   WHERE NOT EXISTS (
-     SELECT 1 FROM auth.users u WHERE u.id = n.admin_user_id
-   );
-
-   SELECT count(*) AS notifications_with_auth_account
-   FROM public.admin_notifications n
-   WHERE EXISTS (
-     SELECT 1 FROM auth.users u WHERE u.id = n.admin_user_id
-   );
-   ```
-4. En `psql`, exportar **todas** las notificaciones a un archivo CSV fuera del proyecto. La salida `COPY n` indica cuántas filas se exportaron:
-   ```text
-   \copy (SELECT id, admin_user_id, section, title, body, entity_type, entity_id, metadata, created_at, read_at FROM public.admin_notifications ORDER BY id) TO 'admin_notifications_full_backup_20261010.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
-   ```
-5. Verificar que `COPY n` coincide con el total consultado, calcular una suma SHA-256 del archivo y guardar la suma y la fecha junto al respaldo. Abrir/probar que el archivo existe, no está vacío y es legible. Guardar una segunda copia privada fuera del equipo original. El respaldo no está listo si solo se ejecutó la consulta o si la exportación no informó el número de filas.
-6. Confirmar que la migración correctiva se ha aplicado a la base conectada. Si el proyecto está en solo lectura, seguir el procedimiento que muestre el Dashboard de Supabase; no cambiar de proyecto ni borrar datos reales para esquivar el bloqueo.
-7. Antes de aplicar la limpieza, cierra temporalmente las operaciones administrativas que puedan borrar usuarios o modificar notificaciones y ejecuta primero el modo de simulación del script. No uses la limpieza manual SQL descrita en notas antiguas; el script actual además coteja los IDs huérfanos exactos con el respaldo:
-
-   ```bash
-   pnpm cleanup:orphan-admin-notifications -- --manifest "../quickbite-private-backups/<archivo>.manifest.json" --csv "../quickbite-private-backups/<archivo>.csv"
-   ```
-
-8. Comprueba que el modo de simulación termina en `DRY RUN`, que el recuento coincide con el manifiesto y que tienes dos copias privadas del CSV y el manifiesto. Para aplicar la limpieza transaccional, en la misma ventana de mantenimiento ejecuta:
-
-   ```bash
-   pnpm cleanup:orphan-admin-notifications -- --manifest "../quickbite-private-backups/<archivo>.manifest.json" --csv "../quickbite-private-backups/<archivo>.csv" --apply
-   ```
-
-   El script vuelve a cotejar el hash de los IDs antes de adquirir el bloqueo y dentro de la transacción. Exige confirmaciones interactivas del respaldo externo y del recuento; solo entonces reconstruye la tabla conservando todas las filas cuyo destinatario sigue teniendo una fila en `auth.users`. Si un chequeo previo al `COMMIT` falla, la transacción se revierte. No elimina perfiles, cuentas Auth ni filas de auditoría.
+No ejecutes SQL manual alternativo para borrar la tabla. El exportador automatizado hace una exportación de solo lectura y genera los hashes; el limpiador compara el CSV con su manifiesto y los IDs huérfanos actuales. Si cambió el conjunto de IDs desde el respaldo, la limpieza se cancela y debe repetirse el respaldo. El script requiere confirmar dos copias privadas y una frase con el recuento exacto antes de modificar datos.
 
 ## Consulta posterior de control
 
