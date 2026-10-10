@@ -37,7 +37,11 @@ const orderIds = new Set(orders.map(o => o.id));
 
 check(links.every(l => parentIds.has(l.parent_user_id) && studentIds.has(l.student_user_id)), 'parent/student links reference valid role profiles');
 check(contexts.every(c => parentIds.has(c.parent_user_id) && studentIds.has(c.student_user_id) && links.some(l => l.parent_user_id === c.parent_user_id && l.student_user_id === c.student_user_id && l.active)), 'active parent contexts reference active links');
-check(orders.every(o => profileIds.has(o.user_id)), 'orders reference existing profiles');
+  check(orders.every(o => o.user_id == null || profileIds.has(o.user_id)), 'orders with an assigned user reference an existing profile');
+  const ordersWithoutProfile = orders.filter(o => o.user_id == null).length;
+  if (ordersWithoutProfile > 0) {
+    console.log(`INFO ${ordersWithoutProfile} order(s) have no linked profile; orders.user_id allows NULL with ON DELETE SET NULL.`);
+  }
 check(items.every(i => orderIds.has(i.order_id) && (i.product_id == null || productIds.has(i.product_id))), 'order items reference existing orders and products when product_id is present');
 
 const familyCounts = new Map();
