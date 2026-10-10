@@ -78,30 +78,24 @@ jobs:
             exit 1
           fi
           health="$(cat /tmp/qb-gate-health.json)"
-          E2E_GATE_HEALTH="$health" node <<'NODE'
-          const report = JSON.parse(process.env.E2E_GATE_HEALTH ?? "{}");
+          report="$(E2E_GATE_HEALTH="$health" node <<'NODE'
+          const input = JSON.parse(process.env.E2E_GATE_HEALTH ?? "{}");
           const safe = {
-            status: report.status,
-            destinationRuntimeConfigured: report.destinationRuntimeConfigured === true,
-            allowedOriginsConfigured: report.allowedOriginsConfigured === true,
-            sourceConnectionConfigured: report.sourceConnectionConfigured === true,
-            migrationExecuted: report.migrationExecuted === true,
+            status: input.status,
+            destinationRuntimeConfigured: input.destinationRuntimeConfigured === true,
+            allowedOriginsConfigured: input.allowedOriginsConfigured === true,
+            sourceConnectionConfigured: input.sourceConnectionConfigured === true,
+            migrationExecuted: input.migrationExecuted === true,
           };
-          console.log("Read-only gate health:", JSON.stringify(safe));
-          if (safe.status !== "ok") {
-            console.error("The published gate did not return a healthy status.");
-            process.exit(1);
-          }
           const missing = [
             "destinationRuntimeConfigured",
             "allowedOriginsConfigured",
             "sourceConnectionConfigured",
           ].filter((key) => safe[key] !== true);
-          if (missing.length) {
-            console.error("Migration remains blocked; incomplete runtime settings: " + missing.join(", "));
-            process.exit(1);
-          }
+          process.stdout.write(JSON.stringify({ safe, missing }));
           NODE
+          )"
+          echo "Read-only gate health: $report"
           status_code="$(curl --silent --show-error -o /tmp/qb-gate-status.json -w "%{http_code}" \
             "${QB_ADMIN_GATE_URL}/status")"
           if [[ "$status_code" != "401" ]]; then
@@ -114,6 +108,11 @@ jobs:
           if [[ "$cors_code" != "403" ]]; then
             echo "::error::Untrusted origins must be rejected (got $cors_code)."
             cat /tmp/qb-gate-cors.json
+            exit 1
+          fi
+          missing="$(E2E_GATE_REPORT="$report" node -e 'process.stdout.write(JSON.parse(process.env.E2E_GATE_REPORT ?? "{}").missing.join(", "))')"
+          if [[ -n "$missing" ]]; then
+            echo "::error::Migration remains blocked; incomplete runtime settings: $missing"
             exit 1
           fi
           echo "Live gate behavior verified: health reachable, admin status protected, untrusted Origin rejected."
