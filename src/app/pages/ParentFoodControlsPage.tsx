@@ -48,7 +48,7 @@ export function ParentFoodControlsPage() {
     ? { id: activeStudent.id, full_name: activeStudent.full_name }
     : currentUser && isStudentRole(currentUser.role)
       ? { id: currentUser.id, full_name: currentUser.full_name }
-      : null, [activeStudent?.id, activeStudent?.full_name, currentUser?.id, currentUser?.full_name, currentUser?.role]);
+      : null, [activeStudent, currentUser]);
   const parentMode = currentUser?.role === 'parent' && Boolean(activeStudent);
   const backPath = parentMode ? '/parent/family' : currentUser?.role === 'admin' ? '/admin' : '/menu';
 
