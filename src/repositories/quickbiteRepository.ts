@@ -80,7 +80,13 @@ export async function createOrder(order: NewOrder) {
   };
   const data = await withRetry(async () => {
     const { data, error } = await requireSupabaseClient().rpc('create_order_tx', payload);
-    if (error) throw error;
+    if (error) {
+      const message = getErrorMessage(error, 'No se pudo crear el pedido.');
+      if (/product_blocked_by_parent/i.test(message)) throw new Error('Este alimento fue bloqueado por tu representante.');
+      if (/blocked_ingredient_in_product/i.test(message)) throw new Error('Este alimento contiene un ingrediente bloqueado en tus preferencias o por tu representante.');
+      if (/food_ingredients_unverified/i.test(message)) throw new Error('No se puede confirmar este pedido porque la cafetería aún no verificó la lista de ingredientes de este alimento y tienes ingredientes bloqueados. Consulta con la cafetería.');
+      throw error;
+    }
     return data;
   });
   return String(data);
