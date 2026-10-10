@@ -296,9 +296,22 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
 
   addUser: async (user) => {
-    await createAdminManagedUser(user);
-    await remoteAudit({ action: 'auth.signup', actorEmail: user.email, entity: 'user', metadata: { role: user.role } });
-    await get().loadData({ silent: true, force: true });
+    const created = await createAdminManagedUser(user);
+    const optimisticProfile: Profile = {
+      id: created.id,
+      email: created.email,
+      full_name: user.full_name.trim(),
+      role: user.role,
+      ti: user.ti?.trim() || null,
+      created_at: new Date().toISOString(),
+      active: true,
+    };
+    set({ users: [optimisticProfile, ...get().users.filter((item) => item.id !== created.id)] });
+    await remoteAudit({ action: 'auth.signup', actorEmail: user.email, entity: 'user', entityId: created.id, metadata: { role: user.role } });
+    // The account is already created by the RPC; a failed refresh must not misreport it as a failed creation.
+    void get().loadData({ silent: true, force: true }).catch((error) => {
+      writeAuditLog({ action: 'app.error', metadata: { source: 'post_user_create_refresh', message: String(error) } });
+    });
   },
 
   updateUser: async (user) => {
