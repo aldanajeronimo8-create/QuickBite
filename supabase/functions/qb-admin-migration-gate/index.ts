@@ -63,6 +63,26 @@ function getKeys() {
   return { url, secret };
 }
 
+function destinationRuntimeConfigured(): boolean {
+  const url = Deno.env.get("SUPABASE_URL");
+  const secretMapRaw = Deno.env.get("SUPABASE_SECRET_KEYS");
+  let secretAvailable = false;
+  if (secretMapRaw) {
+    try {
+      const parsed = JSON.parse(secretMapRaw);
+      secretAvailable = typeof parsed.default === "string" && parsed.default.length > 0;
+    } catch {
+      return false;
+    }
+  }
+  secretAvailable = secretAvailable || Boolean(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+  return Boolean(url && secretAvailable);
+}
+
+function sourceConnectionConfigured(): boolean {
+  return Boolean(Deno.env.get("QB_SOURCE_URL") && Deno.env.get("QB_SOURCE_SECRET_KEY"));
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     const headers = responseHeaders(req);
@@ -71,9 +91,21 @@ Deno.serve(async (req: Request) => {
   }
 
   const url = new URL(req.url);
-  if (req.method !== "GET" || url.pathname.replace(/\/$/, "").split("/").pop() !== "status") {
-    return json(req, { error: "Not found" }, 404);
+  const requestPath = url.pathname.replace(/\/$/, "").split("/").pop();
+  if (req.method !== "GET") return json(req, { error: "Not found" }, 404);
+
+  // Public, read-only diagnostic: return presence booleans only, never secret values.
+  if (requestPath === "health") {
+    return json(req, {
+      status: "ok",
+      destinationRuntimeConfigured: destinationRuntimeConfigured(),
+      allowedOriginsConfigured: allowedOrigins().size > 0,
+      sourceConnectionConfigured: sourceConnectionConfigured(),
+      migrationExecuted: false,
+    });
   }
+
+  if (requestPath !== "status") return json(req, { error: "Not found" }, 404);
 
   const token = req.headers.get("Authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return json(req, { error: "Authentication required" }, 401);
@@ -107,7 +139,7 @@ Deno.serve(async (req: Request) => {
       protectedAccountRows: protectedCount ?? 0,
       authServiceReachable: Array.isArray(userPage.users),
       allowedOriginsConfigured: allowedOrigins().size > 0,
-      sourceConnectionConfigured: Boolean(Deno.env.get("QB_SOURCE_URL") && Deno.env.get("QB_SOURCE_SECRET_KEY")),
+      sourceConnectionConfigured: sourceConnectionConfigured(),
       migrationExecuted: false,
       note: "Read-only gate only. No accounts, credentials, roles, or source data were changed.",
     });
