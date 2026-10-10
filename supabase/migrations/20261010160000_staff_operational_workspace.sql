@@ -417,8 +417,9 @@ BEGIN
       END IF;
     END LOOP;
     PERFORM set_config('quickbite.internal_order_tx', '1', true);
-    UPDATE public.orders SET status = 'rejected', cancellation_reason = NULLIF(trim(COALESCE(p_reason, '')), ''),
-      updated_at = now() WHERE id = p_order_id;
+    UPDATE public.orders SET status = 'rejected', payment_status = 'rejected',
+      cancellation_reason = NULLIF(trim(COALESCE(p_reason, '')), ''), updated_at = now()
+    WHERE id = p_order_id;
     v_next_status := 'rejected';
     IF v_order.user_id IS NOT NULL THEN
       INSERT INTO public.notifications(user_id, order_id, type, title, body)
