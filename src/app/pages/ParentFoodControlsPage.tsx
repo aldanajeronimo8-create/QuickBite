@@ -44,11 +44,11 @@ export function ParentFoodControlsPage() {
   const [newIngredient, setNewIngredient] = useState('');
   const [newReason, setNewReason] = useState('');
 
-  const target: StudentTarget | null = activeStudent
+  const target = useMemo<StudentTarget | null>(() => activeStudent
     ? { id: activeStudent.id, full_name: activeStudent.full_name }
     : currentUser && isStudentRole(currentUser.role)
       ? { id: currentUser.id, full_name: currentUser.full_name }
-      : null;
+      : null, [activeStudent?.id, activeStudent?.full_name, currentUser?.id, currentUser?.full_name, currentUser?.role]);
   const parentMode = currentUser?.role === 'parent' && Boolean(activeStudent);
   const backPath = parentMode ? '/parent/family' : currentUser?.role === 'admin' ? '/admin' : '/menu';
 
