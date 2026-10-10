@@ -108,7 +108,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const recipeNotes = text(input.recipe_notes, 1600);
     if (name.length < 2) return send(res, 400, { error: 'Escribe el nombre del alimento.' });
 
-    const gatewayToken = process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
+    const runtimeOidcHeader = req.headers['x-vercel-oidc-token'];
+    const runtimeOidcToken = Array.isArray(runtimeOidcHeader) ? runtimeOidcHeader[0] : runtimeOidcHeader;
+    const gatewayToken = runtimeOidcToken || process.env.VERCEL_OIDC_TOKEN || process.env.AI_GATEWAY_API_KEY;
     if (!gatewayToken) return send(res, 503, { error: 'La IA no está habilitada para este despliegue. Configura Vercel AI Gateway en el servidor.' });
 
     const system = [
