@@ -243,6 +243,9 @@ jobs:
       - name: Provision acceptance accounts
         run: node scripts/ensure-e2e-user.mjs
 
+      - name: Verify live AI nutrition draft with production OIDC
+        run: node scripts/nutrition-ai-live-smoke.mjs
+
       - name: Run dedicated integral acceptance suite
         run: >
           pnpm test:e2e
