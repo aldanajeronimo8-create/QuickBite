@@ -24,7 +24,8 @@
     "prepare": "husky",
     "test:k6": "k6 run tests/k6/quickbite-load.js",
     "test:k6:smoke": "k6 run --vus 5 --duration 30s tests/k6/quickbite-load.js",
-    "test:k6:400": "k6 run tests/k6/quickbite-400-users.js"
+    "test:k6:400": "k6 run tests/k6/quickbite-400-users.js",
+    "verify:nutrition-manual": "node scripts/verify-nutrition-manual-flow.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

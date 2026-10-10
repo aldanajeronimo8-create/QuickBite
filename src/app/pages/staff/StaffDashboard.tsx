@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock3, Loader2, LogOut, PackageCheck, RefreshCw, Utensils } from 'lucide-react';
+import { Activity, AlertTriangle, Check, ClipboardList, Clock3, History, Loader2, LogOut, Package, PackageCheck, Plus, RefreshCw, Save, ShieldCheck, Users, Utensils, Wallet, X, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../../store/authStore';
@@ -7,199 +7,79 @@ import { requireSupabaseClient, type StaffOrder } from '../../../lib/supabase';
 import { listStaffActiveOrders, updateStaffOrderStatus } from '../../../repositories/quickbiteRepository';
 import { QuickBiteLogo } from '../../components/brand/QuickBiteLogo';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Textarea } from '../../components/ui/textarea';
 
-const nextStatus: Record<StaffOrder['status'], 'preparing' | 'ready' | 'delivered' | null> = {
-  pending: 'preparing',
-  preparing: 'ready',
-  ready: 'delivered',
-  delivered: null,
-};
+type Section='orders'|'menu'|'inventory'|'topups'|'online'|'allergens'|'history';
+type Food={id:string;name:string;description:string|null;price:number;image_url:string|null;category_id:string|null;category_name:string|null;stock:number;available:boolean;detailed_description:string|null;ingredients:string|null;allergens:string|null;calories:number|null;protein_g:number|null;carbohydrates_g:number|null;fat_g:number|null;fiber_g:number|null;vegetarian:boolean;healthy_choice:boolean;ingredients_verified:boolean;nutrition_verified:boolean;nutrition_source:string};
+type Category={id:string;name:string;description:string|null};
+type Movement={id:string;product_name:string|null;movement_type:string;previous_stock:number;new_stock:number;actor_name:string|null;reason:string|null;created_at:string};
+type Topup={id:string;user_id:string;full_name:string|null;amount:number;method:string;reference:string|null;comment:string|null;status:string;rejection_reason:string|null;created_at:string;reviewed_at:string|null};
+type Online={user_id:string;full_name:string;role:string;last_seen_at:string};
+type Audit={id:string;action:string;entity:string|null;entity_id:string|null;metadata:Record<string,unknown>;created_at:string};
+type Form={id:string|null;name:string;description:string;price:string;image_url:string;category_id:string;available:boolean;detailed_description:string;ingredients:string;allergens:string;calories:string;protein_g:string;carbohydrates_g:string;fat_g:string;fiber_g:string;vegetarian:boolean;healthy_choice:boolean;ingredients_verified:boolean;nutrition_verified:boolean;nutrition_source:'manual'|'ai_draft'|'label'};
+const tabs:Array<{id:Section;label:string;icon:typeof ClipboardList}>=[
+{id:'orders',label:'Pedidos',icon:ClipboardList},{id:'menu',label:'Menú',icon:Utensils},{id:'inventory',label:'Inventario',icon:Package},
+{id:'topups',label:'Recargas',icon:Wallet},{id:'online',label:'Conectados',icon:Users},{id:'allergens',label:'Alérgenos',icon:ShieldCheck},{id:'history',label:'Historial',icon:History}];
+const money=(n:number)=>'$'+Number(n||0).toLocaleString('es-CO');
+const dt=(s:string)=>new Date(s).toLocaleString('es-CO');
+const ntext=(n:number|null)=>n==null?'':String(n);
+const nval=(s:string)=>s.trim()===''?null:Number(s);
+const listtext=(v:unknown)=>Array.isArray(v)?v.filter((x):x is string=>typeof x==='string').join('; '):typeof v==='string'?v:'';
+const emptyForm=():Form=>({id:null,name:'',description:'',price:'',image_url:'',category_id:'',available:false,detailed_description:'',ingredients:'',allergens:'',calories:'',protein_g:'',carbohydrates_g:'',fat_g:'',fiber_g:'',vegetarian:false,healthy_choice:false,ingredients_verified:false,nutrition_verified:false,nutrition_source:'manual'});
 
-const statusMeta = {
-  pending: { label: 'Pendiente', icon: Clock3 },
-  preparing: { label: 'En preparación', icon: Utensils },
-  ready: { label: 'Listo', icon: PackageCheck },
-  delivered: { label: 'Entregado', icon: CheckCircle2 },
-} as const;
-
-export function StaffDashboard() {
-  const navigate = useNavigate();
-  const user = useAuthStore((state) => state.user);
-  const signOut = useAuthStore((state) => state.signOut);
-  const [orders, setOrders] = useState<StaffOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-
-  const loadOrders = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-    try {
-      const data = await listStaffActiveOrders();
-      setOrders(data);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudieron cargar los pedidos.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadOrders();
-    const interval = window.setInterval(() => void loadOrders(true), 5000);
-    const client = requireSupabaseClient();
-    const channel = client
-      .channel('quickbite-staff-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => void loadOrders(true))
-      .subscribe();
-    return () => {
-      window.clearInterval(interval);
-      void client.removeChannel(channel);
-    };
-  }, [loadOrders]);
-
-  const grouped = useMemo(() => ({
-    pending: orders.filter((order) => order.status === 'pending'),
-    preparing: orders.filter((order) => order.status === 'preparing'),
-    ready: orders.filter((order) => order.status === 'ready'),
-  }), [orders]);
-
-  const advance = async (order: StaffOrder) => {
-    const status = nextStatus[order.status];
-    if (!status) return;
-    setUpdatingId(order.id);
-    try {
-      await updateStaffOrderStatus(order.id, status);
-      toast.success('Pedido ' + order.order_number + ' actualizado.');
-      await loadOrders(true);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el pedido.');
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const logout = async () => {
-    await signOut();
-    navigate('/login', { replace: true });
-  };
-
-  if (!user || user.role !== 'staff' || !user.active) return null;
-
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <QuickBiteLogo className="h-11 w-11 rounded-2xl" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-[.18em] text-slate-500">QuickBite</p>
-              <h1 className="text-xl font-black">Operación de cafetería</h1>
-              <p className="text-sm text-slate-500">{user.full_name}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => void loadOrders(true)} disabled={refreshing}>
-              <RefreshCw className={refreshing ? 'mr-2 h-4 w-4 animate-spin' : 'mr-2 h-4 w-4'} />
-              Actualizar
-            </Button>
-            <Button variant="outline" onClick={() => void logout()}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Salir
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
-          {(Object.keys(grouped) as Array<keyof typeof grouped>).map((status) => {
-            const meta = statusMeta[status];
-            const Icon = meta.icon;
-            return (
-              <div key={status} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">{meta.label}</p>
-                    <p className="mt-2 text-3xl font-black">{grouped[status].length}</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-100 p-3 text-slate-700"><Icon className="h-6 w-6" /></div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-black">Cola de pedidos</h2>
-              <p className="text-sm text-slate-500">Los pedidos se actualizan automáticamente y avanzan en orden.</p>
-            </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700">{orders.length} activos</span>
-          </div>
-
-          {loading ? (
-            <div className="grid min-h-56 place-items-center"><Loader2 className="h-8 w-8 animate-spin text-slate-500" /></div>
-          ) : orders.length === 0 ? (
-            <div className="grid min-h-56 place-items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-              <div><CheckCircle2 className="mx-auto h-10 w-10 text-slate-400" /><p className="mt-3 font-bold">No hay pedidos activos.</p><p className="mt-1 text-sm text-slate-500">La cola se actualizará cuando llegue un nuevo pedido.</p></div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {orders.map((order) => {
-                const meta = statusMeta[order.status];
-                const action = nextStatus[order.status];
-                return (
-                  <article key={order.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-black">{order.order_number}</h3>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600">{meta.label}</span>
-                        </div>
-                        <p className="mt-1 text-sm font-semibold text-slate-800">{order.student_name}</p>
-                        <p className="text-xs text-slate-500">{order.student_email || 'Sin correo visible'}</p>
-                        <p className="mt-2 text-xs text-slate-500">{new Date(order.created_at).toLocaleString('es-CO')}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Total</p>
-                        <p className="text-xl font-black">{'$'}{Number(order.total).toLocaleString('es-CO')}</p>
-                        <p className="mt-1 text-xs text-slate-500">Recogida: {order.pickup_code || '—'}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      {order.order_items.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between rounded-xl bg-white px-3 py-2.5">
-                          <span className="text-sm font-semibold">{item.quantity} × {item.product_name}</span>
-                          <span className="text-xs font-bold text-slate-500">{'$'}{Number(item.price).toLocaleString('es-CO')}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {order.student_comment && (
-                      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-                        <span className="font-black">Nota:</span> {order.student_comment}
-                      </div>
-                    )}
-
-                    {action && (
-                      <div className="mt-4 flex justify-end">
-                        <Button onClick={() => void advance(order)} disabled={updatingId === order.id}>
-                          {updatingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : action === 'preparing' ? <Utensils className="mr-2 h-4 w-4" /> : action === 'ready' ? <PackageCheck className="mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                          {action === 'preparing' ? 'Comenzar preparación' : action === 'ready' ? 'Marcar como listo' : 'Marcar como entregado'}
-                        </Button>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </main>
-    </div>
-  );
+export function StaffDashboard(){
+ const navigate=useNavigate();const user=useAuthStore(s=>s.user);const signOut=useAuthStore(s=>s.signOut);
+ const [tab,setTab]=useState<Section>('orders');const [orders,setOrders]=useState<StaffOrder[]>([]);const [foods,setFoods]=useState<Food[]>([]);const [categories,setCategories]=useState<Category[]>([]);
+ const [movements,setMovements]=useState<Movement[]>([]);const [topups,setTopups]=useState<Topup[]>([]);const [online,setOnline]=useState<Online[]>([]);const [history,setHistory]=useState<Audit[]>([]);
+ const [busy,setBusy]=useState<string|null>(null);const [loading,setLoading]=useState(true);const [refreshing,setRefreshing]=useState(false);const [query,setQuery]=useState('');
+ const [form,setForm]=useState<Form>(emptyForm());const [formOpen,setFormOpen]=useState(false);const [draft,setDraft]=useState('');const [saving,setSaving]=useState(false);
+ const [catName,setCatName]=useState('');const [catDescription,setCatDescription]=useState('');const [stockProduct,setStockProduct]=useState('');const [stockValue,setStockValue]=useState('');const [stockReason,setStockReason]=useState('');
+ const [onlineError,setOnlineError]=useState('');
+ const ordersLoad=useCallback(async(silent=false)=>{if(!silent)setLoading(true);else setRefreshing(true);try{setOrders(await listStaffActiveOrders());}catch(e){toast.error(e instanceof Error?e.message:'No se pudieron cargar los pedidos.');}finally{setLoading(false);setRefreshing(false);}},[]);
+ const menuLoad=useCallback(async()=>{try{const c=requireSupabaseClient();const a=await Promise.all([c.rpc('staff_list_menu_catalog'),c.rpc('staff_list_categories')]);if(a[0].error)throw a[0].error;if(a[1].error)throw a[1].error;setFoods((a[0].data||[]) as Food[]);setCategories((a[1].data||[]) as Category[]);}catch(e){toast.error(e instanceof Error?e.message:'No se pudo cargar el menú.');}},[]);
+ const movesLoad=useCallback(async()=>{try{const r=await requireSupabaseClient().rpc('staff_list_inventory_movements',{p_limit:100});if(r.error)throw r.error;setMovements((r.data||[]) as Movement[]);}catch(e){toast.error(e instanceof Error?e.message:'No se pudo cargar el inventario.');}},[]);
+ const topupsLoad=useCallback(async()=>{try{const r=await requireSupabaseClient().rpc('staff_list_topup_requests',{p_limit:100});if(r.error)throw r.error;setTopups((r.data||[]) as Topup[]);}catch(e){toast.error(e instanceof Error?e.message:'No se pudieron consultar las recargas.');}},[]);
+ const onlineLoad=useCallback(async()=>{try{const r=await requireSupabaseClient().rpc('staff_list_online_users');if(r.error)throw r.error;setOnline((r.data||[]) as Online[]);setOnlineError('');}catch(e){setOnlineError(e instanceof Error?e.message:'No se pudo consultar usuarios conectados.');}},[]);
+ const historyLoad=useCallback(async()=>{try{const r=await requireSupabaseClient().rpc('staff_list_own_activity',{p_limit:100});if(r.error)throw r.error;setHistory((r.data||[]) as Audit[]);}catch(e){toast.error(e instanceof Error?e.message:'No se pudo cargar el historial.');}},[]);
+ const refresh=useCallback(async()=>{await Promise.all([ordersLoad(true),menuLoad(),movesLoad(),topupsLoad(),onlineLoad(),historyLoad()]);},[ordersLoad,menuLoad,movesLoad,topupsLoad,onlineLoad,historyLoad]);
+ useEffect(()=>{if(!user||user.role!=='staff'||!user.active)return;void refresh();const a=window.setInterval(()=>void ordersLoad(true),7000);const b=window.setInterval(()=>void topupsLoad(),15000);const c=window.setInterval(()=>void onlineLoad(),15000);const client=requireSupabaseClient();const channel=client.channel('quickbite-staff-workspace').on('postgres_changes',{event:'*',schema:'public',table:'orders'},()=>void ordersLoad(true)).subscribe();return()=>{window.clearInterval(a);window.clearInterval(b);window.clearInterval(c);void client.removeChannel(channel);};},[user,refresh,ordersLoad,topupsLoad,onlineLoad]);
+ const filteredFoods=useMemo(()=>{const q=query.trim().toLocaleLowerCase('es');return q?foods.filter(f=>[f.name,f.description,f.category_name,f.ingredients,f.allergens].filter(Boolean).join(' ').toLocaleLowerCase('es').includes(q)):foods;},[foods,query]);
+ const counts={pending:orders.filter(o=>o.status==='pending').length,preparing:orders.filter(o=>o.status==='preparing').length,ready:orders.filter(o=>o.status==='ready').length,lowStock:foods.filter(f=>f.stock<=5).length};
+ const logout=async()=>{await signOut();navigate('/login',{replace:true});};
+ const reviewOrder=async(o:StaffOrder,approve:boolean)=>{let reason='';if(!approve){reason=window.prompt('Motivo del rechazo (opcional):')??'';if(!window.confirm('¿Rechazar el pedido y devolver sus unidades al inventario?'))return;}setBusy(o.id);try{const r=await requireSupabaseClient().rpc('staff_review_order',{p_order_id:o.id,p_approve:approve,p_reason:reason.trim()||null});if(r.error){if(/payment_not_confirmed/i.test(r.error.message))throw new Error('No se puede aceptar hasta confirmar el pago.');if(/paid_order_requires_admin_cancellation/i.test(r.error.message))throw new Error('Un pedido pagado debe cancelarlo Administración para gestionar la devolución.');throw r.error;}toast.success(approve?'Pedido aceptado y puesto en preparación.':'Pedido rechazado; inventario restaurado.');await Promise.all([ordersLoad(true),movesLoad(),historyLoad()]);}catch(e){toast.error(e instanceof Error?e.message:'No se pudo revisar el pedido.');}finally{setBusy(null);}};
+ const advance=async(o:StaffOrder)=>{const status=o.status==='preparing'?'ready':o.status==='ready'?'delivered':null;if(!status)return;setBusy(o.id);try{await updateStaffOrderStatus(o.id,status);toast.success(status==='ready'?'Pedido marcado listo.':'Pedido marcado entregado.');await Promise.all([ordersLoad(true),historyLoad()]);}catch(e){toast.error(e instanceof Error?e.message:'No se pudo actualizar el pedido.');}finally{setBusy(null);}};
+ const editFood=(f?:Food)=>{if(!f)setForm({...emptyForm(),category_id:categories[0]?.id||''});else setForm({id:f.id,name:f.name,description:f.description||'',price:String(f.price),image_url:f.image_url||'',category_id:f.category_id||'',available:f.available,detailed_description:f.detailed_description||'',ingredients:f.ingredients||'',allergens:f.allergens||'',calories:ntext(f.calories),protein_g:ntext(f.protein_g),carbohydrates_g:ntext(f.carbohydrates_g),fat_g:ntext(f.fat_g),fiber_g:ntext(f.fiber_g),vegetarian:f.vegetarian,healthy_choice:f.healthy_choice,ingredients_verified:f.ingredients_verified,nutrition_verified:f.nutrition_verified,nutrition_source:f.nutrition_source==='label'||f.nutrition_source==='ai_draft'?f.nutrition_source:'manual'});setDraft('');setFormOpen(true);};
+ const applyDraft=()=>{try{const v=JSON.parse(draft) as Record<string,unknown>;if(typeof v.detailed_description!=='string'||!listtext(v.ingredients))throw new Error('Incluye detailed_description e ingredients en el JSON.');setForm(s=>({...s,detailed_description:v.detailed_description as string,ingredients:listtext(v.ingredients),allergens:listtext(v.allergens),calories:typeof v.calories==='number'?String(v.calories):'',protein_g:typeof v.protein_g==='number'?String(v.protein_g):'',carbohydrates_g:typeof v.carbohydrates_g==='number'?String(v.carbohydrates_g):'',fat_g:typeof v.fat_g==='number'?String(v.fat_g):'',fiber_g:typeof v.fiber_g==='number'?String(v.fiber_g):'',vegetarian:v.vegetarian===true,healthy_choice:v.healthy_choice===true,ingredients_verified:false,nutrition_verified:false,nutrition_source:'ai_draft'}));setDraft('');toast.success('Borrador pegado; ingredientes y alérgenos quedan pendientes de verificación.');}catch(e){toast.error(e instanceof Error?e.message:'El contenido debe ser JSON válido.');}};
+ const saveFood=async(e:React.FormEvent)=>{e.preventDefault();const price=Number(form.price);const ing=form.ingredients.split(/[;\n\r|]+/).map(x=>x.trim()).filter(Boolean);const numbers=[form.calories,form.protein_g,form.carbohydrates_g,form.fat_g,form.fiber_g];if(form.name.trim().length<2||!form.category_id||!Number.isFinite(price)||price<0)return void toast.error('Revisa nombre, categoría y precio.');if(numbers.some(v=>v.trim()!==''&&(!Number.isFinite(Number(v))||Number(v)<0)))return void toast.error('Los datos nutricionales deben ser números válidos.');if(form.ingredients_verified&&!ing.length)return void toast.error('No puedes verificar una lista de ingredientes vacía.');if(form.available&&(!form.ingredients_verified||!form.allergens.trim()))return void toast.error('Verifica ingredientes y registra los alérgenos antes de publicar.');setSaving(true);try{const c=requireSupabaseClient();const p=await c.rpc('staff_save_menu_product',{p_product_id:form.id,p_name:form.name.trim(),p_description:form.description.trim()||null,p_price:price,p_image_url:form.image_url.trim()||null,p_category_id:form.category_id});if(p.error)throw p.error;const id=String(p.data);const n=await c.rpc('staff_save_product_nutrition',{p_product_id:id,p_detailed_description:form.detailed_description.trim()||null,p_ingredients:ing.join('; ')||null,p_allergens:form.allergens.trim()||null,p_calories:nval(form.calories),p_protein_g:nval(form.protein_g),p_carbohydrates_g:nval(form.carbohydrates_g),p_fat_g:nval(form.fat_g),p_fiber_g:nval(form.fiber_g),p_vegetarian:form.vegetarian,p_healthy_choice:form.healthy_choice,p_ingredients_verified:form.ingredients_verified,p_nutrition_verified:form.nutrition_verified,p_nutrition_source:form.nutrition_source});if(n.error)throw n.error;const a=await c.rpc('staff_set_product_availability',{p_product_id:id,p_available:form.available});if(a.error)throw a.error;toast.success('Ficha guardada. El stock se gestiona desde Inventario.');setFormOpen(false);setForm(emptyForm());await Promise.all([menuLoad(),historyLoad()]);}catch(e){const m=e instanceof Error?e.message:'No se pudo guardar el alimento.';toast.error(/nutrition_and_allergens_must_be_reviewed/i.test(m)?'Verifica ingredientes y registra alérgenos antes de publicar.':m);}finally{setSaving(false);}};
+ const addCategory=async(e:React.FormEvent)=>{e.preventDefault();try{const r=await requireSupabaseClient().rpc('staff_upsert_category',{p_category_id:null,p_name:catName.trim(),p_description:catDescription.trim()||null});if(r.error)throw r.error;setCatName('');setCatDescription('');toast.success('Categoría creada.');await menuLoad();}catch(e){toast.error(e instanceof Error?e.message:'No se pudo crear la categoría.');}};
+ const removeCategory=async(c:Category)=>{if(!window.confirm('¿Eliminar la categoría '+c.name+'? Solo puede borrarse si no tiene productos asociados.'))return;try{const r=await requireSupabaseClient().rpc('staff_delete_category',{p_category_id:c.id});if(r.error)throw r.error;toast.success('Categoría eliminada.');await menuLoad();}catch(e){toast.error(e instanceof Error&&/category_in_use/i.test(e.message)?'La categoría todavía tiene productos.':e instanceof Error?e.message:'No se pudo eliminar la categoría.');}};
+ const adjustStock=async(e:React.FormEvent)=>{e.preventDefault();const qty=Number.parseInt(stockValue,10);if(!stockProduct||!Number.isInteger(qty)||qty<0||stockReason.trim().length<3)return void toast.error('Selecciona producto, stock válido y motivo.');try{const r=await requireSupabaseClient().rpc('staff_adjust_inventory',{p_product_id:stockProduct,p_new_stock:qty,p_reason:stockReason.trim()});if(r.error)throw r.error;toast.success('Stock actualizado y movimiento registrado.');setStockProduct('');setStockValue('');setStockReason('');await Promise.all([menuLoad(),movesLoad(),historyLoad()]);}catch(e){toast.error(e instanceof Error&&/stock_unchanged/i.test(e.message)?'El stock no cambió.':e instanceof Error?e.message:'No se pudo ajustar el stock.');}};
+ if(!user||user.role!=='staff'||!user.active)return null;
+ return <div className="min-h-screen bg-slate-50 text-slate-900">
+  <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-6"><div className="flex items-center gap-3"><QuickBiteLogo className="h-11 w-11 rounded-2xl"/><div><p className="text-xs font-black uppercase tracking-[.18em] text-slate-500">QuickBite · Staff</p><h1 className="text-lg font-black sm:text-xl">Operación de cafetería</h1><p className="text-sm text-slate-500">{user.full_name}</p></div></div><div className="flex gap-2"><Button variant="outline" onClick={()=>void refresh()} disabled={refreshing}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar</Button><Button variant="outline" onClick={()=>void logout()}><LogOut className="mr-2 h-4 w-4"/>Salir</Button></div></div><nav aria-label="Secciones de Staff" className="mx-auto flex max-w-[1500px] gap-2 overflow-x-auto px-4 pb-3 sm:px-6">{tabs.map(t=>{const I=t.icon;return <button key={t.id} type="button" onClick={()=>setTab(t.id)} aria-current={tab===t.id?'page':undefined} className={'inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold '+(tab===t.id?'bg-emerald-700 text-white':'border border-slate-200 bg-white text-slate-700')}><I className="h-4 w-4"/>{t.label}</button>;})}</nav></header>
+  <main className="mx-auto max-w-[1500px] space-y-6 px-4 py-6 sm:px-6">
+   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[{l:'Pedidos pendientes',v:counts.pending,i:Clock3},{l:'En preparación',v:counts.preparing,i:Utensils},{l:'Listos para entregar',v:counts.ready,i:PackageCheck},{l:'Stock bajo / agotado',v:counts.lowStock,i:AlertTriangle}].map(m=>{const I=m.i;return <article key={m.l} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex justify-between"><p className="text-sm font-semibold text-slate-500">{m.l}</p><I className="h-5 w-5 text-emerald-700"/></div><p className="mt-2 text-3xl font-black">{m.v}</p></article>;})}</div>
+   {tab==='orders'&&<section className="space-y-4"><div><h2 className="text-2xl font-black">Cola de pedidos</h2><p className="text-sm text-slate-500">El pago se valida por separado. Un pedido pagado requiere Administración para gestionar devoluciones.</p></div>{loading?<Loading/>:orders.length===0?<Empty title="No hay pedidos activos" text="Los pedidos aparecerán aquí cuando se registren."/>:<div className="space-y-3">{orders.map(o=>{const next=o.status==='preparing'?'ready':o.status==='ready'?'delivered':null;return <article key={o.id} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex flex-wrap justify-between gap-3"><div><h3 className="font-black">{o.order_number} · {o.status==='pending'?'Pendiente':o.status==='preparing'?'En preparación':o.status==='ready'?'Listo':o.status==='delivered'?'Entregado':o.status}</h3><p className="font-semibold">{o.student_name}</p><p className="text-xs text-slate-500">{dt(o.created_at)} · Pago: {o.payment_status} · {o.payment_method}</p></div><div className="text-right"><p className="text-xl font-black">{money(Number(o.total))}</p><p className="text-xs text-slate-500">Código: {o.pickup_code||'—'}</p></div></div><div className="mt-3 flex flex-wrap gap-2">{o.order_items.map(i=><span key={i.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">{i.quantity} × {i.product_name}</span>)}</div>{o.student_comment&&<p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm">{o.student_comment}</p>}<div className="mt-4 flex flex-wrap justify-end gap-2">{o.status==='pending'&&o.payment_status==='confirmed'&&<Button disabled={busy===o.id} onClick={()=>void reviewOrder(o,true)}><Check className="mr-2 h-4 w-4"/>Aceptar y preparar</Button>}{o.status==='pending'&&o.payment_status==='pending'&&<Button variant="destructive" disabled={busy===o.id} onClick={()=>void reviewOrder(o,false)}><XCircle className="mr-2 h-4 w-4"/>Rechazar sin preparar</Button>}{next&&<Button disabled={busy===o.id} onClick={()=>void advance(o)}>{next==='ready'?'Marcar como listo':'Marcar como entregado'}</Button>}{o.status==='pending'&&o.payment_status!=='confirmed'&&<span className="self-center text-xs text-amber-700">No aceptar hasta confirmar el pago.</span>}</div></article>;})}</div>}</section>}
+   {tab==='menu'&&<section className="space-y-4"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-2xl font-black">Gestión del menú</h2><p className="text-sm text-slate-500">Editar alimentos, precios, categorías, ingredientes y disponibilidad. Sin llamadas a una API de IA.</p></div><Button onClick={()=>editFood()}><Plus className="mr-2 h-4 w-4"/>Nuevo alimento</Button></div><div className="flex flex-wrap gap-2"><Input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar alimento, categoría o alérgeno…" className="max-w-lg bg-white"/><Button variant="outline" onClick={()=>void menuLoad()}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar</Button></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{filteredFoods.map(f=><article key={f.id} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex justify-between gap-2"><div><h3 className="font-black">{f.name}</h3><p className="text-xs text-slate-500">{f.category_name||'Sin categoría'} · stock {f.stock}</p></div><Badge label={f.available?'Visible':'Oculto'}/></div><p className="mt-2 text-lg font-black">{money(f.price)}</p><p className="mt-2 text-sm">{f.detailed_description||f.description||'Sin descripción'}</p><p className="mt-2 text-xs"><b>Alérgenos:</b> {f.allergens||'No registrados; no significa ausencia de alérgenos.'}</p><p className="mt-2 text-xs font-bold">{f.ingredients_verified&&f.allergens?.trim()?'Ingredientes revisados':'Pendiente de verificación'}</p><div className="mt-3 text-right"><Button size="sm" variant="outline" onClick={()=>editFood(f)}>Editar ficha</Button></div></article>)}</div>{filteredFoods.length===0&&<Empty title="Sin alimentos" text="Agrega un alimento o cambia la búsqueda."/>}
+    <div className="grid gap-4 lg:grid-cols-2"><div className="rounded-2xl border bg-white p-4"><h3 className="font-black">Categorías</h3><form onSubmit={e=>void addCategory(e)} className="mt-3 space-y-2"><Input value={catName} onChange={e=>setCatName(e.target.value)} placeholder="Nombre" required/><Input value={catDescription} onChange={e=>setCatDescription(e.target.value)} placeholder="Descripción opcional"/><Button type="submit"><Plus className="mr-2 h-4 w-4"/>Añadir categoría</Button></form><div className="mt-3 space-y-2">{categories.map(c=><div key={c.id} className="flex justify-between rounded-lg bg-slate-50 p-2"><span>{c.name}</span><Button size="sm" variant="outline" onClick={()=>void removeCategory(c)} aria-label={'Eliminar '+c.name}><X className="h-4 w-4"/></Button></div>)}</div></div><div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">Los borradores de ChatGPT deben contrastarse con la receta o etiqueta del proveedor. No publiques si ingredientes y alérgenos aún no están verificados.</div></div>
+    {formOpen&&<form onSubmit={e=>void saveFood(e)} className="space-y-4 rounded-2xl border border-emerald-200 bg-white p-4"><div className="flex justify-between"><h3 className="text-xl font-black">{form.id?'Editar alimento':'Nuevo alimento'}</h3><Button type="button" variant="outline" onClick={()=>setFormOpen(false)}>Cerrar</Button></div><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-semibold">Nombre<Input value={form.name} onChange={e=>setForm(s=>({...s,name:e.target.value}))} required/></label><label className="text-sm font-semibold">Categoría<select value={form.category_id} onChange={e=>setForm(s=>({...s,category_id:e.target.value}))} required className="h-10 w-full rounded-md border bg-white px-3"><option value="">Seleccionar</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="text-sm font-semibold">Precio COP<Input type="number" min="0" value={form.price} onChange={e=>setForm(s=>({...s,price:e.target.value}))} required/></label><label className="text-sm font-semibold">URL imagen<Input value={form.image_url} onChange={e=>setForm(s=>({...s,image_url:e.target.value}))}/></label></div><label className="block text-sm font-semibold">Descripción breve<Textarea value={form.description} onChange={e=>setForm(s=>({...s,description:e.target.value}))}/></label>
+      <div className="rounded-xl border border-violet-200 bg-violet-50 p-3"><div className="font-black">Importar borrador de ChatGPT (manual)</div><p className="mt-1 text-xs">Pide a ChatGPT JSON con detailed_description, ingredients, allergens, calories, protein_g, carbohydrates_g, fat_g, fiber_g, vegetarian, healthy_choice y warnings. Pega el JSON aquí y aplícalo.</p><Textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={4} placeholder='{"detailed_description":"…","ingredients":["…"],"allergens":["…"],"calories":null}'/><Button type="button" variant="outline" onClick={applyDraft} disabled={!draft.trim()}>Aplicar JSON pegado</Button></div>
+      <label className="block text-sm font-semibold">Descripción detallada<Textarea value={form.detailed_description} onChange={e=>setForm(s=>({...s,detailed_description:e.target.value}))}/></label><label className="block text-sm font-semibold">Ingredientes (separados por punto y coma)<Textarea value={form.ingredients} onChange={e=>setForm(s=>({...s,ingredients:e.target.value,ingredients_verified:false}))}/></label><label className="block text-sm font-semibold">Alérgenos y nota de verificación<Input value={form.allergens} onChange={e=>setForm(s=>({...s,allergens:e.target.value,ingredients_verified:false}))} placeholder="Contiene…; contrastado con etiqueta del proveedor"/></label>
+      <div className="grid gap-2 sm:grid-cols-5">{([['calories','Calorías'],['protein_g','Proteína'],['carbohydrates_g','Carbohidratos'],['fat_g','Grasa'],['fiber_g','Fibra']] as const).map(([k,l])=><label key={k} className="text-xs font-bold">{l}<Input type="number" min="0" step=".1" value={form[k]} onChange={e=>setForm(s=>({...s,[k]:e.target.value,nutrition_verified:false}))}/></label>)}</div>
+      <div className="flex flex-wrap gap-4 text-sm"><label><input type="checkbox" checked={form.vegetarian} onChange={e=>setForm(s=>({...s,vegetarian:e.target.checked}))}/> Vegetariano</label><label><input type="checkbox" checked={form.healthy_choice} onChange={e=>setForm(s=>({...s,healthy_choice:e.target.checked}))}/> Opción saludable provisional</label></div>
+      <div className="space-y-3 rounded-xl bg-slate-50 p-3 text-sm"><label className="flex gap-2"><input type="checkbox" checked={form.ingredients_verified} onChange={e=>setForm(s=>({...s,ingredients_verified:e.target.checked,nutrition_source:s.nutrition_source==='ai_draft'&&e.target.checked?'manual':s.nutrition_source}))}/> Contrasté ingredientes y alérgenos con la receta o etiqueta.</label><label className="flex gap-2"><input type="checkbox" checked={form.nutrition_verified} onChange={e=>setForm(s=>({...s,nutrition_verified:e.target.checked,nutrition_source:s.nutrition_source==='ai_draft'&&e.target.checked?'manual':s.nutrition_source}))}/> Verifiqué los datos nutricionales contra una fuente fiable.</label><label className="flex gap-2"><input type="checkbox" checked={form.available} onChange={e=>setForm(s=>({...s,available:e.target.checked}))}/> Mostrar a estudiantes (requiere verificación de ingredientes y alérgenos).</label></div><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setFormOpen(false)}>Cancelar</Button><Button type="submit" disabled={saving}>{saving?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<Save className="mr-2 h-4 w-4"/>}Guardar ficha</Button></div>
+    </form>}
+   </section>}
+   {tab==='inventory'&&<section className="space-y-4"><div><h2 className="text-2xl font-black">Inventario y stock</h2><p className="text-sm text-slate-500">Cada ajuste requiere motivo y registra la cantidad anterior y nueva.</p></div><form onSubmit={e=>void adjustStock(e)} className="grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-4"><label className="text-sm font-semibold">Producto<select required value={stockProduct} onChange={e=>setStockProduct(e.target.value)} className="h-10 w-full rounded-md border bg-white px-2"><option value="">Seleccionar</option>{foods.map(f=><option key={f.id} value={f.id}>{f.name} (stock {f.stock})</option>)}</select></label><label className="text-sm font-semibold">Nuevo stock<Input type="number" min="0" value={stockValue} onChange={e=>setStockValue(e.target.value)} required/></label><label className="text-sm font-semibold">Motivo<Input value={stockReason} onChange={e=>setStockReason(e.target.value)} minLength={3} required placeholder="Conteo físico…"/></label><div className="flex items-end"><Button type="submit"><Save className="mr-2 h-4 w-4"/>Ajustar</Button></div></form><div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-100"><tr><th className="p-3">Producto</th><th className="p-3">Precio</th><th className="p-3">Stock</th><th className="p-3">Estado</th><th className="p-3">Menú</th></tr></thead><tbody>{foods.map(f=><tr key={f.id} className="border-t"><td className="p-3 font-semibold">{f.name}</td><td className="p-3">{money(f.price)}</td><td className="p-3 font-black">{f.stock}</td><td className="p-3">{f.stock===0?'Agotado':f.stock<=5?'Stock bajo':'Normal'}</td><td className="p-3">{f.available?'Visible':'Oculto'}</td></tr>)}</tbody></table></div><h3 className="font-black">Movimientos recientes</h3>{movements.slice(0,50).map(m=><div key={m.id} className="grid gap-1 rounded-xl border bg-white p-3 text-sm sm:grid-cols-4"><div><b>{m.product_name||'Producto eliminado'}</b><p className="text-xs text-slate-500">{dt(m.created_at)}</p></div><p>{m.previous_stock} → <b>{m.new_stock}</b></p><p>{m.movement_type} · {m.actor_name||'Usuario'}</p><p>{m.reason||'Sin motivo'}</p></div>)}</section>}
+   {tab==='topups'&&<section className="space-y-4"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-2xl font-black">Recargas</h2><p className="text-sm text-slate-500">Consulta de solo lectura. Aprobar recargas o cambiar saldos está reservado a Administración.</p></div><Button variant="outline" onClick={()=>void topupsLoad()}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar</Button></div>{topups.length===0?<Empty title="Sin recargas" text="No se encontraron solicitudes."/>:topups.map(t=><article key={t.id} className="rounded-2xl border bg-white p-4"><div className="flex justify-between gap-3"><div><h3 className="font-black">{t.full_name||'Usuario'}</h3><p className="text-xs text-slate-500">{dt(t.created_at)}</p></div><div className="text-right"><b className="text-xl">{money(Number(t.amount))}</b><Badge label={t.status}/></div></div><div className="mt-3 grid gap-2 text-sm sm:grid-cols-3"><p><b>Método:</b> {t.method}</p><p><b>Referencia:</b> {t.reference||'—'}</p><p><b>Revisada:</b> {t.reviewed_at?dt(t.reviewed_at):'Pendiente'}</p></div><p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm"><b>Comentario:</b> {t.comment||'Sin comentario'}</p>{t.rejection_reason&&<p className="mt-2 text-sm text-rose-700">Motivo: {t.rejection_reason}</p>}</article>)}</section>}
+   {tab==='online'&&<section className="space-y-4"><div className="flex justify-between gap-3"><div><h2 className="text-2xl font-black">Usuarios conectados</h2><p className="text-sm text-slate-500">Actividad reciente en los últimos 90 segundos. No equivale a leer una pantalla en este instante.</p></div><Button variant="outline" onClick={()=>void onlineLoad()}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar</Button></div><div className="grid gap-3 sm:grid-cols-3"><Metric label="Conectados" value={online.length}/><Metric label="Estudiantes" value={online.filter(u=>['student','both','student_parent'].includes(u.role)).length}/><Metric label="Personal, padres y admin." value={online.filter(u=>['staff','parent','admin'].includes(u.role)).length}/></div>{onlineError&&<p className="rounded-lg bg-amber-50 p-3 text-sm">{onlineError}</p>}{online.length===0?<Empty title="No se detectan usuarios activos" text="Las sesiones abiertas enviarán señales periódicas de actividad."/>:<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{online.map(u=><article key={u.user_id} className="flex gap-3 rounded-xl border bg-white p-4"><span className="h-3 w-3 mt-2 rounded-full bg-emerald-500"/><div><b>{u.full_name||'Usuario'}</b><p className="text-xs capitalize text-slate-500">{u.role.replace('_',' ')}</p><p className="text-xs text-emerald-700">{dt(u.last_seen_at)}</p></div></article>)}</div>}<p className="text-xs text-slate-500">No se muestran correos, rutas de navegación ni datos de sesión.</p></section>}
+   {tab==='allergens'&&<section className="space-y-4"><h2 className="text-2xl font-black">Ingredientes y alérgenos</h2><p className="text-sm text-slate-500">Parent verá esta misma ficha para identificar alérgenos y bloquear ingredientes o alimentos.</p><div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">Un alérgeno no registrado no significa que el alimento esté libre de él. Contrasta cada ficha con receta y etiqueta del proveedor.</div>{foods.map(f=><article key={f.id} className="rounded-xl border bg-white p-4"><div className="flex flex-wrap justify-between gap-2"><h3 className="font-black">{f.name}</h3><Badge label={f.ingredients_verified&&f.allergens?.trim()?'Revisado':'Pendiente de revisión'}/></div><p className="mt-2 text-sm"><b>Ingredientes:</b> {f.ingredients||'No registrados'}</p><p className="mt-2 text-sm"><b>Alérgenos declarados:</b> {f.allergens||'Sin registro; consulta receta o etiqueta'}</p><div className="mt-3 flex justify-between gap-2 text-xs"><span>{f.nutrition_verified?'Nutrición verificada':'Nutrición no verificada'}</span><Button size="sm" variant="outline" onClick={()=>{setTab('menu');editFood(f);}}>Revisar ficha</Button></div></article>)}</section>}
+   {tab==='history'&&<section className="space-y-4"><div className="flex justify-between gap-3"><div><h2 className="text-2xl font-black">Historial</h2><p className="text-sm text-slate-500">Acciones realizadas por tu cuenta.</p></div><Button variant="outline" onClick={()=>void historyLoad()}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar</Button></div>{history.length===0?<Empty title="Sin acciones" text="Tus cambios quedarán registrados aquí."/>:history.map(h=><article key={h.id} className="flex flex-col justify-between gap-2 rounded-xl border bg-white p-3 sm:flex-row"><div><b>{h.action.replaceAll('.',' ')}</b><p className="text-xs text-slate-500">{h.entity||'Acción'} {h.entity_id||''}</p><pre className="whitespace-pre-wrap break-words text-xs">{JSON.stringify(h.metadata||{})}</pre></div><time className="text-xs text-slate-500">{dt(h.created_at)}</time></article>)}</section>}
+  </main>
+ </div>;
 }
+function Loading(){return <div className="grid min-h-40 place-items-center rounded-2xl border bg-white"><Loader2 className="h-8 w-8 animate-spin text-emerald-700"/></div>;}
+function Empty({title,text}:{title:string;text:string}){return <div className="rounded-2xl border border-dashed bg-white p-8 text-center"><Activity className="mx-auto h-8 w-8 text-slate-400"/><h3 className="mt-3 font-black">{title}</h3><p className="mt-1 text-sm text-slate-500">{text}</p></div>;}
+function Badge({label}:{label:string}){const k=label.toLowerCase();const style=/revis|visible|confirm|aprob|ready|listo|prepar|entreg/.test(k)?'bg-emerald-100 text-emerald-800':/pend|rechaz|agot|oculto/.test(k)?'bg-amber-100 text-amber-800':'bg-slate-100 text-slate-700';return <span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-bold '+style}>{label}</span>;}
+function Metric({label,value}:{label:string;value:number}){return <article className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-500">{label}</p><p className="mt-1 text-3xl font-black">{value}</p></article>;}

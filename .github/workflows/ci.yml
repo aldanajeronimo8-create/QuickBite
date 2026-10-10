@@ -43,6 +43,9 @@ jobs:
       - name: Excel-only export guard
         run: pnpm verify:excel-only
 
+      - name: No-cost nutrition draft guard
+        run: pnpm verify:nutrition-manual
+
       - name: Typecheck
         run: pnpm typecheck
 

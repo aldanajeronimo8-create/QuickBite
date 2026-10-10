@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CheckCircle2, Loader2, Sparkles, Utensils } from 'lucide-react';
-import { suggestNutrition, type NutritionAiSuggestion } from '../../../services/nutritionAiService';
+import { CheckCircle2, Utensils } from 'lucide-react';
+
 import { useDataStore } from '../../../store/dataStore';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -47,7 +47,7 @@ export function AdminMenu() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', price: '', image_url: '', category_id: '', stock: '', available: true });
   const [nutritionForm, setNutritionForm] = useState<NutritionDraft>(emptyNutrition());
-  const [suggestingNutrition, setSuggestingNutrition] = useState(false);
+  const [draftText, setDraftText] = useState('');
   const [savingNutrition, setSavingNutrition] = useState(false);
   const [aiWarnings, setAiWarnings] = useState<string[]>([]);
 
@@ -105,45 +105,39 @@ export function AdminMenu() {
     })();
   };
 
-  const generateNutritionDraft = async () => {
-    if (!formData.name.trim()) {
-      toast.error('Escribe primero el nombre del alimento.');
-      return;
-    }
-    setSuggestingNutrition(true);
+  const applyPastedNutritionDraft = () => {
     try {
-      const suggestion: NutritionAiSuggestion = await suggestNutrition({
-        name: formData.name.trim(),
-        category: safeCategories.find((category) => category.id === formData.category_id)?.name ?? '',
-        description: formData.description.trim(),
-        recipe_notes: nutritionForm.recipe_notes.trim(),
-      });
+      const suggestion = JSON.parse(draftText) as Record<string, unknown>;
+      const asText = (value: unknown) => Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean).join('; ') : typeof value === 'string' ? value : '';
+      const detailed = typeof suggestion.detailed_description === 'string' ? suggestion.detailed_description : '';
+      const ingredients = asText(suggestion.ingredients);
+      if (!detailed.trim() || !ingredients.trim()) throw new Error('El JSON debe incluir detailed_description e ingredients.');
+      const numberField = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
       setNutritionForm((current) => ({
-        ...current,
-        detailed_description: suggestion.detailed_description,
-        ingredients: suggestion.ingredients.join('; '),
-        allergens: suggestion.allergens.join(', '),
-        calories: suggestion.calories == null ? '' : String(suggestion.calories),
-        protein_g: suggestion.protein_g == null ? '' : String(suggestion.protein_g),
-        carbohydrates_g: suggestion.carbohydrates_g == null ? '' : String(suggestion.carbohydrates_g),
-        fat_g: suggestion.fat_g == null ? '' : String(suggestion.fat_g),
-        fiber_g: suggestion.fiber_g == null ? '' : String(suggestion.fiber_g),
-        vegetarian: suggestion.vegetarian,
-        healthy_choice: suggestion.healthy_choice,
-        ingredients_verified: false,
-        nutrition_verified: false,
-        nutrition_source: 'ai_draft',
+        ...current, detailed_description: detailed, ingredients, allergens: asText(suggestion.allergens).replace(/; /g, ', '),
+        calories: numberField(suggestion.calories), protein_g: numberField(suggestion.protein_g), carbohydrates_g: numberField(suggestion.carbohydrates_g),
+        fat_g: numberField(suggestion.fat_g), fiber_g: numberField(suggestion.fiber_g), vegetarian: suggestion.vegetarian === true,
+        healthy_choice: suggestion.healthy_choice === true, ingredients_verified: false, nutrition_verified: false, nutrition_source: 'ai_draft',
       }));
-      if (!formData.description.trim()) {
-        setFormData((current) => ({ ...current, description: suggestion.detailed_description.slice(0, 260) }));
-      }
-      setAiWarnings(suggestion.warnings);
-      toast.success('Borrador generado. Revisa y confirma los ingredientes con la receta o etiqueta real.');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo generar la ficha con IA.');
-    } finally {
-      setSuggestingNutrition(false);
-    }
+      if (!formData.description.trim()) setFormData((current) => ({ ...current, description: detailed.slice(0, 260) }));
+      setAiWarnings(Array.isArray(suggestion.warnings) ? suggestion.warnings.filter((w): w is string => typeof w === 'string') : ['Borrador de ChatGPT: contrasta ingredientes y alérgenos con la receta real.']);
+      setDraftText('');
+      toast.success('Borrador pegado. Verifica ingredientes, alérgenos y nutrientes antes de guardar.');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Pega un JSON válido generado desde ChatGPT.'); }
+  };
+
+  const copyChatGptInstructions = async () => {
+    const category = safeCategories.find((entry) => entry.id === formData.category_id)?.name ?? '';
+    const prompt = [
+      'Prepara un BORRADOR en español de una ficha de alimento escolar. Devuelve solo JSON válido, sin markdown.',
+      'No inventes ingredientes sin respaldo de receta o etiqueta. Distingue alérgenos probables de confirmados. Nunca garantices seguridad para una alergia.',
+      'Si falta receta, etiqueta o tamaño de porción, usa null en calorías y macronutrientes. Añade warnings con lo que debe verificar la cafetería.',
+      'Esquema: {"detailed_description":"...", "ingredients":["..."], "allergens":["..."], "calories":null, "protein_g":null, "carbohydrates_g":null, "fat_g":null, "fiber_g":null, "vegetarian":false, "healthy_choice":false, "warnings":["..."]}.',
+      'Alimento: ' + (formData.name || '[nombre]') + '. Categoría: ' + (category || '[categoría]') + '. Descripción: ' + (formData.description || '[sin descripción]') + '.',
+      'Receta o etiqueta real del proveedor: [pega aquí los ingredientes y subingredientes reales].',
+    ].join('\n');
+    try { await navigator.clipboard.writeText(prompt); toast.success('Instrucciones copiadas. Pégalas en ChatGPT y luego pega aquí el JSON.'); }
+    catch { toast.error('No se pudo copiar automáticamente. Escribe las instrucciones directamente en ChatGPT.'); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -278,10 +272,12 @@ export function AdminMenu() {
             </div>
             <section className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-300/20 dark:bg-emerald-500/5">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-start gap-2"><Utensils className="mt-1 h-5 w-5 text-emerald-700" /><div><h3 className="font-black text-slate-900 dark:text-white">Ficha detallada e ingredientes</h3><p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">La IA crea un borrador con ingredientes, alérgenos y datos nutricionales. Debes verificarlo contra la receta o etiqueta del alimento antes de publicarlo.</p></div></div>
-                <Button type="button" onClick={() => void generateNutritionDraft()} disabled={suggestingNutrition || !formData.name.trim()} className="bg-violet-600 font-black text-white hover:bg-violet-700">
-                  {suggestingNutrition ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generando…</> : <><Sparkles className="mr-2 h-4 w-4"/>Completar con IA</>}
-                </Button>
+                <div className="flex items-start gap-2"><Utensils className="mt-1 h-5 w-5 text-emerald-700" /><div><h3 className="font-black text-slate-900 dark:text-white">Ficha detallada e ingredientes</h3><p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">Pega un borrador creado aquí en ChatGPT. Confirma ingredientes y alérgenos con la receta o etiqueta real antes de publicar.</p></div></div>
+                <div className="w-full space-y-2 sm:w-auto sm:min-w-[300px]">
+                  <Button type="button" variant="outline" onClick={() => void copyChatGptInstructions()} className="w-full"><Utensils className="mr-2 h-4 w-4"/>Copiar instrucciones para ChatGPT</Button>
+                  <Textarea value={draftText} onChange={(e) => setDraftText(e.target.value)} rows={3} placeholder="Pega aquí el JSON del borrador de ChatGPT…" />
+                  <Button type="button" variant="outline" onClick={applyPastedNutritionDraft} disabled={!draftText.trim()} className="w-full">Aplicar borrador pegado</Button>
+                </div>
               </div>
               {nutritionForm.nutrition_source === 'ai_draft' && <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900"><p className="font-black">Borrador de IA · no verificado</p><p>La IA puede omitir o inferir ingredientes. No uses esta sugerencia como garantía para una alergia. Contrasta cada ingrediente con la receta o etiqueta real.</p>{aiWarnings.map((warning) => <p key={warning} className="mt-1">• {warning}</p>)}</div>}
               <label className="block space-y-1"><span className="text-xs font-bold text-slate-700 dark:text-slate-200">Notas reales de receta / etiqueta (ayudan a la IA)</span><Textarea value={nutritionForm.recipe_notes} onChange={(e) => setNutritionForm((current) => ({...current,recipe_notes:e.target.value,nutrition_source:current.nutrition_source==='ai_draft'?'ai_draft':'manual',ingredients_verified:false,nutrition_verified:false}))} rows={2} placeholder="Ej. pan de trigo, carne de res, queso, salsas y posibles subingredientes del proveedor" /></label>
@@ -293,7 +289,7 @@ export function AdminMenu() {
               <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"><label className="flex items-start gap-2 text-xs leading-5 text-slate-700 dark:text-slate-200"><input type="checkbox" checked={nutritionForm.ingredients_verified} onChange={(e) => setNutritionForm((current) => ({...current,ingredients_verified:e.target.checked,nutrition_source:current.nutrition_source==='ai_draft'?'ai_draft':'manual'}))} className="mt-1 h-4 w-4"/><span><strong>He verificado toda la lista de ingredientes</strong> usando la receta real o el empaque del proveedor. No basta con aceptar la respuesta de IA.</span></label><label className="flex items-start gap-2 text-xs leading-5 text-slate-700 dark:text-slate-200"><input type="checkbox" checked={nutritionForm.nutrition_verified} onChange={(e) => setNutritionForm((current) => ({...current,nutrition_verified:e.target.checked}))} className="mt-1 h-4 w-4"/><span>He verificado las cifras nutricionales contra una ficha o etiqueta fiable. Si son estimaciones de IA, deja esta casilla desmarcada.</span></label></div>
               {!nutritionForm.ingredients_verified && <p className="flex items-start gap-2 text-xs leading-5 text-amber-800 dark:text-amber-200"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0"/>No publiques este alimento hasta verificar sus ingredientes. Puedes guardarlo oculto mientras completas la ficha.</p>}
             </section>
-            <div className="flex gap-3 pt-4"><Button type="submit" disabled={savingNutrition || suggestingNutrition} className="flex-1 bg-green-600 text-white hover:bg-green-700">{savingNutrition ? 'Guardando…' : editingProduct ? 'Guardar Cambios' : 'Agregar Producto'}</Button><Button type="button" disabled={savingNutrition || suggestingNutrition} onClick={() => setIsDialogOpen(false)} variant="outline" className="flex-1">Cancelar</Button></div>
+            <div className="flex gap-3 pt-4"><Button type="submit" disabled={savingNutrition} className="flex-1 bg-green-600 text-white hover:bg-green-700">{savingNutrition ? 'Guardando…' : editingProduct ? 'Guardar Cambios' : 'Agregar Producto'}</Button><Button type="button" disabled={savingNutrition} onClick={() => setIsDialogOpen(false)} variant="outline" className="flex-1">Cancelar</Button></div>
           </form>
         </DialogContent>
       </Dialog>

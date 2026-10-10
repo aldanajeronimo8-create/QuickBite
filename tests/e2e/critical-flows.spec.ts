@@ -337,7 +337,7 @@ test.describe('critical functional flows @student', () => {
     await healthy(staffPage, staffState);
     const staffOrderCard = staffPage.locator('article').filter({ hasText: orderNumber }).first();
     await expect(staffOrderCard).toBeVisible({ timeout: 20_000 });
-    await staffOrderCard.getByRole('button', { name: 'Comenzar preparación', exact: true }).click();
+    await staffOrderCard.getByRole('button', { name: 'Aceptar y preparar', exact: true }).click();
     await expect(staffOrderCard).toContainText(/En preparación/i);
     await expect.poll(async () => {
       const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
