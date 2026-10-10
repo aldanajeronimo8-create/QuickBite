@@ -36,6 +36,8 @@ La limpieza ya no requiere ejecutar comandos desde el PC. El workflow `.github/w
 6. Si la huella coincide, reconstruir la tabla conservando todas las notificaciones cuyo destinatario mantiene una fila en `auth.users`. La función comprueba los recuentos antes del `COMMIT` y retorna un resultado verificable. Solo elimina notificaciones; no elimina perfiles, cuentas Auth, pedidos, movimientos ni filas de auditoría.
 7. Tras la limpieza, la automatización consulta de nuevo las notificaciones huérfanas. Se considera correcta solo si quedan cero. El artefacto cifrado queda disponible en la ejecución de GitHub Actions durante su retención configurada.
 
+La comprobación del conjunto exportado compara el recuento inicial con el número de filas procesadas durante el flujo paginado; evita repetir un COUNT exacto de toda la tabla antes de la subida. La función SQL protegida sigue verificando dentro de la transacción el recuento y la huella SHA-256 exactos bajo bloqueo exclusivo.
+
 Si la exportación no termina, no se sube el artefacto, la API de Supabase no permite escribir, o la huella no coincide, la operación se detiene sin confirmar la limpieza. El artefacto cifrado podría quedar disponible si la subida ocurrió antes del fallo de la base. No se habilitan limpiezas alternativas manuales.
 
 ## Consulta posterior de control
