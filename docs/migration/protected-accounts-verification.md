@@ -50,6 +50,8 @@ La base de origen no se ha modificado. Este documento no incluye correos, UUID n
 Se publicó y volvió a consultar la función `qb-admin-migration-gate`. La versión activa es la **4**. La función no realiza migraciones ni altera cuentas.
 
 La prueba en vivo de CI observó:
+
+Las comprobaciones de comportamiento confirmaron que `/health` responde 200, `/status` sin token responde 401 y un origen no autorizado recibe 403. Después de esas comprobaciones, el smoke falla por la configuración incompleta. Importante: `sourceConnectionConfigured` solo señala si existen las dos variables de entorno; **no demuestra conectividad real ni autorización contra Auth del origen**.
 - `GET /health`: HTTP 200; solo devuelve indicadores booleanos de configuración, sin valores de secretos.
 - `GET /status` sin token: HTTP 401.
 - `GET /health` con un origen no permitido: HTTP 403.
@@ -60,6 +62,6 @@ La prueba en vivo de CI observó:
 
 La autorización del endpoint `/status` se valida dentro de la función mediante `auth.getUser(token)` y la comprobación de que el perfil existe, está activo y tiene rol `admin` o `both`. La verificación JWT de la plataforma está deshabilitada para permitir que las solicitudes de preflight lleguen al manejador; esto no sustituye la validación del token que hace el código en `/status`. La ruta pública `/health` no muestra credenciales, correos, UUID ni filas.
 
-**Bloqueo real encontrado:** faltan las variables de entorno `QB_ADMIN_ALLOWED_ORIGINS`, `QB_SOURCE_URL` y `QB_SOURCE_SECRET_KEY`. Por tanto, la función todavía no tiene orígenes de navegador permitidos ni conexión configurada al proyecto de origen. Además, el destino sigue sin usuarios Auth, perfiles administrativos activos ni filas en `protected_admins`; no hay una identidad administrativa de destino con la que completar el control de acceso.
+**Bloqueo real encontrado:** faltan las variables de entorno `QB_ADMIN_ALLOWED_ORIGINS`, `QB_SOURCE_URL` y `QB_SOURCE_SECRET_KEY`. Por tanto, la función todavía no tiene orígenes de navegador permitidos. Tampoco están configuradas las variables que el diseño prevé para el origen; la conectividad real al Auth de origen no se ha probado y no se debe inferir solo de la presencia de esas variables. Además, el destino sigue sin usuarios Auth, perfiles administrativos activos ni filas en `protected_admins`; no hay una identidad administrativa de destino con la que completar el control de acceso.
 
 El último CI confirmó que **Quality pasó**. El smoke de la función falla intencionalmente por esas dos configuraciones ausentes. La suite E2E también se detiene en el guard antes de provisionar usuarios o datos porque no está configurado el destino aislado de pruebas. No se debe habilitar la migración de cuentas hasta resolver estos bloqueos.
