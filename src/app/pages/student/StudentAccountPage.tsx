@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Clock3, FileText, HeartPulse, IdCard, Mail, RefreshCw, ShieldCheck, UserCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, FileText, HeartPulse, IdCard, Mail, RefreshCw, ShieldCheck, UserCircle, Pencil, Save, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { requireSupabaseClient } from '../../../lib/supabase';
@@ -53,6 +53,10 @@ export function StudentAccountPage() {
   const [dietary, setDietary] = useState<Dietary>({ allergies: [], restrictions: [], notes: null });
   const [lastSignInAt, setLastSignInAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [editFullName, setEditFullName] = useState('');
+  const [editTi, setEditTi] = useState('');
 
   const returnToParent = async () => {
     try {
@@ -84,12 +88,54 @@ export function StudentAccountPage() {
     for (const result of [profileRes, consentRes, dietaryRes]) if (result.error) throw result.error;
 
     setProfile(profileRes.data as Profile | null);
+    setEditFullName((profileRes.data as Profile | null)?.full_name ?? '');
+    setEditTi((profileRes.data as Profile | null)?.ti ?? '');
     setConsent(consentRes.data as Consent | null);
     setDietary((dietaryRes.data as Dietary | null) ?? { allergies: [], restrictions: [], notes: null });
     setLastSignInAt(activeStudent ? null : authUser.last_sign_in_at ?? null);
   }, [activeStudent, navigate]);
 
   useEffect(() => { void load().catch((error) => toast.error(error instanceof Error ? error.message : 'No se pudo cargar Mi cuenta.')).finally(() => setLoading(false)); }, [load]);
+
+  const saveProfile = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (activeStudent) {
+      toast.error('Solo el estudiante puede editar sus datos desde su propia sesión.');
+      return;
+    }
+    const fullName = editFullName.trim();
+    const ti = editTi.trim();
+    if (fullName.length < 2 || fullName.length > 120) {
+      toast.error('El nombre debe tener entre 2 y 120 caracteres.');
+      return;
+    }
+    if (ti.length > 30) {
+      toast.error('La tarjeta de identidad no puede superar 30 caracteres.');
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const { data, error } = await requireSupabaseClient().rpc('update_student_profile', {
+        p_full_name: fullName,
+        p_ti: ti || null,
+      });
+      if (error) throw error;
+      const updated = (Array.isArray(data) ? data[0] : data) as Profile | null;
+      if (!updated?.id) throw new Error('No se recibieron los datos actualizados.');
+      setProfile(updated);
+      setEditFullName(updated.full_name ?? '');
+      setEditTi(updated.ti ?? '');
+      setEditingProfile(false);
+      toast.success('Tus datos se actualizaron correctamente.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/ti_already_registered/i.test(message)) toast.error('Esa tarjeta de identidad ya está registrada en otra cuenta.');
+      else if (/invalid_full_name/i.test(message)) toast.error('El nombre debe tener entre 2 y 120 caracteres.');
+      else toast.error('No se pudieron guardar los datos. Inténtalo de nuevo.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   if (loading) return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-bold text-slate-600">Cargando Mi cuenta…</div>;
   if (!profile) return <div className="grid min-h-screen place-items-center bg-slate-50 p-6"><div className="rounded-3xl bg-white p-8 text-center shadow-xl"><p className="font-black">No se encontró el perfil del estudiante.</p><button type="button" onClick={() => void load()} className="mt-4 rounded-full bg-emerald-600 px-5 py-2 text-sm font-black text-white">Reintentar</button></div></div>;
@@ -107,7 +153,7 @@ export function StudentAccountPage() {
 
       <UserThemePreference showControl />
 
-      <section className="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl"><div className="flex items-center gap-3"><IdCard className="h-6 w-6 text-blue-700"/><div><h2 className="text-xl font-black">Datos de registro</h2><p className="text-sm text-slate-500">Todos los datos principales registrados al crear la cuenta del estudiante.</p></div></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><DataCard label="Nombre completo" value={profile.full_name ?? consent?.student_name ?? ''} icon={UserCircle}/><DataCard label="Correo del estudiante" value={displayEmail} icon={Mail}/><DataCard label="T.I. (Tarjeta de identidad)" value={profile.ti ?? ''} icon={IdCard}/><DataCard label="Grado / curso" value={profile.grade ?? ''} icon={FileText}/><DataCard label="Código de estudiante" value={profile.student_code ?? ''} icon={ShieldCheck}/><DataCard label="ID interno de cuenta" value={profile.id} icon={ShieldCheck}/></div></section>
+      <section className="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur-xl"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><IdCard className="h-6 w-6 text-blue-700"/><div><h2 className="text-xl font-black">Datos de registro</h2><p className="text-sm text-slate-500">Puedes editar tu nombre y T.I. El correo y el curso se gestionan de forma segura por administración.</p></div></div>{!activeStudent && !editingProfile && <button type="button" onClick={() => { setEditFullName(profile.full_name ?? ''); setEditTi(profile.ti ?? ''); setEditingProfile(true); }} className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700"><Pencil className="h-4 w-4"/>Editar datos</button>}</div>{editingProfile ? <form onSubmit={saveProfile} className="mt-5 grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-slate-700">Nombre completo<input required minLength={2} maxLength={120} value={editFullName} onChange={(event) => setEditFullName(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 font-normal outline-none focus:border-blue-500"/></label><label className="text-sm font-bold text-slate-700">T.I. (Tarjeta de identidad)<input maxLength={30} value={editTi} onChange={(event) => setEditTi(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 font-normal outline-none focus:border-blue-500"/></label><div className="sm:col-span-2 flex flex-wrap gap-2"><button type="submit" disabled={savingProfile} className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-black text-white disabled:opacity-50"><Save className="h-4 w-4"/>{savingProfile ? 'Guardando…' : 'Guardar cambios'}</button><button type="button" disabled={savingProfile} onClick={() => { setEditingProfile(false); setEditFullName(profile.full_name ?? ''); setEditTi(profile.ti ?? ''); }} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 disabled:opacity-50"><X className="h-4 w-4"/>Cancelar</button></div></form> : <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><DataCard label="Nombre completo" value={profile.full_name ?? consent?.student_name ?? ''} icon={UserCircle}/><DataCard label="Correo del estudiante" value={displayEmail} icon={Mail}/><DataCard label="T.I. (Tarjeta de identidad)" value={profile.ti ?? ''} icon={IdCard}/><DataCard label="Grado / curso" value={profile.grade ?? ''} icon={FileText}/><DataCard label="Código de estudiante" value={profile.student_code ?? ''} icon={ShieldCheck}/><DataCard label="ID interno de cuenta" value={profile.id} icon={ShieldCheck}/></div>}</section>
 
       <section className="rounded-[2rem] border border-emerald-200 bg-white/80 p-6 shadow-xl backdrop-blur-xl"><div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-emerald-700"/><div><h2 className="text-xl font-black">Representante legal / tutor</h2><p className="text-sm text-slate-500">Información registrada durante la autorización de datos del estudiante.</p></div></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><DataCard label="Nombre del tutor" value={consent?.guardian_name ?? ''} icon={UserCircle}/><DataCard label="Parentesco / relación" value={consent?.guardian_relationship ?? ''} icon={FileText}/><DataCard label="Correo del tutor" value={consent?.guardian_email ?? ''} icon={Mail}/><DataCard label="Autorización del tutor" value={consent?.guardian_authorized ? 'Autorizada' : 'No registrada'} icon={ShieldCheck}/><DataCard label="Fecha de autorización" value={dateTime(consent?.consent_at ?? consent?.created_at)} icon={Clock3}/><DataCard label="Versión de política" value={consent?.privacy_policy_version ?? ''} icon={FileText}/></div></section>
 
