@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, Loader2, Utensils } from 'lucide-react';
+import { CheckCircle2, Utensils } from 'lucide-react';
 
 import { useDataStore } from '../../../store/dataStore';
 import { Card } from '../../components/ui/card';
