@@ -167,15 +167,22 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         } catch {
           // Provider error bodies are optional; do not log or expose arbitrary response data.
         }
-        providerError = providerError.replace(/[\\r\\n\\t]+/g, ' ').slice(0, 240);
-        console.error('[nutrition-ai] AI Gateway rejected authentication', JSON.stringify({
+        const billingRequired = /credit card|add a card|unlock.{0,60}credits|service requests|billing/i.test(providerError);
+        providerError = providerError.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240);
+        console.error('[nutrition-ai] AI Gateway rejected request', JSON.stringify({
           status: upstream.status,
           authSource: gatewayAuthSource,
+          reason: billingRequired ? 'billing_or_credits_required' : 'access_denied',
           providerError: providerError || 'no_provider_message',
         }));
+        if (billingRequired) {
+          return send(res, 503, {
+            error: 'Vercel AI Gateway requiere configurar la facturación o los créditos de la cuenta antes de generar fichas.',
+          });
+        }
         const detail = providerError ? ' Detalle del proveedor: ' + providerError : '';
         return send(res, 503, {
-          error: 'AI Gateway rechazó la autenticación (HTTP ' + upstream.status + ', fuente ' + gatewayAuthSource + ').' + detail,
+          error: 'AI Gateway rechazó el acceso (HTTP ' + upstream.status + ', fuente ' + gatewayAuthSource + ').' + detail,
         });
       }
       if (upstream.status === 402) return send(res, 503, { error: 'AI Gateway no tiene crédito o cuota disponible para generar la ficha.' });
