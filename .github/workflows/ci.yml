@@ -14,7 +14,7 @@ concurrency:
   # Keep at most one running main CI plus one latest pending run.
   # A running main CI is never canceled; obsolete pending runs are replaced.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   quality:
@@ -64,19 +64,20 @@ jobs:
     # 120 Playwright tests run serially with up to 2 retries; the previous 20m cap killed valid runs mid-suite.
     timeout-minutes: 45
     env:
-      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
-      PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
-      PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
-      PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
-      PLAYWRIGHT_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
-      PLAYWRIGHT_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
-      PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
-      PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VITE_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      PLAYWRIGHT_E2E_EMAIL: ${{ secrets.E2E_PLAYWRIGHT_E2E_EMAIL }}
+      PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.E2E_PLAYWRIGHT_E2E_PASSWORD }}
+      PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.E2E_PLAYWRIGHT_ADMIN_EMAIL }}
+      PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.E2E_PLAYWRIGHT_ADMIN_PASSWORD }}
+      PLAYWRIGHT_PARENT_EMAIL: ${{ secrets.E2E_PLAYWRIGHT_PARENT_EMAIL }}
+      PLAYWRIGHT_PARENT_PASSWORD: ${{ secrets.E2E_PLAYWRIGHT_PARENT_PASSWORD }}
+      PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.E2E_PLAYWRIGHT_STAFF_EMAIL }}
+      PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.E2E_PLAYWRIGHT_STAFF_PASSWORD }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       CI: true
       VITE_E2E_AUTH_AUTO_REFRESH: 'false'
+      E2E_EXPECTED_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,6 +99,21 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Refuse non-isolated E2E target
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="https://arvvkukyvcqxyqkvqmaf.supabase.co"
+          actual="${VITE_SUPABASE_URL%/}"
+          if [[ -z "$actual" || "$actual" != "$expected" ]]; then
+            echo "::error::E2E blocked before any writes: configure dedicated E2E project URL, keys, and E2E-only accounts."
+            exit 1
+          fi
+          if [[ "$actual" == "https://cczbbqxunygcowqfrqdm.supabase.co" ]]; then
+            echo "::error::E2E must never target source production."
+            exit 1
+          fi
 
       - name: Validate E2E configuration
         shell: bash
