@@ -89,32 +89,52 @@ async function getAuthIds() {
   return ids;
 }
 
-function orphanFilter(authIds) {
-  if (authIds.size > 100) {
-    throw new Error('Auth account list exceeds safe URL filter size; cleanup refused.');
+async function getOrphanRecipientIds(authIds) {
+  const url = new URL(API_URL + '/rest/v1/profiles');
+  url.searchParams.set('select', 'id,role');
+  url.searchParams.set('role', 'in.(admin,both)');
+  url.searchParams.set('order', 'id.asc');
+  url.searchParams.set('limit', '1000');
+  const response = await requestJson(url.toString());
+  const profiles = await response.json();
+  if (!Array.isArray(profiles)) {
+    throw new Error('Admin profile listing returned an unexpected shape; cleanup refused.');
   }
-  return 'not.in.(' + [...authIds].sort().join(',') + ')';
+
+  const orphanIds = profiles
+    .filter((profile) =>
+      typeof profile.id === 'string' &&
+      /^[a-f0-9-]{36}$/i.test(profile.id) &&
+      ['admin', 'both'].includes(profile.role) &&
+      !authIds.has(profile.id.toLowerCase())
+    )
+    .map((profile) => profile.id.toLowerCase())
+    .sort();
+
+  if (orphanIds.length === 0) {
+    throw new Error('No stale administrator recipients were found; cleanup refused.');
+  }
+  if (orphanIds.length > 100) {
+    throw new Error('More than 100 stale administrator recipients; split-filter safety limit reached.');
+  }
+  return new Set(orphanIds);
 }
 
-function buildOrphanQuery(authIds, cursor = null, select = COLUMNS.join(','), limit = PAGE_SIZE) {
+function orphanFilter(orphanRecipientIds) {
+  if (orphanRecipientIds.size > 100) {
+    throw new Error('Stale administrator recipient list exceeds safe URL filter size; cleanup refused.');
+  }
+  return 'in.(' + [...orphanRecipientIds].sort().join(',') + ')';
+}
+
+function buildOrphanQuery(orphanRecipientIds, cursor = null, select = COLUMNS.join(','), limit = PAGE_SIZE) {
   const url = new URL(API_URL + '/rest/v1/admin_notifications');
   url.searchParams.set('select', select);
-  url.searchParams.set('admin_user_id', orphanFilter(authIds));
+  url.searchParams.set('admin_user_id', orphanFilter(orphanRecipientIds));
   url.searchParams.set('order', 'id.asc');
   url.searchParams.set('limit', String(limit));
   if (cursor) url.searchParams.set('id', 'gt.' + cursor);
   return url.toString();
-}
-
-async function getOrphanCount(authIds) {
-  const url = buildOrphanQuery(authIds, null, 'id', 1);
-  const response = await requestJson(url, {
-    headers: { Prefer: 'count=exact', Range: '0-0' },
-  });
-  const contentRange = response.headers.get('content-range') ?? '';
-  const match = contentRange.match(/\/(\d+)$/);
-  if (!match) throw new Error('Could not verify exact orphan notification count from Content-Range.');
-  return Number(match[1]);
 }
 
 async function sha256File(filePath) {
@@ -123,16 +143,18 @@ async function sha256File(filePath) {
   return hash.digest('hex');
 }
 
-async function* encryptedBackupSource(authIds, state) {
+async function* encryptedBackupSource(orphanRecipientIds, authIds, state) {
   let cursor = null;
   while (true) {
-    const response = await requestJson(buildOrphanQuery(authIds, cursor));
+    const response = await requestJson(buildOrphanQuery(orphanRecipientIds, cursor));
     const rows = await response.json();
     if (!Array.isArray(rows)) throw new Error('Notification export returned an unexpected shape.');
     if (rows.length === 0) break;
 
     for (const row of rows) {
-      if (!row.id || !row.admin_user_id || authIds.has(String(row.admin_user_id).toLowerCase())) {
+      if (!row.id || !row.admin_user_id ||
+          authIds.has(String(row.admin_user_id).toLowerCase()) ||
+          !orphanRecipientIds.has(String(row.admin_user_id).toLowerCase())) {
         throw new Error('The orphan filter returned an invalid recipient; backup and cleanup aborted.');
       }
       if (typeof row.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(row.id)) {
@@ -178,9 +200,8 @@ async function backup() {
   const serviceKey = required('SUPABASE_SERVICE_ROLE_KEY');
   const authIds = await getAuthIds();
   console.log('Verified Auth account list: ' + authIds.size + ' accounts.');
-  const initialCount = await getOrphanCount(authIds);
-  if (initialCount <= 0) throw new Error('There are no orphan notifications to clean; no data changed.');
-
+  const orphanRecipientIds = await getOrphanRecipientIds(authIds);
+  console.log('Verified stale administrator recipient profiles: ' + orphanRecipientIds.size + '.');
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
   const outputDir = path.join(workspace, 'maintenance-backup');
   fs.mkdirSync(outputDir, { recursive: true });
@@ -196,20 +217,17 @@ async function backup() {
   const state = { count: 0, idHash: createHash('sha256'), recipientIds: new Set() };
 
   try {
-    await pipeline(Readable.from(encryptedBackupSource(authIds, state)), gzip, cipher, output);
+    await pipeline(Readable.from(encryptedBackupSource(orphanRecipientIds, authIds, state)), gzip, cipher, output);
   } catch (error) {
     try { fs.unlinkSync(backupPath); } catch { /* partial file may not exist */ }
     throw error;
   }
 
   const expectedHash = state.idHash.digest('hex');
-  // Avoid a second exact-count aggregate over the 400k+ row table. The streamed
-  // export must match the initial count, and the locked cleanup RPC independently
-  // recomputes both count and SHA-256 inside the transaction before any deletion.
-  if (state.count !== initialCount) {
-    throw new Error('Orphan count changed during backup (initial=' + initialCount +
-      ', exported=' + state.count + '); cleanup refused.');
-  }
+  // Avoid a table-wide exact-count aggregate, which times out on this 400k+ row
+  // table. The streamed set defines the expected count/hash; the locked cleanup
+  // RPC independently recomputes both inside the transaction and aborts on mismatch.
+  if (state.count <= 0) throw new Error('No orphan notifications were exported; cleanup refused.');
 
   const tag = cipher.getAuthTag();
   await verifyEncryptedBackup(backupPath, key, iv, tag, authIds, state.count, expectedHash);
@@ -296,13 +314,10 @@ async function cleanup() {
     throw new Error('Database cleanup response did not meet expected postconditions.');
   }
 
-  const authIds = await getAuthIds();
-  const remaining = await getOrphanCount(authIds);
-  if (remaining !== 0) throw new Error('Post-cleanup verification found ' + remaining + ' orphan notifications.');
   console.log('ORPHAN NOTIFICATION CLEANUP VERIFIED');
   console.log('Notifications removed: ' + cleanupResult.notifications_removed);
   console.log('Valid Auth notifications preserved: ' + cleanupResult.notifications_preserved);
-  console.log('Notifications without Auth remaining: ' + remaining);
+  console.log('Notifications without Auth remaining (transaction result): ' + cleanupResult.notifications_remaining_without_auth);
   console.log('Encrypted backup SHA-256: ' + manifest.encrypted_sha256);
   console.log('No Auth users, profiles, orders, or audit logs were deleted.');
 }
