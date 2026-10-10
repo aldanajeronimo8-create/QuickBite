@@ -390,4 +390,15 @@ app.post(`${apiPrefix}/bootstrap-admin`, async (c) => {
   }
 });
 
-Deno.serve(app.fetch);
+// Supabase deja el nombre de la función en la ruta recibida (/server/...).
+// El router interno solo define rutas relativas a la función (/api/...).
+// Normalizamos el prefijo sin cambiar método, cabeceras, query ni cuerpo.
+Deno.serve((request: Request) => {
+  const url = new URL(request.url);
+  const functionPrefix = '/server';
+  if (url.pathname === functionPrefix || url.pathname.startsWith(`${functionPrefix}/`)) {
+    url.pathname = url.pathname.slice(functionPrefix.length) || '/';
+    return app.fetch(new Request(url, request));
+  }
+  return app.fetch(request);
+});
