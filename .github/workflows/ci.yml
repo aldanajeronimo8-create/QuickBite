@@ -64,19 +64,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      E2E_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
       QB_ADMIN_GATE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/qb-admin-migration-gate
     steps:
       - name: Inspect deployed runtime configuration without printing secrets
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${E2E_SUPABASE_ANON_KEY}" ]]; then
-            echo "::error::Cannot inspect live gate yet: destination E2E_SUPABASE_ANON_KEY is not configured."
+          health_code="$(curl --silent --show-error -o /tmp/qb-gate-health.json -w "%{http_code}" \
+            --retry 2 --retry-delay 2 "${QB_ADMIN_GATE_URL}/health")"
+          if [[ "$health_code" != "200" ]]; then
+            echo "::error::Public read-only health route returned HTTP $health_code."
+            cat /tmp/qb-gate-health.json
             exit 1
           fi
-          health="$(curl --silent --show-error --fail --retry 2 --retry-delay 2 \
-            -H "apikey: ${E2E_SUPABASE_ANON_KEY}" "${QB_ADMIN_GATE_URL}/health")"
+          health="$(cat /tmp/qb-gate-health.json)"
           E2E_GATE_HEALTH="$health" node <<'NODE'
           const report = JSON.parse(process.env.E2E_GATE_HEALTH ?? "{}");
           const safe = {
@@ -102,16 +103,14 @@ jobs:
           }
           NODE
           status_code="$(curl --silent --show-error -o /tmp/qb-gate-status.json -w "%{http_code}" \
-            -H "apikey: ${E2E_SUPABASE_ANON_KEY}" "${QB_ADMIN_GATE_URL}/status")"
+            "${QB_ADMIN_GATE_URL}/status")"
           if [[ "$status_code" != "401" ]]; then
             echo "::error::Unauthenticated /status must return 401 (got $status_code)."
             cat /tmp/qb-gate-status.json
             exit 1
           fi
           cors_code="$(curl --silent --show-error -o /tmp/qb-gate-cors.json -w "%{http_code}" \
-            -H "apikey: ${E2E_SUPABASE_ANON_KEY}" \
-            -H "Origin: https://example.invalid" \
-            "${QB_ADMIN_GATE_URL}/health")"
+            -H "Origin: https://example.invalid" "${QB_ADMIN_GATE_URL}/health")"
           if [[ "$cors_code" != "403" ]]; then
             echo "::error::Untrusted origins must be rejected (got $cors_code)."
             cat /tmp/qb-gate-cors.json
