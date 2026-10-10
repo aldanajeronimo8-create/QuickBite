@@ -137,7 +137,7 @@ async function main() {
       if (result.rows.length === 0) break;
 
       for (const row of result.rows) {
-        if (!row.has_auth_account) orphanIdsHash.update(`${row.id}\\n`);
+        if (!row.has_auth_account) orphanIdsHash.update(`${row.id}\n`);
         await writeChunk(stream, hash, COLUMNS.map((column) => csvValue(row[column])).join(',') + '\r\n');
       }
       exported += result.rows.length;
