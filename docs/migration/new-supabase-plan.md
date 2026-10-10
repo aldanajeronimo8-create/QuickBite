@@ -7,7 +7,7 @@ Proyecto origen (solo lectura durante el inventario): `cczbbqxunygcowqfrqdm`
 
 ## Objetivo y límites
 
-Reconstruir una nueva base que reproduzca el comportamiento real de QuickBite, con seguridad e integridad verificables, y trasladar únicamente los datos justificados por dependencias y necesidad funcional. No borrar ni alterar el proyecto de origen durante la preparación. No copiar secretos a este documento. No afirmar que una migración está completa hasta comparar datos y probar la aplicación.
+Reconstruir desde cero una nueva base que reproduzca el comportamiento real de QuickBite, optimizada y con seguridad e integridad verificables. La nueva base debe arrancar **sin pedidos ni historial de compras**. Los únicos datos de negocio que se migran son (a) las cuentas explícitamente protegidas y necesarias para operar, y (b) el menú/catálogo y la configuración mínima necesaria para publicarlo. No borrar ni alterar el proyecto de origen durante la preparación. No copiar secretos a este documento. No afirmar que la migración está completa hasta comparar esquema y probar la aplicación.
 
 ## Fotografía verificada del origen
 
@@ -17,43 +17,50 @@ Consultas de solo lectura al proyecto de origen:
 - 101 políticas RLS; 160 funciones en `public`; 6 vistas; 50 triggers.
 - 20 usuarios en `auth.users`; 20 identidades; 20 perfiles enlazados a Auth.
 - 233 perfiles en total: 213 perfiles no enlazados a `auth.users`. Roles actuales: admin 90, parent 97, staff 38, both 6, student 2.
-- `protected_admins`: 6 filas; las 6 coinciden con usuarios Auth.
-- 45 pedidos, 45 líneas de pedido; 43 entregados, 1 pendiente y 1 listo. Los 45 pedidos tienen usuario Auth y líneas asociadas. 44 pagos confirmados y 1 pendiente.
-- 5 cuentas de billetera; ninguna huérfana respecto a Auth. 0 filas actuales en `wallet_transactions` y `wallet_topup_requests`.
-- `admin_notifications`: 412,750 filas aproximadamente; se ha observado previamente que 362,926 son huérfanas. No copiar en bloque. Recalcular al momento de la extracción y conservar solo notificaciones justificadas.
-- `system_audit_logs`: 8,107 filas; `audit_logs`: 583; `system_health_checks`: 3,122; `api_rate_limits`: 3,043.
-- Un bucket de Storage `quickbite-branding`, límite configurado 2 MiB, sin objetos en el recuento actual.
-- La base origen aparece activa y en región `us-east-2`. No asumir que la región será la mejor para el nuevo proyecto sin revisar latencia, disponibilidad y coste.
+- `protected_admins`: 6 filas; las 6 coinciden con usuarios Auth. Se debe confirmar en código qué cuentas protegidas tienen que mantenerse y migrar exactamente esas; no incluir automáticamente a los otros usuarios.
+- 45 pedidos y 45 líneas de pedido en la fotografía actual. **Ningún pedido ni línea de pedido se copiará** a la base nueva.
+- 5 cuentas de billetera; ninguna huérfana respecto a Auth. La nueva base empezará sin saldos ni movimientos heredados, salvo que el usuario cambie expresamente esta instrucción.
+- `admin_notifications`: aproximadamente 412.750 filas; se ha observado previamente que 362.926 son huérfanas. No copiar notificaciones históricas.
+- `system_audit_logs`: 8.107 filas; `audit_logs`: 583; `system_health_checks`: 3.122; `api_rate_limits`: 3.043. No copiar historial de auditoría, telemetría ni límites de API.
+- Un bucket de Storage `quickbite-branding`, límite configurado 2 MiB, sin objetos en el recuento actual. Comprobar si la app necesita sus archivos; si no hay objetos, reconstruir solo la configuración y las políticas necesarias.
+- La base origen aparece activa y en región `us-east-2`. No asumir que será la mejor región para el nuevo proyecto sin revisar latencia, disponibilidad y coste.
 
-Estos recuentos son una instantánea; repetirlos antes de extraer y después de importar.
+Estos recuentos son una instantánea; repetirlos antes de cualquier extracción. Se usan para validar la limpieza del destino, no para replicar el historial.
 
-## Inventario funcional de tablas públicas
+## Alcance exacto de los datos
 
-### Núcleo que debe reconstruirse y migrarse con integridad
-- Identidad/perfiles: `profiles`, `protected_admins`, `staff_roles`, `user_theme_preferences`, `student_data_consents`.
-- Catálogo: `products`, `categories`, `product_nutrition`, `product_allergens`, `product_stock_settings`, `student_dietary_profiles`, `student_ingredient_blocks`, `favorites`, `product_reviews`.
-- Pedidos/operación: `orders`, `order_items`, `order_cancellation_requests`, `pickup_slots`, `order_window_settings`, `weekly_menu_items`, `recess_schedules`, `recess_schedule_targets`, `academic_sections`, `academic_grades`, `academic_courses`.
-- Pagos/saldos/inventario: `wallet_accounts`, `wallet_transactions`, `wallet_topup_requests`, `inventory_movements`, `demand_observations`, `daily_summaries`.
-- Familia/seguridad alimentaria: `parent_student_links`, `parent_active_student_context`, `family_link_codes`, `parent_food_blocks`, `student_spending_limits`.
-- Notificaciones/experiencia: `notifications`, `admin_notifications`, `system_alerts`.
-- Fidelidad: `loyalty_redemptions`, `loyalty_rewards`, `loyalty_settings`, `loyalty_point_ledger`.
-- Administración/reportes: `report_periods`, `automation_jobs`, `automation_settings`, `system_audit_logs`, `audit_logs`, `system_health_checks`, `app_secrets`, `api_rate_limits`, `user_presence`.
+### A. Sí migrar: cuentas intocables
+- Migrar únicamente las cuentas que el código y la configuración identifican como protegidas y que el usuario ha decidido conservar.
+- Usar `protected_admins` como pista de inventario, no como única prueba de que toda fila debe migrarse. Verificar en el código las protecciones, roles, UUID y rutas de autenticación.
+- Trasladar la identidad de forma segura. No copiar sesiones, refresh tokens, OTP, secretos ni contraseñas en texto plano. Si no se puede trasladar un hash de contraseña de forma compatible, preparar un flujo de restablecimiento/reautenticación.
+- Crear perfiles mínimos para esas cuentas, con roles legítimos y solo los campos necesarios para la app. No trasladar los 213 perfiles huérfanos ni los demás usuarios automáticamente.
+- No copiar preferencias, consentimientos, historial o notificaciones de usuarios antiguos, salvo los datos mínimos que la propia cuenta protegida necesite para operar y que se hayan validado explícitamente.
 
-La inclusión en el esquema no significa que se deban copiar todas las filas. Las tablas vacías también pueden ser necesarias para que la app funcione y por eso no se deben eliminar solo por estar vacías.
+### B. Sí migrar: menú y catálogo necesario
+- Productos y categorías que formen parte del menú que se quiere conservar.
+- Precios vigentes, disponibilidad, imágenes/referencias de Storage, nutrición, alérgenos y configuración de inventario estrictamente necesaria para mostrar y vender los productos.
+- Menú semanal y relación entre productos y días/horarios; horarios, descansos y configuración de recogida solo en la medida en que el flujo actual los necesite.
+- Grados, secciones y cursos solo si son necesarios para validar las cuentas protegidas o el funcionamiento del menú por sección.
+- Validar duplicados, productos archivados, precios y relaciones antes de importar. No migrar movimientos históricos de inventario, demanda, resúmenes ni ventas.
 
-## Datos a conservar en la primera migración
+### C. No migrar
+- `orders`, `order_items`, cancelaciones de pedidos, códigos QR/códigos de recogida históricos y cualquier tabla que represente pedidos pasados.
+- Saldos de billetera, transacciones, recargas y otros historiales financieros.
+- Notificaciones históricas, comentarios/reseñas/favoritos de usuarios no migrados, recompensas/redenciones/ledger de puntos.
+- Auditorías, logs operativos, comprobaciones de salud, límites de API, presencia de usuarios, jobs y datos temporales.
+- Perfiles huérfanos y cuentas no protegidas, salvo decisión posterior y justificada del usuario.
+- Datos personales históricos que no sean necesarios para las cuentas protegidas y el menú.
 
-1. Los 20 usuarios Auth actuales y sus identidades, verificando método de inicio de sesión y requisitos de migración de credenciales. No copiar sesiones, refresh tokens ni desafíos temporales como datos de negocio.
-2. Los 20 perfiles vinculados a Auth, sus roles legítimos, relaciones académicas y preferencias necesarias.
-3. Los 6 registros de cuentas protegidas, sin escribir correos ni credenciales en documentación.
-4. Los 45 pedidos, sus 45 líneas y todas las referencias relacionadas; comprobar también estados, importes, métodos de pago, fechas y códigos de recogida.
-5. Catálogo y configuración operativa actual, junto con movimientos de inventario y cualquier historial financiero con datos reales.
-6. Consentimientos y registros de auditoría que sean necesarios para trazabilidad, cumplimiento o reclamaciones, después de revisar la finalidad y retención.
-7. Solo notificaciones útiles para usuarios válidos y datos que la aplicación aún necesite. No copiar fan-out huérfano ni límites de API caducados.
+**Importante:** que una tabla de pedidos esté vacía no significa que se deba eliminar del esquema. Se recrearán las tablas, relaciones, RPC y reglas de pedidos que la aplicación necesita para realizar compras nuevas; simplemente se importarán cero filas de pedidos. Lo mismo se aplica a tablas de pagos, billeteras y auditoría que sean parte del funcionamiento futuro.
 
-## Perfiles sin Auth
+## Criterio de limpieza del destino
 
-Hay 213 perfiles sin correspondencia con `auth.users`. No importarlos automáticamente como cuentas activas. Antes, buscar dependencias en todos los datos y el código, identificar si son históricos, pruebas o cuentas incompletas, y documentar la decisión por grupo. No eliminar el origen durante la migración.
+Antes de conectar la app, verificar:
+- Cero filas en pedidos, líneas, cancelaciones y registros de transacciones históricas.
+- Solo cuentas protegidas autorizadas, con correspondencia correcta entre Auth y perfil.
+- Catálogo/menú con cantidades, precios, disponibilidad, horarios y relaciones verificadas.
+- Ninguna fila de notificación histórica, auditoría o telemetría heredada, a menos que una dependencia técnica justificada requiera un registro de configuración no histórico.
+- Tablas de estructura y funciones necesarias presentes aunque empiecen vacías.
 
 ## Reconstrucción técnica requerida
 
