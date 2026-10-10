@@ -35,7 +35,17 @@ Pasos locales:
 2. En el `.env` local (ignorado por Git), configura `SUPABASE_PROJECT_REF=cczbbqxunygcowqfrqdm` y `SUPABASE_DB_URL` con la cadena de conexión PostgreSQL del proyecto. No publiques ni compartas esa cadena.
 3. Ejecuta `pnpm install --frozen-lockfile` y después `pnpm backup:admin-notifications`.
 4. El comando debe terminar mostrando `RESPALDO VERIFICADO`, el mismo número de filas exportadas y esperado, la ruta del CSV y un SHA-256. Si no se completa sin errores, no uses el archivo parcial para autorizar la limpieza.
-5. Guarda una segunda copia privada en otro destino y conserva ambos archivos CSV y manifiesto hasta cerrar la validación. Solo entonces ejecuta la limpieza transaccional descrita abajo.
+5. Guarda una segunda copia privada en otro destino y conserva ambos archivos CSV y manifiesto hasta cerrar la validación. Solo entonces continúa.
+
+Para validar sin borrar nada, ejecuta en seco:
+```bash
+pnpm cleanup:orphan-admin-notifications -- --manifest "../quickbite-private-backups/<archivo>.manifest.json" --csv "../quickbite-private-backups/<archivo>.csv"
+```
+El script verifica el checksum del CSV y compara el hash ordenado de los IDs huérfanos del respaldo con los IDs actuales. Si no coinciden, aborta y pide generar otro respaldo. Si el resultado muestra `DRY RUN` y recuentos coherentes, revisa que las dos copias privadas existan. En la misma ventana de mantenimiento, la ejecución real sería:
+```bash
+pnpm cleanup:orphan-admin-notifications -- --manifest "../quickbite-private-backups/<archivo>.manifest.json" --csv "../quickbite-private-backups/<archivo>.csv" --apply
+```
+El modo `--apply` exige confirmar que hay dos copias privadas y escribir una frase de confirmación con el recuento exacto. Bajo bloqueo exclusivo, vuelve a comprobar los IDs huérfanos, reconstruye la tabla dentro de una transacción y verifica recuentos antes del `COMMIT`. Si un chequeo falla, la transacción se revierte.
 
 1. En el Dashboard de Supabase, revisar si el proyecto está en modo de solo lectura. No intentar limpiezas hasta contar con un respaldo externo verificable y una ventana de mantenimiento.
 2. Con una conexión de base de datos configurada en el equipo operador, abrir `psql` contra el proyecto correcto. No pegar la cadena de conexión ni la contraseña en un issue, PR o chat.
