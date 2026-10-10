@@ -18,6 +18,7 @@ Consultas de solo lectura al proyecto de origen:
 - 20 usuarios en `auth.users`; 20 identidades; 20 perfiles enlazados a Auth.
 - 233 perfiles en total: 213 perfiles no enlazados a `auth.users`. Roles actuales: admin 90, parent 97, staff 38, both 6, student 2.
 - `protected_admins`: 6 filas; las 6 coinciden con usuarios Auth. Se debe confirmar en código qué cuentas protegidas tienen que mantenerse y migrar exactamente esas; no incluir automáticamente a los otros usuarios.
+- Menú/catálogo en la fotografía: 16 productos disponibles, 5 categorías; 0 filas en `weekly_menu_items`, `product_nutrition`, `product_allergens` y tablas de horarios de descansos. Por tanto, no afirmar que hay un menú semanal programado para copiar: hay que conservar los 16 productos y 5 categorías y reconstruir la programación/configuración vacía para cargar el menú nuevo.
 - 45 pedidos y 45 líneas de pedido en la fotografía actual. **Ningún pedido ni línea de pedido se copiará** a la base nueva.
 - 5 cuentas de billetera; ninguna huérfana respecto a Auth. La nueva base empezará sin saldos ni movimientos heredados, salvo que el usuario cambie expresamente esta instrucción.
 - `admin_notifications`: aproximadamente 412.750 filas; se ha observado previamente que 362.926 son huérfanas. No copiar notificaciones históricas.
@@ -78,7 +79,7 @@ Antes de conectar la app, verificar:
 - Reconciliación del esquema y de los datos que sí se migran: conteos, IDs, claves foráneas y hashes deterministas.
 - Pedidos, líneas, cancelaciones y transacciones históricas: cero filas en el destino inicial; probar que se pueden crear pedidos nuevos.
 - Cuentas protegidas: migrar únicamente las cuentas confirmadas tras revisar el código y comprobar acceso sin divulgar credenciales.
-- Menú/catálogo: verificar productos, categorías, precios, disponibilidad, nutrición/alérgenos y programación del menú.
+- Menú/catálogo: verificar los 16 productos y 5 categorías de referencia, precios y disponibilidad. La programación semanal, nutrición/alérgenos y descansos están vacíos en la fotografía actual; mantener el esquema y no inventar filas para ellos.
 - Auth: solo las cuentas protegidas acordadas, o plan documentado de reautenticación; ningún secreto en cliente/repo.
 - Seguridad: pruebas RLS por rol y revisión de funciones privilegiadas.
 - Funcionalidad: login protegido, compra nueva, pagos nuevos, stock, preparación/entrega, administración y menú/horarios.
