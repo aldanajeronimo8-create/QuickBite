@@ -1,4 +1,5 @@
 import { appConfig } from '../config/appConfig';
+import { getErrorMessage } from '../lib/errorMessage';
 import { requireSupabaseClient, type Profile } from '../lib/supabase';
 
 export type AdminUserCreateInput = {
@@ -29,7 +30,7 @@ export type ProtectedCredentialsInput = {
 };
 
 function mapAdminUserError(error: unknown): Error {
-  const raw = error instanceof Error ? error.message : String(error);
+  const raw = getErrorMessage(error, 'No se pudo completar la operación de usuario.');
   const message = raw.toLowerCase();
   if (message.includes('not_authorized')) return new Error('No tienes permisos de administrador para gestionar usuarios.');
   if (message.includes('invalid_email')) return new Error('Correo electrónico inválido.');
