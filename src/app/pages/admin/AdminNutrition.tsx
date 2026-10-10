@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Leaf, Loader2, Save, Sparkles } from 'lucide-react';
+import { AlertTriangle, Leaf, Loader2, Save, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDataStore } from '../../../store/dataStore';
 import { requireSupabaseClient } from '../../../lib/supabase';
