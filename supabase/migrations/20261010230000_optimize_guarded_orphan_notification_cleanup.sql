@@ -46,7 +46,7 @@ BEGIN
     encode(
       sha256(
         convert_to(
-          COALESCE(string_agg(id::text || E'\\n', '' ORDER BY id), ''),
+          COALESCE(string_agg(id::text || chr(10), '' ORDER BY id), ''),
           'UTF8'
         )
       ),
