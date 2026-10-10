@@ -27,7 +27,7 @@ export async function suggestNutrition(input: NutritionAiInput): Promise<Nutriti
   if (!token) throw new Error('Tu sesión expiró. Inicia sesión como administrador nuevamente.');
   const response = await fetch('/api/nutrition/suggest', {
     method: 'POST',
-    headers: { Authorization: \`Bearer \${token}\`, 'Content-Type': 'application/json' },
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
   const payload = await response.json().catch(() => ({})) as {
