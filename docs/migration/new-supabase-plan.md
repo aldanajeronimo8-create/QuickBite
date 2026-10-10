@@ -75,12 +75,13 @@ Antes de conectar la app, verificar:
 ## Validaciones de aceptación
 
 - Comparación de esquema: tablas, columnas, tipos, defaults, constraints, FKs, índices, vistas, funciones, triggers, policies y grants.
-- Reconciliación de datos por tabla: conteos, IDs, claves foráneas y hashes deterministas de conjuntos exportados.
-- Pedidos y líneas: 45/45 como referencia de la fotografía, sin asumir que no habrá cambios antes del corte.
-- Cuentas protegidas: 6/6 y acceso probado sin divulgar credenciales.
-- Auth: todos los usuarios migrados o plan documentado para reautenticación; ningún secreto en cliente/repo.
+- Reconciliación del esquema y de los datos que sí se migran: conteos, IDs, claves foráneas y hashes deterministas.
+- Pedidos, líneas, cancelaciones y transacciones históricas: cero filas en el destino inicial; probar que se pueden crear pedidos nuevos.
+- Cuentas protegidas: migrar únicamente las cuentas confirmadas tras revisar el código y comprobar acceso sin divulgar credenciales.
+- Menú/catálogo: verificar productos, categorías, precios, disponibilidad, nutrición/alérgenos y programación del menú.
+- Auth: solo las cuentas protegidas acordadas, o plan documentado de reautenticación; ningún secreto en cliente/repo.
 - Seguridad: pruebas RLS por rol y revisión de funciones privilegiadas.
-- Funcionalidad: login, cambio de espacio/rol, compra, pagos, stock, preparación/entrega, administración, padres/familia, menús y horarios, exportación/reportes y preferencias.
+- Funcionalidad: login protegido, compra nueva, pagos nuevos, stock, preparación/entrega, administración y menú/horarios.
 - Rendimiento: tiempos base antes/después, planes de consultas críticas y carga de notificaciones controlada.
 - Rollback: mantener el origen intacto hasta completar pruebas y una ventana de aceptación. Cambiar variables de entorno solo después de aprobar los controles.
 
