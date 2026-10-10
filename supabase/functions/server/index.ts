@@ -101,7 +101,7 @@ app.use('/*', cors({
     const allowed = allowedOrigins();
     return !origin || !allowed.length ? null : allowed.includes(origin) ? origin : null;
   },
-  allowHeaders: ['Content-Type', 'Authorization', 'apikey', 'x-install-token'],
+  allowHeaders: ['Content-Type', 'Authorization', 'apikey', 'x-client-info', 'x-install-token'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   maxAge: 600,
 }));
