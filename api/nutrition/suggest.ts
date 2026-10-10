@@ -89,7 +89,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const supabase = createClient(supabaseUrl, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { Authorization: \`Bearer \${token}\` } },
+      global: { headers: { Authorization: 'Bearer ' + token } },
     });
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) return send(res, 401, { error: 'La sesión expiró. Inicia sesión nuevamente.' });
@@ -126,7 +126,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const upstream = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: \`Bearer \${gatewayToken}\`,
+        Authorization: 'Bearer ' + gatewayToken,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
