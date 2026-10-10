@@ -111,7 +111,7 @@ Deno.serve(async (req: Request) => {
       migrationExecuted: false,
       note: "Read-only gate only. No accounts, credentials, roles, or source data were changed.",
     });
-  } catch (_error) {
+  } catch {
     return json(req, { error: "Server configuration is incomplete" }, 503);
   }
 });
