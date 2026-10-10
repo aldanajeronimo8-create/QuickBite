@@ -71,71 +71,19 @@ El modo `--apply` exige confirmar que hay dos copias privadas y escribir una fra
    ```
 5. Verificar que `COPY n` coincide con el total consultado, calcular una suma SHA-256 del archivo y guardar la suma y la fecha junto al respaldo. Abrir/probar que el archivo existe, no está vacío y es legible. Guardar una segunda copia privada fuera del equipo original. El respaldo no está listo si solo se ejecutó la consulta o si la exportación no informó el número de filas.
 6. Confirmar que la migración correctiva se ha aplicado a la base conectada. Si el proyecto está en solo lectura, seguir el procedimiento que muestre el Dashboard de Supabase; no cambiar de proyecto ni borrar datos reales para esquivar el bloqueo.
-7. Durante una ventana de mantenimiento, preservar y reconstruir la tabla transaccionalmente: mantener todas las filas cuya identidad todavía exista en `auth.users`, retirar solo notificaciones que ya no pertenecen a ninguna identidad Auth y confirmar la transacción únicamente después de comparar los recuentos. No eliminar ni modificar `profiles`, `auth.users`, `system_audit_logs` ni `audit_logs`.
+7. Antes de aplicar la limpieza, cierra temporalmente las operaciones administrativas que puedan borrar usuarios o modificar notificaciones y ejecuta primero el modo de simulación del script. No uses la limpieza manual SQL descrita en notas antiguas; el script actual además coteja los IDs huérfanos exactos con el respaldo:
 
-   Ejecutar la reconstrucción solo después de completar y verificar la exportación externa. El bloque conserva intactas todas las notificaciones con una fila en `auth.users`, y aborta si los recuentos no cuadran:
-
-   ```sql
-   BEGIN;
-   LOCK TABLE public.admin_notifications IN ACCESS EXCLUSIVE MODE;
-
-   CREATE TEMP TABLE admin_notifications_keep ON COMMIT DROP AS
-   SELECT n.id, n.admin_user_id, n.section, n.title, n.body, n.entity_type,
-          n.entity_id, n.metadata, n.created_at, n.read_at
-   FROM public.admin_notifications n
-   WHERE EXISTS (
-     SELECT 1 FROM auth.users u WHERE u.id = n.admin_user_id
-   );
-
-   DO $check$
-   DECLARE
-     v_total bigint;
-     v_keep bigint;
-     v_orphan bigint;
-   BEGIN
-     SELECT count(*) INTO v_total FROM public.admin_notifications;
-     SELECT count(*) INTO v_keep FROM pg_temp.admin_notifications_keep;
-     SELECT count(*) INTO v_orphan
-     FROM public.admin_notifications n
-     WHERE NOT EXISTS (
-       SELECT 1 FROM auth.users u WHERE u.id = n.admin_user_id
-     );
-
-     IF v_total <> v_keep + v_orphan THEN
-       RAISE EXCEPTION 'Notification counts changed during preparation; aborting cleanup';
-     END IF;
-     IF v_orphan = 0 THEN
-       RAISE EXCEPTION 'No orphan notifications found; aborting cleanup';
-     END IF;
-   END;
-   $check$;
-
-   TRUNCATE TABLE public.admin_notifications;
-   INSERT INTO public.admin_notifications(
-     id, admin_user_id, section, title, body, entity_type,
-     entity_id, metadata, created_at, read_at
-   )
-   SELECT id, admin_user_id, section, title, body, entity_type,
-          entity_id, metadata, created_at, read_at
-   FROM pg_temp.admin_notifications_keep;
-
-   DO $check$
-   DECLARE
-     v_expected bigint;
-     v_actual bigint;
-   BEGIN
-     SELECT count(*) INTO v_expected FROM pg_temp.admin_notifications_keep;
-     SELECT count(*) INTO v_actual FROM public.admin_notifications;
-     IF v_expected <> v_actual THEN
-       RAISE EXCEPTION 'Preserved notification count mismatch; transaction must roll back';
-     END IF;
-   END;
-   $check$;
-   COMMIT;
+   ```bash
+   pnpm cleanup:orphan-admin-notifications -- --manifest "../quickbite-private-backups/<archivo>.manifest.json" --csv "../quickbite-private-backups/<archivo>.csv"
    ```
 
-   Mantener el proyecto en mantenimiento hasta verificar los recuentos y el tamaño tras el `COMMIT`. Al hacer `TRUNCATE` y reinsertar únicamente las filas preservadas, se evita depender de `VACUUM FULL` para recuperar el espacio de esa tabla.
-8. Verificar inmediatamente: recuento total, recuento de notificaciones conservadas, tamaño de `public.admin_notifications`, tamaño total de la base y posibilidad de crear una notificación desde una cuenta administrativa real. Si algo falla antes de confirmar la transacción, hacer `ROLLBACK`. Conservar el CSV hasta terminar la validación de producción.
+8. Comprueba que el modo de simulación termina en `DRY RUN`, que el recuento coincide con el manifiesto y que tienes dos copias privadas del CSV y el manifiesto. Para aplicar la limpieza transaccional, en la misma ventana de mantenimiento ejecuta:
+
+   ```bash
+   pnpm cleanup:orphan-admin-notifications -- --manifest "../quickbite-private-backups/<archivo>.manifest.json" --csv "../quickbite-private-backups/<archivo>.csv" --apply
+   ```
+
+   El script vuelve a cotejar el hash de los IDs antes de adquirir el bloqueo y dentro de la transacción. Exige confirmaciones interactivas del respaldo externo y del recuento; solo entonces reconstruye la tabla conservando todas las filas cuyo destinatario sigue teniendo una fila en `auth.users`. Si un chequeo previo al `COMMIT` falla, la transacción se revierte. No elimina perfiles, cuentas Auth ni filas de auditoría.
 
 ## Consulta posterior de control
 
