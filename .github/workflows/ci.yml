@@ -64,8 +64,8 @@ jobs:
     # 120 Playwright tests run serially with up to 2 retries; the previous 20m cap killed valid runs mid-suite.
     timeout-minutes: 45
     env:
-      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
       PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
       PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
       PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
@@ -74,7 +74,7 @@ jobs:
       PLAYWRIGHT_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
       PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
       PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       CI: true
       VITE_E2E_AUTH_AUTO_REFRESH: 'false'
     steps:
@@ -103,7 +103,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${VITE_SUPABASE_ANON_KEY}" || { echo "VITE_SUPABASE_ANON_KEY is missing"; exit 1; }
+          test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "E2E URL is not the approved destination project"; exit 1; }
+          test "$VITE_SUPABASE_URL" != "https://cczbbqxunygcowqfrqdm.supabase.co" || { echo "Refusing to run mutating E2E against the source project"; exit 1; }
+          test -n "${VITE_SUPABASE_ANON_KEY}" || { echo "E2E_SUPABASE_ANON_KEY is missing"; exit 1; }
           test -n "${PLAYWRIGHT_E2E_EMAIL}" || { echo "PLAYWRIGHT_E2E_EMAIL is missing"; exit 1; }
           test -n "${PLAYWRIGHT_E2E_PASSWORD}" || { echo "PLAYWRIGHT_E2E_PASSWORD is missing"; exit 1; }
           test -n "${PLAYWRIGHT_PARENT_EMAIL}" || { echo "PLAYWRIGHT_PARENT_EMAIL is missing"; exit 1; }
@@ -112,7 +114,7 @@ jobs:
           test -n "${PLAYWRIGHT_STAFF_PASSWORD}" || { echo "PLAYWRIGHT_STAFF_PASSWORD is missing"; exit 1; }
           test -n "${PLAYWRIGHT_ADMIN_EMAIL}" || { echo "PLAYWRIGHT_ADMIN_EMAIL is missing"; exit 1; }
           test -n "${PLAYWRIGHT_ADMIN_PASSWORD}" || { echo "PLAYWRIGHT_ADMIN_PASSWORD is missing"; exit 1; }
-          test -n "${SUPABASE_SERVICE_ROLE_KEY}" || { echo "SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
+          test -n "${SUPABASE_SERVICE_ROLE_KEY}" || { echo "E2E_SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
 
       - name: Provision E2E user
         run: node scripts/ensure-e2e-user.mjs

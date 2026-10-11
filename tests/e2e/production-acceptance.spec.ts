@@ -40,6 +40,37 @@ const STUDENT_ROUTES = [
   '/student/rewards',
 ];
 
+async function persistThemePreference(page: Page, desired: 'light' | 'dark') {
+  const light = page.getByRole('radio', { name: /claro/i });
+  const dark = page.getByRole('radio', { name: /oscuro/i });
+  const desiredControl = desired === 'light' ? light : dark;
+  const oppositeControl = desired === 'light' ? dark : light;
+  const opposite = desired === 'light' ? 'dark' : 'light';
+  const isThemeSave = (response: { url: () => string; request: () => { method: () => string } }) =>
+    response.url().includes('/rest/v1/rpc/set_my_theme_preference') &&
+    response.request().method() === 'POST';
+
+  await expect(desiredControl).toBeVisible();
+  await expect(desiredControl).toBeEnabled();
+
+  // Test runs share the destination account between CI executions. If it already
+  // has the requested preference, change to the opposite mode first so this test
+  // still validates a real database write instead of only an optimistic UI update.
+  if (await desiredControl.getAttribute('aria-checked') === 'true') {
+    const oppositeSave = page.waitForResponse(isThemeSave);
+    await oppositeControl.click();
+    const oppositeResponse = await oppositeSave;
+    expect(oppositeResponse.status(), 'opposite theme preference must persist').toBe(200);
+    await expect.poll(() => page.locator('html').getAttribute('data-qb-theme')).toBe(opposite);
+  }
+
+  const save = page.waitForResponse(isThemeSave);
+  await desiredControl.click();
+  const response = await save;
+  expect(response.status(), `saving ${desired} theme preference must succeed`).toBe(200);
+  await expect.poll(() => page.locator('html').getAttribute('data-qb-theme')).toBe(desired);
+}
+
 async function installRole(page: Page, role: Role, e2eAuth: { install: (page: Page, role: Role) => Promise<void> }) {
   await e2eAuth.install(page, role);
   await page.goto(HOME[role]);
@@ -183,10 +214,7 @@ test.describe('QuickBite production acceptance — persistence and UX @student',
     await student.goto('/student/account');
     await assertNoRuntimeFailures(student);
 
-    const light = student.getByRole('radio', { name: /claro/i });
-    await expect(light).toBeVisible();
-    await light.click();
-    await expect.poll(() => student.locator('html').getAttribute('data-qb-theme')).toBe('light');
+    await persistThemePreference(student, 'light');
 
     // Mi cuenta no contiene el control de cierre de sesión. El logout real del estudiante
     // está en el header de /menu, que es el mismo control usado por el flujo crítico.
@@ -200,10 +228,7 @@ test.describe('QuickBite production acceptance — persistence and UX @student',
     const parent = await browser.newPage();
     await e2eAuth.login(parent, 'parent');
     await parent.goto('/parent/family');
-    const dark = parent.getByRole('radio', { name: /oscuro/i });
-    await expect(dark).toBeVisible();
-    await dark.click();
-    await expect.poll(() => parent.locator('html').getAttribute('data-qb-theme')).toBe('dark');
+    await persistThemePreference(parent, 'dark');
     await parent.goto('/menu');
     await expect.poll(() => parent.locator('html').getAttribute('data-qb-theme')).toBe('dark');
     await parent.getByRole('button', { name: /cerrar sesión/i }).first().click();

@@ -161,18 +161,37 @@ async function restRequest(path, options = {}) {
   return response;
 }
 
-async function validateProtectedProfile(userId, role) {
+async function validateProtectedProfile(userId, role, expectedEmail) {
   const response = await globalThis.fetch(
-    `${url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id`,
+    `${url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,email,role`,
     { method: 'GET', headers },
   );
   if (!response.ok) {
     throw new Error(`Protected E2E ${role} profile validation failed (${response.status}): ${await response.text()}`);
   }
   const profiles = await response.json();
-  if (!Array.isArray(profiles) || profiles.length === 0) {
+  const profile = Array.isArray(profiles) ? profiles[0] : null;
+  if (!profile?.id) {
     throw new Error(`Protected E2E ${role} account exists but its profile is missing; refusing to mutate a protected account.`);
   }
+  if (profile.email?.trim().toLowerCase() !== expectedEmail) {
+    throw new Error(`Protected E2E ${role} account email does not match its protected profile; refusing to overwrite or use a mismatched identity.`);
+  }
+  if (profile.role !== role) {
+    throw new Error(`Protected E2E account role mismatch: expected ${role}, found ${profile.role}; refusing to change a protected role.`);
+  }
+}
+
+async function isProtectedAdminIdentity(email) {
+  const response = await globalThis.fetch(
+    `${url}/rest/v1/protected_admins?email=ilike.${encodeURIComponent(email)}&select=email&limit=1`,
+    { method: 'GET', headers },
+  );
+  if (!response.ok) {
+    throw new Error(`Protected E2E ${email} lookup failed (${response.status}): ${await response.text()}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) && rows.length > 0;
 }
 
 let users = await listUsers();
@@ -196,9 +215,15 @@ const workflowEnv = [];
 
 for (const account of accounts) {
   let user = users.find((candidate) => candidate.email?.toLowerCase() === account.email);
-  let isProtected = false;
+  let isProtected = await isProtectedAdminIdentity(account.email);
 
-  if (user) {
+  if (isProtected && !user) {
+    throw new Error(`Protected E2E ${account.role} identity is allowlisted but no matching Auth user exists; refusing to create or replace a protected account.`);
+  }
+
+  if (user && isProtected) {
+    console.log(`E2E ${account.role} account is protected; preserving its existing credentials, Auth metadata, and profile.`);
+  } else if (user) {
     try {
       user = await adminRequest(`/admin/users/${encodeURIComponent(user.id)}`, {
         method: 'PUT',
@@ -223,7 +248,7 @@ for (const account of accounts) {
   }
 
   if (isProtected) {
-    await validateProtectedProfile(user.id, account.role);
+    await validateProtectedProfile(user.id, account.role, account.email);
   } else {
     const profileResponse = await globalThis.fetch(
       `${url}/rest/v1/profiles?email=eq.${encodeURIComponent(account.email)}&select=id`,
@@ -267,17 +292,27 @@ for (const account of accounts) {
       console.log(`Removed orphan E2E profile ${conflictingProfile.id}; recreating it for auth user ${user.id} (${account.email}).`);
     }
 
-    await restRequest('/profiles?on_conflict=id', {
-      method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({
-        id: user.id,
-        email: account.email,
-        full_name: `QuickBite E2E ${account.role}`,
-        role: account.role,
-        active: true,
-      }),
-    });
+    try {
+      await restRequest('/profiles?on_conflict=id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({
+          id: user.id,
+          email: account.email,
+          full_name: `QuickBite E2E ${account.role}`,
+          role: account.role,
+          active: true,
+        }),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('protected_account_cannot_be_changed')) throw error;
+      // The profile trigger is authoritative. If it identifies this row as
+      // protected, accept it only when identity and role already match E2E.
+      await validateProtectedProfile(user.id, account.role, account.email);
+      isProtected = true;
+      console.log(`E2E ${account.role} profile is protected; preserving its existing identity and role.`);
+    }
   }
 
   const signInResponse = await globalThis.fetch(`${url}/auth/v1/token?grant_type=password`, {

@@ -46,8 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VITE_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       GITHUB_SHA: ${{ needs.integrity-trigger.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
@@ -62,8 +62,12 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Validate service credentials
-        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Validate destination and service credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Refusing to audit an unapproved database target"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "E2E_SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
       - name: Run live relational, order, payment, inventory and export assertions
         run: node scripts/integrity-audit.mjs
 
