@@ -47,21 +47,28 @@ La base de origen no se ha modificado. Este documento no incluye correos, UUID n
 
 ## Verificación real del gate administrativo (2026-10-10)
 
-Se publicó y volvió a consultar la función `qb-admin-migration-gate`. La versión activa es la **8**. La función no realiza migraciones ni altera cuentas.
+Se publicó y verificó la función `qb-admin-migration-gate`. La versión activa es la **9**. La función no migra ni altera cuentas.
 
-La prueba en vivo de CI observó:
-
-Las comprobaciones de comportamiento confirmaron que `/health` responde 200, `/status` sin token responde 401 y un origen no autorizado recibe 403. Después de esas comprobaciones, el smoke falla por la configuración incompleta. Importante: `sourceConnectionConfigured` solo señala si existen las dos variables de entorno; **no demuestra conectividad real ni autorización contra Auth del origen**.
-- `GET /health`: HTTP 200; solo devuelve indicadores booleanos de configuración, sin valores de secretos.
+La última prueba de CI observó:
+- `GET /health`: HTTP 200.
 - `GET /status` sin token: HTTP 401.
-- `GET /health` con un origen no permitido: HTTP 403.
+- `GET /health` con un origen no autorizado: HTTP 403.
 - `destinationRuntimeConfigured: true`.
 - `allowedOriginsConfigured: true`.
 - `sourceConnectionConfigured: true`.
+- `sourceConnectionValidated: true`.
 - `migrationExecuted: false`.
 
-La autorización del endpoint `/status` se valida dentro de la función mediante `auth.getUser(token)` y la comprobación de que el perfil existe, está activo y tiene rol `admin` o `both`. La verificación JWT de la plataforma está deshabilitada para permitir que las solicitudes de preflight lleguen al manejador; esto no sustituye la validación del token que hace el código en `/status`. La ruta pública `/health` no muestra credenciales, correos, UUID ni filas. El smoke más reciente pasó: `/health` devolvió HTTP 200, `/status` sin token devolvió HTTP 401 y un origen no autorizado recibió HTTP 403. El allowlist incluye el dominio de producción verificado en los metadatos del repositorio, `https://quick-bite-ten-wheat.vercel.app`, y permite ampliar orígenes mediante `QB_ADMIN_ALLOWED_ORIGINS`.
+La comprobación `sourceConnectionValidated` ya realiza una petición de solo lectura al endpoint administrativo de Auth del proyecto de origen, consulta un máximo de un usuario, descarta la respuesta y devuelve únicamente un booleano. El último smoke confirmó que esa credencial es aceptada por Auth; no se imprime ni devuelve la clave ni los datos del usuario consultado.
 
-**Estado actual de configuración:** el diagnóstico detecta presentes las variables `QB_SOURCE_URL` y `QB_SOURCE_SECRET_KEY`, y el allowlist de origen permitido ya está disponible. Esto verifica presencia, no que la clave secreta del origen sea válida ni que su Auth acepte la llamada. Esa conectividad administrativa real todavía debe validarse. Además, el destino sigue sin usuarios Auth, perfiles administrativos activos ni filas en `protected_admins`; no hay una identidad administrativa de destino con la que completar el control de acceso.
+La autorización de `/status` se valida dentro de la función mediante `auth.getUser(token)` y exige un perfil activo con rol `admin` o `both`. La verificación JWT de la plataforma está deshabilitada para permitir que las solicitudes de preflight lleguen al manejador; el código valida el token de usuario en `/status`. El diagnóstico público no revela credenciales, correos, UUID ni filas.
 
-El último CI confirmó que **Quality y el smoke del gate pasaron**. E2E sigue fallando intencionalmente en el guard de aislamiento porque todavía no tiene configurada la URL/credenciales E2E específicas en GitHub; se detiene antes de provisionar usuarios o datos. La suite E2E también se detiene en el guard antes de provisionar usuarios o datos porque no está configurado el destino aislado de pruebas. No se debe habilitar la migración de cuentas hasta resolver estos bloqueos.
+**Bloqueo actual:** el destino aún no tiene usuarios Auth, identidades, perfiles administrativos activos ni filas en `protected_admins`. La autenticación de origen se ha validado, pero todavía falta crear y probar de forma segura el administrador inicial y migrar las seis identidades protegidas conservando sus roles reales.
+
+## CI y secreto pendiente de GitHub Actions
+
+El job **Quality** pasa y el **Migration gate smoke** pasa. El guard E2E ya acepta la URL aislada del destino y no permite apuntar al proyecto de origen. El job E2E se detiene antes de crear usuarios o preparar datos porque en el entorno de GitHub Actions falta `E2E_SUPABASE_SERVICE_ROLE_KEY` (el proceso lo ve como variable vacía).
+
+Se simplificó el workflow para que la URL de destino y la clave publishable estén declaradas allí, y para que el script genere identidades desechables de prueba con credenciales aleatorias en cada ejecución. Ya no necesita ocho secretos de correo/contraseña de pruebas. La única clave adicional requerida por ese workflow es la clave secreta del **proyecto de destino**, guardada en GitHub Actions como `E2E_SUPABASE_SERVICE_ROLE_KEY`; no debe usarse aquí la clave del proyecto de origen ni publicarse en el repositorio.
+
+La interfaz de herramientas conectadas permite modificar código y consultar CI, pero no crear los secretos privados de GitHub Actions. Para completar esa última parte, una persona autorizada debe añadir ese único secreto en la configuración de GitHub del repositorio. No se han migrado usuarios ni modificado credenciales o roles.
