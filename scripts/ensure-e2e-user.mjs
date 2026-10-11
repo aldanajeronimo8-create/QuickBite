@@ -177,7 +177,7 @@ async function validateProtectedProfile(userId, role) {
 
 async function isProtectedAdminIdentity(email) {
   const response = await globalThis.fetch(
-    `${url}/rest/v1/protected_admins?email=eq.${encodeURIComponent(email)}&select=email&limit=1`,
+    `${url}/rest/v1/protected_admins?email=ilike.${encodeURIComponent(email)}&select=email&limit=1`,
     { method: 'GET', headers },
   );
   if (!response.ok) {
