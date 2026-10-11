@@ -10,6 +10,9 @@ export type AdminUserCreateInput = {
   ti?: string;
   student_code?: string;
   relationship?: string;
+  section_id?: string;
+  grade_id?: string;
+  course_id?: string;
 };
 
 export type AdminUserUpdateInput = {
@@ -21,6 +24,9 @@ export type AdminUserUpdateInput = {
   password?: string;
   student_code?: string;
   relationship?: string;
+  section_id?: string;
+  grade_id?: string;
+  course_id?: string;
 };
 
 export type ProtectedCredentialsInput = {
@@ -39,6 +45,10 @@ function mapAdminUserError(error: unknown): Error {
   if (message.includes('ti_already_registered')) return new Error('La identificación TI ya está registrada.');
   if (message.includes('password_too_short')) return new Error('La contraseña debe tener al menos 6 caracteres.');
   if (message.includes('invalid_role')) return new Error('El tipo de cuenta seleccionado no es válido.');
+  if (message.includes('academic_structure_required')) return new Error('Selecciona sección, grado y curso para la cuenta estudiantil.');
+  if (message.includes('invalid_section')) return new Error('La sección seleccionada ya no está activa. Actualiza la lista.');
+  if (message.includes('invalid_grade')) return new Error('El grado no pertenece a la sección seleccionada o está inactivo.');
+  if (message.includes('invalid_course')) return new Error('El curso no pertenece al grado seleccionado o está inactivo.');
   if (message.includes('student_code_required_for_parent')) return new Error('Para una cuenta de padre debes introducir el código de verificación de un estudiante.');
   if (message.includes('invalid_or_expired_student_code')) return new Error('El código del estudiante no existe, ya fue utilizado o expiró.');
   if (message.includes('invalid_student_code')) return new Error('El código no corresponde a un estudiante válido.');
@@ -52,7 +62,7 @@ function mapAdminUserError(error: unknown): Error {
 }
 
 async function callAdminManageUser(input: AdminUserCreateInput | AdminUserUpdateInput) {
-  const { data, error } = await requireSupabaseClient().rpc('admin_manage_user', {
+  const { data, error } = await requireSupabaseClient().rpc('admin_manage_user_with_academics',
     p_user_id: 'id' in input ? input.id : null,
     p_email: input.email.trim().toLowerCase(),
     p_password: input.password?.trim() || null,
@@ -61,6 +71,9 @@ async function callAdminManageUser(input: AdminUserCreateInput | AdminUserUpdate
     p_ti: input.ti?.trim() || null,
     p_student_code: input.student_code?.trim().toUpperCase() || null,
     p_relationship: input.relationship?.trim() || null,
+    p_section_id: input.section_id || null,
+    p_grade_id: input.grade_id || null,
+    p_course_id: input.course_id || null,
   });
   if (error) throw mapAdminUserError(error);
   if (!data) throw new Error('Supabase no devolvió el usuario gestionado.');
