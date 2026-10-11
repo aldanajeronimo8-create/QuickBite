@@ -12,7 +12,10 @@ import { listProtectedAdminEmails } from '../../../repositories/quickbiteReposit
 import { protectedAdminEmails } from '../../../lib/protectedAccounts';
 
 type Mode = 'student' | 'parent' | 'staff';
-type UserForm = { id?: string; email: string; password: string; full_name: string; role: Profile['role']; ti: string; student_code: string; relationship: string };
+type AcademicSection = { id: string; name: string };
+type AcademicGrade = { id: string; section_id: string; name: string };
+type AcademicCourse = { id: string; grade_id: string; name: string };
+type UserForm = { id?: string; email: string; password: string; full_name: string; role: Profile['role']; ti: string; student_code: string; relationship: string; section_id: string; grade_id: string; course_id: string };
 type Consent = { user_id: string; guardian_name: string; guardian_relationship: string; guardian_email: string; privacy_policy_version: string };
 type GeneratedCode = { code: string; expires_at: string; student_name: string };
 
@@ -23,7 +26,7 @@ const CREATE_ROLES: Array<{ value: Profile['role']; label: string; description: 
   { value: 'staff', label: 'Personal de cafetería', description: 'Cuenta operativa para gestionar pedidos de la cafetería.', icon: UtensilsCrossed },
 ];
 const RELATIONSHIPS = ['Padre', 'Madre', 'Acudiente', 'Tutor legal', 'Abuelo/a', 'Tío/a', 'Hermano/a', 'Familiar', 'Otro'];
-const emptyForm: UserForm = { email: '', password: '', full_name: '', role: 'student', ti: '', student_code: '', relationship: 'Padre' };
+const emptyForm: UserForm = { email: '', password: '', full_name: '', role: 'student', ti: '', student_code: '', relationship: 'Padre', section_id: '', grade_id: '', course_id: '' };
 const roleLabel = (role: Profile['role']) => {
   if (role === 'admin') return 'Administrador';
   if (role === 'both') return 'Usuario y administrador';
@@ -42,6 +45,9 @@ export function AdminUsersSeparated() {
   const authLoading = useAuthStore((state) => state.loading);
   const [mode, setMode] = useState<Mode>('student');
   const [form, setForm] = useState<UserForm>(emptyForm);
+  const [academicSections, setAcademicSections] = useState<AcademicSection[]>([]);
+  const [academicGrades, setAcademicGrades] = useState<AcademicGrade[]>([]);
+  const [academicCourses, setAcademicCourses] = useState<AcademicCourse[]>([]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -73,8 +79,30 @@ export function AdminUsersSeparated() {
     let active = true;
     void listProtectedAdminEmails().then((emails) => { if (active) setProtectedEmails(new Set(emails)); }).catch(() => undefined);
     void loadConsents();
+    void (async () => {
+      try {
+        const client = requireSupabaseClient();
+        const [{ data: sections, error: sectionsError }, { data: grades, error: gradesError }, { data: courses, error: coursesError }] = await Promise.all([
+          client.from('academic_sections').select('id,name').eq('active', true).order('display_order'),
+          client.from('academic_grades').select('id,section_id,name').eq('active', true).order('display_order'),
+          client.from('academic_courses').select('id,grade_id,name').eq('active', true).order('display_order'),
+        ]);
+        if (sectionsError) throw sectionsError;
+        if (gradesError) throw gradesError;
+        if (coursesError) throw coursesError;
+        if (!active) return;
+        setAcademicSections(sections ?? []);
+        setAcademicGrades(grades ?? []);
+        setAcademicCourses(courses ?? []);
+      } catch (error) {
+        if (active) toast.error(error instanceof Error ? error.message : 'No se pudo cargar la estructura académica.');
+      }
+    })();
     return () => { active = false; };
   }, [authLoading, currentUser]);
+
+  const availableAcademicGrades = useMemo(() => academicGrades.filter((grade) => grade.section_id === form.section_id), [academicGrades, form.section_id]);
+  const availableAcademicCourses = useMemo(() => academicCourses.filter((course) => course.grade_id === form.grade_id), [academicCourses, form.grade_id]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -113,7 +141,7 @@ export function AdminUsersSeparated() {
     }
     const protectedAccount = isProtected(user);
     setMode(user.role === 'parent' ? 'parent' : user.role === 'staff' ? 'staff' : 'student');
-    setForm({ id: user.id, email: user.email, password: '', full_name: user.full_name, role: user.role, ti: user.ti ?? '', student_code: '', relationship: 'Padre' });
+    setForm({ id: user.id, email: user.email, password: '', full_name: user.full_name, role: user.role, ti: user.ti ?? '', student_code: '', relationship: 'Padre', section_id: user.section_id ?? '', grade_id: user.grade_id ?? '', course_id: user.course_id ?? '' });
     setCredentialOnly(protectedAccount);
     setProtectedOriginalEmail(protectedAccount ? user.email.trim().toLowerCase() : null);
     setGenerated(null);
@@ -147,10 +175,14 @@ export function AdminUsersSeparated() {
     const password = form.password.trim();
     const ti = form.ti.trim();
     const code = form.student_code.trim().toUpperCase();
+    const sectionId = form.section_id.trim();
+    const gradeId = form.grade_id.trim();
+    const courseId = form.course_id.trim();
     if (!name || !email) return toast.error('Nombre y correo son obligatorios');
     if (!form.id && password.length < 6) return toast.error('La contraseña debe tener al menos 6 caracteres');
     if (form.id && password && password.length < 6) return toast.error('La nueva contraseña debe tener al menos 6 caracteres');
     if (!credentialOnly && mode === 'student' && needsTi(form.role) && !ti) return toast.error('La identificación TI es obligatoria.');
+    if (!credentialOnly && mode === 'student' && needsTi(form.role) && (!sectionId || !gradeId || !courseId)) return toast.error('Selecciona sección, grado y curso para la cuenta estudiantil.');
     if (!credentialOnly && mode === 'parent' && !code && !form.id) return toast.error('Necesitas primero el código generado por el estudiante.');
     if (!credentialOnly && mode === 'parent' && !form.relationship) return toast.error('Selecciona la relación con el estudiante.');
 
@@ -171,6 +203,9 @@ export function AdminUsersSeparated() {
           full_name: name,
           role: form.role,
           ti: needsTi(form.role) ? ti : '',
+          section_id: needsTi(form.role) ? sectionId : undefined,
+          grade_id: needsTi(form.role) ? gradeId : undefined,
+          course_id: needsTi(form.role) ? courseId : undefined,
           password: password || undefined,
           student_code: code || undefined,
           relationship: form.relationship || undefined,
@@ -184,6 +219,9 @@ export function AdminUsersSeparated() {
           full_name: name,
           role: mode === 'parent' ? 'parent' as const : form.role,
           ti: mode === 'student' ? (needsTi(form.role) ? ti : '') : '',
+          section_id: mode === 'student' && needsTi(form.role) ? sectionId : undefined,
+          grade_id: mode === 'student' && needsTi(form.role) ? gradeId : undefined,
+          course_id: mode === 'student' && needsTi(form.role) ? courseId : undefined,
           student_code: undefined,
           relationship: mode === 'parent' ? form.relationship : undefined,
         };
@@ -329,6 +367,7 @@ export function AdminUsersSeparated() {
           </div>
           {!credentialOnly && mode === 'student' && <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-sm font-bold text-slate-800">Rol de la cuenta</p><div className="mt-3 grid gap-2 md:grid-cols-3">{CREATE_ROLES.map((option) => { const Icon = option.icon; return <button key={option.value} type="button" onClick={() => setForm((current) => ({ ...current, role: option.value }))} className={`rounded-xl border p-3 text-left ${form.role === option.value ? 'border-slate-900 bg-white' : 'border-slate-200 bg-slate-50'}`}><Icon className="mb-2 h-5 w-5 text-slate-700" /><p className="text-xs font-black text-slate-900">{option.label}</p><p className="mt-1 text-[11px] leading-4 text-slate-500">{option.description}</p></button>; })}</div></div>}
           {!credentialOnly && mode === 'parent' && <div><Label>Código de vinculación del estudiante</Label><Input value={form.student_code} onChange={(e) => setForm((current) => ({ ...current, student_code: e.target.value.toUpperCase() }))} placeholder="Escribe el código generado por el estudiante" /></div>}
+          {!credentialOnly && mode === 'student' && studentRoleEditing && <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4"><p className="text-sm font-bold text-indigo-950">Estructura académica obligatoria</p><p className="mt-1 text-xs text-indigo-800">Selecciona la ubicación real del estudiante; la cuenta no se guardará sin una combinación válida.</p><div className="mt-3 grid gap-3 md:grid-cols-3"><div><Label>Sección</Label><select required value={form.section_id} onChange={(event) => setForm((current) => ({ ...current, section_id: event.target.value, grade_id: '', course_id: '' }))} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"><option value="">Selecciona una sección</option>{academicSections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}</select></div><div><Label>Grado</Label><select required value={form.grade_id} onChange={(event) => setForm((current) => ({ ...current, grade_id: event.target.value, course_id: '' }))} disabled={!form.section_id} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"><option value="">Selecciona un grado</option>{availableAcademicGrades.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}</select></div><div><Label>Curso</Label><select required value={form.course_id} onChange={(event) => setForm((current) => ({ ...current, course_id: event.target.value }))} disabled={!form.grade_id} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"><option value="">Selecciona un curso</option>{availableAcademicCourses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select></div></div></div>}
           {form.id && studentRoleEditing && !credentialOnly && <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-black text-slate-900">Código del estudiante</p><p className="text-xs text-slate-500">Genera un código nuevo o conserva el vigente.</p></div><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={generating} onClick={() => void generateStudentCode(form.id!, false)}>{generating ? 'Generando…' : 'Ver/generar'}</Button><Button type="button" variant="outline" size="sm" disabled={generating} onClick={() => void generateStudentCode(form.id!, true)}><RefreshCw className="mr-1 h-3.5 w-3.5" />Nuevo</Button></div></div>{generated && <div className="mt-4 grid gap-2 rounded-xl bg-white p-4 ring-1 ring-slate-200 md:grid-cols-[1fr_auto] md:items-center"><div><p className="text-xs font-bold text-slate-500">Código</p><p className="mt-1 font-mono text-2xl font-black tracking-[0.2em] text-slate-900">{generated.code}</p><p className="mt-1 text-xs text-slate-500">Vence: {generated.expires_at ? new Date(generated.expires_at).toLocaleString('es-CO') : 'Sin fecha'}</p></div><Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(generated.code)}><Copy className="mr-1 h-4 w-4" />Copiar</Button></div>}</div>}
           <div className="flex justify-end gap-2 pt-3"><Button type="button" variant="outline" onClick={close} disabled={saving || generating}>Cancelar</Button><Button type="submit" disabled={saving || generating}>{saving ? 'Guardando…' : form.id ? 'Guardar cambios' : 'Crear cuenta'}</Button></div>
         </form>
