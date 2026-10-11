@@ -47,7 +47,7 @@ concurrency:
 
 env:
   SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
-  PRODUCTION_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+  PRODUCTION_URL: ${{ vars.K6_BASE_URL || '' }}
 
 jobs:
   resolve:
@@ -196,8 +196,8 @@ jobs:
     timeout-minutes: 50
     env:
       VITE_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
-      E2E_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
-      E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
       PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
       PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
@@ -207,7 +207,7 @@ jobs:
       PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
       PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
       VITE_E2E_AUTH_AUTO_REFRESH: 'false'
-      PLAYWRIGHT_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+      PLAYWRIGHT_BASE_URL: ${{ vars.K6_BASE_URL || '' }}
     steps:
       - name: Checkout exact approved SHA
         uses: actions/checkout@v4
@@ -237,7 +237,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Refusing to run acceptance against an unapproved database target"; exit 1; }
-          for name in E2E_SUPABASE_ANON_KEY E2E_SUPABASE_SERVICE_ROLE_KEY PLAYWRIGHT_E2E_EMAIL PLAYWRIGHT_E2E_PASSWORD PLAYWRIGHT_PARENT_EMAIL PLAYWRIGHT_PARENT_PASSWORD PLAYWRIGHT_STAFF_EMAIL PLAYWRIGHT_STAFF_PASSWORD PLAYWRIGHT_ADMIN_EMAIL PLAYWRIGHT_ADMIN_PASSWORD; do
+          test -n "$PLAYWRIGHT_BASE_URL" || { echo "K6_BASE_URL must point to the deployed QuickBite destination"; exit 1; }
+          for name in VITE_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY PLAYWRIGHT_E2E_EMAIL PLAYWRIGHT_E2E_PASSWORD PLAYWRIGHT_PARENT_EMAIL PLAYWRIGHT_PARENT_PASSWORD PLAYWRIGHT_STAFF_EMAIL PLAYWRIGHT_STAFF_PASSWORD PLAYWRIGHT_ADMIN_EMAIL PLAYWRIGHT_ADMIN_PASSWORD; do
             test -n "${!name:-}" || { echo "Missing required secret: $name"; exit 1; }
           done
 
