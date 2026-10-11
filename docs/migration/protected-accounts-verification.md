@@ -47,7 +47,7 @@ La base de origen no se ha modificado. Este documento no incluye correos, UUID n
 
 ## Verificación real del gate administrativo (2026-10-10)
 
-Se publicó y volvió a consultar la función `qb-admin-migration-gate`. La versión activa es la **4**. La función no realiza migraciones ni altera cuentas.
+Se publicó y volvió a consultar la función `qb-admin-migration-gate`. La versión activa es la **8**. La función no realiza migraciones ni altera cuentas.
 
 La prueba en vivo de CI observó:
 
@@ -56,12 +56,12 @@ Las comprobaciones de comportamiento confirmaron que `/health` responde 200, `/s
 - `GET /status` sin token: HTTP 401.
 - `GET /health` con un origen no permitido: HTTP 403.
 - `destinationRuntimeConfigured: true`.
-- `allowedOriginsConfigured: false`.
-- `sourceConnectionConfigured: false`.
+- `allowedOriginsConfigured: true`.
+- `sourceConnectionConfigured: true`.
 - `migrationExecuted: false`.
 
-La autorización del endpoint `/status` se valida dentro de la función mediante `auth.getUser(token)` y la comprobación de que el perfil existe, está activo y tiene rol `admin` o `both`. La verificación JWT de la plataforma está deshabilitada para permitir que las solicitudes de preflight lleguen al manejador; esto no sustituye la validación del token que hace el código en `/status`. La ruta pública `/health` no muestra credenciales, correos, UUID ni filas.
+La autorización del endpoint `/status` se valida dentro de la función mediante `auth.getUser(token)` y la comprobación de que el perfil existe, está activo y tiene rol `admin` o `both`. La verificación JWT de la plataforma está deshabilitada para permitir que las solicitudes de preflight lleguen al manejador; esto no sustituye la validación del token que hace el código en `/status`. La ruta pública `/health` no muestra credenciales, correos, UUID ni filas. El smoke más reciente pasó: `/health` devolvió HTTP 200, `/status` sin token devolvió HTTP 401 y un origen no autorizado recibió HTTP 403. El allowlist incluye el dominio de producción verificado en los metadatos del repositorio, `https://quick-bite-ten-wheat.vercel.app`, y permite ampliar orígenes mediante `QB_ADMIN_ALLOWED_ORIGINS`.
 
-**Bloqueo real encontrado:** faltan las variables de entorno `QB_ADMIN_ALLOWED_ORIGINS`, `QB_SOURCE_URL` y `QB_SOURCE_SECRET_KEY`. Por tanto, la función todavía no tiene orígenes de navegador permitidos. Tampoco están configuradas las variables que el diseño prevé para el origen; la conectividad real al Auth de origen no se ha probado y no se debe inferir solo de la presencia de esas variables. Además, el destino sigue sin usuarios Auth, perfiles administrativos activos ni filas en `protected_admins`; no hay una identidad administrativa de destino con la que completar el control de acceso.
+**Estado actual de configuración:** el diagnóstico detecta presentes las variables `QB_SOURCE_URL` y `QB_SOURCE_SECRET_KEY`, y el allowlist de origen permitido ya está disponible. Esto verifica presencia, no que la clave secreta del origen sea válida ni que su Auth acepte la llamada. Esa conectividad administrativa real todavía debe validarse. Además, el destino sigue sin usuarios Auth, perfiles administrativos activos ni filas en `protected_admins`; no hay una identidad administrativa de destino con la que completar el control de acceso.
 
-El último CI confirmó que **Quality pasó**. El smoke de la función falla intencionalmente por esas dos configuraciones ausentes. La suite E2E también se detiene en el guard antes de provisionar usuarios o datos porque no está configurado el destino aislado de pruebas. No se debe habilitar la migración de cuentas hasta resolver estos bloqueos.
+El último CI confirmó que **Quality y el smoke del gate pasaron**. E2E sigue fallando intencionalmente en el guard de aislamiento porque todavía no tiene configurada la URL/credenciales E2E específicas en GitHub; se detiene antes de provisionar usuarios o datos. La suite E2E también se detiene en el guard antes de provisionar usuarios o datos porque no está configurado el destino aislado de pruebas. No se debe habilitar la migración de cuentas hasta resolver estos bloqueos.
