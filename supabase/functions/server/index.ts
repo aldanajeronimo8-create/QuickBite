@@ -415,39 +415,55 @@ app.post(apiPrefix + '/protected-first-access/change-password', async (c) => {
       return c.json({ error: 'La contraseña debe tener entre 12 y 128 caracteres e incluir mayúsculas, minúsculas, números y un símbolo.' }, 400);
     }
 
-    // Arm an expiring one-time DB marker before changing the password hash.
-    const { error: beginError } = await supabase.rpc(
-      'begin_protected_first_access_password_change',
+    // If phase 1 succeeded but metadata finalization failed previously, recover
+    // that exact pending transition without rotating the already-saved password again.
+    const { data: previousAttempt, error: attemptLookupError } = await supabase
+      .from('protected_first_access_attempts')
+      .select('password_changed_at, expires_at')
+      .eq('user_id', authData.user.id)
+      .maybeSingle();
+    if (attemptLookupError) {
+      console.error('Protected first-access marker lookup failed', attemptLookupError.code || 'database_error');
+      return c.json({ error: 'No se pudo comprobar el estado del cambio seguro de contraseña.' }, 500);
+    }
+
+    const passwordPhaseAlreadyCompleted = Boolean(
+      previousAttempt?.password_changed_at
+      && previousAttempt.expires_at
+      && Date.parse(previousAttempt.expires_at) > Date.now(),
+    );
+
+    if (!passwordPhaseAlreadyCompleted) {
+      // Arm a fresh, expiring marker before changing the password hash.
+      const { error: beginError } = await supabase.rpc(
+        'begin_protected_first_access_password_change',
+        { p_user_id: authData.user.id },
+      );
+      if (beginError) {
+        console.error('Protected first-access marker could not be created', beginError.code || 'database_error');
+        return c.json({ error: 'No se pudo iniciar el cambio seguro de contraseña.' }, 500);
+      }
+
+      // Phase 1: Auth updates the password and its ancillary tokens.
+      const { error: passwordError } = await supabase.auth.admin.updateUserById(authData.user.id, {
+        password: newPassword,
+      });
+      if (passwordError) {
+        console.error('Protected first-access password update failed', passwordError.code || 'auth_error');
+        return c.json({ error: 'No se pudo guardar la nueva contraseña. Inténtalo de nuevo.' }, 400);
+      }
+    }
+
+    // Phase 2: finish through a service-only DB RPC that validates the one-time
+    // marker and account identity, then performs the narrow metadata transition.
+    const { error: metadataUpdateError } = await supabase.rpc(
+      'complete_protected_first_access_password_change',
       { p_user_id: authData.user.id },
     );
-    if (beginError) {
-      console.error('Protected first-access marker could not be created', beginError.code || 'database_error');
-      return c.json({ error: 'No se pudo iniciar el cambio seguro de contraseña.' }, 500);
-    }
-
-    // Phase 1: Auth updates the password and its ancillary tokens.
-    const { error: passwordError } = await supabase.auth.admin.updateUserById(authData.user.id, {
-      password: newPassword,
-    });
-    if (passwordError) {
-      console.error('Protected first-access password update failed', passwordError.code || 'auth_error');
-      return c.json({ error: 'No se pudo guardar la nueva contraseña. Inténtalo de nuevo.' }, 400);
-    }
-
-    // Phase 2: update trusted app_metadata separately, after phase 1 commits.
-    const firstPasswordChangedAt = new Date().toISOString();
-    const { error: metadataUpdateError } = await supabase.auth.admin.updateUserById(authData.user.id, {
-      app_metadata: {
-        ...metadata,
-        quickbite_protected_account: true,
-        quickbite_must_change_password: false,
-        quickbite_first_password_changed_at: firstPasswordChangedAt,
-      },
-    });
     if (metadataUpdateError) {
-      console.error('Protected first-access metadata finalization failed', metadataUpdateError.code || 'auth_error');
+      console.error('Protected first-access metadata finalization failed', metadataUpdateError.code || 'database_error');
       return c.json({
-        error: 'La contraseña se guardó, pero falta terminar la activación. Inicia sesión con la nueva contraseña e inténtalo de nuevo.',
+        error: 'No se pudo finalizar la activación de la cuenta.',
         code: 'protected_password_metadata_finalize_failed',
       }, 500);
     }
