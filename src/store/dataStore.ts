@@ -304,6 +304,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       full_name: user.full_name.trim(),
       role: user.role,
       ti: user.ti?.trim() || null,
+      section_id: user.section_id || null,
+      grade_id: user.grade_id || null,
+      course_id: user.course_id || null,
       created_at: new Date().toISOString(),
       active: true,
     };
