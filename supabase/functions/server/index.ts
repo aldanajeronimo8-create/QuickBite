@@ -88,6 +88,7 @@ async function validateManagedUserInput(body: ManagedUserBody, requirePassword: 
   if (!email || !email.includes('@')) return { error: 'Correo electrónico inválido.' };
   if (!fullName) return { error: 'El nombre completo es obligatorio.' };
   if (!role) return { error: 'Rol inválido.' };
+  if (role === 'all') return { error: 'El rol all solo puede asignarse mediante el aprovisionamiento protegido.' };
   if (requirePassword && password.length < 6) {
     return { error: 'La contraseña debe tener al menos 6 caracteres.' };
   }
