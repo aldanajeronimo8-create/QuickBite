@@ -1,18 +1,18 @@
-export type UserRole = 'admin' | 'student' | 'parent' | 'staff' | 'both' | 'student_parent';
+export type UserRole = 'admin' | 'student' | 'parent' | 'staff' | 'both' | 'student_parent' | 'all';
 
-
+/** The single canonical role for trusted accounts with all four QuickBite interfaces. */
 export function canAccessAdmin(role: UserRole) {
-  return role === 'admin' || role === 'both';
+  return role === 'all' || role === 'admin' || role === 'both';
 }
 
 export function canAccessStudent(role: UserRole) {
-  return role === 'student' || role === 'both' || role === 'admin' || role === 'student_parent';
+  return role === 'all' || role === 'student' || role === 'both' || role === 'admin' || role === 'student_parent';
 }
 
 export function canAccessParent(role: UserRole) {
-  return role === 'parent' || role === 'student_parent';
+  return role === 'all' || role === 'parent' || role === 'student_parent';
 }
 
 export function canAccessStaff(role: UserRole) {
-  return role === 'staff';
+  return role === 'all' || role === 'staff';
 }
