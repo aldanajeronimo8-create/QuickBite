@@ -45,6 +45,8 @@ async function requireAdmin(c: { req: { header: (name: string) => string | undef
   const supabase = serviceClient();
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return null;
+  // No privileged API is available while a protected account still has its temporary password.
+  if (data.user.app_metadata?.quickbite_must_change_password === true) return null;
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -483,8 +485,9 @@ app.post(apiPrefix + '/bootstrap-protected-accounts', async (c) => {
           if (existingAuthUser && existingProfile && existingAuthUser.id === existingProfile.id && existingProfile.role === 'all') {
             const { data: metadataUser, error: metadataError } = await supabase.auth.admin.getUserById(existingAuthUser.id);
             if (metadataError) throw metadataError;
-            if (metadataUser.user?.app_metadata?.quickbite_protected_account === true) {
-              results.push({ email: account.email, status: 'already_ready', detail: 'La identidad existente se preservó sin cambiar contraseña ni sesión.' });
+            if (metadataUser.user?.app_metadata?.quickbite_protected_account === true
+              && metadataUser.user?.app_metadata?.quickbite_must_change_password === false) {
+              results.push({ email: account.email, status: 'already_ready', detail: 'La identidad existente está activada; no se cambiaron contraseña ni sesión.' });
               continue;
             }
           }
