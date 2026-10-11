@@ -85,12 +85,14 @@ jobs:
             destinationRuntimeConfigured: input.destinationRuntimeConfigured === true,
             allowedOriginsConfigured: input.allowedOriginsConfigured === true,
             sourceConnectionConfigured: input.sourceConnectionConfigured === true,
+            sourceConnectionValidated: input.sourceConnectionValidated === true,
             migrationExecuted: input.migrationExecuted === true,
           };
           const missing = [
             "destinationRuntimeConfigured",
             "allowedOriginsConfigured",
             "sourceConnectionConfigured",
+            "sourceConnectionValidated",
           ].filter((key) => safe[key] !== true);
           process.stdout.write(JSON.stringify({ safe, missing }));
           NODE
