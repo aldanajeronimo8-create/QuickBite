@@ -114,11 +114,14 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_CLI_TRUST_WORKSPACE: true
-      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      VITE_API_BASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server
+      VITE_RUNTIME_MODE: supabase
+      VITE_PUBLIC_APP_URL: http://127.0.0.1:4173
       PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
       PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       QUICKBITE_ALERT_WEBHOOK_URL: ${{ secrets.QUICKBITE_ALERT_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_URL }}
       CI: true
     steps:
@@ -184,6 +187,13 @@ jobs:
         run: |
           echo "::error::No AI repair provider is configured."
           exit 1
+      - name: Validate repair tests target only QuickBite Destino
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Auto-Heal refuses an unapproved database target"; exit 1; }
+          test "$VITE_SUPABASE_URL" != "https://cczbbqxunygcowqfrqdm.supabase.co" || { echo "Auto-Heal refuses to run E2E against the source database"; exit 1; }
+          test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Auto-Heal refuses an unapproved server API"; exit 1; }
       - name: Re-run quality checks after AI repair
         run: |
           set -euo pipefail
