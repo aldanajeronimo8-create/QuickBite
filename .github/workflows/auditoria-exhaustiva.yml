@@ -21,7 +21,10 @@ concurrency:
 
 env:
   VITE_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
-  K6_BASE_URL: ${{ vars.K6_BASE_URL || '' }}
+  VITE_API_BASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server
+  VITE_RUNTIME_MODE: supabase
+  VITE_PUBLIC_APP_URL: http://127.0.0.1:4173
+  K6_BASE_URL: http://127.0.0.1:4173
 
 jobs:
   audit-trigger:
@@ -71,21 +74,52 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.audit-trigger.outputs.sha }}
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Authorize required pnpm build scripts
+        run: pnpm approve-builds @tailwindcss/oxide esbuild
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - name: Install K6
         uses: grafana/setup-k6-action@v1
-      - name: Select Chromium
+      - name: Install Chromium for K6 browser auditing
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Build interface with destination-only environment
+        run: pnpm build
+      - name: Start isolated local interface
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${K6_BASE_URL}" || { echo "K6_BASE_URL must point to the deployed QuickBite destination, not the source app"; exit 1; }
-          for c in google-chrome google-chrome-stable chromium chromium-browser; do
-            if command -v "$c" >/dev/null 2>&1; then
-              echo "K6_BROWSER_EXECUTABLE_PATH=$(command -v "$c")" >> "$GITHUB_ENV"
+          pnpm exec vite preview --host 127.0.0.1 --port 4173 --strictPort > /tmp/quickbite-preview.log 2>&1 &
+          echo $! > /tmp/quickbite-preview.pid
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
+              echo "Local destination-configured interface is ready."
               exit 0
             fi
+            sleep 2
           done
-          echo "No Chromium/Chrome executable found"
+          cat /tmp/quickbite-preview.log
+          echo "Local interface did not become ready."
           exit 1
+      - name: Validate destination and select Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Refusing to audit an unapproved database target"; exit 1; }
+          test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Refusing to audit an unapproved backend target"; exit 1; }
+          test "$K6_BASE_URL" = "http://127.0.0.1:4173" || { echo "K6 must target only the local destination-configured interface"; exit 1; }
+          browser="$(find "$HOME/.cache/ms-playwright" -type f -name chrome -perm -111 -print -quit)"
+          test -n "$browser" || { echo "No installed Chromium executable found"; exit 1; }
+          echo "K6_BROWSER_EXECUTABLE_PATH=$browser" >> "$GITHUB_ENV"
       - name: Audit interface, controls, forms, links and browser errors
         run: k6 run --summary-export="k6-${{ matrix.role }}-summary.json" tests/k6/quickbite-400-users.js
       - name: Upload K6 evidence
@@ -104,6 +138,10 @@ jobs:
     env:
       VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      VITE_API_BASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server
+      VITE_RUNTIME_MODE: supabase
+      VITE_PUBLIC_APP_URL: http://127.0.0.1:4173
+      VITE_E2E_AUTH_AUTO_REFRESH: 'false'
       PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
       PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
       PLAYWRIGHT_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
@@ -138,6 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Refusing to audit an unapproved database target"; exit 1; }
+          test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Refusing Playwright without the approved destination API"; exit 1; }
           for name in PLAYWRIGHT_E2E_EMAIL PLAYWRIGHT_E2E_PASSWORD PLAYWRIGHT_PARENT_EMAIL PLAYWRIGHT_PARENT_PASSWORD PLAYWRIGHT_STAFF_EMAIL PLAYWRIGHT_STAFF_PASSWORD PLAYWRIGHT_ADMIN_EMAIL PLAYWRIGHT_ADMIN_PASSWORD VITE_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY; do
             if [ -z "${!name:-}" ]; then
               echo "Missing required secret: $name"

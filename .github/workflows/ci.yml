@@ -66,6 +66,9 @@ jobs:
     env:
       VITE_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
       VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      VITE_API_BASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server
+      VITE_RUNTIME_MODE: supabase
+      VITE_PUBLIC_APP_URL: http://127.0.0.1:4173
       PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
       PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
       PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
@@ -105,6 +108,7 @@ jobs:
           set -euo pipefail
           test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "E2E URL is not the approved destination project"; exit 1; }
           test "$VITE_SUPABASE_URL" != "https://cczbbqxunygcowqfrqdm.supabase.co" || { echo "Refusing to run mutating E2E against the source project"; exit 1; }
+          test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Refusing E2E without the approved destination API"; exit 1; }
           test -n "${VITE_SUPABASE_ANON_KEY}" || { echo "E2E_SUPABASE_ANON_KEY is missing"; exit 1; }
           test -n "${PLAYWRIGHT_E2E_EMAIL}" || { echo "PLAYWRIGHT_E2E_EMAIL is missing"; exit 1; }
           test -n "${PLAYWRIGHT_E2E_PASSWORD}" || { echo "PLAYWRIGHT_E2E_PASSWORD is missing"; exit 1; }

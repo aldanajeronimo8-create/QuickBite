@@ -4,8 +4,8 @@ import http from 'k6/http';
 import { check } from 'k6';
 import { Rate, Counter, Trend } from 'k6/metrics';
 
-const BASE_URL = (__ENV.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app').replace(/\/$/, '');
-const SUPABASE_URL = (__ENV.VITE_SUPABASE_URL || 'https://cczbbqxunygcowqfrqdm.supabase.co').replace(/\/$/, '');
+const BASE_URL = (__ENV.K6_BASE_URL || '').replace(/\/$/, '');
+const SUPABASE_URL = (__ENV.VITE_SUPABASE_URL || '').replace(/\/$/, '');
 const ANON_KEY = __ENV.VITE_SUPABASE_ANON_KEY;
 
 const BROWSER_ROLE = (__ENV.K6_BROWSER_ROLE || 'all').toLowerCase();
@@ -135,6 +135,10 @@ const MUTATING_PATTERNS = [
   /\bguardar cambios\b/i,
   /\bconfirmar\b/i,
 ];
+
+if (!BASE_URL) throw new Error('Missing K6_BASE_URL; refusing to audit an implicit production URL.');
+if (SUPABASE_URL !== 'https://arvvkukyvcqxyqkvqmaf.supabase.co') throw new Error('Refusing K6 audit unless VITE_SUPABASE_URL is the approved QuickBite destination project.');
+if (SUPABASE_URL.includes('cczbbqxunygcowqfrqdm')) throw new Error('Refusing to run K6 against the QuickBite source database.');
 
 for (const role of Object.keys(accounts)) {
   if (!accounts[role].email || !accounts[role].password) {
