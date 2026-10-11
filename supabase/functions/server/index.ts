@@ -432,6 +432,98 @@ app.post(apiPrefix + '/protected-first-access/change-password', async (c) => {
   }
 });
 
+app.get(apiPrefix + '/bootstrap-protected-accounts-setup', () => {
+  const html = `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>QuickBite · Aprovisionamiento protegido</title>
+  <style>
+    :root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#10141c;color:#edf2f7}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}
+    main{width:min(100%,620px);border:1px solid #303a49;border-radius:18px;padding:28px;background:#171e29;box-shadow:0 20px 65px #0005}
+    h1{font-size:1.45rem;margin:0 0 8px}p{line-height:1.55;color:#b9c4d3}
+    label{display:block;font-weight:650;margin:22px 0 8px}
+    input{width:100%;padding:13px;border-radius:10px;border:1px solid #46566b;background:#0c1118;color:#fff;font:inherit}
+    button{margin-top:16px;width:100%;padding:13px;border:0;border-radius:10px;background:#9ee6c0;color:#10251a;font-weight:750;font:inherit;cursor:pointer}
+    button:disabled{opacity:.55;cursor:wait}#status{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:18px;color:#ffd68a}
+    pre{display:none;white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1017;padding:16px;border-radius:10px;border:1px solid #303a49;color:#e2f8e9;max-height:55vh;overflow:auto}
+    .notice{font-size:.92rem;border-left:3px solid #d4aa58;padding-left:12px}
+  </style>
+</head>
+<body>
+<main>
+  <h1>QuickBite · Configuración inicial protegida</h1>
+  <p>Esta pantalla puede crear únicamente las cuatro cuentas escolares autorizadas. Revisa el resultado antes de cerrar la página.</p>
+  <p class="notice">Introduce el valor actual de INSTALL_TOKEN. No lo compartas por chat. Se envía solo en una cabecera HTTPS y no se escribe en la URL. Las contraseñas provisionales aparecerán únicamente si el servidor crea una cuenta nueva.</p>
+  <form id="setupForm" autocomplete="off">
+    <label for="setupToken">INSTALL_TOKEN</label>
+    <input id="setupToken" name="setupToken" type="password" required autocomplete="new-password" spellcheck="false">
+    <button id="submitBtn" type="submit">Verificar y aprovisionar las cuatro cuentas</button>
+  </form>
+  <div id="status" role="status" aria-live="polite"></div>
+  <pre id="result" aria-label="Resultado del aprovisionamiento"></pre>
+  <p class="notice">Guarda las contraseñas provisionales de forma segura. Cada una dejará de funcionar cuando su titular complete el cambio obligatorio de primer acceso.</p>
+</main>
+<script>
+(() => {
+  const form = document.getElementById('setupForm');
+  const tokenInput = document.getElementById('setupToken');
+  const submitButton = document.getElementById('submitBtn');
+  const status = document.getElementById('status');
+  const result = document.getElementById('result');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const token = tokenInput.value;
+    if (!token) return;
+    tokenInput.value = '';
+    submitButton.disabled = true;
+    status.textContent = 'Validando token y comprobando identidades existentes…';
+    result.style.display = 'none';
+    result.textContent = '';
+    try {
+      const endpoint = window.location.pathname.replace(/\\/bootstrap-protected-accounts-setup$/, '/bootstrap-protected-accounts');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-install-token': token },
+        body: '{}',
+        cache: 'no-store',
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer'
+      });
+      const bodyText = await response.text();
+      let data;
+      try { data = JSON.parse(bodyText); } catch { data = { error: 'El servidor respondió con un formato no esperado.', status: response.status }; }
+      status.textContent = response.ok
+        ? 'Solicitud terminada. Revisa los estados de las cuatro cuentas y guarda de forma segura las contraseñas que se hayan creado.'
+        : 'La solicitud no se completó. Revisa el mensaje antes de volver a intentarlo.';
+      result.textContent = JSON.stringify(data, null, 2);
+      result.style.display = 'block';
+    } catch (_) {
+      status.textContent = 'No se pudo contactar al servidor. No se muestran contraseñas; inténtalo otra vez cuando la conexión esté disponible.';
+    } finally {
+      tokenInput.value = '';
+      submitButton.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>`;
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, max-age=0',
+      'Pragma': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+    },
+  });
+});
+
 /**
  * Safe, one-time provisioning for exactly the four protected accounts.
  * It never changes credentials for an existing Auth identity or profile.
