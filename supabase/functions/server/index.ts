@@ -484,7 +484,7 @@ app.get(apiPrefix + '/bootstrap-protected-accounts-setup', (c) => {
     result.style.display = 'none';
     result.textContent = '';
     try {
-      const endpoint = window.location.pathname.replace(/\\/bootstrap-protected-accounts-setup$/, '/bootstrap-protected-accounts');
+      const endpoint = window.location.pathname.replace(/\/bootstrap-protected-accounts-setup$/, '/bootstrap-protected-accounts');
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-install-token': token },
