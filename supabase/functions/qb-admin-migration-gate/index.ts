@@ -9,16 +9,20 @@ const BASE_HEADERS = {
 };
 
 function allowedOrigins(): Set<string> {
+  // Verified production homepage recorded on the QuickBite GitHub repository.
+  // The env variable can add more exact origins; it can never introduce a wildcard.
+  const origins = new Set<string>(["https://quick-bite-ten-wheat.vercel.app"]);
   const raw = Deno.env.get("QB_ADMIN_ALLOWED_ORIGINS") ?? "";
-  const origins = new Set<string>();
   for (const value of raw.split(",")) {
     const candidate = value.trim();
     if (!candidate) continue;
     try {
       const parsed = new URL(candidate);
-      if ((parsed.protocol === "https:" || parsed.protocol === "http:") && parsed.origin === candidate) {
-        origins.add(candidate);
-      }
+      const isWebOrigin = parsed.protocol === "https:" || parsed.protocol === "http:";
+      const hasNoCredentialsOrPath = !parsed.username && !parsed.password
+        && (parsed.pathname === "/" || parsed.pathname === "")
+        && !parsed.search && !parsed.hash;
+      if (isWebOrigin && hasNoCredentialsOrPath) origins.add(parsed.origin);
     } catch {
       // Ignore malformed entries and fail closed.
     }
