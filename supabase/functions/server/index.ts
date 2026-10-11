@@ -3,7 +3,7 @@ import { cors } from 'npm:hono/cors';
 import { logger } from 'npm:hono/logger';
 import { createClient } from 'npm:@supabase/supabase-js';
 
-type ManagedRole = 'admin' | 'student' | 'both';
+type ManagedRole = 'admin' | 'student' | 'both' | 'all';
 type ManagedUserBody = { id?: string; email?: string; password?: string; full_name?: string; role?: ManagedRole; ti?: string | null };
 
 const app = new Hono();
@@ -52,7 +52,7 @@ async function requireAdmin(c: { req: { header: (name: string) => string | undef
     .eq('id', data.user.id)
     .maybeSingle();
 
-  return !profileError && (profile?.role === 'admin' || profile?.role === 'both')
+  return !profileError && (profile?.role === 'admin' || profile?.role === 'both' || profile?.role === 'all')
     ? { supabase, userId: data.user.id }
     : null;
 }
@@ -66,7 +66,7 @@ function normalizePassword(value: unknown) {
 }
 
 function normalizeRole(value: unknown): ManagedRole | null {
-  return value === 'admin' || value === 'student' || value === 'both' ? value : null;
+  return value === 'admin' || value === 'student' || value === 'both' || value === 'all' ? value : null;
 }
 
 function userError(message: string, status = 400) {
@@ -122,7 +122,7 @@ app.post(`${apiPrefix}/parents/create-from-student`, async (c) => {
     const { data: student, error: studentError } = await supabase.from('profiles')
       .select('id,role').eq('id', authData.user.id).maybeSingle();
     if (studentError) throw studentError;
-    if (!student || !['student','both'].includes(student.role)) return c.json({ error: 'Solo un estudiante puede crear el vínculo familiar.' }, 403);
+    if (!student || !['student','both','all'].includes(student.role)) return c.json({ error: 'Solo un estudiante puede crear el vínculo familiar.' }, 403);
 
     const body = await c.req.json() as { email?: string; full_name?: string; relationship?: string; cedula?: string };
     const email = normalizeEmail(body.email);
