@@ -22,7 +22,6 @@ function allowedOrigins() {
     .map((value) => value.trim())
     .filter(Boolean);
   const defaults = [
-    'https://quick-bite-snowy-ten.vercel.app',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:4173',
