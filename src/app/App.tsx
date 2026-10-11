@@ -10,6 +10,7 @@ import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
 import { canAccessAdmin, canAccessParent, canAccessStaff, canAccessStudent } from '../lib/access';
+import { requiresProtectedFirstAccessPasswordChange } from '../lib/protectedFirstAccess';
 import { UserThemePreference } from './components/UserThemePreference';
 import { VisualThemeProvider, useVisualTheme } from './contexts/VisualThemeProvider';
 
@@ -33,6 +34,10 @@ function SessionRestorer() {
         const { data, error } = await supabaseClient.auth.getSession();
         if (error) throw error;
         if (cancelled || !data.session?.user) return;
+        if (requiresProtectedFirstAccessPasswordChange(data.session.user)) {
+          await router.navigate('/protected-first-access', { replace: true });
+          return;
+        }
         const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('id,role,active').eq('id', data.session.user.id).maybeSingle();
         if (profileError) throw profileError;
         if (cancelled || !profile) return;
