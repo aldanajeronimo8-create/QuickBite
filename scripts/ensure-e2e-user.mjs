@@ -175,6 +175,18 @@ async function validateProtectedProfile(userId, role) {
   }
 }
 
+async function isProtectedAdminIdentity(email) {
+  const response = await globalThis.fetch(
+    `${url}/rest/v1/protected_admins?email=eq.${encodeURIComponent(email)}&select=email&limit=1`,
+    { method: 'GET', headers },
+  );
+  if (!response.ok) {
+    throw new Error(`Protected E2E ${email} lookup failed (${response.status}): ${await response.text()}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 let users = await listUsers();
 
 const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString();
@@ -196,9 +208,15 @@ const workflowEnv = [];
 
 for (const account of accounts) {
   let user = users.find((candidate) => candidate.email?.toLowerCase() === account.email);
-  let isProtected = false;
+  let isProtected = await isProtectedAdminIdentity(account.email);
 
-  if (user) {
+  if (isProtected && !user) {
+    throw new Error(`Protected E2E ${account.role} identity is allowlisted but no matching Auth user exists; refusing to create or replace a protected account.`);
+  }
+
+  if (user && isProtected) {
+    console.log(`E2E ${account.role} account is protected; preserving its existing credentials, Auth metadata, and profile.`);
+  } else if (user) {
     try {
       user = await adminRequest(`/admin/users/${encodeURIComponent(user.id)}`, {
         method: 'PUT',
