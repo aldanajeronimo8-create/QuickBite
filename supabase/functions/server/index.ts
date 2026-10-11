@@ -360,6 +360,193 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
   }
 });
 
+
+/**
+ * Changes a protected account's temporary password exactly once.
+ * The trusted pending flag lives in app_metadata, not user_metadata.
+ */
+app.post(apiPrefix + '/protected-first-access/change-password', async (c) => {
+  try {
+    const token = c.req.header('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!token) return c.json({ error: 'Inicia sesión con la cuenta protegida para continuar.' }, 401);
+
+    const supabase = serviceClient();
+    const { data: authData, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !authData.user) return c.json({ error: 'La sesión no es válida. Inicia sesión de nuevo.' }, 401);
+
+    const email = normalizeEmail(authData.user.email);
+    const allowedAccounts = [
+      'aldana.jeronimo@maximino.edu.co',
+      'colmenares.juan@maximino.edu.co',
+      'useche.diego@maximino.edu.co',
+      'fernandez.gabriel@maximino.edu.co',
+    ];
+    if (!allowedAccounts.includes(email)) return c.json({ error: 'Esta ruta es exclusiva para las cuentas protegidas.' }, 403);
+
+    const metadata = authData.user.app_metadata || {};
+    if (metadata.quickbite_protected_account !== true || metadata.quickbite_must_change_password !== true) {
+      return c.json({ error: 'Esta cuenta no tiene pendiente el cambio inicial de contraseña.' }, 409);
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id,email,role')
+      .eq('id', authData.user.id)
+      .maybeSingle();
+    if (profileError) throw profileError;
+    if (!profile || normalizeEmail(profile.email) !== email || profile.role !== 'all') {
+      return c.json({ error: 'La identidad no está vinculada al perfil protegido con rol all.' }, 403);
+    }
+
+    const { data: protectedAccount, error: protectionError } = await supabase
+      .rpc('is_protected_admin_email', { p_email: email });
+    if (protectionError) throw protectionError;
+    if (protectedAccount !== true) return c.json({ error: 'La cuenta no figura en la lista protegida.' }, 403);
+
+    const body = await c.req.json() as { new_password?: string };
+    const newPassword = typeof body.new_password === 'string' ? body.new_password : '';
+    if (newPassword.length < 12 || newPassword.length > 128
+      || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword)
+      || !/\d/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      return c.json({ error: 'La contraseña debe tener entre 12 y 128 caracteres e incluir mayúsculas, minúsculas, números y un símbolo.' }, 400);
+    }
+
+    const { error: updateError } = await supabase.auth.admin.updateUserById(authData.user.id, {
+      password: newPassword,
+      app_metadata: {
+        ...metadata,
+        quickbite_protected_account: true,
+        quickbite_must_change_password: false,
+        quickbite_first_password_changed_at: new Date().toISOString(),
+      },
+    });
+    if (updateError) return c.json({ error: 'No se pudo guardar la nueva contraseña. Inténtalo de nuevo.' }, 400);
+
+    return c.json({ changed: true, sign_in_again_required: true });
+  } catch (error) {
+    console.error('Protected first-access password change failed', error instanceof Error ? error.message : 'unknown error');
+    return c.json({ error: 'No se pudo completar la activación segura de la cuenta.' }, 500);
+  }
+});
+
+/**
+ * Safe, one-time provisioning for exactly the four protected accounts.
+ * It never changes credentials for an existing Auth identity or profile.
+ * Each newly created account receives a different high-entropy temporary
+ * password, returned once only to the caller holding INSTALL_TOKEN.
+ */
+app.post(apiPrefix + '/bootstrap-protected-accounts', async (c) => {
+  try {
+    if (!isSetupRequest(c)) return c.json({ error: 'Unauthorized setup request' }, 401);
+
+    const accounts = [
+      { email: 'aldana.jeronimo@maximino.edu.co', fullName: 'Jeronimo Aldana Bonilla' },
+      { email: 'colmenares.juan@maximino.edu.co', fullName: 'Juan Felipe Colmenares' },
+      { email: 'useche.diego@maximino.edu.co', fullName: 'Diego Useche' },
+      { email: 'fernandez.gabriel@maximino.edu.co', fullName: 'Gabriel Fernandez' },
+    ] as const;
+
+    const supabase = serviceClient();
+    const results: Array<{ email: string; status: 'created' | 'already_ready' | 'conflict' | 'failed'; detail?: string; temporary_password?: string }> = [];
+
+    for (const account of accounts) {
+      let newlyCreatedUserId: string | null = null;
+      try {
+        const { data: isProtected, error: protectionError } = await supabase
+          .rpc('is_protected_admin_email', { p_email: account.email });
+        if (protectionError) throw protectionError;
+        if (isProtected !== true) {
+          results.push({ email: account.email, status: 'conflict', detail: 'El correo no está en la lista protegida de producción.' });
+          continue;
+        }
+
+        const { data: existingProfile, error: profileLookupError } = await supabase
+          .from('profiles')
+          .select('id,email,full_name,role')
+          .eq('email', account.email)
+          .maybeSingle();
+        if (profileLookupError) throw profileLookupError;
+
+        let existingAuthUser: { id: string; email?: string } | null = null;
+        for (let page = 1; page <= 20; page += 1) {
+          const { data: users, error: listError } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+          if (listError) throw listError;
+          const found = users.users.find((user) => normalizeEmail(user.email) === account.email);
+          if (found) {
+            existingAuthUser = { id: found.id, email: found.email };
+            break;
+          }
+          if (users.users.length < 1000) break;
+        }
+
+        if (existingAuthUser || existingProfile) {
+          if (existingAuthUser && existingProfile && existingAuthUser.id === existingProfile.id && existingProfile.role === 'all') {
+            const { data: metadataUser, error: metadataError } = await supabase.auth.admin.getUserById(existingAuthUser.id);
+            if (metadataError) throw metadataError;
+            if (metadataUser.user?.app_metadata?.quickbite_protected_account === true) {
+              results.push({ email: account.email, status: 'already_ready', detail: 'La identidad existente se preservó sin cambiar contraseña ni sesión.' });
+              continue;
+            }
+          }
+          results.push({
+            email: account.email,
+            status: 'conflict',
+            detail: 'Ya existe una identidad o perfil parcial; no se modificó ni recreó.',
+          });
+          continue;
+        }
+
+        const temporaryPassword = 'Qb!7-' + crypto.randomUUID() + '-xR2';
+        const { data: created, error: createError } = await supabase.auth.admin.createUser({
+          email: account.email,
+          password: temporaryPassword,
+          email_confirm: true,
+          user_metadata: { full_name: account.fullName, role: 'all' },
+          app_metadata: {
+            quickbite_protected_account: true,
+            quickbite_must_change_password: true,
+          },
+        });
+        if (createError || !created.user) {
+          results.push({ email: account.email, status: 'failed', detail: createError?.message || 'No se pudo crear la identidad.' });
+          continue;
+        }
+        newlyCreatedUserId = created.user.id;
+
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: created.user.id,
+          email: account.email,
+          full_name: account.fullName,
+          role: 'all',
+        });
+        if (profileError) {
+          await supabase.auth.admin.deleteUser(created.user.id);
+          newlyCreatedUserId = null;
+          results.push({ email: account.email, status: 'failed', detail: 'No se pudo crear el perfil; la identidad recién creada se revirtió.' });
+          continue;
+        }
+
+        results.push({ email: account.email, status: 'created', temporary_password: temporaryPassword });
+        newlyCreatedUserId = null;
+      } catch (error) {
+        if (newlyCreatedUserId) {
+          try { await supabase.auth.admin.deleteUser(newlyCreatedUserId); } catch { /* leave reconciliation to the audit */ }
+        }
+        results.push({
+          email: account.email,
+          status: 'failed',
+          detail: error instanceof Error ? error.message : 'Error al provisionar la cuenta.',
+        });
+      }
+    }
+
+    const complete = results.every((result) => result.status === 'created' || result.status === 'already_ready');
+    return c.json({ complete, role: 'all', first_access_password_change_required: true, results }, complete ? 200 : 207);
+  } catch {
+    return c.json({ error: 'No se pudo completar el bootstrap de cuentas protegidas.' }, 500);
+  }
+});
+
 app.post(`${apiPrefix}/bootstrap-admin`, async (c) => {
   try {
     if (!isSetupRequest(c)) return c.json({ error: 'Unauthorized setup request' }, 401);
@@ -394,15 +581,15 @@ app.post(`${apiPrefix}/bootstrap-admin`, async (c) => {
   }
 });
 
-// Supabase deja el nombre de la función en la ruta recibida (/server/...).
-// El router interno solo define rutas relativas a la función (/api/...).
-// Normalizamos el prefijo sin cambiar método, cabeceras, query ni cuerpo.
+// Gateways may provide either the function-relative path or the full gateway path.
 Deno.serve((request: Request) => {
   const url = new URL(request.url);
-  const functionPrefix = '/server';
-  if (url.pathname === functionPrefix || url.pathname.startsWith(`${functionPrefix}/`)) {
+  const functionPrefixes = ['/functions/v1/server', '/server'];
+  const functionPrefix = functionPrefixes.find(
+    (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
+  );
+  if (functionPrefix) {
     url.pathname = url.pathname.slice(functionPrefix.length) || '/';
-    return app.fetch(new Request(url, request));
   }
-  return app.fetch(request);
+  return app.fetch(new Request(url, request));
 });
