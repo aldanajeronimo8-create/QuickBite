@@ -23,7 +23,7 @@ export type NewOrder = Omit<Order, 'id' | 'created_at' | 'order_number' | 'order
   user_id: string;
   order_items?: NewOrderItem[];
 };
-export type NewManagedUser = { email: string; password: string; full_name: string; role: Profile['role']; ti?: string };
+export type NewManagedUser = { email: string; password: string; full_name: string; role: Profile['role']; ti?: string; section_id?: string; grade_id?: string; course_id?: string };
 export type ManagedUserUpdate = Omit<NewManagedUser, 'password'> & { id: string; password?: string };
 export type ProtectedCredentialsUpdate = { id: string; email: string; password?: string };
 export type LoyaltyRewardInput = Pick<LoyaltyReward, 'product_id' | 'title' | 'description' | 'points_required' | 'active'>;
