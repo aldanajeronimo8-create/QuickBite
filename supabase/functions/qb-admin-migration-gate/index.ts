@@ -87,6 +87,57 @@ function sourceConnectionConfigured(): boolean {
   return Boolean(Deno.env.get("QB_SOURCE_URL") && Deno.env.get("QB_SOURCE_SECRET_KEY"));
 }
 
+let sourceValidationCache: { expiresAt: number; valid: boolean } | null = null;
+
+async function validateSourceConnection(): Promise<boolean> {
+  const now = Date.now();
+  if (sourceValidationCache && sourceValidationCache.expiresAt > now) {
+    return sourceValidationCache.valid;
+  }
+
+  const sourceUrl = Deno.env.get("QB_SOURCE_URL");
+  const sourceSecret = Deno.env.get("QB_SOURCE_SECRET_KEY");
+  let valid = false;
+
+  // Pin the admin probe to the confirmed source project to avoid using this
+  // privileged function as an arbitrary-URL request proxy.
+  try {
+    const parsed = sourceUrl ? new URL(sourceUrl) : null;
+    if (
+      parsed &&
+      parsed.origin === "https://cczbbqxunygcowqfrqdm.supabase.co" &&
+      sourceSecret
+    ) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch(
+          `${parsed.origin}/auth/v1/admin/users?page=1&per_page=1`,
+          {
+            method: "GET",
+            headers: {
+              apikey: sourceSecret,
+              Authorization: `Bearer ${sourceSecret}`,
+              Accept: "application/json",
+            },
+            signal: controller.signal,
+          },
+        );
+        // Discard response body: never serialize or log source user data.
+        await response.body?.cancel();
+        valid = response.ok;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+  } catch {
+    valid = false;
+  }
+
+  sourceValidationCache = { expiresAt: Date.now() + 30_000, valid };
+  return valid;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     const headers = responseHeaders(req);
@@ -105,6 +156,7 @@ Deno.serve(async (req: Request) => {
       destinationRuntimeConfigured: destinationRuntimeConfigured(),
       allowedOriginsConfigured: allowedOrigins().size > 0,
       sourceConnectionConfigured: sourceConnectionConfigured(),
+      sourceConnectionValidated: await validateSourceConnection(),
       migrationExecuted: false,
     });
   }
