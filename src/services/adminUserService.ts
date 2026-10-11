@@ -62,7 +62,7 @@ function mapAdminUserError(error: unknown): Error {
 }
 
 async function callAdminManageUser(input: AdminUserCreateInput | AdminUserUpdateInput) {
-  const { data, error } = await requireSupabaseClient().rpc('admin_manage_user_with_academics',
+  const { data, error } = await requireSupabaseClient().rpc('admin_manage_user_with_academics', {
     p_user_id: 'id' in input ? input.id : null,
     p_email: input.email.trim().toLowerCase(),
     p_password: input.password?.trim() || null,
