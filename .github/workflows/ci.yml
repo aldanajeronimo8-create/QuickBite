@@ -14,7 +14,7 @@ concurrency:
   # Keep at most one running main CI plus one latest pending run.
   # A running main CI is never canceled; obsolete pending runs are replaced.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   quality:
@@ -58,23 +58,76 @@ jobs:
       - name: Build
         run: pnpm build
 
+
+  migration-gate-smoke:
+    name: Migration gate smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      QB_ADMIN_GATE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/qb-admin-migration-gate
+    steps:
+      - name: Inspect deployed runtime configuration without printing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          health_code="$(curl --silent --show-error -o /tmp/qb-gate-health.json -w "%{http_code}" \
+            --retry 2 --retry-delay 2 "${QB_ADMIN_GATE_URL}/health")"
+          if [[ "$health_code" != "200" ]]; then
+            echo "::error::Public read-only health route returned HTTP $health_code."
+            cat /tmp/qb-gate-health.json
+            exit 1
+          fi
+          health="$(cat /tmp/qb-gate-health.json)"
+          report="$(E2E_GATE_HEALTH="$health" node <<'NODE'
+          const input = JSON.parse(process.env.E2E_GATE_HEALTH ?? "{}");
+          const safe = {
+            status: input.status,
+            destinationRuntimeConfigured: input.destinationRuntimeConfigured === true,
+            allowedOriginsConfigured: input.allowedOriginsConfigured === true,
+            sourceConnectionConfigured: input.sourceConnectionConfigured === true,
+            sourceConnectionValidated: input.sourceConnectionValidated === true,
+            migrationExecuted: input.migrationExecuted === true,
+          };
+          const missing = [
+            "destinationRuntimeConfigured",
+            "allowedOriginsConfigured",
+            "sourceConnectionConfigured",
+            "sourceConnectionValidated",
+          ].filter((key) => safe[key] !== true);
+          process.stdout.write(JSON.stringify({ safe, missing }));
+          NODE
+          )"
+          echo "Read-only gate health: $report"
+          status_code="$(curl --silent --show-error -o /tmp/qb-gate-status.json -w "%{http_code}" \
+            "${QB_ADMIN_GATE_URL}/status")"
+          if [[ "$status_code" != "401" ]]; then
+            echo "::error::Unauthenticated /status must return 401 (got $status_code)."
+            cat /tmp/qb-gate-status.json
+            exit 1
+          fi
+          cors_code="$(curl --silent --show-error -o /tmp/qb-gate-cors.json -w "%{http_code}" \
+            -H "Origin: https://example.invalid" "${QB_ADMIN_GATE_URL}/health")"
+          if [[ "$cors_code" != "403" ]]; then
+            echo "::error::Untrusted origins must be rejected (got $cors_code)."
+            cat /tmp/qb-gate-cors.json
+            exit 1
+          fi
+          missing="$(E2E_GATE_REPORT="$report" node -e 'process.stdout.write(JSON.parse(process.env.E2E_GATE_REPORT ?? "{}").missing.join(", "))')"
+          if [[ -n "$missing" ]]; then
+            echo "::error::Migration remains blocked; incomplete runtime settings: $missing"
+            exit 1
+          fi
+          echo "Live gate behavior verified: health reachable, admin status protected, untrusted Origin rejected."
+
   e2e:
     name: E2E
     runs-on: ubuntu-latest
     # 120 Playwright tests run serially with up to 2 retries; the previous 20m cap killed valid runs mid-suite.
     timeout-minutes: 45
     env:
-      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
-      PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
-      PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
-      PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
-      PLAYWRIGHT_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
-      PLAYWRIGHT_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
-      PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
-      PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VITE_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
+      VITE_SUPABASE_ANON_KEY: sb_publishable_fTbEKtHTqYcxvJB7inUpAA_bfHHiafq
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       CI: true
       VITE_E2E_AUTH_AUTO_REFRESH: 'false'
     steps:
@@ -99,19 +152,26 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Refuse non-isolated E2E target
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="https://arvvkukyvcqxyqkvqmaf.supabase.co"
+          actual="${VITE_SUPABASE_URL%/}"
+          if [[ -z "$actual" || "$actual" != "$expected" ]]; then
+            echo "::error::E2E blocked before any writes: configure the dedicated E2E_SUPABASE_SERVICE_ROLE_KEY secret; the isolated target URL and publishable key are defined here."
+            exit 1
+          fi
+          if [[ "$actual" == "https://cczbbqxunygcowqfrqdm.supabase.co" ]]; then
+            echo "::error::E2E must never target source production."
+            exit 1
+          fi
+
       - name: Validate E2E configuration
         shell: bash
         run: |
           set -euo pipefail
           test -n "${VITE_SUPABASE_ANON_KEY}" || { echo "VITE_SUPABASE_ANON_KEY is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_E2E_EMAIL}" || { echo "PLAYWRIGHT_E2E_EMAIL is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_E2E_PASSWORD}" || { echo "PLAYWRIGHT_E2E_PASSWORD is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_PARENT_EMAIL}" || { echo "PLAYWRIGHT_PARENT_EMAIL is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_PARENT_PASSWORD}" || { echo "PLAYWRIGHT_PARENT_PASSWORD is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_STAFF_EMAIL}" || { echo "PLAYWRIGHT_STAFF_EMAIL is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_STAFF_PASSWORD}" || { echo "PLAYWRIGHT_STAFF_PASSWORD is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_ADMIN_EMAIL}" || { echo "PLAYWRIGHT_ADMIN_EMAIL is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_ADMIN_PASSWORD}" || { echo "PLAYWRIGHT_ADMIN_PASSWORD is missing"; exit 1; }
           test -n "${SUPABASE_SERVICE_ROLE_KEY}" || { echo "SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
 
       - name: Provision E2E user
