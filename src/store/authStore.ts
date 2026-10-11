@@ -3,6 +3,7 @@ import { requireSupabaseClient, signInWithPasswordWithRetry, type Profile } from
 import { writeAuditLog } from '../lib/auditLog';
 import { getProfile } from '../repositories/quickbiteRepository';
 import { canAccessAdmin } from '../lib/access';
+import { requiresProtectedFirstAccessPasswordChange } from '../lib/protectedFirstAccess';
 
 const ACTIVE_STUDENT_STORAGE_KEY = 'quickbite.parent.activeStudent';
 
@@ -107,7 +108,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const supabase = requireSupabaseClient();
       const { data } = await supabase.auth.getSession();
       if (get().authEpoch !== bootstrapEpoch) return;
-      const userId = data.session?.user.id;
+      const sessionUser = data.session?.user;
+      if (requiresProtectedFirstAccessPasswordChange(sessionUser)) {
+        // Keep a temporary-password session out of the application store. The global route gate
+        // will permit only the dedicated first-access password page.
+        set({ loading: false, user: null, session: null });
+        return;
+      }
+      const userId = sessionUser?.id;
       if (!userId) {
         set({ loading: false, user: null, session: null });
         return;
