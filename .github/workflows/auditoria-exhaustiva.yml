@@ -115,7 +115,6 @@ jobs:
         run: |
           set -euo pipefail
           test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Refusing to audit an unapproved database target"; exit 1; }
-          test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Refusing Playwright without the approved destination API"; exit 1; }
           test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Refusing to audit an unapproved backend target"; exit 1; }
           test "$K6_BASE_URL" = "http://127.0.0.1:4173" || { echo "K6 must target only the local destination-configured interface"; exit 1; }
           browser="$(find "$HOME/.cache/ms-playwright" -type f -name chrome -perm -111 -print -quit)"
@@ -177,6 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Refusing to audit an unapproved database target"; exit 1; }
+          test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Refusing Playwright without the approved destination API"; exit 1; }
           for name in PLAYWRIGHT_E2E_EMAIL PLAYWRIGHT_E2E_PASSWORD PLAYWRIGHT_PARENT_EMAIL PLAYWRIGHT_PARENT_PASSWORD PLAYWRIGHT_STAFF_EMAIL PLAYWRIGHT_STAFF_PASSWORD PLAYWRIGHT_ADMIN_EMAIL PLAYWRIGHT_ADMIN_PASSWORD VITE_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY; do
             if [ -z "${!name:-}" ]; then
               echo "Missing required secret: $name"
