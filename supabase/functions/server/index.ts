@@ -371,7 +371,7 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
  */
 app.post(apiPrefix + '/protected-first-access/change-password', async (c) => {
   try {
-    const token = c.req.header('Authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+    const token = c.req.header('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return c.json({ error: 'Inicia sesión con la cuenta protegida para continuar.' }, 401);
 
     const supabase = serviceClient();
@@ -411,7 +411,7 @@ app.post(apiPrefix + '/protected-first-access/change-password', async (c) => {
     const newPassword = typeof body.new_password === 'string' ? body.new_password : '';
     if (newPassword.length < 12 || newPassword.length > 128
       || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword)
-      || !/\\d/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      || !/\d/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
       return c.json({ error: 'La contraseña debe tener entre 12 y 128 caracteres e incluir mayúsculas, minúsculas, números y un símbolo.' }, 400);
     }
 
