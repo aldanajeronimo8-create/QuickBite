@@ -432,7 +432,7 @@ app.post(apiPrefix + '/protected-first-access/change-password', async (c) => {
   }
 });
 
-app.get(apiPrefix + '/bootstrap-protected-accounts-setup', (c) => {
+app.get(apiPrefix + '/bootstrap-protected-accounts-setup', () => {
   const html = `<!doctype html>
 <html lang="es">
 <head>
