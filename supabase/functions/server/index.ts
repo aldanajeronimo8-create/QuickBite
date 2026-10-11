@@ -432,7 +432,7 @@ app.post(apiPrefix + '/protected-first-access/change-password', async (c) => {
   }
 });
 
-app.get(apiPrefix + '/bootstrap-protected-accounts-setup', () => {
+app.get(apiPrefix + '/bootstrap-protected-accounts-setup', (c) => {
   const html = `<!doctype html>
 <html lang="es">
 <head>
@@ -512,15 +512,13 @@ app.get(apiPrefix + '/bootstrap-protected-accounts-setup', () => {
 </script>
 </body>
 </html>`;
-  return new Response(html, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-store, max-age=0',
-      'Pragma': 'no-cache',
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'Referrer-Policy': 'no-referrer',
-    },
+  return c.html(html, 200, {
+    'Content-Type': 'text/html; charset=UTF-8',
+    'Cache-Control': 'no-store, max-age=0',
+    'Pragma': 'no-cache',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
   });
 });
 
