@@ -90,8 +90,6 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install K6
         uses: grafana/setup-k6-action@v1
-      - name: Install Chromium for K6 browser auditing
-        run: pnpm exec playwright install --with-deps chromium
       - name: Build interface with destination-only environment
         run: pnpm build
       - name: Start isolated local interface
@@ -117,9 +115,14 @@ jobs:
           test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Refusing to audit an unapproved database target"; exit 1; }
           test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Refusing to audit an unapproved backend target"; exit 1; }
           test "$K6_BASE_URL" = "http://127.0.0.1:4173" || { echo "K6 must target only the local destination-configured interface"; exit 1; }
-          browser="$(find "$HOME/.cache/ms-playwright" -type f -name chrome -perm -111 -print -quit)"
-          test -n "$browser" || { echo "No installed Chromium executable found"; exit 1; }
-          echo "K6_BROWSER_EXECUTABLE_PATH=$browser" >> "$GITHUB_ENV"
+          for browser in google-chrome google-chrome-stable chromium chromium-browser; do
+            if command -v "$browser" >/dev/null 2>&1; then
+              echo "K6_BROWSER_EXECUTABLE_PATH=$(command -v "$browser")" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "No system Chromium/Chrome executable found for K6 browser testing"
+          exit 1
       - name: Audit interface, controls, forms, links and browser errors
         run: k6 run --summary-export="k6-${{ matrix.role }}-summary.json" tests/k6/quickbite-400-users.js
       - name: Upload K6 evidence
