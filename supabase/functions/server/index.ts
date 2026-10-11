@@ -366,11 +366,12 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
 
 /**
  * Changes a protected account's temporary password exactly once.
- * The trusted pending flag lives in app_metadata, not user_metadata.
+ * Password and app_metadata updates are separate Auth database operations, so
+ * a service-only, expiring marker authorizes the two exact phases in the DB trigger.
  */
 app.post(apiPrefix + '/protected-first-access/change-password', async (c) => {
   try {
-    const token = c.req.header('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const token = c.req.header('Authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
     if (!token) return c.json({ error: 'Inicia sesión con la cuenta protegida para continuar.' }, 401);
 
     const supabase = serviceClient();
@@ -410,20 +411,53 @@ app.post(apiPrefix + '/protected-first-access/change-password', async (c) => {
     const newPassword = typeof body.new_password === 'string' ? body.new_password : '';
     if (newPassword.length < 12 || newPassword.length > 128
       || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword)
-      || !/\d/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      || !/\\d/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
       return c.json({ error: 'La contraseña debe tener entre 12 y 128 caracteres e incluir mayúsculas, minúsculas, números y un símbolo.' }, 400);
     }
 
-    const { error: updateError } = await supabase.auth.admin.updateUserById(authData.user.id, {
+    // Arm an expiring one-time DB marker before changing the password hash.
+    const { error: beginError } = await supabase.rpc(
+      'begin_protected_first_access_password_change',
+      { p_user_id: authData.user.id },
+    );
+    if (beginError) {
+      console.error('Protected first-access marker could not be created', beginError.code || 'database_error');
+      return c.json({ error: 'No se pudo iniciar el cambio seguro de contraseña.' }, 500);
+    }
+
+    // Phase 1: Auth updates the password and its ancillary tokens.
+    const { error: passwordError } = await supabase.auth.admin.updateUserById(authData.user.id, {
       password: newPassword,
+    });
+    if (passwordError) {
+      console.error('Protected first-access password update failed', passwordError.code || 'auth_error');
+      return c.json({ error: 'No se pudo guardar la nueva contraseña. Inténtalo de nuevo.' }, 400);
+    }
+
+    // Phase 2: update trusted app_metadata separately, after phase 1 commits.
+    const firstPasswordChangedAt = new Date().toISOString();
+    const { error: metadataUpdateError } = await supabase.auth.admin.updateUserById(authData.user.id, {
       app_metadata: {
         ...metadata,
         quickbite_protected_account: true,
         quickbite_must_change_password: false,
-        quickbite_first_password_changed_at: new Date().toISOString(),
+        quickbite_first_password_changed_at: firstPasswordChangedAt,
       },
     });
-    if (updateError) return c.json({ error: 'No se pudo guardar la nueva contraseña. Inténtalo de nuevo.' }, 400);
+    if (metadataUpdateError) {
+      console.error('Protected first-access metadata finalization failed', metadataUpdateError.code || 'auth_error');
+      return c.json({
+        error: 'La contraseña se guardó, pero falta terminar la activación. Inicia sesión con la nueva contraseña e inténtalo de nuevo.',
+        code: 'protected_password_metadata_finalize_failed',
+      }, 500);
+    }
+
+    const { data: verified, error: verifyError } = await supabase.auth.admin.getUserById(authData.user.id);
+    if (verifyError || verified.user?.app_metadata?.quickbite_must_change_password !== false
+      || verified.user?.app_metadata?.quickbite_protected_account !== true) {
+      console.error('Protected first-access final state verification failed', verifyError?.code || 'metadata_state_mismatch');
+      return c.json({ error: 'No se pudo verificar la activación de la cuenta.' }, 500);
+    }
 
     return c.json({ changed: true, sign_in_again_required: true });
   } catch (error) {
