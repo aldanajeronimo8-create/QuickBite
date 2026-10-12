@@ -362,7 +362,7 @@ export function AdminUsersSeparated() {
           <div className="grid gap-4 md:grid-cols-2">
             <div><Label>Nombre completo</Label><Input disabled={credentialOnly} value={form.full_name} onChange={(e) => setForm((current) => ({ ...current, full_name: e.target.value }))} /></div>
             <div><Label>Correo</Label><Input type="email" value={form.email} onChange={(e) => setForm((current) => ({ ...current, email: e.target.value }))} disabled={credentialOnly && !!form.id} /></div>
-            <div><Label>Contraseña</Label><Input type="password" value={form.password} onChange={(e) => setForm((current) => ({ ...current, password: e.target.value }))} placeholder={form.id ? 'Deja vacío para conservarla' : 'Mínimo 6 caracteres'} /></div>
+            <div><Label>Contraseña</Label><Input type="password" value={form.password} onChange={(e) => setForm((current) => ({ ...current, password: e.target.value }))} placeholder={credentialOnly ? 'Nueva contraseña obligatoria' : form.id ? 'Deja vacío para conservarla' : 'Mínimo 6 caracteres'} /></div>
             {!credentialOnly && mode === 'student' && <div><Label>Identificación TI</Label><Input value={form.ti} onChange={(e) => setForm((current) => ({ ...current, ti: e.target.value }))} /></div>}
             {!credentialOnly && mode === 'parent' && <div><Label>Parentesco</Label><select value={form.relationship} onChange={(e) => setForm((current) => ({ ...current, relationship: e.target.value }))} className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">{RELATIONSHIPS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>}
           </div>
