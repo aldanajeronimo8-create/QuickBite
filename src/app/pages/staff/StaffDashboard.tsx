@@ -51,7 +51,92 @@ export function StaffDashboard(){
  const advance=async(o:StaffOrder)=>{const status=o.status==='preparing'?'ready':o.status==='ready'?'delivered':null;if(!status)return;setBusy(o.id);try{await updateStaffOrderStatus(o.id,status);toast.success(status==='ready'?'Pedido marcado listo.':'Pedido marcado entregado.');await Promise.all([ordersLoad(true),historyLoad()]);}catch(e){toast.error(e instanceof Error?e.message:'No se pudo actualizar el pedido.');}finally{setBusy(null);}};
  const editFood=(f?:Food)=>{if(!f)setForm({...emptyForm(),category_id:categories[0]?.id||''});else setForm({id:f.id,name:f.name,description:f.description||'',price:String(f.price),image_url:f.image_url||'',category_id:f.category_id||'',available:f.available,detailed_description:f.detailed_description||'',ingredients:f.ingredients||'',allergens:f.allergens||'',calories:ntext(f.calories),protein_g:ntext(f.protein_g),carbohydrates_g:ntext(f.carbohydrates_g),fat_g:ntext(f.fat_g),fiber_g:ntext(f.fiber_g),vegetarian:f.vegetarian,healthy_choice:f.healthy_choice,ingredients_verified:f.ingredients_verified,nutrition_verified:f.nutrition_verified,nutrition_source:f.nutrition_source==='label'||f.nutrition_source==='ai_draft'?f.nutrition_source:'manual'});setDraft('');setFormOpen(true);};
  const applyDraft=()=>{try{const v=JSON.parse(draft) as Record<string,unknown>;if(typeof v.detailed_description!=='string'||!listtext(v.ingredients))throw new Error('Incluye detailed_description e ingredients en el JSON.');setForm(s=>({...s,detailed_description:v.detailed_description as string,ingredients:listtext(v.ingredients),allergens:listtext(v.allergens),calories:typeof v.calories==='number'?String(v.calories):'',protein_g:typeof v.protein_g==='number'?String(v.protein_g):'',carbohydrates_g:typeof v.carbohydrates_g==='number'?String(v.carbohydrates_g):'',fat_g:typeof v.fat_g==='number'?String(v.fat_g):'',fiber_g:typeof v.fiber_g==='number'?String(v.fiber_g):'',vegetarian:v.vegetarian===true,healthy_choice:v.healthy_choice===true,ingredients_verified:false,nutrition_verified:false,nutrition_source:'ai_draft'}));setDraft('');toast.success('Borrador pegado; ingredientes y alérgenos quedan pendientes de verificación.');}catch(e){toast.error(e instanceof Error?e.message:'El contenido debe ser JSON válido.');}};
- const saveFood=async(e:React.FormEvent)=>{e.preventDefault();const price=Number(form.price);const ing=form.ingredients.split(/[;\n\r|]+/).map(x=>x.trim()).filter(Boolean);const numbers=[form.calories,form.protein_g,form.carbohydrates_g,form.fat_g,form.fiber_g];if(form.name.trim().length<2||!form.category_id||!Number.isFinite(price)||price<0)return void toast.error('Revisa nombre, categoría y precio.');if(numbers.some(v=>v.trim()!==''&&(!Number.isFinite(Number(v))||Number(v)<0)))return void toast.error('Los datos nutricionales deben ser números válidos.');if(form.ingredients_verified&&!ing.length)return void toast.error('No puedes verificar una lista de ingredientes vacía.');if(form.available&&(!form.ingredients_verified||!form.allergens.trim()))return void toast.error('Verifica ingredientes y registra los alérgenos antes de publicar.');setSaving(true);try{const c=requireSupabaseClient();const p=await c.rpc('staff_save_menu_product',{p_product_id:form.id,p_name:form.name.trim(),p_description:form.description.trim()||null,p_price:price,p_image_url:form.image_url.trim()||null,p_category_id:form.category_id});if(p.error)throw p.error;const id=String(p.data);const n=await c.rpc('staff_save_product_nutrition',{p_product_id:id,p_detailed_description:form.detailed_description.trim()||null,p_ingredients:ing.join('; ')||null,p_allergens:form.allergens.trim()||null,p_calories:nval(form.calories),p_protein_g:nval(form.protein_g),p_carbohydrates_g:nval(form.carbohydrates_g),p_fat_g:nval(form.fat_g),p_fiber_g:nval(form.fiber_g),p_vegetarian:form.vegetarian,p_healthy_choice:form.healthy_choice,p_ingredients_verified:form.ingredients_verified,p_nutrition_verified:form.nutrition_verified,p_nutrition_source:form.nutrition_source});if(n.error)throw n.error;const a=await c.rpc('staff_set_product_availability',{p_product_id:id,p_available:form.available});if(a.error)throw a.error;toast.success('Ficha guardada. El stock se gestiona desde Inventario.');setFormOpen(false);setForm(emptyForm());await Promise.all([menuLoad(),historyLoad()]);}catch(e){const m=e instanceof Error?e.message:'No se pudo guardar el alimento.';toast.error(/nutrition_and_allergens_must_be_reviewed/i.test(m)?'Verifica ingredientes y registra alérgenos antes de publicar.':m);}finally{setSaving(false);}};
+ const saveFood=async(e:React.FormEvent)=>{
+  e.preventDefault();
+  const price=Number(form.price);
+  const ing=form.ingredients.split(/[;\\n\\r|]+/).map(x=>x.trim()).filter(Boolean);
+  const numbers=[form.calories,form.protein_g,form.carbohydrates_g,form.fat_g,form.fiber_g];
+  if(form.name.trim().length<2||!form.category_id||!Number.isFinite(price)||price<0)return void toast.error('Revisa nombre, categoría y precio.');
+  if(numbers.some(v=>v.trim()!==''&&(!Number.isFinite(Number(v))||Number(v)<0)))return void toast.error('Los datos nutricionales deben ser números válidos.');
+  if(form.ingredients_verified&&!ing.length)return void toast.error('No puedes verificar una lista de ingredientes vacía.');
+  if(form.available&&(!form.ingredients_verified||!form.allergens.trim()))return void toast.error('Verifica ingredientes y registra los alérgenos antes de publicar.');
+  setSaving(true);
+  let committed=false;
+  try{
+   const c=requireSupabaseClient();
+   const savedResponse=await c.rpc('staff_save_menu_product_with_nutrition',{
+    p_product_id:form.id,
+    p_name:form.name.trim(),
+    p_description:form.description.trim()||null,
+    p_price:price,
+    p_image_url:form.image_url.trim()||null,
+    p_category_id:form.category_id,
+    p_detailed_description:form.detailed_description.trim()||null,
+    p_ingredients:ing.join('; ')||null,
+    p_allergens:form.allergens.trim()||null,
+    p_calories:nval(form.calories),
+    p_protein_g:nval(form.protein_g),
+    p_carbohydrates_g:nval(form.carbohydrates_g),
+    p_fat_g:nval(form.fat_g),
+    p_fiber_g:nval(form.fiber_g),
+    p_vegetarian:form.vegetarian,
+    p_healthy_choice:form.healthy_choice,
+    p_ingredients_verified:form.ingredients_verified,
+    p_nutrition_verified:form.nutrition_verified,
+    p_nutrition_source:form.nutrition_source,
+    p_available:form.available
+   });
+   if(savedResponse.error)throw savedResponse.error;
+   committed=true;
+   const id=typeof savedResponse.data==='string'?savedResponse.data:'';
+   if(!id)throw new Error('Supabase no devolvió el ID del alimento guardado.');
+   const verification=await c.rpc('staff_list_menu_catalog');
+   if(verification.error)throw verification.error;
+   const saved=((verification.data||[]) as Food[]).find(item=>item.id===id);
+   const normalized=(value:string|null|undefined)=>(value??'').trim();
+   const sameText=(left:string|null|undefined,right:string|null|undefined)=>normalized(left)===normalized(right);
+   const sameNumber=(left:number|null|undefined,right:number|null)=>left==null?right==null:right!=null&&Number(left)===Number(right);
+   const expectedDescription=form.description.trim()||null;
+   const expectedDetailedDescription=form.detailed_description.trim()||null;
+   const expectedIngredients=ing.join('; ')||null;
+   const expectedAllergens=form.allergens.trim()||null;
+   if(!saved||
+    saved.name!==form.name.trim()||
+    !sameText(saved.description,expectedDescription)||
+    Number(saved.price)!==price||
+    !sameText(saved.image_url,form.image_url.trim()||null)||
+    saved.category_id!==form.category_id||
+    saved.available!==form.available||
+    !sameText(saved.detailed_description,expectedDetailedDescription)||
+    !sameText(saved.ingredients,expectedIngredients)||
+    !sameText(saved.allergens,expectedAllergens)||
+    !sameNumber(saved.calories,nval(form.calories))||
+    !sameNumber(saved.protein_g,nval(form.protein_g))||
+    !sameNumber(saved.carbohydrates_g,nval(form.carbohydrates_g))||
+    !sameNumber(saved.fat_g,nval(form.fat_g))||
+    !sameNumber(saved.fiber_g,nval(form.fiber_g))||
+    saved.vegetarian!==form.vegetarian||
+    saved.healthy_choice!==form.healthy_choice||
+    saved.ingredients_verified!==form.ingredients_verified||
+    saved.nutrition_verified!==form.nutrition_verified||
+    saved.nutrition_source!==form.nutrition_source
+   )throw new Error('La lectura posterior no coincide con los datos solicitados.');
+   toast.success('Ficha guardada y verificada en Supabase. El stock se gestiona desde Inventario.');
+   setFormOpen(false);
+   setForm(emptyForm());
+   await Promise.all([menuLoad(),historyLoad()]);
+  }catch(e){
+   const m=e instanceof Error?e.message:'No se pudo guardar el alimento.';
+   if(committed){
+    setFormOpen(false);
+    setForm(emptyForm());
+    toast.warning('La operación fue aceptada por Supabase, pero la verificación independiente no concluyó: '+m+' No repitas el guardado; actualiza el menú para comprobar el estado.');
+    await Promise.all([menuLoad(),historyLoad()]);
+   }else{
+    toast.error(/nutrition_and_allergens_must_be_reviewed/i.test(m)?'Verifica ingredientes y registra alérgenos antes de publicar.':m);
+   }
+  }finally{setSaving(false);}
+ };
  const addCategory=async(e:React.FormEvent)=>{e.preventDefault();try{const r=await requireSupabaseClient().rpc('staff_upsert_category',{p_category_id:null,p_name:catName.trim(),p_description:catDescription.trim()||null});if(r.error)throw r.error;setCatName('');setCatDescription('');toast.success('Categoría creada.');await menuLoad();}catch(e){toast.error(e instanceof Error?e.message:'No se pudo crear la categoría.');}};
  const removeCategory=async(c:Category)=>{if(!window.confirm('¿Eliminar la categoría '+c.name+'? Solo puede borrarse si no tiene productos asociados.'))return;try{const r=await requireSupabaseClient().rpc('staff_delete_category',{p_category_id:c.id});if(r.error)throw r.error;toast.success('Categoría eliminada.');await menuLoad();}catch(e){toast.error(e instanceof Error&&/category_in_use/i.test(e.message)?'La categoría todavía tiene productos.':e instanceof Error?e.message:'No se pudo eliminar la categoría.');}};
  const adjustStock=async(e:React.FormEvent)=>{e.preventDefault();const qty=Number.parseInt(stockValue,10);if(!stockProduct||!Number.isInteger(qty)||qty<0||stockReason.trim().length<3)return void toast.error('Selecciona producto, stock válido y motivo.');try{const r=await requireSupabaseClient().rpc('staff_adjust_inventory',{p_product_id:stockProduct,p_new_stock:qty,p_reason:stockReason.trim()});if(r.error)throw r.error;toast.success('Stock actualizado y movimiento registrado.');setStockProduct('');setStockValue('');setStockReason('');await Promise.all([menuLoad(),movesLoad(),historyLoad()]);}catch(e){toast.error(e instanceof Error&&/stock_unchanged/i.test(e.message)?'El stock no cambió.':e instanceof Error?e.message:'No se pudo ajustar el stock.');}};
