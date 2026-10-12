@@ -71,9 +71,27 @@ export function AdminReviews() {
   const moderate = async (review: Review, status: 'approved' | 'rejected') => {
     setSavingId(review.id);
     try {
-      const { error } = await requireSupabaseClient().from('product_reviews').update({ status }).eq('id', review.id);
+      const client = requireSupabaseClient();
+      const { data: updateResult, error } = await client
+        .from('product_reviews')
+        .update({ status })
+        .eq('id', review.id)
+        .select('id,status')
+        .maybeSingle();
       if (error) throw error;
-      toast.success(status === 'approved' ? 'Reseña publicada.' : 'Reseña rechazada.');
+      if (!updateResult || updateResult.id !== review.id || updateResult.status !== status) {
+        throw new Error('Supabase no confirmó la actualización del estado de la reseña.');
+      }
+      const { data: saved, error: verifyError } = await client
+        .from('product_reviews')
+        .select('id,status')
+        .eq('id', review.id)
+        .maybeSingle();
+      if (verifyError) throw new Error('La reseña se actualizó, pero no se pudo verificar la lectura posterior: ' + verifyError.message);
+      if (!saved || saved.id !== review.id || saved.status !== status) {
+        throw new Error('El estado guardado de la reseña no coincide con el solicitado.');
+      }
+      toast.success(status === 'approved' ? 'Reseña publicada y verificada.' : 'Reseña rechazada y verificada.');
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo actualizar la reseña.');
