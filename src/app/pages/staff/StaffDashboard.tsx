@@ -54,7 +54,7 @@ export function StaffDashboard(){
  const saveFood=async(e:React.FormEvent)=>{
   e.preventDefault();
   const price=Number(form.price);
-  const ing=form.ingredients.split(/[;\\n\\r|]+/).map(x=>x.trim()).filter(Boolean);
+  const ing=form.ingredients.split(/[;\n\r|]+/).map(x=>x.trim()).filter(Boolean);
   const numbers=[form.calories,form.protein_g,form.carbohydrates_g,form.fat_g,form.fiber_g];
   if(form.name.trim().length<2||!form.category_id||!Number.isFinite(price)||price<0)return void toast.error('Revisa nombre, categoría y precio.');
   if(numbers.some(v=>v.trim()!==''&&(!Number.isFinite(Number(v))||Number(v)<0)))return void toast.error('Los datos nutricionales deben ser números válidos.');
