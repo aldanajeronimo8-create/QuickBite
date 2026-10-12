@@ -16,6 +16,20 @@ function serviceClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+// Use the authenticated administrator's JWT for database authorization markers.
+// Modern Supabase secret API keys are gateway credentials, not JWTs carrying
+// the service_role claim; SQL must authorize the real actor, not infer identity
+// from the server API key.
+function authenticatedActorClient(token: string) {
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
+  if (!url || !key) throw new Error('Supabase authenticated client configuration is missing.');
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+}
+
 function allowedOrigins() {
   const configured = (Deno.env.get('ALLOWED_ORIGINS') || '')
     .split(',')
@@ -334,9 +348,17 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
       return userError('La cuenta indicada no es una cuenta administrativa protegida.', 403);
     }
 
+    // The marker RPC must receive the authenticated admin JWT. The service
+    // API key authenticates the Edge Function's privileged Auth write, but is
+    // not a reliable auth.role() identity for PostgREST with modern sb_secret keys.
+    const actorToken = c.req.header('Authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+    if (!actorToken) return userError('Tu sesión administrativa expiró. Inicia sesión nuevamente.', 401);
+    const actorClient = authenticatedActorClient(actorToken);
+
     // Create a short-lived, one-use database marker before the Auth password write.
-    // The trigger accepts only this hash transition for a protected role=all account.
-    const { error: beginError } = await admin.supabase.rpc(
+    // The SECURITY DEFINER RPC independently checks this actor is an active admin
+    // and that the target is an allowlisted protected role=all account.
+    const { error: beginError } = await actorClient.rpc(
       'begin_protected_admin_credential_password_change',
       { p_user_id: body.id },
     );
@@ -351,7 +373,7 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
       return userError('Supabase no pudo guardar la nueva contraseña. La cuenta no fue modificada por este paso.', 400);
     }
 
-    const { error: finishError } = await admin.supabase.rpc(
+    const { error: finishError } = await actorClient.rpc(
       'finish_protected_admin_credential_password_change',
       { p_user_id: body.id },
     );
