@@ -18,6 +18,32 @@ import { withRetry } from '../lib/retry';
 
 export type NewProduct = Omit<Product, 'id' | 'created_at' | 'category'>;
 export type ProductUpdate = Partial<NewProduct>;
+export type ProductNutritionInput = {
+  detailed_description: string | null;
+  ingredients: string;
+  allergens: string | null;
+  calories: number | null;
+  protein_g: number | null;
+  carbohydrates_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  vegetarian: boolean;
+  healthy_choice: boolean;
+  ingredients_verified: boolean;
+  nutrition_verified: boolean;
+  nutrition_source: 'manual' | 'ai_draft' | 'label';
+};
+export type ProductWithNutritionInput = {
+  productId?: string | null;
+  product: NewProduct;
+  nutrition: ProductNutritionInput;
+};
+export type ProductWithNutritionSaveResult = {
+  productId: string;
+  product: Product | null;
+  verified: boolean;
+  verificationMessage?: string;
+};
 export type NewOrderItem = Omit<OrderItem, 'id' | 'order_id' | 'product'>;
 export type NewOrder = Omit<Order, 'id' | 'created_at' | 'order_number' | 'order_items' | 'user' | 'user_id'> & {
   user_id: string;
@@ -30,7 +56,7 @@ export type LoyaltyRewardInput = Pick<LoyaltyReward, 'product_id' | 'title' | 'd
 export type LoyaltyRewardUpdate = Partial<LoyaltyRewardInput>;
 
 function isMissingRpc(error: unknown) { const message = getErrorMessage(error, ''); return /function.*does not exist|could not find the function|schema cache/i.test(message); }
-function productRpcError(error: unknown) { const message = getErrorMessage(error, ''); if (/not_authorized/i.test(message)) return new Error('No tienes permisos de administrador para modificar productos.'); if (/product_not_found/i.test(message)) return new Error('El producto ya no existe en Supabase.'); if (/invalid_stock/i.test(message)) return new Error('El stock debe ser un número mayor o igual que 0.'); if (/invalid_price/i.test(message)) return new Error('El precio debe ser mayor o igual a 0.'); return error; }
+function productRpcError(error: unknown) { const message = getErrorMessage(error, ''); if (/not_authorized/i.test(message)) return new Error('No tienes permisos de administrador para modificar productos.'); if (/product_not_found/i.test(message)) return new Error('El producto ya no existe en Supabase.'); if (/invalid_stock/i.test(message)) return new Error('El stock debe ser un número mayor o igual que 0.'); if (/invalid_price/i.test(message)) return new Error('El precio debe ser mayor que 0.'); if (/category_required/i.test(message)) return new Error('Selecciona una categoría válida.'); if (/ingredients_must_be_verified_before_publish/i.test(message)) return new Error('Verifica los ingredientes reales antes de publicar el producto.'); if (/ingredients_required_for_verification/i.test(message)) return new Error('Agrega los ingredientes antes de marcarlos como verificados.'); if (/invalid_nutrition_value/i.test(message)) return new Error('Los valores nutricionales no pueden ser negativos.'); if (/invalid_nutrition_source/i.test(message)) return new Error('La fuente de la ficha nutricional no es válida.'); return error; }
 function orderStatusRpcError(error: unknown) { const message = getErrorMessage(error, 'No se pudo actualizar el estado del pedido.'); if (/not_authorized|row-level security|permission denied/i.test(message)) return new Error('Tu sesión no tiene permisos de administrador para actualizar pedidos.'); if (/invalid_order_status/i.test(message)) return new Error('El estado seleccionado no es valido.'); if (/order_not_found/i.test(message)) return new Error('El pedido ya no existe o no esta disponible.'); return new Error(message); }
 function paymentModerationError(error: unknown) { const message = getErrorMessage(error, 'No se pudo actualizar el pago.'); if (/not_authorized|not_admin|row-level security|permission denied/i.test(message)) return new Error('Tu sesión no tiene permisos de administrador para revisar pagos.'); if (/payment_already_reviewed/i.test(message)) return new Error('Este pago ya fue revisado. Actualiza la página para ver su estado actual.'); if (/order_not_found/i.test(message)) return new Error('El pedido ya no existe o no está disponible.'); return new Error(message); }
 function loyaltyRpcError(error: unknown) { const message = getErrorMessage(error, 'No se pudo procesar el canje.'); if (/not_authorized/i.test(message)) return new Error('Tu sesión no puede canjear recompensas.'); if (/loyalty_disabled/i.test(message)) return new Error('El programa de puntos esta desactivado por el administrador.'); if (/reward_not_found|reward_unavailable/i.test(message)) return new Error('Esta recompensa ya no esta disponible.'); if (/reward_out_of_stock/i.test(message)) return new Error('Esta recompensa se agoto. Elige otra opcion.'); if (/insufficient_loyalty_points|insufficient_points/i.test(message)) return new Error('No tienes puntos suficientes para este canje.'); return new Error(message); }
@@ -41,6 +67,104 @@ export async function listProducts() { const data = await withRetry(async () => 
 async function getProductById(id: string) { const { data, error } = await requireSupabaseClient().from('products').select('*, category:categories(*)').eq('id', id).single(); if (error) throw error; return data as Product; }
 export async function createProduct(product: NewProduct) { const supabase = requireSupabaseClient(); const { data: productId, error: rpcError } = await supabase.rpc('admin_create_product', { p_name: product.name, p_description: product.description ?? null, p_price: product.price, p_image_url: product.image_url ?? null, p_category_id: product.category_id, p_stock: product.stock, p_available: product.available }); if (!rpcError) return getProductById(String(productId)); if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { data, error } = await supabase.from('products').insert(product).select('*, category:categories(*)').single(); if (error) throw productRpcError(error); return data as Product; }
 export async function updateProduct(id: string, updates: ProductUpdate) { const supabase = requireSupabaseClient(); const { data: productId, error: rpcError } = await supabase.rpc('admin_update_product', { p_product_id: id, p_name: updates.name ?? null, p_description: updates.description ?? null, p_price: updates.price ?? null, p_image_url: updates.image_url ?? null, p_category_id: updates.category_id ?? null, p_stock: updates.stock ?? null, p_available: updates.available ?? null }); if (!rpcError) return getProductById(String(productId)); if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('*, category:categories(*)').single(); if (error) throw productRpcError(error); return data as Product; }
+
+function sameNullableText(actual: unknown, expected: string | null | undefined) {
+  const normalize = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : null;
+  return normalize(actual) === normalize(expected);
+}
+function sameNullableNumber(actual: unknown, expected: number | null) {
+  if (expected === null) return actual === null || actual === undefined;
+  return actual !== null && actual !== undefined && Number(actual) === expected;
+}
+
+/**
+ * Stores the product and nutrition row in one PostgreSQL transaction, then reads
+ * both rows back to verify the committed values before the UI reports success.
+ */
+export async function saveProductWithNutrition(input: ProductWithNutritionInput): Promise<ProductWithNutritionSaveResult> {
+  const { product, nutrition } = input;
+  const { data, error } = await requireSupabaseClient().rpc('admin_save_product_with_nutrition', {
+    p_product_id: input.productId ?? null,
+    p_name: product.name,
+    p_description: product.description ?? null,
+    p_price: product.price,
+    p_image_url: product.image_url ?? null,
+    p_category_id: product.category_id,
+    p_stock: product.stock,
+    p_available: product.available,
+    p_detailed_description: nutrition.detailed_description,
+    p_ingredients: nutrition.ingredients,
+    p_allergens: nutrition.allergens,
+    p_calories: nutrition.calories,
+    p_protein_g: nutrition.protein_g,
+    p_carbohydrates_g: nutrition.carbohydrates_g,
+    p_fat_g: nutrition.fat_g,
+    p_fiber_g: nutrition.fiber_g,
+    p_vegetarian: nutrition.vegetarian,
+    p_healthy_choice: nutrition.healthy_choice,
+    p_ingredients_verified: nutrition.ingredients_verified,
+    p_nutrition_verified: nutrition.nutrition_verified,
+    p_nutrition_source: nutrition.nutrition_source,
+  });
+  if (error) throw productRpcError(error);
+  if (typeof data !== 'string' || !data) {
+    throw new Error('Supabase no devolvió el identificador del producto guardado.');
+  }
+
+  const productId = data;
+  let savedProduct: Product | null = null;
+  try {
+    savedProduct = await getProductById(productId);
+    const { data: savedNutrition, error: nutritionError } = await requireSupabaseClient()
+      .from('product_nutrition')
+      .select('product_id,detailed_description,ingredients,allergens,calories,protein_g,carbohydrates_g,fat_g,fiber_g,vegetarian,healthy_choice,ingredients_verified,nutrition_verified,nutrition_source')
+      .eq('product_id', productId)
+      .maybeSingle();
+    if (nutritionError) throw nutritionError;
+    if (!savedNutrition) throw new Error('La ficha nutricional no aparece después de guardar.');
+
+    const productMatches =
+      sameNullableText(savedProduct.name, product.name) &&
+      sameNullableText(savedProduct.description, product.description) &&
+      sameNullableNumber(savedProduct.price, product.price) &&
+      sameNullableText(savedProduct.image_url, product.image_url) &&
+      savedProduct.category_id === product.category_id &&
+      Number(savedProduct.stock) === product.stock &&
+      savedProduct.available === product.available;
+    const nutritionMatches =
+      savedNutrition.product_id === productId &&
+      sameNullableText(savedNutrition.detailed_description, nutrition.detailed_description) &&
+      sameNullableText(savedNutrition.ingredients, nutrition.ingredients) &&
+      sameNullableText(savedNutrition.allergens, nutrition.allergens) &&
+      sameNullableNumber(savedNutrition.calories, nutrition.calories) &&
+      sameNullableNumber(savedNutrition.protein_g, nutrition.protein_g) &&
+      sameNullableNumber(savedNutrition.carbohydrates_g, nutrition.carbohydrates_g) &&
+      sameNullableNumber(savedNutrition.fat_g, nutrition.fat_g) &&
+      sameNullableNumber(savedNutrition.fiber_g, nutrition.fiber_g) &&
+      savedNutrition.vegetarian === nutrition.vegetarian &&
+      savedNutrition.healthy_choice === nutrition.healthy_choice &&
+      savedNutrition.ingredients_verified === nutrition.ingredients_verified &&
+      savedNutrition.nutrition_verified === nutrition.nutrition_verified &&
+      savedNutrition.nutrition_source === nutrition.nutrition_source;
+
+    if (productMatches && nutritionMatches) {
+      return { productId, product: savedProduct, verified: true };
+    }
+    return {
+      productId,
+      product: savedProduct,
+      verified: false,
+      verificationMessage: 'Supabase completó la transacción, pero la lectura posterior no coincide con todos los valores enviados.',
+    };
+  } catch (verificationError) {
+    return {
+      productId,
+      product: savedProduct,
+      verified: false,
+      verificationMessage: `La transacción se guardó, pero no se pudo completar la verificación posterior: ${getErrorMessage(verificationError, 'error de lectura')}`,
+    };
+  }
+}
 export async function deleteProduct(id: string) { const supabase = requireSupabaseClient(); const { error: rpcError } = await supabase.rpc('admin_delete_product', { p_product_id: id }); if (!rpcError) return; if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { error } = await supabase.from('products').delete().eq('id', id); if (error) throw productRpcError(error); }
 export async function listStaffActiveOrders() {
   const { data, error } = await requireSupabaseClient().rpc('staff_list_active_orders');
