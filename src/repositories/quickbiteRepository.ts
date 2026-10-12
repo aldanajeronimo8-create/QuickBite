@@ -49,6 +49,7 @@ export type NewOrder = Omit<Order, 'id' | 'created_at' | 'order_number' | 'order
   user_id: string;
   order_items?: NewOrderItem[];
 };
+export type OrderCreationResult = { orderNumber: string; verified: boolean; verificationMessage?: string };
 export type NewManagedUser = { email: string; password: string; full_name: string; role: Profile['role']; ti?: string; section_id?: string; grade_id?: string; course_id?: string };
 export type ManagedUserUpdate = Omit<NewManagedUser, 'password'> & { id: string; password?: string };
 export type ProtectedCredentialsUpdate = { id: string; email: string; password?: string };
@@ -188,8 +189,9 @@ export async function updateStaffOrderStatus(id: string, status: Extract<Order['
 export async function listOrders() { const data = await withRetry(async () => { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('admin_hidden', false).order('created_at', { ascending: false }); if (error) throw error; return data; }); return (data ?? []) as Order[]; }
 async function getOrderById(id: string) { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('id', id).single(); if (error) throw orderStatusRpcError(error); return data as Order; }
 export async function listOrdersForExport(sinceIso: string, limit = 10000) { const supabase = requireSupabaseClient(); const safeLimit = Math.min(Math.max(limit, 1), 10000); const batchSize = 1000; const orders: Order[] = []; while (orders.length < safeLimit) { const from = orders.length; const to = Math.min(from + batchSize - 1, safeLimit - 1); const { data, error } = await supabase.from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').gte('created_at', sinceIso).order('created_at', { ascending: false }).range(from, to); if (error) throw error; const batch = (data ?? []) as Order[]; orders.push(...batch); if (batch.length < to - from + 1) break; } return orders; }
-export async function createOrder(order: NewOrder) {
+export async function createOrder(order: NewOrder): Promise<OrderCreationResult> {
   const { order_items = [], ...orderFields } = order;
+  const requestId = crypto.randomUUID();
   const payload = {
     p_user_id: orderFields.user_id,
     p_payment_method: orderFields.payment_method,
@@ -200,7 +202,7 @@ export async function createOrder(order: NewOrder) {
     p_payment_reference: orderFields.payment_reference ?? null,
     p_items: order_items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
     p_notes: orderFields.notes ?? null,
-    p_request_id: crypto.randomUUID(),
+    p_request_id: requestId,
   };
   const data = await withRetry(async () => {
     const { data, error } = await requireSupabaseClient().rpc('create_order_tx', payload);
@@ -213,7 +215,63 @@ export async function createOrder(order: NewOrder) {
     }
     return data;
   });
-  return String(data);
+  const orderNumber = String(data ?? '');
+  if (!orderNumber) {
+    throw new Error('Supabase no devolvió el número del pedido. Revisa tus pedidos antes de volver a intentarlo.');
+  }
+
+  // The transaction return means the database operation committed. Read the order
+  // and its item rows separately before describing it as fully verified.
+  const client = requireSupabaseClient();
+  try {
+    const { data: savedOrder, error: orderError } = await client
+      .from('orders')
+      .select('id,user_id,total,status,payment_method,payment_status,order_number,client_request_id')
+      .eq('order_number', orderNumber)
+      .maybeSingle();
+    if (orderError) throw orderError;
+    if (!savedOrder) {
+      return { orderNumber, verified: false, verificationMessage: 'El pedido se confirmó por la transacción, pero no aparece en la lectura posterior de Supabase.' };
+    }
+
+    const { data: savedItems, error: itemsError } = await client
+      .from('order_items')
+      .select('product_id,quantity,price')
+      .eq('order_id', savedOrder.id);
+    if (itemsError) throw itemsError;
+
+    const expectedPaymentStatus = orderFields.payment_method === 'credits' ? 'confirmed' : 'pending';
+    const expectedItems = order_items
+      .map((item) => ({ product_id: item.product_id, quantity: Number(item.quantity) }))
+      .sort((a, b) => a.product_id.localeCompare(b.product_id));
+    const actualItems = (savedItems ?? [])
+      .map((item) => ({ product_id: item.product_id, quantity: Number(item.quantity), price: Number(item.price) }))
+      .sort((a, b) => a.product_id.localeCompare(b.product_id));
+    const itemsMatch = actualItems.length === expectedItems.length &&
+      expectedItems.every((item, index) => actualItems[index]?.product_id === item.product_id && actualItems[index]?.quantity === item.quantity);
+    const computedTotal = actualItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const fieldsMatch = savedOrder.user_id === orderFields.user_id &&
+      savedOrder.client_request_id === requestId &&
+      savedOrder.order_number === orderNumber &&
+      savedOrder.payment_method === orderFields.payment_method &&
+      savedOrder.status === 'pending' &&
+      savedOrder.payment_status === expectedPaymentStatus &&
+      Math.abs(Number(savedOrder.total) - computedTotal) < 0.01;
+    if (!fieldsMatch || !itemsMatch) {
+      return {
+        orderNumber,
+        verified: false,
+        verificationMessage: 'El pedido está en Supabase, pero los campos o los ítems no coinciden con la solicitud enviada.',
+      };
+    }
+    return { orderNumber, verified: true };
+  } catch (verificationError) {
+    return {
+      orderNumber,
+      verified: false,
+      verificationMessage: `El pedido se creó, pero no se pudo comprobar la lectura posterior: ${getErrorMessage(verificationError, 'error de lectura')}`,
+    };
+  }
 }
 export async function updateOrder(id: string, updates: Partial<Order>) { const { data, error } = await requireSupabaseClient().from('orders').update(updates).eq('id', id).select('*, order_items(*, product:products(*)), user:profiles(*)').single(); if (error) throw error; return data as Order; }
 export async function archiveOrders(ids: string[]) { if (!ids.length) return 0; const { data, error } = await requireSupabaseClient().from('orders').update({ admin_hidden: true }).in('id', ids).select('id'); if (error) throw error; return data?.length ?? 0; }
