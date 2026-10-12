@@ -10,6 +10,9 @@ DECLARE
 BEGIN
   SELECT pg_get_functiondef('public.prevent_protected_admin_auth_change()'::regprocedure)
     INTO v_definition;
+  IF strpos(v_definition, v_replacement) > 0 THEN
+    RETURN;
+  END IF;
   v_position := strpos(v_definition, v_needle);
   IF v_position = 0 THEN
     RAISE EXCEPTION 'Protected account trigger phase-one guard was not found; refusing to patch';
