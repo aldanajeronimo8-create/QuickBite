@@ -257,3 +257,21 @@ jobs:
             exit 1
           fi
           echo "AUDITORÍA EXHAUSTIVA: PASS"
+
+      - name: Record the exact audited commit for the next stage
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="${{ needs.audit-trigger.outputs.sha }}"
+          test "${#sha}" -eq 40
+          printf '%s\\n' "$sha" > audited-sha.txt
+
+      - name: Publish exact audited SHA for integrity audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exhaustive-audit-sha
+          path: audited-sha.txt
+          if-no-files-found: error
+          retention-days: 14
