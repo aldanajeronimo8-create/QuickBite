@@ -307,8 +307,8 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
 
     const email = normalizeEmail(body.email);
     const password = normalizePassword(body.password);
-    if (body.password !== undefined && password && password.length < 6) {
-      return userError('La nueva contraseña debe tener al menos 6 caracteres.');
+    if (!password || password.length < 6) {
+      return userError('Introduce una nueva contraseña de al menos 6 caracteres.');
     }
     if (body.id === admin.userId) {
       return userError('Esta cuenta protegida no puede cambiar sus propias credenciales.');
@@ -316,47 +316,51 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
 
     const { data: target, error: targetError } = await admin.supabase
       .from('profiles')
-      .select('id,email,full_name,role,ti')
+      .select('id,email,role')
       .eq('id', body.id)
       .maybeSingle();
     if (targetError) throw targetError;
     if (!target) return userError('Cuenta protegida no encontrada.', 404);
 
-    const { data: protectedAccount, error: protectedError } = await admin.supabase
-      .rpc('is_protected_admin_email', { p_email: normalizeEmail(target.email) });
-    if (protectedError) throw protectedError;
-    if (!protectedAccount) return userError('La cuenta indicada no es una cuenta administrativa protegida.', 403);
-
-    const { data: duplicate, error: duplicateError } = await admin.supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .neq('id', body.id)
-      .maybeSingle();
-    if (duplicateError) throw duplicateError;
-    if (duplicate) return userError('El correo electrónico ya está registrado.');
-
-    const authUpdate: { email: string; email_confirm?: boolean; password?: string } = {
-      email,
-      email_confirm: true,
-    };
-    if (password) authUpdate.password = password;
-
-    const { error: authError } = await admin.supabase.auth.admin.updateUserById(body.id, authUpdate);
-    if (authError) return userError(authError.message);
-
-    const { error: profileError } = await admin.supabase.from('profiles').update({ email }).eq('id', body.id);
-    if (profileError) return userError(profileError.message, 500);
-
-    if (email !== normalizeEmail(target.email)) {
-      const { error: protectedUpdateError } = await admin.supabase
-        .from('protected_admins')
-        .update({ email })
-        .eq('email', normalizeEmail(target.email));
-      if (protectedUpdateError) return userError(protectedUpdateError.message, 500);
+    const originalEmail = normalizeEmail(target.email);
+    if (email !== originalEmail) {
+      return userError('El correo de esta cuenta protegida no se puede cambiar desde este formulario.', 400);
     }
 
-    return c.json({ user: { id: body.id, email } });
+    const { data: protectedAccount, error: protectedError } = await admin.supabase
+      .rpc('is_protected_admin_email', { p_email: originalEmail });
+    if (protectedError) throw protectedError;
+    if (!protectedAccount || target.role !== 'all') {
+      return userError('La cuenta indicada no es una cuenta administrativa protegida.', 403);
+    }
+
+    // Create a short-lived, one-use database marker before the Auth password write.
+    // The trigger accepts only this hash transition for a protected role=all account.
+    const { error: beginError } = await admin.supabase.rpc(
+      'begin_protected_admin_credential_password_change',
+      { p_user_id: body.id },
+    );
+    if (beginError) {
+      console.error('Protected credential password-change marker failed', beginError.code || 'database_error');
+      return userError('No se pudo autorizar el cambio de contraseña protegida.', 409);
+    }
+
+    const { error: authError } = await admin.supabase.auth.admin.updateUserById(body.id, { password });
+    if (authError) {
+      console.error('Protected credential password update failed', authError.code || 'auth_error');
+      return userError('Supabase no pudo guardar la nueva contraseña. La cuenta no fue modificada por este paso.', 400);
+    }
+
+    const { error: finishError } = await admin.supabase.rpc(
+      'finish_protected_admin_credential_password_change',
+      { p_user_id: body.id },
+    );
+    if (finishError) {
+      console.error('Protected credential password-change finalization failed', finishError.code || 'database_error');
+      return userError('La contraseña se guardó, pero falta verificar el cierre seguro. Vuelve a guardar la misma contraseña para completar la verificación.', 500);
+    }
+
+    return c.json({ user: { id: body.id, email: originalEmail }, password_changed: true });
   } catch (error) {
     console.error('Protected admin credential update failed', error instanceof Error ? error.message : error);
     return userError(error instanceof Error ? error.message : 'No se pudieron actualizar las credenciales protegidas.', 500);
