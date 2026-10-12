@@ -40,7 +40,7 @@ const emptyNutrition = (): NutritionDraft => ({
 const numericDraft = (value: string) => value.trim() === '' ? null : Number(value);
 
 export function AdminMenu() {
-  const { products, categories, addProduct, updateProduct, deleteProduct } = useDataStore();
+  const { products, categories, saveProductWithNutrition, deleteProduct } = useDataStore();
   const safeProducts = Array.isArray(products) ? products : [];
   const safeCategories = Array.isArray(categories) ? categories : [];
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -169,42 +169,36 @@ export function AdminMenu() {
       available: formData.available,
     };
 
+    setSavingNutrition(true);
     try {
-      let productId: string;
-      if (editingProduct) {
-        await updateProduct(editingProduct.id, productData);
-        productId = editingProduct.id;
+      const result = await saveProductWithNutrition({
+        productId: editingProduct?.id,
+        product: productData,
+        nutrition: {
+          detailed_description: nutritionForm.detailed_description.trim() || null,
+          ingredients: ingredientList.join('; '),
+          allergens: nutritionForm.allergens.trim() || null,
+          calories: numericDraft(nutritionForm.calories),
+          protein_g: numericDraft(nutritionForm.protein_g),
+          carbohydrates_g: numericDraft(nutritionForm.carbohydrates_g),
+          fat_g: numericDraft(nutritionForm.fat_g),
+          fiber_g: numericDraft(nutritionForm.fiber_g),
+          vegetarian: nutritionForm.vegetarian,
+          healthy_choice: nutritionForm.healthy_choice,
+          ingredients_verified: nutritionForm.ingredients_verified,
+          nutrition_verified: nutritionForm.nutrition_verified,
+          nutrition_source: nutritionForm.nutrition_source,
+        },
+      });
+
+      if (result.verified) {
+        toast.success(editingProduct ? 'Producto y ficha nutricional guardados y verificados en Supabase.' : 'Producto y ficha nutricional creados y verificados en Supabase.');
       } else {
-        productId = await addProduct(productData);
+        toast.warning(`Supabase confirmó el guardado, pero no se pudo verificar toda la lectura posterior. ${result.verificationMessage ?? 'Actualiza la lista antes de volver a crear o editar este producto.'}`);
       }
-      setSavingNutrition(true);
-      const nutritionRow = {
-        product_id: productId,
-        detailed_description: nutritionForm.detailed_description.trim() || null,
-        ingredients: ingredientList.join('; '),
-        allergens: nutritionForm.allergens.trim() || null,
-        calories: numericDraft(nutritionForm.calories),
-        protein_g: numericDraft(nutritionForm.protein_g),
-        carbohydrates_g: numericDraft(nutritionForm.carbohydrates_g),
-        fat_g: numericDraft(nutritionForm.fat_g),
-        fiber_g: numericDraft(nutritionForm.fiber_g),
-        vegetarian: nutritionForm.vegetarian,
-        healthy_choice: nutritionForm.healthy_choice,
-        ingredients_verified: nutritionForm.ingredients_verified,
-        nutrition_verified: nutritionForm.nutrition_verified,
-        nutrition_source: nutritionForm.nutrition_source,
-        updated_at: new Date().toISOString(),
-      };
-      const { error } = await (await import('../../../lib/supabase')).requireSupabaseClient()
-        .from('product_nutrition').upsert(nutritionRow, { onConflict: 'product_id' });
-      if (error) {
-        toast.error(`El producto se guardó, pero no se pudo guardar su ficha nutricional: ${error.message}`);
-        return;
-      }
-      toast.success(editingProduct ? 'Producto y ficha nutricional actualizados.' : 'Producto y ficha nutricional creados.');
       setIsDialogOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo guardar el producto');
+      toast.error(error instanceof Error ? error.message : 'No se pudo guardar el producto y su ficha nutricional.');
     } finally {
       setSavingNutrition(false);
     }
