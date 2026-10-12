@@ -212,7 +212,30 @@ export function AdminUsersSeparated() {
           relationship: form.relationship || undefined,
         };
         await updateUser(updatePayload);
-        toast.success('Usuario actualizado');
+        const { data: savedUser, error: verifyError } = await requireSupabaseClient()
+          .from('profiles')
+          .select('id,email,full_name,role,ti,section_id,grade_id,course_id')
+          .eq('id', form.id)
+          .maybeSingle();
+        if (verifyError) {
+          toast.warning('Los cambios se enviaron, pero no se pudo verificar el perfil en Supabase. Actualiza la lista antes de volver a guardar.');
+          setOpen(false);
+          return;
+        }
+        const expectedTi = needsTi(form.role) ? ti : null;
+        const expectedSection = needsTi(form.role) ? sectionId : null;
+        const expectedGrade = needsTi(form.role) ? gradeId : null;
+        const expectedCourse = needsTi(form.role) ? courseId : null;
+        if (!savedUser || savedUser.email !== email || savedUser.full_name !== name || savedUser.role !== form.role ||
+            (savedUser.ti ?? null) !== expectedTi ||
+            (savedUser.section_id ?? null) !== expectedSection ||
+            (savedUser.grade_id ?? null) !== expectedGrade ||
+            (savedUser.course_id ?? null) !== expectedCourse) {
+          toast.warning('Supabase respondió, pero el perfil leído no coincide con los cambios enviados. Actualiza la lista y revisa los datos.');
+          setOpen(false);
+          return;
+        }
+        toast.success('Usuario actualizado y datos verificados en Supabase.');
       } else {
         const createPayload = {
           email,
@@ -228,10 +251,42 @@ export function AdminUsersSeparated() {
           relationship: mode === 'parent' ? form.relationship : undefined,
         };
         await addUser(createPayload);
-        toast.success(mode === 'parent' ? 'Padre de familia creado y vinculado' : mode === 'staff' ? 'Personal de cafetería creado' : 'Usuario creado');
-        await new Promise((resolve) => setTimeout(resolve, 150));
-        const { data: created } = await requireSupabaseClient().from('profiles').select('id,full_name,role').eq('email', email).maybeSingle();
-        if (mode === 'student' && created && canGenerateCode(created.role)) await generateStudentCode(created.id);
+        const client = requireSupabaseClient();
+        const { data: created, error: profileVerifyError } = await client
+          .from('profiles')
+          .select('id,email,full_name,role,ti,section_id,grade_id,course_id')
+          .eq('email', email)
+          .maybeSingle();
+        if (profileVerifyError) {
+          toast.warning('La cuenta pudo crearse en Supabase, pero no se pudo verificar su perfil. Se cerró el formulario para evitar un envío duplicado; actualiza la lista antes de reintentar.');
+          setOpen(false);
+          return;
+        }
+        const expectedRole = mode === 'parent' ? 'parent' : form.role;
+        const profileMatches = created && created.email === email && created.full_name === name && created.role === expectedRole &&
+          (mode !== 'student' || !needsTi(form.role) || created.ti === ti) &&
+          (mode !== 'student' || !needsTi(form.role) || (created.section_id === sectionId && created.grade_id === gradeId && created.course_id === courseId));
+        if (!profileMatches) {
+          toast.warning('La operación se envió, pero el perfil creado no coincide con los datos solicitados. Se cerró el formulario para evitar un duplicado; actualiza la lista para revisar el resultado.');
+          setOpen(false);
+          return;
+        }
+        if (mode === 'parent') {
+          const { data: link, error: linkVerifyError } = await client
+            .from('parent_student_links')
+            .select('id,parent_user_id,student_user_id,relationship,active')
+            .eq('parent_user_id', created.id)
+            .eq('relationship', form.relationship)
+            .eq('active', true)
+            .maybeSingle();
+          if (linkVerifyError || !link) {
+            toast.warning('El perfil del padre existe, pero no se pudo confirmar el vínculo con el estudiante en Supabase. Se cerró el formulario para evitar crear duplicados; revisa la sección Familia.');
+            setOpen(false);
+            return;
+          }
+        }
+        toast.success(mode === 'parent' ? 'Cuenta de padre y vínculo verificados en Supabase.' : mode === 'staff' ? 'Cuenta de personal creada y verificada en Supabase.' : 'Cuenta creada y verificada en Supabase.');
+        if (mode === 'student' && canGenerateCode(created.role)) await generateStudentCode(created.id);
         if (mode === 'parent') close();
       }
       await loadConsents();
