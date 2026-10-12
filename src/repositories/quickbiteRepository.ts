@@ -257,7 +257,44 @@ export async function createLoyaltyReward(reward: LoyaltyRewardInput) { const { 
 export async function updateLoyaltyReward(id: string, updates: LoyaltyRewardUpdate) { const payload = { ...updates, ...(updates.points_required !== undefined ? { points_cost: updates.points_required } : {}) }; const { data, error } = await requireSupabaseClient().from('loyalty_rewards').update(payload).eq('id', id).select('*, product:products(*)').single(); if (error) throw error; return data as LoyaltyReward; }
 export async function listUserLoyaltyRedemptions(userId: string) { const { data, error } = await requireSupabaseClient().from('loyalty_redemptions').select('*, reward:loyalty_rewards(id,title,product:products(name))').eq('user_id', userId).order('created_at', { ascending: false }).limit(20); if (error) throw error; return (data ?? []) as LoyaltyRedemption[]; }
 export async function getUserLoyaltyPoints(userId: string) { const { data, error } = await requireSupabaseClient().from('loyalty_point_ledger').select('points').eq('user_id', userId); if (error) throw error; return (data ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0); }
-export async function redeemLoyaltyReward(rewardId: string) { const { data, error } = await requireSupabaseClient().rpc('redeem_loyalty_reward', { p_reward_id: rewardId }); if (error) throw loyaltyRpcError(error); return data as Omit<LoyaltyRedemption, 'user_id' | 'product_id'>; }
+export async function redeemLoyaltyReward(rewardId: string): Promise<Omit<LoyaltyRedemption, 'user_id' | 'product_id'> & { verified: boolean; verificationMessage?: string }> {
+  const client = requireSupabaseClient();
+  const { data, error } = await client.rpc('redeem_loyalty_reward', { p_reward_id: rewardId });
+  if (error) throw loyaltyRpcError(error);
+  const redemption = data as Omit<LoyaltyRedemption, 'user_id' | 'product_id'> | null;
+  if (!redemption?.id) {
+    return {
+      ...(redemption ?? {} as Omit<LoyaltyRedemption, 'user_id' | 'product_id'>),
+      verified: false,
+      verificationMessage: 'Supabase no devolvió el identificador del canje.',
+    };
+  }
+  try {
+    const { data: saved, error: verifyError } = await client
+      .from('loyalty_redemptions')
+      .select('id,reward_id,points_spent,redemption_code,status,created_at')
+      .eq('id', redemption.id)
+      .maybeSingle();
+    if (verifyError) throw verifyError;
+    if (!saved || saved.id !== redemption.id || saved.reward_id !== rewardId ||
+        Number(saved.points_spent) !== Number(redemption.points_spent) ||
+        saved.redemption_code !== redemption.redemption_code || saved.status !== redemption.status ||
+        saved.status !== 'pending') {
+      return {
+        ...redemption,
+        verified: false,
+        verificationMessage: 'El canje no apareció en Supabase o sus datos no coinciden con la respuesta de la transacción.',
+      };
+    }
+    return { ...redemption, verified: true };
+  } catch (verificationError) {
+    return {
+      ...redemption,
+      verified: false,
+      verificationMessage: `El canje pudo guardarse, pero no se pudo comprobar su lectura: ${getErrorMessage(verificationError, 'error de lectura')}`,
+    };
+  }
+}
 export async function listAdminLoyaltyRedemptions(limit = 50) { const { data, error } = await requireSupabaseClient().from('loyalty_redemptions').select('*, user:profiles(id,full_name,email), reward:loyalty_rewards(id,title)').order('created_at', { ascending: false }).limit(Math.min(Math.max(limit, 1), 100)); if (error) throw error; return (data ?? []) as AdminLoyaltyRedemption[]; }
 export async function fulfillLoyaltyRedemption(redemptionId: string, redemptionCode: string) { const { error } = await requireSupabaseClient().rpc('admin_fulfill_loyalty_redemption', { p_redemption_id: redemptionId, p_redemption_code: redemptionCode }); if (error) throw loyaltyFulfillmentError(error); }
 export async function deleteOrder(id: string) { const client = requireSupabaseClient(); const { error } = await client.from('orders').delete().eq('id', id); if (error) throw error; const [orderCheck, itemsCheck] = await Promise.all([client.from('orders').select('id').eq('id', id).maybeSingle(), client.from('order_items').select('id').eq('order_id', id).limit(1)]); if (orderCheck.error) throw new Error('El pedido se eliminó, pero no se pudo verificar su ausencia: ' + orderCheck.error.message); if (itemsCheck.error) throw new Error('El pedido se eliminó, pero no se pudo verificar la eliminación de sus ítems: ' + itemsCheck.error.message); if (orderCheck.data || (itemsCheck.data ?? []).length) throw new Error('El pedido o alguno de sus ítems todavía aparece en Supabase.'); }
