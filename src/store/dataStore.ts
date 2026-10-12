@@ -39,7 +39,7 @@ interface DataState {
   updateProduct: (id: string, updates: repo.ProductUpdate) => Promise<void>;
   saveProductWithNutrition: (input: repo.ProductWithNutritionInput) => Promise<repo.ProductWithNutritionSaveResult>;
   deleteProduct: (id: string) => Promise<void>;
-  addOrder: (orderData: repo.NewOrder) => Promise<string>;
+  addOrder: (orderData: repo.NewOrder) => Promise<repo.OrderCreationResult>;
   updateOrder: (id: string, updates: Partial<Order>) => Promise<void>;
   moderateOrderPayment: (id: string, action: 'approve' | 'reject') => Promise<void>;
   archiveOrders: (ids: string[]) => Promise<number>;
@@ -211,13 +211,17 @@ export const useDataStore = create<DataState>((set, get) => ({
     // until the shared store has re-read the committed order from Supabase.
     // A refresh failure is logged separately so the UI never invites a duplicate
     // purchase by misreporting a committed order as a failed write.
-    const orderNumber = await repo.createOrder(orderData);
+    const result = await repo.createOrder(orderData);
 
     void remoteAudit({
       action: 'order.create',
       actorId: orderData.user_id,
       entity: 'order',
-      metadata: { payment_method: orderData.payment_method },
+      metadata: {
+        payment_method: orderData.payment_method,
+        order_number: result.orderNumber,
+        database_readback_verified: result.verified,
+      },
     });
 
     try {
@@ -229,7 +233,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       });
     }
 
-    return orderNumber;
+    return result;
   },
 
   updateOrder: async (id, updates) => {
