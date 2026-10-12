@@ -95,7 +95,7 @@ jobs:
 
   final:
     name: Auditoría de integridad final
-    if: always()
+    if: ${{ always() && needs.integrity-trigger.result == 'success' }}
     needs: [integrity-trigger, database-integrity, export-contract]
     outputs:
       sha: ${{steps.evaluate.outputs.sha}}
