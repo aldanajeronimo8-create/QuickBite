@@ -11,13 +11,14 @@ import { requiresProtectedFirstAccessPasswordChange } from '../../lib/protectedF
  */
 export function ProtectedFirstAccessGate() {
   const location = useLocation();
+  const authContext = getAuthContext();
   const [gateState, setGateState] = useState<'checking' | 'open' | 'required' | 'error'>('checking');
 
   useEffect(() => {
     let active = true;
     setGateState('checking');
 
-    const client = getSupabaseClientForContext(getAuthContext());
+    const client = getSupabaseClientForContext(authContext);
     if (!client) {
       setGateState('open');
       return undefined;
@@ -46,7 +47,7 @@ export function ProtectedFirstAccessGate() {
       active = false;
       listener.subscription.unsubscribe();
     };
-  }, [location.pathname]);
+  }, [authContext]);
 
   const onPasswordPage = location.pathname === '/protected-first-access';
 
