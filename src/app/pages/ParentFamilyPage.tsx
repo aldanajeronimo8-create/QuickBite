@@ -33,7 +33,7 @@ export function ParentFamilyPage() {
     }
   };
   const enterStudent = async (student: ActingStudent) => { if (enteringStudentId) return; setEnteringStudentId(student.id); try { const { data, error } = await requireSupabaseClient().rpc('set_parent_active_student', { p_student_user_id: student.id }); if (error) throw error; if (data !== student.id) throw new Error('No se pudo activar el estudiante seleccionado.'); setActiveStudent(student); toast.success(`Entraste al entorno de ${student.full_name}.`); navigate('/menu'); } catch (error) { toast.error(getLinkErrorMessage(error)); } finally { setEnteringStudentId(null); } };
-  const returnToParent = async () => { try { await requireSupabaseClient().rpc('clear_parent_active_student'); } catch (error) { toast.error(getLinkErrorMessage(error)); return; } clearActiveStudent(); navigate('/parent/family'); };
+  const returnToParent = async () => { try { const { error } = await requireSupabaseClient().rpc('clear_parent_active_student'); if (error) throw error; clearActiveStudent(); navigate('/parent/family'); } catch (error) { toast.error(getLinkErrorMessage(error)); } };
   const logout = async () => {
     try {
       await requireSupabaseClient().rpc('clear_parent_active_student');
