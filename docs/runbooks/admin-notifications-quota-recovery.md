@@ -58,3 +58,9 @@ SELECT pg_size_pretty(pg_total_relation_size('public.admin_notifications')) AS n
 - La limpieza histórica no debe ejecutarse desde una migración automática: requiere respaldo externo, ventana de mantenimiento y comparación de recuentos antes/después.
 - Para restaurar desde el CSV si fuera necesario, detener escrituras de notificaciones y restaurar usando las diez columnas enumeradas, con `FORMAT csv, HEADER true, NULL '\\N'`; validar IDs/recuentos antes de reabrir el uso. No restaurar encima de filas existentes sin resolver previamente los IDs duplicados.
 - No se debe borrar historial de auditoría como estrategia de ahorro. Si el tamaño posterior continúa por encima de la cuota, revisar la página Usage/Disk del proyecto y los objetos grandes restantes; el tamaño físico final debe volver a medirse, no inferirse solo del número de filas borradas.
+
+## Autorización de mantenimiento puntual — 2026-10-12
+
+Se autoriza una única ejecución del workflow de respaldo cifrado y limpieza de notificaciones administrativas huérfanas. Alcance exclusivo: filas de `public.admin_notifications` cuyo `admin_user_id` ya no tenga identidad en `auth.users`. Antes de borrar, el workflow exporta esas filas a JSONL, comprime y cifra con AES-256-GCM, verifica el respaldo, y lo sube como artefacto privado de GitHub Actions. La función de limpieza vuelve a comprobar el recuento y el hash SHA-256 dentro de una transacción con bloqueo de tabla y conserva todas las notificaciones ligadas a identidades Auth existentes.
+
+Esta autorización **no** incluye eliminar cuentas, perfiles, pedidos, saldos, movimientos de inventario ni registros de auditoría. La cuenta administrativa protegida con identidad en Auth debe conservarse. Si las comprobaciones del respaldo o del conjunto exacto fallan, la limpieza debe abortar.
