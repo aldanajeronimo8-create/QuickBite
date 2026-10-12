@@ -247,6 +247,47 @@ test.describe('critical functional flows @student', () => {
       createdOrder.order_items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0),
     );
 
+    // Regression guard: even the owner of a pending order must not update
+    // payment, status, total, visibility or ownership through direct PostgREST.
+    // Send the currently stored values so a regression cannot alter business data.
+    const studentAccessToken = await studentPage.evaluate(() => {
+      const raw = window.sessionStorage.getItem('quickbite.user.auth');
+      if (!raw) return null;
+      try { return (JSON.parse(raw) as { access_token?: string }).access_token ?? null; } catch { return null; }
+    });
+    const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+    if (!studentAccessToken || !anonKey) throw new Error('Missing student JWT or public Supabase key for the direct-write security regression.');
+    const directOrderMutation = await studentPage.context().request.patch(
+      `${auditUrl}/rest/v1/orders?id=eq.${createdOrder.id}`,
+      {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${studentAccessToken}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        },
+        data: {
+          status: createdOrder.status,
+          payment_status: createdOrder.payment_status,
+          total: Number(createdOrder.total),
+          user_id: createdOrder.user_id,
+          admin_hidden: createdOrder.admin_hidden,
+        },
+      },
+    );
+    expect([401, 403], 'student direct writes to protected order fields must be denied').toContain(directOrderMutation.status());
+    await directOrderMutation.dispose();
+
+    const enumerationProbe = await studentPage.context().request.post(
+      `${auditUrl}/rest/v1/rpc/login_email_exists`,
+      {
+        headers: { apikey: anonKey, Authorization: `Bearer ${studentAccessToken}`, 'Content-Type': 'application/json' },
+        data: { p_email: 'security-probe@example.invalid' },
+      },
+    );
+    expect([401, 403], 'the browser must not be able to enumerate registered emails').toContain(enumerationProbe.status());
+    await enumerationProbe.dispose();
+
     const purchasedQuantity = createdOrder.order_items.reduce((sum, item) => sum + Number(item.quantity), 0);
     const { data: productAfterCheckoutData, error: productAfterCheckoutError } = await auditDb
       .from('products')
