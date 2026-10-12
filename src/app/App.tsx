@@ -10,7 +10,6 @@ import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
 import { canAccessAdmin, canAccessParent, canAccessStaff, canAccessStudent } from '../lib/access';
-import { requiresProtectedFirstAccessPasswordChange } from '../lib/protectedFirstAccess';
 import { UserThemePreference } from './components/UserThemePreference';
 import { VisualThemeProvider, useVisualTheme } from './contexts/VisualThemeProvider';
 
@@ -24,35 +23,31 @@ function syncVisualInterfaceScope(pathname: string) {
 }
 
 function SessionRestorer() {
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+
   useEffect(() => {
-    let cancelled = false;
-    const restore = async () => {
-      try {
-        const context = getAuthContext();
-        const supabaseClient = getSupabaseClientForContext(context);
-        if (!supabaseClient) return;
-        const { data, error } = await supabaseClient.auth.getSession();
-        if (error) throw error;
-        if (cancelled || !data.session?.user) return;
-        if (requiresProtectedFirstAccessPasswordChange(data.session.user)) {
-          await router.navigate('/protected-first-access', { replace: true });
-          return;
-        }
-        const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('id,role,active').eq('id', data.session.user.id).maybeSingle();
-        if (profileError) throw profileError;
-        if (cancelled || !profile) return;
-        if (profile.active === false) { await supabaseClient.auth.signOut(); return; }
-        const pathname = window.location.pathname;
-        if (pathname !== '/' && pathname !== '/login') return;
-        if (context === 'admin' && canAccessAdmin(profile.role)) await router.navigate('/admin', { replace: true });
-        else if (context === 'user' && canAccessParent(profile.role)) await router.navigate('/parent/family', { replace: true });
-        else if (context === 'user' && canAccessStaff(profile.role)) await router.navigate('/staff', { replace: true });
-        else if (context === 'user' && canAccessStudent(profile.role)) await router.navigate('/menu', { replace: true });
-      } catch (error) { console.warn('[QuickBite] No se pudo restaurar la sesión automáticamente.', error); }
-    };
-    void restore();
-    return () => { cancelled = true; };
-  }, []);
+    if (loading || !user) return;
+    const pathname = router.state.location.pathname;
+    if (pathname !== '/' && pathname !== '/login') return;
+
+    if (!user.active) {
+      const client = getSupabaseClientForContext(getAuthContext());
+      void (async () => {
+        try { await client?.auth.signOut({ scope: 'local' }); }
+        catch (error) { console.warn('[QuickBite] No se pudo cerrar la sesión inactiva.', error); }
+        finally { useAuthStore.getState().setUser(null); }
+      })();
+      return;
+    }
+
+    const context = getAuthContext();
+    if (context === 'admin' && canAccessAdmin(user.role)) void router.navigate('/admin', { replace: true });
+    else if (context === 'user' && canAccessParent(user.role)) void router.navigate('/parent/family', { replace: true });
+    else if (context === 'user' && canAccessStaff(user.role)) void router.navigate('/staff', { replace: true });
+    else if (context === 'user' && canAccessStudent(user.role)) void router.navigate('/menu', { replace: true });
+  }, [loading, user]);
+
   return null;
 }
 
