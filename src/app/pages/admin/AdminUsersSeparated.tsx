@@ -181,6 +181,7 @@ export function AdminUsersSeparated() {
     if (!name || !email) return toast.error('Nombre y correo son obligatorios');
     if (!form.id && password.length < 6) return toast.error('La contraseña debe tener al menos 6 caracteres');
     if (form.id && password && password.length < 6) return toast.error('La nueva contraseña debe tener al menos 6 caracteres');
+    if (form.id && credentialOnly && !password) return toast.error('Introduce la nueva contraseña de la cuenta protegida.');
     if (!credentialOnly && mode === 'student' && needsTi(form.role) && !ti) return toast.error('La identificación TI es obligatoria.');
     if (!credentialOnly && mode === 'student' && needsTi(form.role) && (!sectionId || !gradeId || !courseId)) return toast.error('Selecciona sección, grado y curso para la cuenta estudiantil.');
     if (!credentialOnly && mode === 'parent' && !code && !form.id) return toast.error('Necesitas primero el código generado por el estudiante.');
