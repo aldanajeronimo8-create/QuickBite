@@ -241,7 +241,7 @@ jobs:
   exhaustive-audit-result:
     name: Auditoría exhaustiva final
     runs-on: ubuntu-latest
-    if: always()
+    if: ${{ always() && needs.audit-trigger.result == 'success' }}
     needs: [audit-trigger, k6-browser, e2e-exhaustive, quality]
     steps:
       - name: Evaluate audit stages
