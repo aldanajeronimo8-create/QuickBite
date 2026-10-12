@@ -37,6 +37,7 @@ interface DataState {
   loadData: (options?: { silent?: boolean; force?: boolean }) => Promise<void>;
   addProduct: (product: repo.NewProduct) => Promise<string>;
   updateProduct: (id: string, updates: repo.ProductUpdate) => Promise<void>;
+  saveProductWithNutrition: (input: repo.ProductWithNutritionInput) => Promise<repo.ProductWithNutritionSaveResult>;
   deleteProduct: (id: string) => Promise<void>;
   addOrder: (orderData: repo.NewOrder) => Promise<string>;
   updateOrder: (id: string, updates: Partial<Order>) => Promise<void>;
@@ -166,6 +167,37 @@ export const useDataStore = create<DataState>((set, get) => ({
       metadata: updates as Record<string, unknown>,
     });
     set({ products: get().products.map((item) => (item.id === id ? product : item)) });
+  },
+
+  saveProductWithNutrition: async (input) => {
+    const result = await repo.saveProductWithNutrition(input);
+    if (result.product) {
+      set({
+        products: input.productId
+          ? get().products.map((item) => item.id === result.productId ? result.product! : item)
+          : [result.product, ...get().products.filter((item) => item.id !== result.productId)],
+      });
+    } else {
+      try {
+        await get().loadData({ silent: true, force: true });
+      } catch (error) {
+        writeAuditLog({
+          action: 'app.error',
+          metadata: { source: 'post_product_save_refresh', message: String(error), productId: result.productId },
+        });
+      }
+    }
+    await remoteAudit({
+      action: input.productId ? 'product.update' : 'product.create',
+      entity: 'product',
+      entityId: result.productId,
+      metadata: {
+        name: input.product.name,
+        nutrition_saved: true,
+        database_readback_verified: result.verified,
+      },
+    });
+    return result;
   },
 
   deleteProduct: async (id) => {
