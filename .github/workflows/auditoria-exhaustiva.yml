@@ -265,7 +265,7 @@ jobs:
           set -euo pipefail
           sha="${{ needs.audit-trigger.outputs.sha }}"
           test "${#sha}" -eq 40
-          printf '%s\\n' "$sha" > audited-sha.txt
+          echo "$sha" > audited-sha.txt
 
       - name: Publish exact audited SHA for integrity audit
         if: always()
