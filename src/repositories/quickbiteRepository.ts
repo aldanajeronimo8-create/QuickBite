@@ -309,10 +309,56 @@ export async function setManagedUserActive(userId: string, active: boolean) {
 export async function listUserNotifications(userId: string, limit = 30) { const { data, error } = await requireSupabaseClient().from('notifications').select('id,user_id,order_id,type,title,body,read_at,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(Math.min(Math.max(limit, 1), 100)); if (error) throw error; return (data ?? []) as UserNotification[]; }
 export async function markUserNotificationsRead(notificationIds?: string[]) { const { error } = await requireSupabaseClient().rpc('mark_notifications_read', { p_notification_ids: notificationIds?.length ? notificationIds : null }); if (error) throw error; }
 export async function getLoyaltySettings() { const { data, error } = await requireSupabaseClient().from('loyalty_settings').select('id,enabled,points_per_currency_unit,updated_at').eq('id', true).single(); if (error) throw error; return data as LoyaltySettings; }
-export async function updateLoyaltySettings(updates: Pick<LoyaltySettings, 'enabled'>) { const { data, error } = await requireSupabaseClient().from('loyalty_settings').update(updates).eq('id', true).select('id,enabled,points_per_currency_unit,updated_at').single(); if (error) throw error; return data as LoyaltySettings; }
+export class PostWriteVerificationError extends Error {
+  readonly committed = true;
+  constructor(message: string) {
+    super(message);
+    this.name = 'PostWriteVerificationError';
+  }
+}
+export async function updateLoyaltySettings(updates: Pick<LoyaltySettings, 'enabled'>) {
+  const client = requireSupabaseClient();
+  const { data: updateResult, error } = await client.from('loyalty_settings').update(updates).eq('id', true).select('id,enabled,points_per_currency_unit,updated_at').maybeSingle();
+  if (error) throw error;
+  if (!updateResult) throw new PostWriteVerificationError('La actualización del programa se envió, pero Supabase no devolvió la fila modificada.');
+  const { data: saved, error: verifyError } = await client.from('loyalty_settings').select('id,enabled,points_per_currency_unit,updated_at').eq('id', true).maybeSingle();
+  if (verifyError) throw new PostWriteVerificationError('El programa pudo actualizarse, pero no se pudo verificar su lectura: ' + verifyError.message);
+  if (!saved || saved.id !== true || saved.enabled !== updates.enabled) throw new PostWriteVerificationError('El estado persistido del programa de puntos no coincide con el solicitado.');
+  return saved as LoyaltySettings;
+}
 export async function listLoyaltyRewards(includeInactive = false) { let query = requireSupabaseClient().from('loyalty_rewards').select('*, product:products(*)').order('points_required', { ascending: true }); if (!includeInactive) query = query.eq('active', true); const { data, error } = await query; if (error) throw error; return (data ?? []) as LoyaltyReward[]; }
-export async function createLoyaltyReward(reward: LoyaltyRewardInput) { const { data, error } = await requireSupabaseClient().from('loyalty_rewards').insert({ ...reward, points_cost: reward.points_required }).select('*, product:products(*)').single(); if (error) throw error; return data as LoyaltyReward; }
-export async function updateLoyaltyReward(id: string, updates: LoyaltyRewardUpdate) { const payload = { ...updates, ...(updates.points_required !== undefined ? { points_cost: updates.points_required } : {}) }; const { data, error } = await requireSupabaseClient().from('loyalty_rewards').update(payload).eq('id', id).select('*, product:products(*)').single(); if (error) throw error; return data as LoyaltyReward; }
+export async function createLoyaltyReward(reward: LoyaltyRewardInput) {
+  const client = requireSupabaseClient();
+  const { data: inserted, error } = await client.from('loyalty_rewards').insert({ ...reward, points_cost: reward.points_required }).select('id').single();
+  if (error) throw error;
+  if (!inserted?.id) throw new PostWriteVerificationError('La recompensa se envió, pero no se obtuvo el ID para verificarla.');
+  const { data: saved, error: verifyError } = await client.from('loyalty_rewards').select('*, product:products(*)').eq('id', inserted.id).maybeSingle();
+  if (verifyError) throw new PostWriteVerificationError('La recompensa pudo guardarse, pero la lectura de verificación falló: ' + verifyError.message);
+  if (!saved || saved.product_id !== reward.product_id || saved.title !== reward.title ||
+      saved.description !== (reward.description ?? null) || Number(saved.points_required) !== Number(reward.points_required) ||
+      Number(saved.points_cost) !== Number(reward.points_required) || saved.active !== reward.active) {
+    throw new PostWriteVerificationError('La recompensa guardada no coincide con los datos enviados.');
+  }
+  return saved as LoyaltyReward;
+}
+export async function updateLoyaltyReward(id: string, updates: LoyaltyRewardUpdate) {
+  const client = requireSupabaseClient();
+  const payload = { ...updates, ...(updates.points_required !== undefined ? { points_cost: updates.points_required } : {}) };
+  const { data: updateResult, error } = await client.from('loyalty_rewards').update(payload).eq('id', id).select('id').maybeSingle();
+  if (error) throw error;
+  if (!updateResult || updateResult.id !== id) throw new PostWriteVerificationError('Supabase no confirmó qué recompensa se actualizó.');
+  const { data: saved, error: verifyError } = await client.from('loyalty_rewards').select('*, product:products(*)').eq('id', id).maybeSingle();
+  if (verifyError) throw new PostWriteVerificationError('La recompensa pudo actualizarse, pero la lectura de verificación falló: ' + verifyError.message);
+  if (!saved || saved.id !== id ||
+      (updates.product_id !== undefined && saved.product_id !== updates.product_id) ||
+      (updates.title !== undefined && saved.title !== updates.title) ||
+      (updates.description !== undefined && saved.description !== updates.description) ||
+      (updates.active !== undefined && saved.active !== updates.active) ||
+      (updates.points_required !== undefined && (Number(saved.points_required) !== Number(updates.points_required) || Number(saved.points_cost) !== Number(updates.points_required)))) {
+    throw new PostWriteVerificationError('La recompensa guardada no coincide con los cambios solicitados.');
+  }
+  return saved as LoyaltyReward;
+}
 export async function listUserLoyaltyRedemptions(userId: string) { const { data, error } = await requireSupabaseClient().from('loyalty_redemptions').select('*, reward:loyalty_rewards(id,title,product:products(name))').eq('user_id', userId).order('created_at', { ascending: false }).limit(20); if (error) throw error; return (data ?? []) as LoyaltyRedemption[]; }
 export async function getUserLoyaltyPoints(userId: string) { const { data, error } = await requireSupabaseClient().from('loyalty_point_ledger').select('points').eq('user_id', userId); if (error) throw error; return (data ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0); }
 export async function redeemLoyaltyReward(rewardId: string): Promise<Omit<LoyaltyRedemption, 'user_id' | 'product_id'> & { verified: boolean; verificationMessage?: string }> {
@@ -354,7 +400,22 @@ export async function redeemLoyaltyReward(rewardId: string): Promise<Omit<Loyalt
   }
 }
 export async function listAdminLoyaltyRedemptions(limit = 50) { const { data, error } = await requireSupabaseClient().from('loyalty_redemptions').select('*, user:profiles(id,full_name,email), reward:loyalty_rewards(id,title)').order('created_at', { ascending: false }).limit(Math.min(Math.max(limit, 1), 100)); if (error) throw error; return (data ?? []) as AdminLoyaltyRedemption[]; }
-export async function fulfillLoyaltyRedemption(redemptionId: string, redemptionCode: string) { const { error } = await requireSupabaseClient().rpc('admin_fulfill_loyalty_redemption', { p_redemption_id: redemptionId, p_redemption_code: redemptionCode }); if (error) throw loyaltyFulfillmentError(error); }
+export async function fulfillLoyaltyRedemption(redemptionId: string, redemptionCode: string) {
+  const client = requireSupabaseClient();
+  const { data: result, error } = await client.rpc('admin_fulfill_loyalty_redemption', { p_redemption_id: redemptionId, p_redemption_code: redemptionCode });
+  if (error) throw loyaltyFulfillmentError(error);
+  if (result !== redemptionId) throw new PostWriteVerificationError('La operación de entrega devolvió un ID distinto al canje esperado.');
+  const { data: saved, error: verifyError } = await client.from('loyalty_redemptions')
+    .select('id,redemption_code,status,fulfilled_at')
+    .eq('id', redemptionId)
+    .maybeSingle();
+  if (verifyError) throw new PostWriteVerificationError('El canje pudo marcarse como entregado, pero no se pudo verificar la lectura posterior: ' + verifyError.message);
+  if (!saved || saved.id !== redemptionId ||
+      saved.redemption_code.trim().toLowerCase() !== redemptionCode.trim().toLowerCase() ||
+      saved.status !== 'fulfilled' || !saved.fulfilled_at) {
+    throw new PostWriteVerificationError('El canje no muestra el estado de entrega esperado en Supabase.');
+  }
+}
 export async function deleteOrder(id: string) { const client = requireSupabaseClient(); const { error } = await client.from('orders').delete().eq('id', id); if (error) throw error; const [orderCheck, itemsCheck] = await Promise.all([client.from('orders').select('id').eq('id', id).maybeSingle(), client.from('order_items').select('id').eq('order_id', id).limit(1)]); if (orderCheck.error) throw new Error('El pedido se eliminó, pero no se pudo verificar su ausencia: ' + orderCheck.error.message); if (itemsCheck.error) throw new Error('El pedido se eliminó, pero no se pudo verificar la eliminación de sus ítems: ' + itemsCheck.error.message); if (orderCheck.data || (itemsCheck.data ?? []).length) throw new Error('El pedido o alguno de sus ítems todavía aparece en Supabase.'); }
 export async function listProfiles() { const supabase = requireSupabaseClient(); const { data, error } = await supabase.rpc('admin_list_users_with_academics'); if (!error) return (data ?? []) as Profile[]; if (!isMissingRpc(error)) throw error; const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id,email,full_name,role,ti,created_at,active,grade,section_id,grade_id,course_id').order('created_at', { ascending: false }); if (profilesError) throw profilesError; return (profiles ?? []) as Profile[]; }
 export async function getProfile(userId: string) { return withRetry(async () => { const { data, error } = await requireSupabaseClient().from('profiles').select('id,email,full_name,role,ti,created_at,active,grade,section_id,grade_id,course_id').eq('id', userId).maybeSingle(); if (error) throw error; return data as Profile | null; }); }
