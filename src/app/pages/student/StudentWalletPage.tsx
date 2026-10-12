@@ -80,9 +80,10 @@ export function StudentWalletPage() {
       return;
     }
     setRequestingTopup(true);
+    let committed = false;
     try {
       const client = requireSupabaseClient();
-      const { error } = await client.rpc('request_wallet_topup', {
+      const { data: requestId, error } = await client.rpc('request_wallet_topup', {
         p_amount: amount,
         p_method: topupMethod,
         p_reference: topupReference.trim() || null,
@@ -90,13 +91,34 @@ export function StudentWalletPage() {
         p_comment: topupComment.trim() || null,
       });
       if (error) throw error;
+      if (typeof requestId !== 'string' || !requestId) throw new Error('Supabase no devolvió el identificador de la solicitud.');
+      committed = true;
+      const expectedReference = topupReference.trim() || null;
+      const expectedComment = topupComment.trim() || null;
+      const { data: saved, error: verifyError } = await client.from('wallet_topup_requests')
+        .select('id,user_id,amount,method,reference,status,comment')
+        .eq('id', requestId).maybeSingle();
+      if (verifyError) throw new Error('La solicitud se creó, pero no se pudo comprobar su lectura: ' + verifyError.message);
+      if (!saved || saved.user_id !== userId || Number(saved.amount) !== amount || saved.method !== topupMethod ||
+          (saved.reference ?? null) !== expectedReference || (saved.comment ?? null) !== expectedComment || saved.status !== 'pending') {
+        throw new Error('La solicitud guardada no coincide con los datos enviados.');
+      }
+
       setTopupAmount('');
       setTopupReference('');
       setTopupComment('');
-      toast.success('Solicitud de recarga enviada. Quedará pendiente hasta ser confirmada por administración.');
       await load();
+      toast.success('Solicitud de recarga guardada y verificada en Supabase. Quedará pendiente hasta ser confirmada por administración.');
     } catch (error) {
-      toast.error(topupErrorMessage(error));
+      if (committed) {
+        setTopupAmount('');
+        setTopupReference('');
+        setTopupComment('');
+        toast.warning('La solicitud se creó en Supabase, pero no se pudo verificar completamente. Actualiza el historial antes de volver a solicitarla. ' + (error instanceof Error ? error.message : ''));
+        void load().catch((loadError) => toast.error(loadError instanceof Error ? loadError.message : 'No se pudo actualizar el historial.'));
+      } else {
+        toast.error(topupErrorMessage(error));
+      }
     } finally {
       setRequestingTopup(false);
     }

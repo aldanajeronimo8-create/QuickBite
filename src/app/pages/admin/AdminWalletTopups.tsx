@@ -67,13 +67,40 @@ export function AdminWalletTopups() {
 
   const approve = async (id: string) => {
     setBusy(id);
+    let committed = false;
     try {
-      const { error: rpcError } = await requireSupabaseClient().rpc('admin_approve_wallet_topup', { p_request_id: id });
+      const client = requireSupabaseClient();
+      const { data, error: rpcError } = await client.rpc('admin_approve_wallet_topup', { p_request_id: id });
       if (rpcError) throw rpcError;
-      toast.success('Recarga aprobada y saldo actualizado.');
+      committed = true;
+      const result = data as { request_id?: string; user_id?: string; amount?: number; new_balance?: number; status?: string } | null;
+      if (!result || result.request_id !== id || result.status !== 'approved' || !result.user_id) {
+        throw new Error('Supabase ejecutó la aprobación, pero no devolvió una confirmación válida.');
+      }
+      const [requestCheck, walletCheck, transactionCheck] = await Promise.all([
+        client.from('wallet_topup_requests').select('id,user_id,amount,status').eq('id', id).maybeSingle(),
+        client.from('wallet_accounts').select('user_id,balance').eq('user_id', result.user_id).maybeSingle(),
+        client.from('wallet_transactions').select('id,user_id,amount,balance_after,type,reference_id').eq('reference_id', id).eq('type', 'top_up').maybeSingle(),
+      ]);
+      if (requestCheck.error) throw new Error('No se pudo verificar el estado de la recarga: ' + requestCheck.error.message);
+      if (walletCheck.error) throw new Error('No se pudo verificar el saldo actualizado: ' + walletCheck.error.message);
+      if (transactionCheck.error) throw new Error('No se pudo verificar la transacción financiera: ' + transactionCheck.error.message);
+      if (!requestCheck.data || requestCheck.data.status !== 'approved' || requestCheck.data.user_id !== result.user_id ||
+          Number(requestCheck.data.amount) !== Number(result.amount) || !walletCheck.data ||
+          Number(walletCheck.data.balance) !== Number(result.new_balance) || !transactionCheck.data ||
+          transactionCheck.data.user_id !== result.user_id || Number(transactionCheck.data.amount) !== Number(result.amount) ||
+          Number(transactionCheck.data.balance_after) !== Number(result.new_balance)) {
+        throw new Error('El estado, el saldo o la transacción guardados no coinciden con la aprobación solicitada.');
+      }
       await load(true);
+      toast.success('Recarga aprobada; solicitud, saldo y transacción verificados en Supabase.');
     } catch (e) {
-      toast.error(e instanceof Error ? (/unauthorized|not_authorized/i.test(e.message) ? 'Tu sesión administrativa no tiene permisos para aprobar recargas.' : /request_not_found|already_reviewed/i.test(e.message) ? 'La solicitud ya fue procesada. Actualiza la lista.' : e.message) : 'No se pudo aprobar la recarga.');
+      if (committed) {
+        toast.warning('Supabase recibió la aprobación, pero no se pudo verificar toda la información. Actualiza la lista y el saldo antes de repetirla. ' + (e instanceof Error ? e.message : ''));
+        void load(true);
+      } else {
+        toast.error(e instanceof Error ? (/unauthorized|not_authorized/i.test(e.message) ? 'Tu sesión administrativa no tiene permisos para aprobar recargas.' : /request_not_found|already_reviewed/i.test(e.message) ? 'La solicitud ya fue procesada. Actualiza la lista.' : e.message) : 'No se pudo aprobar la recarga.');
+      }
     } finally {
       setBusy(null);
     }
@@ -82,13 +109,27 @@ export function AdminWalletTopups() {
   const reject = async (id: string) => {
     const reason = window.prompt('Motivo del rechazo (opcional):') ?? '';
     setBusy(id);
+    let committed = false;
     try {
-      const { error: rpcError } = await requireSupabaseClient().rpc('reject_wallet_topup', { p_request_id: id, p_reason: reason });
+      const client = requireSupabaseClient();
+      const { error: rpcError } = await client.rpc('reject_wallet_topup', { p_request_id: id, p_reason: reason });
       if (rpcError) throw rpcError;
-      toast.success('Recarga rechazada.');
+      committed = true;
+      const { data: saved, error: verifyError } = await client.from('wallet_topup_requests')
+        .select('id,status,rejection_reason').eq('id', id).maybeSingle();
+      if (verifyError) throw new Error('La recarga se rechazó, pero no se pudo comprobar su lectura: ' + verifyError.message);
+      if (!saved || saved.status !== 'rejected' || (saved.rejection_reason ?? null) !== (reason.trim() || null)) {
+        throw new Error('El estado o el motivo guardado no coincide con el rechazo solicitado.');
+      }
       await load(true);
+      toast.success('Recarga rechazada y estado verificado en Supabase.');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo rechazar la recarga.');
+      if (committed) {
+        toast.warning('Supabase recibió el rechazo, pero falta verificarlo. Actualiza la lista antes de repetir la acción. ' + (e instanceof Error ? e.message : ''));
+        void load(true);
+      } else {
+        toast.error(e instanceof Error ? e.message : 'No se pudo rechazar la recarga.');
+      }
     } finally {
       setBusy(null);
     }

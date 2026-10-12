@@ -112,16 +112,27 @@ export function StudentAccountFeaturesPage() {
   const saveDietary = async () => {
     if (!userId) return;
     setSavingDietary(true);
+    let committed = false;
     try {
       const client = requireSupabaseClient();
       const split = (value: string) => [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
       const next = { student_user_id: userId, allergies: split(allergies), restrictions: split(restrictions), notes: notes.trim() || null, updated_at: new Date().toISOString() };
       const { error } = await client.from('student_dietary_profiles').upsert(next, { onConflict: 'student_user_id' });
       if (error) throw error;
-      setDietary({ allergies: next.allergies, restrictions: next.restrictions, notes: next.notes });
-      toast.success('Preferencias alimentarias guardadas.');
+      committed = true;
+      const { data: saved, error: verifyError } = await client.from('student_dietary_profiles')
+        .select('student_user_id,allergies,restrictions,notes').eq('student_user_id', userId).maybeSingle();
+      if (verifyError) throw new Error('Las preferencias se enviaron, pero no se pudo comprobar su lectura: ' + verifyError.message);
+      const allergiesMatch = saved && JSON.stringify([...(saved.allergies ?? [])].sort()) === JSON.stringify([...next.allergies].sort());
+      const restrictionsMatch = saved && JSON.stringify([...(saved.restrictions ?? [])].sort()) === JSON.stringify([...next.restrictions].sort());
+      if (!saved || !allergiesMatch || !restrictionsMatch || (saved.notes ?? null) !== next.notes) {
+        throw new Error('El perfil alimentario guardado no coincide con los datos enviados.');
+      }
+      setDietary({ allergies: saved.allergies ?? [], restrictions: saved.restrictions ?? [], notes: saved.notes ?? null });
+      toast.success('Preferencias alimentarias guardadas y verificadas en Supabase.');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo guardar el perfil alimentario.');
+      if (committed) toast.warning('Supabase recibió las preferencias, pero falta verificar los datos guardados. ' + (error instanceof Error ? error.message : 'No se pudo verificar la lectura.'));
+      else toast.error(error instanceof Error ? error.message : 'No se pudo guardar el perfil alimentario.');
     } finally {
       setSavingDietary(false);
     }

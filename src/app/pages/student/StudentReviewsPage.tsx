@@ -81,22 +81,44 @@ export function StudentReviewsPage() {
   const submit = async () => {
     if (!studentId || !selectedPurchase) return;
     setSubmitting(true);
+    let committed = false;
     try {
-      const { error } = await requireSupabaseClient().rpc('submit_product_review', {
+      const client = requireSupabaseClient();
+      const { data: created, error } = await client.rpc('submit_product_review', {
         p_product_id: selectedPurchase.product_id,
         p_order_id: selectedPurchase.order_id,
         p_stars: stars,
         p_comment: comment.trim() || null,
       });
       if (error) throw error;
-      toast.success('Reseña enviada. Quedará pendiente de aprobación.');
+      if (!created?.id) throw new Error('Supabase no devolvió el identificador de la reseña creada.');
+      committed = true;
+      const { data: saved, error: verifyError } = await client.from('product_reviews')
+        .select('id,student_id,product_id,order_id,stars,comment,status')
+        .eq('id', created.id).maybeSingle();
+      if (verifyError) throw new Error('La reseña se creó, pero no se pudo verificar su lectura: ' + verifyError.message);
+      const expectedComment = comment.trim() || null;
+      if (!saved || saved.student_id !== studentId || saved.product_id !== selectedPurchase.product_id ||
+          saved.order_id !== selectedPurchase.order_id || saved.stars !== stars ||
+          (saved.comment ?? null) !== expectedComment || saved.status !== 'pending') {
+        throw new Error('La reseña guardada no coincide con los datos enviados.');
+      }
       setSelectedPurchase(null);
       setComment('');
       setStars(5);
       await load();
+      toast.success('Reseña guardada y verificada en Supabase. Quedará pendiente de aprobación.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo enviar la reseña.';
-      toast.error(message.includes('review_already_exists') ? 'Ya reseñaste este producto en ese pedido.' : message);
+      if (committed) {
+        setSelectedPurchase(null);
+        setComment('');
+        setStars(5);
+        toast.warning('La reseña se creó, pero falta verificarla. Actualiza la sección antes de volver a enviarla. ' + message);
+        void load();
+      } else {
+        toast.error(message.includes('review_already_exists') ? 'Ya reseñaste este producto en ese pedido.' : message);
+      }
     } finally {
       setSubmitting(false);
     }

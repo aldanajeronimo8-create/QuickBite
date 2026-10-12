@@ -68,6 +68,7 @@ export function StudentFavoritesPage() {
   const toggleFavorite = async (productId: string) => {
     if (saving) return;
     setSaving(productId);
+    let committed = false;
     try {
       const client = requireSupabaseClient();
       const userId = await getEffectiveUserId();
@@ -79,6 +80,16 @@ export function StudentFavoritesPage() {
             { onConflict: 'user_id,product_id', ignoreDuplicates: true },
           );
       if (result.error) throw result.error;
+      committed = true;
+
+      const { data: saved, error: verifyError } = await client.from('favorites')
+        .select('user_id,product_id').eq('user_id', userId).eq('product_id', productId).maybeSingle();
+      if (verifyError) throw new Error('La operación se envió, pero no se pudo verificar el favorito: ' + verifyError.message);
+      if (exists ? Boolean(saved) : !saved) {
+        throw new Error(exists
+          ? 'El favorito todavía existe en Supabase; no se confirmó la eliminación.'
+          : 'El favorito no aparece en Supabase después de guardarlo.');
+      }
 
       if (exists) {
         setFavoriteIds((current) => current.filter((id) => id !== productId));
@@ -86,9 +97,14 @@ export function StudentFavoritesPage() {
       } else {
         setFavoriteIds((current) => current.includes(productId) ? current : [...current, productId]);
       }
-      toast.success(exists ? 'Quitado de favoritos.' : 'Agregado a favoritos.');
+      toast.success(exists ? 'Favorito eliminado y verificado en Supabase.' : 'Favorito guardado y verificado en Supabase.');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el favorito.');
+      if (committed) {
+        toast.warning('La operación pudo guardarse, pero falta verificarla. Actualiza la lista antes de repetirla.');
+        void load().catch((loadError) => toast.error(loadError instanceof Error ? loadError.message : 'No se pudo actualizar la lista.'));
+      } else {
+        toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el favorito.');
+      }
     } finally {
       setSaving(null);
     }

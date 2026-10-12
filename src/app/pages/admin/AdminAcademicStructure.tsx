@@ -45,28 +45,97 @@ export function AdminAcademicStructure() {
 
   useEffect(() => { if (!sectionGrades.some((g) => g.id === selectedGrade)) setSelectedGrade(sectionGrades[0]?.id || ''); }, [sectionGrades, selectedGrade]);
 
+  const writeError = (error: unknown) => error instanceof Error ? error.message : 'Error desconocido al escribir en Supabase.';
   const addSection = async () => {
-    const name = newSection.trim(); if (!name) return;
-    const { error } = await supabase.from('academic_sections').insert({ name, display_order: sections.length + 1 });
-    if (error) toast.error(error.message); else { toast.success('Sección creada.'); setNewSection(''); await load(); }
+    const name = newSection.trim();
+    if (!name) return;
+    let createdId: string | null = null;
+    try {
+      const { data: created, error } = await supabase.from('academic_sections')
+        .insert({ name, display_order: sections.length + 1 }).select('id,name').single();
+      if (error) throw error;
+      createdId = created.id;
+      const { data: saved, error: verifyError } = await supabase.from('academic_sections')
+        .select('id,name').eq('id', created.id).maybeSingle();
+      if (verifyError) throw new Error(`La sección se creó, pero no se pudo comprobar su lectura: ${verifyError.message}`);
+      if (!saved || saved.name !== name) throw new Error('La sección creada no coincide con los datos enviados.');
+      setNewSection('');
+      await load();
+      toast.success('Sección creada y verificada en Supabase.');
+    } catch (error) {
+      if (createdId) toast.warning(`La sección se creó, pero falta verificarla: ${writeError(error)}`);
+      else toast.error(`No se pudo crear la sección: ${writeError(error)}`);
+    }
   };
+
   const addGrade = async () => {
-    const name = newGrade.trim(); if (!name || !selectedSection) return;
-    const { error } = await supabase.from('academic_grades').insert({ section_id: selectedSection, name, display_order: sectionGrades.length + 1 });
-    if (error) toast.error(error.message); else { toast.success('Grado creado.'); setNewGrade(''); await load(); }
+    const name = newGrade.trim();
+    if (!name || !selectedSection) return;
+    let createdId: string | null = null;
+    try {
+      const { data: created, error } = await supabase.from('academic_grades')
+        .insert({ section_id: selectedSection, name, display_order: sectionGrades.length + 1 }).select('id,name,section_id').single();
+      if (error) throw error;
+      createdId = created.id;
+      const { data: saved, error: verifyError } = await supabase.from('academic_grades')
+        .select('id,name,section_id').eq('id', created.id).maybeSingle();
+      if (verifyError) throw new Error(`El grado se creó, pero no se pudo comprobar su lectura: ${verifyError.message}`);
+      if (!saved || saved.name !== name || saved.section_id !== selectedSection) throw new Error('El grado creado no coincide con los datos enviados.');
+      setNewGrade('');
+      await load();
+      toast.success('Grado creado y verificado en Supabase.');
+    } catch (error) {
+      if (createdId) toast.warning(`El grado se creó, pero falta verificarlo: ${writeError(error)}`);
+      else toast.error(`No se pudo crear el grado: ${writeError(error)}`);
+    }
   };
+
   const addCourse = async () => {
-    const name = newCourse.trim().toUpperCase(); if (!name || !selectedGrade) return;
-    const { error } = await supabase.from('academic_courses').insert({ grade_id: selectedGrade, name, display_order: gradeCourses.length + 1 });
-    if (error) toast.error(error.message); else { toast.success('Curso creado.'); setNewCourse(''); await load(); }
+    const name = newCourse.trim().toUpperCase();
+    if (!name || !selectedGrade) return;
+    let createdId: string | null = null;
+    try {
+      const { data: created, error } = await supabase.from('academic_courses')
+        .insert({ grade_id: selectedGrade, name, display_order: gradeCourses.length + 1 }).select('id,name,grade_id').single();
+      if (error) throw error;
+      createdId = created.id;
+      const { data: saved, error: verifyError } = await supabase.from('academic_courses')
+        .select('id,name,grade_id').eq('id', created.id).maybeSingle();
+      if (verifyError) throw new Error(`El curso se creó, pero no se pudo comprobar su lectura: ${verifyError.message}`);
+      if (!saved || saved.name !== name || saved.grade_id !== selectedGrade) throw new Error('El curso creado no coincide con los datos enviados.');
+      setNewCourse('');
+      await load();
+      toast.success('Curso creado y verificado en Supabase.');
+    } catch (error) {
+      if (createdId) toast.warning(`El curso se creó, pero falta verificarlo: ${writeError(error)}`);
+      else toast.error(`No se pudo crear el curso: ${writeError(error)}`);
+    }
   };
+
   const toggle = async (table: string, id: string, active: boolean) => {
-    const { error } = await supabase.from(table).update({ active: !active }).eq('id', id);
-    if (error) toast.error(error.message); else await load();
+    try {
+      const { data, error } = await supabase.from(table).update({ active: !active }).eq('id', id).select('id,active').single();
+      if (error) throw error;
+      if (!data || data.active !== !active) throw new Error('Supabase no devolvió el nuevo estado de forma consistente.');
+      await load();
+      toast.success('Estado actualizado y verificado en Supabase.');
+    } catch (error) {
+      toast.error(`No se pudo confirmar el cambio de estado: ${writeError(error)}`);
+    }
   };
+
   const remove = async (table: string, id: string) => {
-    const { error } = await supabase.from(table).delete().eq('id', id);
-    if (error) toast.error(error.message); else { toast.success('Elemento eliminado.'); await load(); }
+    try {
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error) throw error;
+      const { data: remaining, error: verifyError } = await supabase.from(table).select('id').eq('id', id).maybeSingle();
+      if (verifyError) throw new Error(`La eliminación se envió, pero no se pudo comprobar la ausencia: ${verifyError.message}`);
+      if (remaining) throw new Error('El registro todavía existe en Supabase; no se confirmó la eliminación.');
+      await load();
+      toast.success('Elemento eliminado y ausencia verificada en Supabase.');
+    } catch (error) {
+      toast.error(`No se pudo confirmar la eliminación: ${writeError(error)}`);
+    }
   };
 
   return <div className="space-y-6">
