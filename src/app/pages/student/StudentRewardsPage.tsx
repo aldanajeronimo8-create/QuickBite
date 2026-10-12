@@ -25,7 +25,7 @@ export function StudentRewardsPage() {
   const loyalty = useLoyalty(userId ?? undefined, orders);
   const handleRedeem = async (reward: LoyaltyReward) => {
     setRedeemingRewardId(reward.id);
-    try { await loyalty.redeem(reward.id); toast.success('Canje solicitado. Admin debe aprobarlo.'); }
+    try { const result = await loyalty.redeem(reward.id); if (result.verified) toast.success('Canje creado y verificado en Supabase. Quedará pendiente de aprobación administrativa.'); else toast.warning(`El canje pudo guardarse, pero no se pudo verificar. ${result.verificationMessage ?? 'Actualiza el historial antes de volver a intentarlo.'}`); }
     catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo completar el canje.'); }
     finally { setRedeemingRewardId(null); }
   };
