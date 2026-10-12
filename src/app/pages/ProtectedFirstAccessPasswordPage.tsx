@@ -69,7 +69,21 @@ export function ProtectedFirstAccessPasswordPage() {
         'server/api/protected-first-access/change-password',
         { body: { new_password: password } },
       );
-      if (functionError) throw new Error(functionError.message || 'No se pudo verificar el cambio de contraseña.');
+      if (functionError) {
+        // Supabase FunctionsHttpError keeps the server response in context.
+        // Surface the API's actionable error instead of the generic non-2xx text.
+        const response = (functionError as { context?: unknown }).context;
+        if (response instanceof Response) {
+          const payload = await response.clone().json().catch(() => null) as { error?: unknown; message?: unknown } | null;
+          const serverMessage = typeof payload?.error === 'string'
+            ? payload.error
+            : typeof payload?.message === 'string'
+              ? payload.message
+              : '';
+          throw new Error(serverMessage || `${functionError.message || 'No se pudo verificar el cambio de contraseña.'} (HTTP ${response.status})`);
+        }
+        throw new Error(functionError.message || 'No se pudo verificar el cambio de contraseña.');
+      }
       if (data?.error) throw new Error(String(data.error));
       if (data?.changed !== true) throw new Error('QuickBite no confirmó el cambio de contraseña.');
 
