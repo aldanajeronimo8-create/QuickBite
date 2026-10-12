@@ -11,6 +11,7 @@ import {
   listLoyaltyRewards,
   updateLoyaltyReward,
   updateLoyaltySettings,
+  PostWriteVerificationError,
 } from '../../../repositories/quickbiteRepository';
 import { useDataStore } from '../../../store/dataStore';
 import { useAuthStore } from '../../../store/authStore';
@@ -103,8 +104,13 @@ export function AdminLoyalty() {
       setSettings(savedSettings);
       toast.success(enabled ? 'Programa de puntos activado.' : 'Programa de puntos desactivado.');
     } catch (error) {
-      setSettings(previousSettings);
-      toast.error(getErrorMessage(error, 'No se pudo actualizar el programa de puntos.'));
+      if (error instanceof PostWriteVerificationError) {
+        await load();
+        toast.warning('El cambio pudo guardarse, pero no se pudo confirmar con una lectura independiente. Se recargó el estado; no repitas la operación sin comprobarlo.');
+      } else {
+        setSettings(previousSettings);
+        toast.error(getErrorMessage(error, 'No se pudo actualizar el programa de puntos.'));
+      }
     } finally {
       setUpdatingSettings(false);
     }
@@ -145,7 +151,13 @@ export function AdminLoyalty() {
       toast.success(editingRewardId ? 'Recompensa actualizada.' : 'Recompensa creada.');
       resetForm();
     } catch (error) {
-      toast.error(getErrorMessage(error, 'No se pudo guardar la recompensa.'));
+      if (error instanceof PostWriteVerificationError) {
+        resetForm();
+        await load();
+        toast.warning('La recompensa pudo guardarse, pero no se pudo verificar su estado final. Se recargaron los datos; no vuelvas a crearla sin comprobar el listado.');
+      } else {
+        toast.error(getErrorMessage(error, 'No se pudo guardar la recompensa.'));
+      }
     } finally {
       setSaving(false);
     }
@@ -163,7 +175,12 @@ export function AdminLoyalty() {
       setRewards((current) => current.map((item) => (item.id === reward.id ? updated : item)));
       toast.success(nextActive ? 'Recompensa activada.' : 'Recompensa desactivada.');
     } catch (error) {
-      toast.error(getErrorMessage(error, 'No se pudo cambiar el estado de la recompensa.'));
+      if (error instanceof PostWriteVerificationError) {
+        await load();
+        toast.warning('El estado de la recompensa pudo cambiar, pero no se pudo verificar de forma independiente. Se recargó el listado.');
+      } else {
+        toast.error(getErrorMessage(error, 'No se pudo cambiar el estado de la recompensa.'));
+      }
     }
   };
 
@@ -174,7 +191,12 @@ export function AdminLoyalty() {
       setRedemptions((current) => current.map((redemption) => redemption.id === redemptionId ? { ...redemption, status: 'fulfilled' } : redemption));
       toast.success('Canje marcado como entregado.');
     } catch (error) {
-      toast.error(getErrorMessage(error, 'No se pudo entregar el canje.'));
+      if (error instanceof PostWriteVerificationError) {
+        await load();
+        toast.warning('La entrega pudo registrarse, pero no se pudo verificar el estado final del canje. Se recargaron los datos desde Supabase.');
+      } else {
+        toast.error(getErrorMessage(error, 'No se pudo entregar el canje.'));
+      }
     } finally {
       setFulfillingRedemptionId(null);
     }
