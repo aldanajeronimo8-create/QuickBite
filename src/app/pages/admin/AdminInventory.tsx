@@ -46,7 +46,7 @@ const movementTone: Record<InventoryMovementType, string> = {
 };
 
 export function AdminInventory() {
-  const { products, categories, updateProduct } = useDataStore();
+  const { products, categories, updateProduct, loadData } = useDataStore();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [stock, setStock] = useState('');
   const [movementType, setMovementType] = useState<InventoryMovementType>('adjustment');
@@ -98,14 +98,21 @@ export function AdminInventory() {
     }
 
     try {
+      // This RPC already updates products.stock and inserts the inventory movement
+      // atomically. A second updateProduct() call could fail after the stock had
+      // committed, leaving the UI showing an error for a successful operation.
       await adjustInventory(editingProduct.id, newStock, movementType, reason);
-      await updateProduct(editingProduct.id, { stock: newStock });
-      await loadMovements();
-      toast.success(`${movementLabels[movementType]} registrada correctamente`);
       setEditingProduct(null);
       setStock('');
       setReason('');
       setMovementType('adjustment');
+      toast.success(`${movementLabels[movementType]} registrada correctamente`);
+      try {
+        await loadData({ silent: true, force: true });
+      } catch {
+        toast.error('El movimiento se guardó en Supabase, pero no se pudo actualizar la vista del inventario. Recarga la página para ver el stock confirmado.');
+      }
+      await loadMovements();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo registrar el movimiento');
     }
