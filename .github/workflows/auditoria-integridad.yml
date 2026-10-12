@@ -13,6 +13,7 @@ on:
     types: [completed]
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -30,13 +31,28 @@ jobs:
     outputs:
       sha: ${{ steps.resolve-sha.outputs.sha }}
     steps:
+      - name: Download exact SHA recorded by the exhaustive audit
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: exhaustive-audit-sha
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .audit-target
+
       - name: Resolve exact exhaustive-audit SHA
         id: resolve-sha
         shell: bash
         run: |
           set -euo pipefail
-          sha="${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}"
-          test -n "$sha"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            test -s .audit-target/audited-sha.txt
+            sha="$(tr -d '\r\n' < .audit-target/audited-sha.txt)"
+          else
+            sha="${{ inputs.sha }}"
+            if [ -z "$sha" ]; then sha="$GITHUB_SHA"; fi
+          fi
+          test "${#sha}" -eq 40
           echo "Auditing exact exhaustive SHA: $sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
