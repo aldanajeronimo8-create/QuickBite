@@ -223,7 +223,8 @@ export function AdminUsersSeparated() {
           section_id: mode === 'student' && needsTi(form.role) ? sectionId : undefined,
           grade_id: mode === 'student' && needsTi(form.role) ? gradeId : undefined,
           course_id: mode === 'student' && needsTi(form.role) ? courseId : undefined,
-          student_code: undefined,
+          // Pass the student-issued code so the DB transaction can validate and create the family link.
+          student_code: mode === 'parent' ? code : undefined,
           relationship: mode === 'parent' ? form.relationship : undefined,
         };
         await addUser(createPayload);
