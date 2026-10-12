@@ -279,7 +279,8 @@ export function StudentMenuPage() {
     setPlacing(true);
     const note = tip.trim();
     try {
-      const orderNumber = await addOrder({
+      const orderResult = await addOrder({
+
         user_id: student.id,
         total: cartGrandTotal,
         status: 'pending',
@@ -290,12 +291,17 @@ export function StudentMenuPage() {
         payment_reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : paymentMethod === 'credits' ? 'PAGO-CON-CREDITOS' : reference,
         order_items: cart.map((i) => ({ product_id: i.id, quantity: i.qty, price: i.price }))
       });
+      const orderNumber = orderResult.orderNumber;
       const paidWithCredits = paymentMethod === 'credits';
       setLastReceipt({ orderNumber, reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : paymentMethod === 'credits' ? 'PAGO-CON-CREDITOS' : reference, pickup, paidWithCredits });
       setCart([]);
       setTip('');
       setPayStep('receipt');
-      toast.success(paidWithCredits ? `Pedido ${orderNumber} pagado con créditos.` : `Pedido ${orderNumber} creado y enviado para aprobación`);
+      if (orderResult.verified) {
+        toast.success(paidWithCredits ? `Pedido ${orderNumber} pagado con créditos y verificado en Supabase.` : `Pedido ${orderNumber} creado y verificado en Supabase; enviado para aprobación.`);
+      } else {
+        toast.warning(`Pedido ${orderNumber} creado por la transacción, pero falta verificarlo: ${orderResult.verificationMessage ?? 'actualiza tus pedidos antes de volver a intentarlo.'}`);
+      }
 
       // Everything below is post-confirmation work. It must never delay the
       // receipt or keep the checkout UI in a processing state.

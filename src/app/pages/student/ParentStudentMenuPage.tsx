@@ -92,7 +92,8 @@ export function ParentStudentMenuPage() {
     setPlacing(true);
     try {
       const pickup = Math.random().toString(36).slice(2, 7).toUpperCase();
-      const orderNumber = await addOrder({
+      const orderResult = await addOrder({
+
         user_id: activeStudent.id,
         total: cartTotal,
         status: 'pending',
@@ -103,8 +104,10 @@ export function ParentStudentMenuPage() {
         payment_reference: 'PAGO-CON-CREDITOS',
         order_items: cart.map((item) => ({ product_id: item.id, quantity: item.qty, price: item.price })),
       });
+      const orderNumber = orderResult.orderNumber;
       setCart([]);
-      toast.success(`Pedido ${orderNumber} creado para ${activeStudent.full_name}.`);
+      if (orderResult.verified) toast.success(`Pedido ${orderNumber} creado y verificado en Supabase para ${activeStudent.full_name}.`);
+      else toast.warning(`Pedido ${orderNumber} creado por la transacción, pero falta verificarlo: ${orderResult.verificationMessage ?? 'actualiza los pedidos antes de volver a intentarlo.'}`);
       await loadStudentData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo crear el pedido.';
