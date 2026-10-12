@@ -175,9 +175,10 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
 
   addOrder: async (orderData) => {
-    // The order transaction is the only operation on the critical path.
-    // Audit and data refresh are intentionally detached so the buyer sees
-    // confirmation as soon as the atomic database write succeeds.
+    // The database transaction is authoritative. Do not return to the caller
+    // until the shared store has re-read the committed order from Supabase.
+    // A refresh failure is logged separately so the UI never invites a duplicate
+    // purchase by misreporting a committed order as a failed write.
     const orderNumber = await repo.createOrder(orderData);
 
     void remoteAudit({
@@ -187,12 +188,14 @@ export const useDataStore = create<DataState>((set, get) => ({
       metadata: { payment_method: orderData.payment_method },
     });
 
-    void get().loadData({ silent: true, force: true }).catch((error) => {
+    try {
+      await get().loadData({ silent: true, force: true });
+    } catch (error) {
       writeAuditLog({
         action: 'app.error',
         metadata: { source: 'post_order_refresh', message: String(error) },
       });
-    });
+    }
 
     return orderNumber;
   },
