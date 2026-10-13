@@ -109,14 +109,192 @@ jobs:
             artifact_url="$(printf '%s' "$artifacts_json" | jq -r '[.artifacts[] | select(.name == "exhaustive-audit-sha" and .expired == false)][0].archive_download_url // empty')"
             [ -n "$artifact_url" ] || { echo "Audit run #$run_id has no live exhaustive-audit-sha artifact" >&2; return 1; }
             tmp="$(mktemp -d)"
-            if ! curl --fail --silent --show-error "${auth[@]}" "$artifact_url" -o "$tmp/audit.zip"; then
+            # GitHub returns a redirect to a temporary artifact URL. Follow it;
+            # without --location curl saves the redirect response, not the ZIP.
+            if ! curl --location --fail --silent --show-error "${auth[@]}" "$artifact_url" -o "$tmp/audit.zip"; then
               rm -rf "$tmp"
               return 1
             fi
-            audited_sha="$(unzip -p "$tmp/audit.zip" audited-sha.txt 2>/dev/null | tr -d '\r\n' || true)"
+            if ! unzip -tq "$tmp/audit.zip" >/dev/null 2>&1; then
+              echo "Audit run #$run_id artifact download is not a valid ZIP" >&2
+              rm -rf "$tmp"
+              return 1
+            fi
+            artifact_entry="$(unzip -Z1 "$tmp/audit.zip" | grep -E '(^|/)audited-sha\.txt
+          }
+
+          exhaustive="missing"
+          if [[ "$EXHAUSTIVE_RUN_ID" =~ ^[0-9]+$ ]] && [ "$EXHAUSTIVE_RUN_ID" -gt 0 ]; then
+            if audit_matches "$EXHAUSTIVE_RUN_ID"; then exhaustive="success"; else exhaustive="failure"; fi
+          else
+            audit_runs="$(curl --fail --silent --show-error "${auth[@]}" "$api/actions/workflows/auditoria-exhaustiva.yml/runs?branch=main&status=completed&per_page=100")"
+            while IFS= read -r run_id; do
+              [ -n "$run_id" ] || continue
+              if audit_matches "$run_id"; then exhaustive="success"; break; fi
+            done < <(printf '%s' "$audit_runs" | jq -r '.workflow_runs[] | select(.name == "Auditoría Exhaustiva QuickBite" and .head_branch == "main" and .conclusion == "success") | .id')
+            [ "$exhaustive" = "success" ] || exhaustive="missing"
+          fi
+
+          printf 'ci=%s\n' "$ci" >> "$GITHUB_OUTPUT"
+          printf 'exhaustive=%s\n' "$exhaustive" >> "$GITHUB_OUTPUT"
+          if [ "$ci" != "success" ] || [ "$exhaustive" != "success" ]; then
+            echo "Acceptance evidence rejected: CI=$ci, exhaustive=$exhaustive, SHA=$SHA" >&2
+            exit 1
+          fi
+
+  production-smoke:
+    name: Production deployment smoke
+    needs: resolve
+    runs-on: ubuntu-latest
+    outputs:
+      reachable: ${{ steps.smoke.outputs.reachable }}
+    steps:
+      - name: Validate production URL
+        id: smoke
+        env:
+          URL: ${{ env.PRODUCTION_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          u = urlparse(os.environ["URL"])
+          assert u.scheme == "https", "Production URL must use HTTPS"
+          assert u.netloc, "Production URL must have a host"
+          print(f"Production target: {u.geturl()}")
+          PY
+
+          status="$(curl --silent --show-error --location \
+            --connect-timeout 15 --max-time 45 --retry 2 \
+            --output /tmp/quickbite-production.html \
+            --write-out '%{http_code}' "$URL")"
+
+          test "$status" = "200"
+          grep -qi "QuickBite" /tmp/quickbite-production.html
+          echo "reachable=true" >> "$GITHUB_OUTPUT"
+
+  integral-e2e:
+    name: Integral cross-role acceptance
+    needs: [resolve, production-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      VITE_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      VITE_API_BASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server
+      VITE_RUNTIME_MODE: supabase
+      VITE_PUBLIC_APP_URL: http://127.0.0.1:4173
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      PLAYWRIGHT_E2E_EMAIL: ${{ secrets.PLAYWRIGHT_E2E_EMAIL }}
+      PLAYWRIGHT_E2E_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
+      PLAYWRIGHT_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
+      PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
+      PLAYWRIGHT_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
+      PLAYWRIGHT_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
+      PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
+      PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
+      VITE_E2E_AUTH_AUTO_REFRESH: 'false'
+    steps:
+      - name: Checkout exact approved SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Validate acceptance credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Refusing to run acceptance against an unapproved database target"; exit 1; }
+          test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Refusing acceptance without the approved destination API"; exit 1; }
+          for name in VITE_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY PLAYWRIGHT_E2E_EMAIL PLAYWRIGHT_E2E_PASSWORD PLAYWRIGHT_PARENT_EMAIL PLAYWRIGHT_PARENT_PASSWORD PLAYWRIGHT_STAFF_EMAIL PLAYWRIGHT_STAFF_PASSWORD PLAYWRIGHT_ADMIN_EMAIL PLAYWRIGHT_ADMIN_PASSWORD; do
+            test -n "${!name:-}" || { echo "Missing required secret: $name"; exit 1; }
+          done
+
+      - name: Provision acceptance accounts
+        run: node scripts/ensure-e2e-user.mjs
+
+      - name: Verify no-cost manual nutrition draft workflow
+        run: pnpm verify:nutrition-manual
+
+      - name: Run dedicated integral acceptance suite
+        run: >
+          pnpm test:e2e
+          tests/e2e/production-acceptance.spec.ts
+          tests/e2e/critical-flows.spec.ts
+          tests/e2e/role-interfaces.spec.ts
+          --reporter=line
+
+      - name: Upload acceptance evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: quickbite-integral-acceptance-evidence
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  final:
+    name: Production acceptance gate
+    if: always()
+    needs: [resolve, production-smoke, integral-e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate final acceptance result
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SHA: ${{ needs.resolve.outputs.sha }}"
+          echo "CI: ${{ needs.resolve.outputs.ci }}"
+          echo "Exhaustive: ${{ needs.resolve.outputs.exhaustive }}"
+          echo "Production smoke: ${{ needs.production-smoke.result }}"
+          echo "Integral E2E: ${{ needs.integral-e2e.result }}"
+
+          if [ "${{ needs.resolve.result }}" != "success" ] ||
+             [ "${{ needs.production-smoke.result }}" != "success" ] ||
+             [ "${{ needs.integral-e2e.result }}" != "success" ]; then
+            echo "PRODUCTION APPROVAL: BLOCKED"
+            exit 1
+          fi
+
+          if [ "${{ needs.resolve.outputs.ci }}" != "success" ] ||
+             [ "${{ needs.resolve.outputs.exhaustive }}" != "success" ]; then
+            echo "PRODUCTION APPROVAL: BLOCKED"
+            exit 1
+          fi
+
+          echo "PRODUCTION ACCEPTANCE: PASS"
+          echo "All required prior gates, production reachability, and integral acceptance checks passed for the same SHA. This certifies the defined acceptance suite, not every possible app behavior."
+ | head -n 1 || true)"
+            if [ -z "$artifact_entry" ]; then
+              echo "Audit run #$run_id artifact does not contain audited-sha.txt" >&2
+              rm -rf "$tmp"
+              return 1
+            fi
+            audited_sha="$(unzip -p "$tmp/audit.zip" "$artifact_entry" 2>/dev/null | tr -d '\r\n' || true)"
             rm -rf "$tmp"
             echo "Audit run #$run_id artifact SHA => $audited_sha (requested $SHA)" >&2
-            [ "$audited_sha" = "$SHA" ]
+            [[ "$audited_sha" =~ ^[0-9a-f]{40}$ ]] && [ "$audited_sha" = "$SHA" ]
           }
 
           exhaustive="missing"
