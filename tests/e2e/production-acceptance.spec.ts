@@ -258,7 +258,10 @@ test.describe('QuickBite production acceptance — persistence and UX @student',
   });
 
   test('logout terminates the current role session', async ({ page, e2eAuth }) => {
-    await e2eAuth.login(page, 'student');
+    // This test owns the logout assertion; install a session already verified by
+    // the fixture instead of making a second, unrelated UI sign-in request here.
+    // UI sign-in remains exercised by the theme-preference test above.
+    await installRole(page, 'student', e2eAuth);
     const logout = page.getByRole('button', { name: /cerrar sesión/i }).first();
     await expect(logout).toBeVisible();
     await logout.click();
