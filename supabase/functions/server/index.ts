@@ -351,7 +351,7 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
     // The marker RPC must receive the authenticated admin JWT. The service
     // API key authenticates the Edge Function's privileged Auth write, but is
     // not a reliable auth.role() identity for PostgREST with modern sb_secret keys.
-    const actorToken = c.req.header('Authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+    const actorToken = c.req.header('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!actorToken) return userError('Tu sesión administrativa expiró. Inicia sesión nuevamente.', 401);
     const actorClient = authenticatedActorClient(actorToken);
 
