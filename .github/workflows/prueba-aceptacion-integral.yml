@@ -109,14 +109,22 @@ jobs:
             artifact_url="$(printf '%s' "$artifacts_json" | jq -r '[.artifacts[] | select(.name == "exhaustive-audit-sha" and .expired == false)][0].archive_download_url // empty')"
             [ -n "$artifact_url" ] || { echo "Audit run #$run_id has no live exhaustive-audit-sha artifact" >&2; return 1; }
             tmp="$(mktemp -d)"
-            if ! curl --fail --silent --show-error "${auth[@]}" "$artifact_url" -o "$tmp/audit.zip"; then
+            # GitHub's artifact endpoint redirects to object storage; follow that
+            # redirect or curl saves the redirect response instead of the ZIP.
+            if ! curl --location --fail --silent --show-error "${auth[@]}" "$artifact_url" -o "$tmp/audit.zip"; then
               rm -rf "$tmp"
               return 1
             fi
-            audited_sha="$(unzip -p "$tmp/audit.zip" audited-sha.txt 2>/dev/null | tr -d '\r\n' || true)"
+            audit_entry="$(unzip -Z1 "$tmp/audit.zip" 2>/dev/null | awk -F/ '$NF == "audited-sha.txt" { print; exit }')"
+            if [ -z "$audit_entry" ]; then
+              echo "Audit run #$run_id artifact ZIP has no audited-sha.txt entry" >&2
+              rm -rf "$tmp"
+              return 1
+            fi
+            audited_sha="$(unzip -p "$tmp/audit.zip" "$audit_entry" 2>/dev/null | tr -d '\r\n' || true)"
             rm -rf "$tmp"
             echo "Audit run #$run_id artifact SHA => $audited_sha (requested $SHA)" >&2
-            [ "$audited_sha" = "$SHA" ]
+            [ -n "$audited_sha" ] && [ "$audited_sha" = "$SHA" ]
           }
 
           exhaustive="missing"
