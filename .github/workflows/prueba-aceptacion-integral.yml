@@ -115,7 +115,7 @@ jobs:
               rm -rf "$tmp"
               return 1
             fi
-            audit_entry="$(unzip -Z1 "$tmp/audit.zip" 2>/dev/null | awk '$0 == "audited-sha.txt" || $0 ~ /\\/audited-sha\\.txt$/ { print; exit }')"
+            audit_entry="$(unzip -Z1 "$tmp/audit.zip" 2>/dev/null | awk -F/ '$NF == "audited-sha.txt" { print; exit }')"
             if [ -z "$audit_entry" ]; then
               echo "Audit run #$run_id artifact ZIP has no audited-sha.txt entry" >&2
               rm -rf "$tmp"
