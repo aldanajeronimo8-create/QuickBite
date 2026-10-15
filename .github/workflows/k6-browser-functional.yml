@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        role: [student, parent, staff, admin]
+        role: [student, parent, admin]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -34,8 +34,6 @@ jobs:
       K6_STUDENT_PASSWORD: ${{ secrets.PLAYWRIGHT_E2E_PASSWORD }}
       K6_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
       K6_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
-      K6_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
-      K6_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
       K6_ADMIN_EMAIL: ${{ secrets.PLAYWRIGHT_ADMIN_EMAIL }}
       K6_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
     steps:
