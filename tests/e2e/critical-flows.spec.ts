@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import * as XLSX from '@redoper1/xlsx-js-style';
 
-type Role = 'student' | 'parent' | 'staff' | 'admin';
+type Role = 'student' | 'parent' | 'admin';
 
 function isExpectedUnauthenticatedAuthResponse(response: { status: () => number; url: () => string; request: () => { method: () => string } }) {
   return response.status() === 401 && response.request().method() === 'GET' && /\/auth\/v1\/user(?:$|\?)/.test(response.url());
@@ -43,7 +43,7 @@ async function monitor(page: Page) {
 
 async function login(page: Page, role: Role, e2eAuth: { install: (page: Page, role: Role) => Promise<void> }) {
   await e2eAuth.install(page, role);
-  const destination = role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : role === 'staff' ? '/staff' : '/admin';
+  const destination = role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : '/admin';
   await page.goto(destination);
   await page.waitForLoadState('domcontentloaded');
 }
@@ -154,7 +154,7 @@ test.describe('critical functional flows @student', () => {
     await healthy(page, state);
   });
 
-  test('student completes purchase, admin confirms payment, staff prepares and delivers, and records reconcile', async ({ browser, e2eAuth }, testInfo) => {
+  test('student purchases, admin confirms payment and fulfills the order, and records reconcile', async ({ browser, e2eAuth }, testInfo) => {
     const auditUrl = process.env.VITE_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const studentEmail = process.env.PLAYWRIGHT_E2E_EMAIL;
@@ -364,47 +364,41 @@ test.describe('critical functional flows @student', () => {
     const orderCard = adminPage.getByTestId('admin-order-' + orderNumber);
     await expect(orderCard).toBeVisible({ timeout: 15_000 });
     await expect(orderCard).toContainText(/pedido recibido|confirmado/i);
-    const openAdminMenu = adminPage.getByRole('button', { name: 'Abrir menú lateral', exact: true });
-    if (await openAdminMenu.count() && await openAdminMenu.isVisible()) await openAdminMenu.click();
-    const adminLogout = adminPage.getByRole('button', { name: /cerrar sesión/i }).first();
-    await adminLogout.scrollIntoViewIfNeeded();
-    await adminLogout.click();
-    await adminPage.waitForURL(/\/login$/);
-    await adminPage.close();
 
-    const staffPage = await browser.newPage();
-    const staffState = await monitor(staffPage);
-    await login(staffPage, 'staff', e2eAuth);
-    await healthy(staffPage, staffState);
-    const staffOrderCard = staffPage.locator('article').filter({ hasText: orderNumber }).first();
-    await expect(staffOrderCard).toBeVisible({ timeout: 20_000 });
-    await staffOrderCard.getByRole('button', { name: 'Aceptar y preparar', exact: true }).click();
-    await expect(staffOrderCard).toContainText(/En preparación/i);
+    await orderCard.getByRole('button', { name: 'En preparación', exact: true }).click();
+    await expect(orderCard).toContainText(/En preparación/i);
     await expect.poll(async () => {
       const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
       if (error) throw error;
       return data?.status ?? null;
     }, { timeout: 15_000 }).toBe('preparing');
-    await healthy(staffPage, staffState);
+    await healthy(adminPage, adminState);
 
-    await staffOrderCard.getByRole('button', { name: 'Marcar como listo', exact: true }).click();
-    await expect(staffOrderCard).toContainText(/\bListo\b/i);
+    await orderCard.getByRole('button', { name: 'Listo para recoger', exact: true }).click();
+    await expect(orderCard).toContainText(/Listo para recoger/i);
     await expect.poll(async () => {
       const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
       if (error) throw error;
       return data?.status ?? null;
     }, { timeout: 15_000 }).toBe('ready');
-    await healthy(staffPage, staffState);
+    await healthy(adminPage, adminState);
 
-    await staffOrderCard.getByRole('button', { name: 'Marcar como entregado', exact: true }).click();
+    await orderCard.getByRole('button', { name: 'Entregado', exact: true }).click();
+    await expect(orderCard).toContainText(/Entregado/i);
     await expect.poll(async () => {
       const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
       if (error) throw error;
       return data?.status ?? null;
     }, { timeout: 15_000 }).toBe('delivered');
-    await expect(staffOrderCard).toHaveCount(0, { timeout: 15_000 });
-    await healthy(staffPage, staffState);
-    await staffPage.close();
+    await healthy(adminPage, adminState);
+
+    const openAdminMenu = adminPage.getByRole('button', { name: 'Abrir menú lateral', exact: true });
+    if (await openAdminMenu.count() && await openAdminMenu.isVisible()) await openAdminMenu.click();
+    const adminLogout = adminPage.getByRole('button', { name: /cerrar sesión/i }).first();
+    await adminLogout.scrollIntoViewIfNeeded();
+    await adminLogout.click();
+    await adminPage.waitForURL((url) => url.pathname === '/login');
+    await adminPage.close();
 
     const { data: productAfterDeliveryData, error: productAfterDeliveryError } = await auditDb
       .from('products')
