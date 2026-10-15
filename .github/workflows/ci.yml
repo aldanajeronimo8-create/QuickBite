@@ -75,8 +75,6 @@ jobs:
       PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
       PLAYWRIGHT_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
       PLAYWRIGHT_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
-      PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
-      PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       CI: true
       VITE_E2E_AUTH_AUTO_REFRESH: 'false'
@@ -114,8 +112,6 @@ jobs:
           test -n "${PLAYWRIGHT_E2E_PASSWORD}" || { echo "PLAYWRIGHT_E2E_PASSWORD is missing"; exit 1; }
           test -n "${PLAYWRIGHT_PARENT_EMAIL}" || { echo "PLAYWRIGHT_PARENT_EMAIL is missing"; exit 1; }
           test -n "${PLAYWRIGHT_PARENT_PASSWORD}" || { echo "PLAYWRIGHT_PARENT_PASSWORD is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_STAFF_EMAIL}" || { echo "PLAYWRIGHT_STAFF_EMAIL is missing"; exit 1; }
-          test -n "${PLAYWRIGHT_STAFF_PASSWORD}" || { echo "PLAYWRIGHT_STAFF_PASSWORD is missing"; exit 1; }
           test -n "${PLAYWRIGHT_ADMIN_EMAIL}" || { echo "PLAYWRIGHT_ADMIN_EMAIL is missing"; exit 1; }
           test -n "${PLAYWRIGHT_ADMIN_PASSWORD}" || { echo "PLAYWRIGHT_ADMIN_PASSWORD is missing"; exit 1; }
           test -n "${SUPABASE_SERVICE_ROLE_KEY}" || { echo "E2E_SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }
