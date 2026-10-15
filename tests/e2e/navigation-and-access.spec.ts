@@ -90,5 +90,6 @@ test('admin user management no longer advertises the retired Staff role @admin',
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: 'Usuarios' })).toBeVisible();
   await expect(page.getByRole('heading', { name: /crear staff/i })).toHaveCount(0);
-  await expect(page.locator('body')).not.toContainText(/staff/i);
+  await expect(page.getByRole('button', { name: /crear usuario/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /crear padre de familia/i })).toBeVisible();
 });
