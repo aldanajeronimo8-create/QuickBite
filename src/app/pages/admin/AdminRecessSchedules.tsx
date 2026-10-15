@@ -159,8 +159,8 @@ export function AdminRecessSchedules() {
   };
 
   const savePreorderLimit = async () => {
-    if (!Number.isInteger(preorderLimit) || preorderLimit < 1 || preorderLimit > 10) {
-      toast.error('El máximo debe estar entre 1 y 10 pedidos.');
+    if (!Number.isInteger(preorderLimit) || preorderLimit < 1 || preorderLimit > 2) {
+      toast.error('El máximo debe estar entre 1 y 2 pedidos.');
       return;
     }
     setSavingLimit(true);
@@ -251,10 +251,10 @@ export function AdminRecessSchedules() {
       <div className="flex items-center gap-2"><Settings2 className="h-5 w-5 text-emerald-500" /><h2 className="font-black">Límite de pedidos anticipados</h2></div>
       <p className="mt-1 text-sm text-muted-foreground">Cantidad máxima de pedidos que cada estudiante puede anticipar para una misma fecha y descanso, antes de su hora de inicio.</p>
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="w-full max-w-xs"><Label>Pedidos anticipados por estudiante</Label><Input className="mt-1" type="number" min={1} max={10} step={1} value={preorderLimit} onChange={event => setPreorderLimit(Number(event.target.value))} /></div>
+        <div className="w-full max-w-xs"><Label>Pedidos anticipados por estudiante</Label><Input className="mt-1" type="number" min={1} max={2} step={1} value={preorderLimit} onChange={event => setPreorderLimit(Number(event.target.value))} /></div>
         <Button onClick={() => void savePreorderLimit()} disabled={savingLimit}>{savingLimit ? 'Guardando...' : 'Guardar límite'}</Button>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">Valor permitido: de 1 a 10 pedidos. El límite predeterminado es 2 y se valida en la base de datos.</p>
+      <p className="mt-2 text-xs text-muted-foreground">Valor permitido: de 1 a 2 pedidos. El límite predeterminado es 2 y se valida en la base de datos.</p>
     </Card>
 
     <div className="space-y-3">
