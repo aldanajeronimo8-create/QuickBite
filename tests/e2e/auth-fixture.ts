@@ -3,19 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 
 export * from '@playwright/test';
 
-export type E2ERole = 'student' | 'parent' | 'staff' | 'admin';
+export type E2ERole = 'student' | 'parent' | 'admin';
 
 const AUTH_STORAGE_KEYS: Record<E2ERole, string> = {
   student: 'quickbite.user.auth',
   parent: 'quickbite.user.auth',
-  staff: 'quickbite.user.auth',
   admin: 'quickbite.admin.auth',
 };
 
 const DESTINATIONS: Record<E2ERole, string> = {
   student: '/menu',
   parent: '/parent/family',
-  staff: '/staff',
   admin: '/admin',
 };
 
@@ -28,7 +26,7 @@ type WorkerFixtures = {
   e2eAuth: E2EAuth;
 };
 
-async function openInternalAccess(page: Page, role: 'staff' | 'admin') {
+async function openInternalAccess(page: Page) {
   await page.goto('/login');
   const logo = page.getByRole('button', { name: 'QuickBite', exact: true });
   await logo.waitFor({ state: 'visible', timeout: 15_000 });
@@ -38,19 +36,16 @@ async function openInternalAccess(page: Page, role: 'staff' | 'admin') {
   await page.mouse.down();
   await page.waitForTimeout(2_600);
   await page.mouse.up();
-
   const dialog = page.getByRole('dialog', { name: 'Acceso interno' });
   await dialog.waitFor({ state: 'visible', timeout: 15_000 });
-  await dialog.getByRole('button', {
-    name: role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i,
-  }).click();
+  await dialog.getByRole('button', { name: /administraci[oó]n/i }).click();
 }
 
 async function loginWithCredentials(page: Page, role: E2ERole) {
   const credentials = {
     student: [process.env.PLAYWRIGHT_E2E_EMAIL, process.env.PLAYWRIGHT_E2E_PASSWORD],
     parent: [process.env.PLAYWRIGHT_PARENT_EMAIL, process.env.PLAYWRIGHT_PARENT_PASSWORD],
-    staff: [process.env.PLAYWRIGHT_STAFF_EMAIL, process.env.PLAYWRIGHT_STAFF_PASSWORD],
+
     admin: [process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD],
   }[role];
 
@@ -60,8 +55,8 @@ async function loginWithCredentials(page: Page, role: E2ERole) {
   await page.goto('/login');
   if (role === 'parent') {
     await page.getByRole('button', { name: /iniciar sesi[oó]n como padre/i }).click();
-  } else if (role === 'staff' || role === 'admin') {
-    await openInternalAccess(page, role);
+  } else if (role === 'admin') {
+    await openInternalAccess(page);
   }
 
   await page.locator('#login-email').fill(email);
@@ -81,7 +76,7 @@ export const test = base.extend<Record<string, never>, WorkerFixtures>({
       const credentials = {
         student: [process.env.PLAYWRIGHT_E2E_EMAIL, process.env.PLAYWRIGHT_E2E_PASSWORD],
         parent: [process.env.PLAYWRIGHT_PARENT_EMAIL, process.env.PLAYWRIGHT_PARENT_PASSWORD],
-        staff: [process.env.PLAYWRIGHT_STAFF_EMAIL, process.env.PLAYWRIGHT_STAFF_PASSWORD],
+
         admin: [process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD],
       }[role];
 
