@@ -274,7 +274,7 @@ export function AdminOrders() {
           {filteredOrders.map((order) => {
             const rejected = order.status === 'rejected' || order.payment_status === 'rejected';
             const delivered = order.status === 'delivered';
-            const terminal = rejected || delivered;
+            const terminal = rejected || delivered || order.pickup_outcome === 'unclaimed';
             const pendingCancellationCount = pendingForOrder(order.id).length;
             const comment = getOrderComment(order);
             const recessName = order.scheduled_recess_name ?? order.scheduled_recess?.name;
