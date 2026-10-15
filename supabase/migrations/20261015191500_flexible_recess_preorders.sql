@@ -302,7 +302,7 @@ BEGIN
   WHERE s.active AND s.weekday = v_dow
     AND t.section_id = v_student.section_id
     AND t.grade_id IS NULL AND t.course_id IS NULL
-    AND s.end_time > v_time
+    -- Include expired breaks as disabled options so checkout explains why ordering is closed.
   ORDER BY s.start_time;
 END;
 $function$;
