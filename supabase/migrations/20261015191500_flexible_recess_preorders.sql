@@ -38,6 +38,9 @@ CREATE INDEX IF NOT EXISTS idx_orders_recess_preorders_student_day
   ON public.orders (user_id, scheduled_recess_schedule_id, scheduled_for)
   WHERE preordered IS TRUE AND status NOT IN ('cancelled', 'rejected');
 
+CREATE INDEX IF NOT EXISTS idx_orders_scheduled_recess_schedule_id
+  ON public.orders (scheduled_recess_schedule_id);
+
 CREATE TABLE IF NOT EXISTS public.recess_order_settings (
   id boolean PRIMARY KEY DEFAULT true CHECK (id),
   max_preorders_per_student integer NOT NULL DEFAULT 2
