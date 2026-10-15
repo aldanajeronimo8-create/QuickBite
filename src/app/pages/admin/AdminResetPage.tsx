@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, RotateCcw, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { canAccessAdmin } from '../../../lib/access';
+import { getErrorMessage } from '../../../lib/errorMessage';
 import { useDataStore } from '../../../store/dataStore';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -25,7 +26,13 @@ export function AdminResetPage() {
       setConfirmation('');
       toast.success(`Período de prueba reiniciado. ${count} pedido(s) y todo el estado operativo fueron restablecidos.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo completar el reinicio del período de prueba.');
+      const message = getErrorMessage(error, 'No se pudo completar el reinicio del período de prueba.');
+      const normalizedMessage = message.toLowerCase();
+      if (normalizedMessage.includes('not_authorized')) {
+        toast.error('Tu cuenta no tiene permisos para reiniciar el período. Verifica que tu rol administrativo esté activo.');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setResetting(false);
     }
