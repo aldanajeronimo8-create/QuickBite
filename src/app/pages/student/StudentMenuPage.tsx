@@ -9,6 +9,7 @@ import { getOrderVerificationUrl } from '../../../lib/orderQr';
 import { UserNotificationBell } from '../../components/notifications/UserNotificationBell';
 import { ProductRatingBadge } from '../../components/student/ProductRatingBadge';
 import { StudentRewardsPanel } from '../../components/student/StudentRewardsPanel';
+import { StudentRecessStatus } from '../../components/student/StudentRecessStatus';
 import { useLoyalty } from '../../hooks/useLoyalty';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -333,6 +334,9 @@ export function StudentMenuPage() {
     } catch (error) {
       const message = getErrorMessage(error, 'Error al enviar el pedido');
       if (/insufficient_wallet_balance|Insufficient wallet balance/i.test(message)) toast.error('No tienes créditos suficientes para pagar este pedido.');
+      else if (/no_active_recess_window/i.test(message)) toast.error('Las reservas solo están abiertas durante el recreo asignado a tu sección.');
+      else if (/no_active_pickup_window/i.test(message)) toast.error('No hay una ventana de pedidos activa en este momento.');
+      else if (/pickup_window_full/i.test(message)) toast.error('El cupo de pedidos de este período se completó.');
       else toast.error(message);
     } finally {
       setPlacing(false);
@@ -380,6 +384,7 @@ export function StudentMenuPage() {
       <MenuHeader student={student} walletBalance={walletBalance} rewardsEnabled={rewardsEnabled} points={loyalty.availablePoints} cartCount={cartCount} onCart={() => setShowCart(true)} onLogout={handleLogout} />
 
       <div className={`${CONTAINER} space-y-6 pt-6`}>
+        <StudentRecessStatus />
         <div className="grid gap-3 sm:grid-cols-2">
           <section className={`${SURFACE} rounded-2xl p-4`}>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Recreo inteligente</p>
