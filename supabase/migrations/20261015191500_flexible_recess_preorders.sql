@@ -265,7 +265,9 @@ BEGIN
   FROM public.profiles
   WHERE id = public.effective_student_user_id()
     AND role IN ('student', 'both');
-  IF NOT FOUND OR v_student.section_id IS NULL THEN RAISE EXCEPTION 'student_section_required'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'student_only'; END IF;
+  -- Profiles without an academic section have no recess options; legacy pickup windows remain available.
+  IF v_student.section_id IS NULL THEN RETURN; END IF;
 
   SELECT max_preorders_per_student INTO v_limit
   FROM public.recess_order_settings WHERE id = true;
@@ -368,9 +370,11 @@ BEGIN
     FROM public.profiles p
     WHERE p.id = p_user_id AND p.role IN ('student', 'both');
 
-    IF v_student_section_id IS NULL THEN
-      RAISE EXCEPTION 'student_section_required';
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'student_only';
     END IF;
+    -- A student without an assigned section keeps the legacy pickup-window flow.
+    -- Do not force an unrelated section's recess schedule onto this profile.
 
     SELECT EXISTS (
       SELECT 1
