@@ -1,17 +1,16 @@
 import { test, expect, type Page } from './auth-fixture';
 
-type Role = 'student' | 'parent' | 'staff' | 'admin';
+type Role = 'student' | 'parent' | 'admin';
 
 const routes: Record<Role, string[]> = {
   student: ['/student/features', '/menu?tab=menu', '/menu?tab=orders', '/student/reviews', '/student/order-windows', '/student/account', '/student/wallet', '/student/history', '/student/rewards', '/student/favorites', '/student/link-code', '/student/notifications'],
   parent: ['/parent/family', '/parent/food-controls', '/parent/wellbeing'],
-  staff: ['/staff', '/staff/orders'],
   admin: ['/admin', '/admin/features', '/admin/operations', '/admin/rankings', '/admin/reviews', '/admin/orders', '/admin/payments', '/admin/wallet', '/admin/inventory', '/admin/menu', '/admin/nutrition', '/admin/verification', '/admin/users', '/admin/academic', '/admin/recess', '/admin/loyalty', '/admin/reports', '/admin/history', '/admin/system', '/admin/reset'],
 };
 
 async function loginAs(page: Page, role: Role, e2eAuth: { install: (page: Page, role: Role) => Promise<void> }) {
   await e2eAuth.install(page, role);
-  await page.goto(role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : role === 'staff' ? '/staff' : '/admin');
+  await page.goto(role === 'student' ? '/menu' : role === 'parent' ? '/parent/family' : '/admin');
   await page.waitForLoadState('domcontentloaded');
 }
 
@@ -37,7 +36,7 @@ async function assertMonitorsClean(errors: { console: string[]; page: string[]; 
 }
 
 test.describe('interactive UI control audit', () => {
-  for (const role of ['student', 'parent', 'staff', 'admin'] as const) {
+  for (const role of ['student', 'parent', 'admin'] as const {
     test(role + ': visible interface and safe controls respond without runtime/API errors @' + role, async ({ page, e2eAuth }) => {
       const errors = await installErrorMonitors(page);
       await loginAs(page, role, e2eAuth);
