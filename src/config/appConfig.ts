@@ -16,7 +16,8 @@ export const appConfig = {
   // for the short-lived test build prevents concurrent refresh-token rotation across
   // isolated browser contexts. Production keeps the normal Supabase auto-refresh.
   e2eAuthAutoRefresh: import.meta.env.VITE_E2E_AUTH_AUTO_REFRESH !== 'false',
-  dataRefreshIntervalMs: Number(import.meta.env.VITE_DATA_REFRESH_INTERVAL_MS ?? 5000),
+  // Realtime subscriptions deliver normal changes; polling is only a fallback. Avoid reloading the full store every 5 seconds.
+  dataRefreshIntervalMs: Number(import.meta.env.VITE_DATA_REFRESH_INTERVAL_MS ?? 30000),
   // Password recovery is handled exclusively by Supabase Auth email links.
   passwordResetMode: 'email' as const,
   monitoringDsn: import.meta.env.VITE_MONITORING_DSN ?? '',
