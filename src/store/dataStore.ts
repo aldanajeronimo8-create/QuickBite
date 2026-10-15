@@ -101,36 +101,35 @@ export const useDataStore = create<DataState>((set, get) => ({
         const { data: sessionData } = await client.auth.getSession();
         const isAuthenticated = Boolean(sessionData.session?.user);
 
-        const [categories, products] = await Promise.all([
+        // These reads are independent. Run them together so initial load/refresh
+        // latency is bounded by the slowest query, not the sum of each round trip.
+        const ordersPromise: Promise<Order[]> = isAuthenticated
+          ? repo.listOrders().catch((error) => {
+              writeAuditLog({
+                action: 'app.error',
+                metadata: { source: 'data_load.orders', message: String(error) },
+              });
+              if (isAdminContext) throw error;
+              return [];
+            })
+          : Promise.resolve([]);
+
+        const usersPromise: Promise<Profile[]> = isAdminContext && isAuthenticated
+          ? repo.listProfiles().catch((error) => {
+              writeAuditLog({
+                action: 'app.error',
+                metadata: { source: 'data_load.profiles', message: String(error) },
+              });
+              throw error;
+            })
+          : Promise.resolve([]);
+
+        const [categories, products, allOrders, users] = await Promise.all([
           repo.listCategories(),
           repo.listProducts(),
+          ordersPromise,
+          usersPromise,
         ]);
-
-        let allOrders: Order[] = [];
-        if (isAuthenticated) {
-          try {
-            allOrders = await repo.listOrders();
-          } catch (error) {
-            writeAuditLog({
-              action: 'app.error',
-              metadata: { source: 'data_load.orders', message: String(error) },
-            });
-            if (isAdminContext) throw error;
-          }
-        }
-
-        let users: Profile[] = [];
-        if (isAdminContext && isAuthenticated) {
-          try {
-            users = await repo.listProfiles();
-          } catch (error) {
-            writeAuditLog({
-              action: 'app.error',
-              metadata: { source: 'data_load.profiles', message: String(error) },
-            });
-            throw error;
-          }
-        }
 
         set({ categories, products, orders: allOrders, users });
       } finally {
@@ -224,14 +223,15 @@ export const useDataStore = create<DataState>((set, get) => ({
       },
     });
 
-    try {
-      await get().loadData({ silent: true, force: true });
-    } catch (error) {
+    // The order transaction and its focused read-back verification have completed.
+    // Refresh the broader shared store in the background; do not keep checkout waiting
+    // for unrelated catalog and history queries to finish.
+    void get().loadData({ silent: true, force: true }).catch((error) => {
       writeAuditLog({
         action: 'app.error',
         metadata: { source: 'post_order_refresh', message: String(error) },
       });
-    }
+    });
 
     return result;
   },
