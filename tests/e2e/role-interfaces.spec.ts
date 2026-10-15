@@ -178,7 +178,7 @@ test.describe('exhaustive role permission matrix @student', () => {
   const protectedRoutes = ['/menu', '/student/wallet', '/parent/family', '/staff', '/staff/orders', '/admin', '/admin/users', '/admin/orders'];
 
   test('student and parent cannot reach admin surfaces', async ({ browser, e2eAuth }) => {
-    for (const role of ['student', 'parent'] as const {
+    for (const role of ['student', 'parent'] as const) {
       const context = await browser.newContext();
       const rolePage = await context.newPage();
       try {
