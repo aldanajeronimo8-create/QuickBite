@@ -584,7 +584,10 @@ LANGUAGE plpgsql
 SET search_path TO 'pg_catalog', 'public'
 AS $function$
 BEGIN
-  IF NEW.status = 'delivered' AND OLD.status IS DISTINCT FROM 'delivered' THEN
+  IF OLD.pickup_outcome = 'unclaimed' AND NEW.status = 'delivered' THEN
+    RAISE EXCEPTION 'unclaimed_order_immutable';
+  END IF;
+  IF NEW.preordered IS TRUE AND NEW.status = 'delivered' AND OLD.status IS DISTINCT FROM 'delivered' THEN
     NEW.pickup_outcome := 'claimed';
   END IF;
   RETURN NEW;
@@ -613,9 +616,10 @@ BEGIN
 
   SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'order_not_found'; END IF;
-  IF v_order.scheduled_recess_schedule_id IS NULL OR v_order.scheduled_for IS NULL THEN
+  IF v_order.preordered IS DISTINCT FROM true OR v_order.scheduled_recess_schedule_id IS NULL OR v_order.scheduled_for IS NULL THEN
     RAISE EXCEPTION 'order_has_no_recess_schedule';
   END IF;
+  IF v_order.payment_status <> 'confirmed' THEN RAISE EXCEPTION 'order_payment_not_confirmed'; END IF;
   IF v_order.pickup_outcome <> 'awaiting' THEN RAISE EXCEPTION 'pickup_outcome_already_final'; END IF;
   IF v_order.status IN ('delivered', 'rejected', 'cancelled') THEN
     RAISE EXCEPTION 'order_not_eligible_for_unclaimed';
