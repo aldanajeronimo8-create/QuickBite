@@ -100,7 +100,7 @@ async function assertNoRuntimeFailures(page: Page) {
 
 test.describe('QuickBite production acceptance — role coverage @student', () => {
   test('all four roles reach their correct production interface', async ({ page, e2eAuth }) => {
-    for (const role of ['student', 'parent', 'admin'] as const {
+    for (const role of ['student', 'parent', 'admin'] as const) {
       await installRole(page, role, e2eAuth);
       await expect(page).toHaveURL(new RegExp(`${HOME[role].replaceAll('/', '\\/')}$`));
       await assertNoRuntimeFailures(page);
@@ -160,7 +160,7 @@ test.describe('QuickBite production acceptance — security matrix @student', ()
   });
 
   test('student and parent cannot enter admin surfaces', async ({ browser, e2eAuth }) => {
-    for (const role of ['student', 'parent'] as const {
+    for (const role of ['student', 'parent'] as const) {
       const context = await browser.newContext();
       const page = await context.newPage();
       try {
