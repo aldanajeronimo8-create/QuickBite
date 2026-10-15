@@ -13,7 +13,7 @@ import { QuickBiteLogo } from '../components/brand/QuickBiteLogo';
 import { bindStudentUser, clearBoundStudentUser, getBoundStudentUserId } from '../../lib/studentDeviceSession';
 import { toast } from 'sonner';
 import { useVisualTheme } from '../contexts/VisualThemeProvider';
-import { signInWithFirebaseGoogle } from '../../lib/firebaseAuth';
+import { prepareFirebaseAuth, signInWithFirebaseGoogle } from '../../lib/firebaseAuth';
 import { isProtectedAllAccount } from '../../lib/protectedFirstAccess';
 
 type Mode='student'|'parent'|'admin'; type LoginIntent=Mode;
@@ -21,6 +21,7 @@ export function LoginPage(){
  const { resolvedThemeMode } = useVisualTheme();
  const navigate=useNavigate(); const{setUser}=useAuthStore(); const previewRole=typeof window!=='undefined'?new URLSearchParams(window.location.search).get('preview_role'):null; const initialMode:Mode=previewRole==='admin'||previewRole==='parent'||previewRole==='student'?previewRole:'student';
  const[mode,setMode]=useState<Mode>(initialMode); const[secretAccessUnlocked,setSecretAccessUnlocked]=useState(initialMode==='admin'); const[secretAccessVisible,setSecretAccessVisible]=useState(false); const secretPressTimer=useRef<number|null>(null); const[email,setEmail]=useState(''); const[password,setPassword]=useState(''); const[showPassword,setShowPassword]=useState(false); const[loading,setLoading]=useState(false); const[error,setError]=useState(''); const[initialParentNotice,setInitialParentNotice]=useState(false); const[noticePassword,setNoticePassword]=useState(''); const[changeNoticePassword,setChangeNoticePassword]=useState(false); const[noticeSaving,setNoticeSaving]=useState(false); const[studentParentNotice,setStudentParentNotice]=useState(false); const[studentParentEmail,setStudentParentEmail]=useState(''); const[studentNoticeSeconds,setStudentNoticeSeconds]=useState(10);
+ useEffect(() => { if (mode === 'admin') return; void prepareFirebaseAuth().catch((error) => { console.warn('[QuickBite] No se pudo preparar el acceso de Google.', error); }); }, [mode]);
  useEffect(()=>{if(!studentParentNotice||studentNoticeSeconds<=0)return;const timer=window.setTimeout(()=>setStudentNoticeSeconds(s=>Math.max(0,s-1)),1000);return()=>window.clearTimeout(timer);},[studentParentNotice,studentNoticeSeconds]);
  const handleSecretPressStart=()=>{if(secretPressTimer.current!==null)window.clearTimeout(secretPressTimer.current);secretPressTimer.current=window.setTimeout(()=>{setSecretAccessUnlocked(true);setSecretAccessVisible(true);secretPressTimer.current=null},2500)};
  const handleSecretPressEnd=()=>{if(secretPressTimer.current!==null){window.clearTimeout(secretPressTimer.current);secretPressTimer.current=null;}};
