@@ -44,8 +44,9 @@ export type ProductWithNutritionSaveResult = {
   verificationMessage?: string;
 };
 export type NewOrderItem = Omit<OrderItem, 'id' | 'order_id' | 'product'>;
-export type NewOrder = Omit<Order, 'id' | 'created_at' | 'order_number' | 'order_items' | 'user' | 'user_id'> & {
+export type NewOrder = Omit<Order, 'id' | 'created_at' | 'order_number' | 'order_items' | 'user' | 'user_id' | 'scheduled_recess' | 'scheduled_recess_name' | 'scheduled_for' | 'scheduled_pickup_until' | 'preordered' | 'pickup_outcome'> & {
   user_id: string;
+  scheduled_pickup_date?: string | null;
   order_items?: NewOrderItem[];
 };
 export type OrderCreationResult = { orderNumber: string; verified: boolean; verificationMessage?: string };
@@ -166,11 +167,11 @@ export async function saveProductWithNutrition(input: ProductWithNutritionInput)
   }
 }
 export async function deleteProduct(id: string) { const supabase = requireSupabaseClient(); const { error: rpcError } = await supabase.rpc('admin_delete_product', { p_product_id: id }); if (rpcError) { if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { error } = await supabase.from('products').delete().eq('id', id); if (error) throw productRpcError(error); } const { data: remaining, error: verifyError } = await supabase.from('products').select('id').eq('id', id).maybeSingle(); if (verifyError) throw new Error('La eliminación se ejecutó, pero no se pudo verificar la ausencia del producto: ' + verifyError.message); if (remaining) throw new Error('El producto todavía existe en Supabase; no se confirmó la eliminación.'); }
-export async function listOrders() { const data = await withRetry(async () => { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('admin_hidden', false).order('created_at', { ascending: false }); if (error) throw error; return data; }); return (data ?? []) as Order[]; }
-async function getOrderById(id: string) { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('id', id).single(); if (error) throw orderStatusRpcError(error); return data as Order; }
+export async function listOrders() { const data = await withRetry(async () => { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*), scheduled_recess:recess_schedules!orders_scheduled_recess_schedule_id_fkey(name,start_time,end_time)').eq('admin_hidden', false).order('created_at', { ascending: false }); if (error) throw error; return data; }); return (data ?? []) as Order[]; }
+async function getOrderById(id: string) { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*), scheduled_recess:recess_schedules!orders_scheduled_recess_schedule_id_fkey(name,start_time,end_time)').eq('id', id).single(); if (error) throw orderStatusRpcError(error); return data as Order; }
 export async function listOrdersForExport(sinceIso: string, limit = 10000) { const supabase = requireSupabaseClient(); const safeLimit = Math.min(Math.max(limit, 1), 10000); const batchSize = 1000; const orders: Order[] = []; while (orders.length < safeLimit) { const from = orders.length; const to = Math.min(from + batchSize - 1, safeLimit - 1); const { data, error } = await supabase.from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').gte('created_at', sinceIso).order('created_at', { ascending: false }).range(from, to); if (error) throw error; const batch = (data ?? []) as Order[]; orders.push(...batch); if (batch.length < to - from + 1) break; } return orders; }
 export async function createOrder(order: NewOrder): Promise<OrderCreationResult> {
-  const { order_items = [], ...orderFields } = order;
+  const { order_items = [], scheduled_pickup_date = null, ...orderFields } = order;
   const requestId = crypto.randomUUID();
   const payload = {
     p_user_id: orderFields.user_id,
@@ -183,14 +184,20 @@ export async function createOrder(order: NewOrder): Promise<OrderCreationResult>
     p_items: order_items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
     p_notes: orderFields.notes ?? null,
     p_request_id: requestId,
+    p_recess_schedule_id: orderFields.scheduled_recess_schedule_id ?? null,
+    p_pickup_date: scheduled_pickup_date,
   };
   const data = await withRetry(async () => {
-    const { data, error } = await requireSupabaseClient().rpc('create_order_tx', payload);
+    const { data, error } = await requireSupabaseClient().rpc('create_order_with_recess_tx', payload);
     if (error) {
       const message = getErrorMessage(error, 'No se pudo crear el pedido.');
       if (/product_blocked_by_parent/i.test(message)) throw new Error('Este alimento fue bloqueado por tu representante.');
       if (/blocked_ingredient_in_product/i.test(message)) throw new Error('Este alimento contiene un ingrediente bloqueado en tus preferencias o por tu representante.');
       if (/food_ingredients_unverified/i.test(message)) throw new Error('No se puede confirmar este pedido porque la cafetería aún no verificó la lista de ingredientes de este alimento y tienes ingredientes bloqueados. Consulta con la cafetería.');
+      if (/preorder_limit_reached/i.test(message)) throw new Error('Ya alcanzaste el máximo de pedidos anticipados para este descanso.');
+      if (/no_active_recess_window/i.test(message)) throw new Error('Los pedidos solo están disponibles durante tu recreo asignado o como pedido anticipado antes de su inicio.');
+      if (/recess_window_closed/i.test(message)) throw new Error('El tiempo para pedir en este descanso ya terminó.');
+      if (/invalid_recess_schedule_for_student/i.test(message)) throw new Error('Ese descanso no está disponible para tu sección.');
       throw error;
     }
     return data;
