@@ -15,7 +15,6 @@ const BROWSER_ITERATIONS = Number(__ENV.K6_BROWSER_ITERATIONS || 1);
 const accounts = {
   student: { email: __ENV.K6_STUDENT_EMAIL, password: __ENV.K6_STUDENT_PASSWORD },
   parent: { email: __ENV.K6_PARENT_EMAIL, password: __ENV.K6_PARENT_PASSWORD },
-  staff: { email: __ENV.K6_STAFF_EMAIL, password: __ENV.K6_STAFF_PASSWORD },
   admin: { email: __ENV.K6_ADMIN_EMAIL, password: __ENV.K6_ADMIN_PASSWORD },
 };
 
@@ -49,11 +48,6 @@ const ROLE_ROUTES = {
     '/parent/family',
     '/parent/food-controls',
     '/parent/wellbeing',
-  ],
-  staff: [
-    '/login?preview_role=staff',
-    '/staff',
-    '/staff/orders',
   ],
   admin: [
     '/login?preview_role=admin',
@@ -573,10 +567,6 @@ export async function studentBrowserAudit(data) {
 
 export async function parentBrowserAudit(data) {
   await runBrowserAudit('parent', data.parent);
-}
-
-export async function staffBrowserAudit(data) {
-  await runBrowserAudit('staff', data.staff);
 }
 
 export async function adminBrowserAudit(data) {
