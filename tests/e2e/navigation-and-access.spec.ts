@@ -1,31 +1,19 @@
+import { test, expect, type Page } from './auth-fixture';
 
-async function openInternalAccess(page: import('@playwright/test').Page, role: 'staff' | 'admin') {
+async function openAdminAccess(page: Page) {
   await page.goto('/login');
   const logo = page.getByRole('button', { name: 'QuickBite', exact: true });
+  await expect(logo).toBeVisible();
   const box = await logo.boundingBox();
   expect(box).not.toBeNull();
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(2600);
+  await page.waitForTimeout(2_600);
   await page.mouse.up();
   const dialog = page.getByRole('dialog', { name: 'Acceso interno' });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i }).click();
+  await dialog.getByRole('button', { name: /administraci[oó]n/i }).click();
 }
-
-async function loginAsStaff(page: import('@playwright/test').Page) {
-  const email = process.env.PLAYWRIGHT_STAFF_EMAIL;
-  const password = process.env.PLAYWRIGHT_STAFF_PASSWORD;
-  test.skip(!email || !password, 'Missing Playwright Staff credentials.');
-
-  await openInternalAccess(page, 'staff');
-  await page.locator('#login-email').fill(email!);
-  await page.locator('#login-password').fill(password!);
-  await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
-  await page.waitForURL(/\/staff(?:\/)?$/);
-}
-
-import { test, expect } from '@playwright/test';
 
 const publicRoutes = [
   { path: '/', heading: /iniciar sesi[oó]n|bienvenido|quickbite/i },
@@ -41,7 +29,6 @@ test.describe('public navigation @student', () => {
       page.on('console', (message) => {
         if (message.type() === 'error') consoleErrors.push(message.text());
       });
-
       await page.goto(route.path);
       await expect(page.locator('body')).toBeVisible();
       await expect(page.locator('body')).toContainText(route.heading);
@@ -53,10 +40,17 @@ test.describe('public navigation @student', () => {
 test('protected admin feature center does not expose admin UI to an anonymous visitor @student', async ({ page }) => {
   await page.goto('/admin/features');
   await page.waitForLoadState('domcontentloaded');
-
   await expect(page.locator('body')).toBeVisible();
   await expect(page.getByText(/centro de funcionalidades/i)).not.toBeVisible();
-  await expect(page).toHaveURL(/\/login$|\/$/);
+  await expect.poll(() => new URL(page.url()).pathname).not.toBe('/admin/features');
+});
+
+test('retired staff URLs do not expose an operational interface @student', async ({ page }) => {
+  for (const path of ['/staff', '/staff/orders']) {
+    await page.goto(path);
+    await expect.poll(() => new URL(page.url()).pathname).not.toBe(path);
+    await expect(page.getByRole('heading', { name: /operación de cafetería|cola de pedidos/i })).toHaveCount(0);
+  }
 });
 
 test('admin feature center smoke test when admin E2E credentials are configured @admin', async ({ page }) => {
@@ -64,20 +58,16 @@ test('admin feature center smoke test when admin E2E credentials are configured 
     !process.env.PLAYWRIGHT_ADMIN_EMAIL || !process.env.PLAYWRIGHT_ADMIN_PASSWORD,
     'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD to enable authenticated admin E2E coverage.',
   );
-
   const consoleErrors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
-
-  await openInternalAccess(page, 'admin');
-  await page.getByLabel(/correo|email/i).fill(process.env.PLAYWRIGHT_ADMIN_EMAIL!);
-  await page.getByLabel(/contrase[nñ]a|password/i).fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD!);
-  await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click();
-
-  await page.waitForURL(/\/admin(?:\/)?/);
+  await openAdminAccess(page);
+  await page.locator('#login-email').fill(process.env.PLAYWRIGHT_ADMIN_EMAIL!);
+  await page.locator('#login-password').fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD!);
+  await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
+  await page.waitForURL((url) => url.pathname === '/admin' || url.pathname === '/admin/');
   await page.goto('/admin/features');
-
   await expect(page.getByText(/centro de funcionalidades/i)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/operaci[oó]n diaria/i)).toBeVisible();
   await expect(page.getByText(/cat[aá]logo e inventario/i)).toBeVisible();
@@ -87,29 +77,18 @@ test('admin feature center smoke test when admin E2E credentials are configured 
   expect(consoleErrors).toEqual([]);
 });
 
-
-test('staff cannot access admin routes @staff', async ({ page }) => {
-  await loginAsStaff(page);
-  await page.goto('/admin/features');
-  await page.waitForLoadState('domcontentloaded');
-  await expect(page).toHaveURL(/\/staff(?:\/)?$|\/login$/);
-  await expect(page.getByText(/centro de funcionalidades/i)).not.toBeVisible();
-});
-
-test('admin users page exposes Staff lifecycle controls @admin', async ({ page }) => {
+test('admin user management no longer advertises the retired Staff role @admin', async ({ page }) => {
   test.skip(
     !process.env.PLAYWRIGHT_ADMIN_EMAIL || !process.env.PLAYWRIGHT_ADMIN_PASSWORD,
-    'Set admin credentials to enable Staff management coverage.',
+    'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD to enable authenticated admin E2E coverage.',
   );
-
-  await openInternalAccess(page, 'admin');
+  await openAdminAccess(page);
   await page.locator('#login-email').fill(process.env.PLAYWRIGHT_ADMIN_EMAIL!);
   await page.locator('#login-password').fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD!);
   await page.getByRole('button', { name: /^iniciar sesi[oó]n$/i }).click();
-  await page.waitForURL(/\/admin(?:\/)?/);
+  await page.waitForURL((url) => url.pathname === '/admin' || url.pathname === '/admin/');
   await page.goto('/admin/users');
-  await page.waitForLoadState('networkidle');
   await expect(page.getByRole('heading', { name: 'Usuarios' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Crear Staff' })).toBeVisible();
-  await expect(page.getByText('Estado', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /crear staff/i })).toHaveCount(0);
+  await expect(page.locator('body')).not.toContainText(/staff/i);
 });
