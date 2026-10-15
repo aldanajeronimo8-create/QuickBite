@@ -213,7 +213,7 @@ export async function createOrder(order: NewOrder): Promise<OrderCreationResult>
   try {
     const { data: savedOrder, error: orderError } = await client
       .from('orders')
-      .select('id,user_id,total,status,payment_method,payment_status,order_number,client_request_id,order_items(product_id,quantity,price)')
+      .select('id,user_id,total,status,payment_method,payment_status,order_number,client_request_id,scheduled_recess_schedule_id,preordered,scheduled_for,order_items(product_id,quantity,price)')
       .eq('order_number', orderNumber)
       .maybeSingle();
     if (orderError) throw orderError;
@@ -240,6 +240,8 @@ export async function createOrder(order: NewOrder): Promise<OrderCreationResult>
       savedOrder.payment_method === orderFields.payment_method &&
       savedOrder.status === 'pending' &&
       savedOrder.payment_status === expectedPaymentStatus &&
+      (savedOrder.scheduled_recess_schedule_id ?? null) === (orderFields.scheduled_recess_schedule_id ?? null) &&
+      ((orderFields.scheduled_recess_schedule_id ?? null) === null || Boolean(savedOrder.scheduled_for)) &&
       Math.abs(Number(savedOrder.total) - computedTotal) < 0.01;
     if (!fieldsMatch || !itemsMatch) {
       return {
