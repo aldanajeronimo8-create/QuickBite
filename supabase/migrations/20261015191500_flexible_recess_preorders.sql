@@ -3,6 +3,8 @@
 
 ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS scheduled_recess_schedule_id uuid,
+  ADD COLUMN IF NOT EXISTS scheduled_recess_name text,
+  ADD COLUMN IF NOT EXISTS scheduled_pickup_until timestamptz,
   ADD COLUMN IF NOT EXISTS preordered boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS pickup_outcome text NOT NULL DEFAULT 'awaiting';
 
@@ -335,6 +337,8 @@ DECLARE
   v_recess public.recess_schedules%rowtype;
   v_selected_recess_schedule_id uuid := NULL;
   v_scheduled_for timestamptz := NULL;
+  v_scheduled_pickup_until timestamptz := NULL;
+  v_scheduled_recess_name text := NULL;
   v_is_preorder boolean := false;
   v_student_section_id uuid := NULL;
   v_preorder_limit integer := 2;
@@ -408,7 +412,9 @@ BEGIN
 
     v_recess_configured := true;
     v_selected_recess_schedule_id := v_recess.id;
+    v_scheduled_recess_name := v_recess.name;
     v_scheduled_for := (p_pickup_date + v_recess.start_time) AT TIME ZONE 'America/Bogota';
+    v_scheduled_pickup_until := (p_pickup_date + v_recess.end_time) AT TIME ZONE 'America/Bogota';
     v_is_preorder := v_local_time < v_recess.start_time;
 
     IF v_is_preorder AND NOT public.is_admin() THEN
@@ -453,7 +459,9 @@ BEGIN
 
     v_recess_active := true;
     v_selected_recess_schedule_id := v_recess.id;
+    v_scheduled_recess_name := v_recess.name;
     v_scheduled_for := (v_local_date + v_recess.start_time) AT TIME ZONE 'America/Bogota';
+    v_scheduled_pickup_until := (v_local_date + v_recess.end_time) AT TIME ZONE 'America/Bogota';
     v_is_preorder := false;
   END IF;
 
@@ -479,7 +487,7 @@ BEGIN
       id, user_id, total, status, payment_method, payment_status, order_number,
       pickup_code, estimated_minutes, payment_reference, notes, student_comment,
       client_request_id, pickup_slot_id, scheduled_recess_schedule_id,
-      scheduled_for, preordered, pickup_outcome
+      scheduled_recess_name, scheduled_for, scheduled_pickup_until, preordered, pickup_outcome
     )
     VALUES (
       v_order_id, p_user_id, 0, v_initial_status, p_payment_method,
@@ -487,7 +495,8 @@ BEGIN
       p_estimated_minutes, p_payment_reference, NULLIF(trim(p_notes), ''),
       NULLIF(trim(p_notes), ''), p_request_id,
       CASE WHEN v_windows_enabled AND NOT v_recess_configured THEN v_slot.id ELSE NULL END,
-      v_selected_recess_schedule_id, v_scheduled_for, v_is_preorder, 'awaiting'
+      v_selected_recess_schedule_id, v_scheduled_recess_name, v_scheduled_for,
+      v_scheduled_pickup_until, v_is_preorder, 'awaiting'
     );
   EXCEPTION WHEN unique_violation THEN
     SELECT order_number, user_id INTO v_existing_order_number, v_existing_user_id
@@ -596,8 +605,8 @@ SET search_path TO 'pg_catalog', 'public', 'auth'
 AS $function$
 DECLARE
   v_order public.orders%rowtype;
-  v_end_time time without time zone;
   v_pickup_date date;
+  v_deadline timestamp;
   v_now timestamp := now() AT TIME ZONE 'America/Bogota';
 BEGIN
   IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'not_authorized'; END IF;
@@ -612,13 +621,11 @@ BEGIN
     RAISE EXCEPTION 'order_not_eligible_for_unclaimed';
   END IF;
 
-  SELECT s.end_time INTO v_end_time
-  FROM public.recess_schedules s
-  WHERE s.id = v_order.scheduled_recess_schedule_id;
-  IF NOT FOUND THEN RAISE EXCEPTION 'recess_schedule_not_found'; END IF;
-
-  v_pickup_date := (v_order.scheduled_for AT TIME ZONE 'America/Bogota')::date;
-  IF v_now < (v_pickup_date + v_end_time) THEN
+  IF v_order.scheduled_pickup_until IS NULL THEN
+    RAISE EXCEPTION 'pickup_deadline_missing';
+  END IF;
+  v_deadline := v_order.scheduled_pickup_until AT TIME ZONE 'America/Bogota';
+  IF v_now < v_deadline THEN
     RAISE EXCEPTION 'pickup_window_not_ended';
   END IF;
 
