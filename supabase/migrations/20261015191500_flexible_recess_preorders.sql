@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_recess_preorders_student_day
 CREATE TABLE IF NOT EXISTS public.recess_order_settings (
   id boolean PRIMARY KEY DEFAULT true CHECK (id),
   max_preorders_per_student integer NOT NULL DEFAULT 2
-    CHECK (max_preorders_per_student BETWEEN 1 AND 10),
+    CHECK (max_preorders_per_student BETWEEN 1 AND 2),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 INSERT INTO public.recess_order_settings(id, max_preorders_per_student)
@@ -211,7 +211,7 @@ AS $function$
 DECLARE v_limit integer;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'not_authorized'; END IF;
-  IF p_max_preorders IS NULL OR p_max_preorders < 1 OR p_max_preorders > 10 THEN
+  IF p_max_preorders IS NULL OR p_max_preorders < 1 OR p_max_preorders > 2 THEN
     RAISE EXCEPTION 'invalid_preorder_limit';
   END IF;
 
