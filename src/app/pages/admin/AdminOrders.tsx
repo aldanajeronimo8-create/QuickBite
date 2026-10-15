@@ -56,6 +56,8 @@ function getOrderErrorMessage(error: unknown) {
   }
   if (/delivered_order_immutable/i.test(message)) return 'El pedido ya fue entregado y su estado no se puede modificar.';
   if (/rejected_order_immutable/i.test(message)) return 'El pedido ya fue rechazado y no se puede modificar.';
+  if (/unclaimed_order_immutable/i.test(message)) return 'El pedido ya quedó registrado como no reclamado y no puede marcarse como entregado.';
+  if (/order_payment_not_confirmed/i.test(message)) return 'Solo se puede registrar como no reclamado un pedido con pago confirmado.';
   if (/invalid_order_transition/i.test(message)) return 'La transición de estado no es válida.';
   return message;
 }
@@ -276,7 +278,7 @@ export function AdminOrders() {
             const pendingCancellationCount = pendingForOrder(order.id).length;
             const comment = getOrderComment(order);
             const recessName = order.scheduled_recess_name ?? order.scheduled_recess?.name;
-            const canMarkUnclaimed = isScheduledPickupOver(order) && order.status !== 'delivered' && order.status !== 'rejected' && order.status !== 'cancelled';
+            const canMarkUnclaimed = isScheduledPickupOver(order) && order.payment_status === 'confirmed' && order.status !== 'delivered' && order.status !== 'rejected' && order.status !== 'cancelled';
 
             return (
               <Card
