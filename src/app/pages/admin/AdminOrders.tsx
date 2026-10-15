@@ -224,8 +224,8 @@ export function AdminOrders() {
         <div>
           <h1 className="mb-2 text-4xl font-bold text-green-800">Gestión de pedidos</h1>
           <p className="text-lg text-gray-600">
-            Aquí aparecen todos los pedidos con pago confirmado o rechazado. Los pagos pendientes se revisan en Pagos;
-            los pedidos con pago confirmado pasan a esta cola operativa.
+            Aquí aparecen los pedidos pagados o rechazados y los pedidos anticipados programados para organizar su preparación.
+            Los pagos pendientes se revisan en Pagos; los anticipados mostrarán su descanso y hora de recogida.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
