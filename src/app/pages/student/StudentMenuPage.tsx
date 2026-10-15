@@ -628,7 +628,8 @@ function Empty({ icon: Icon, title, text }: { icon: LucideIcon; title: string; t
 function statusData(order: Order): [string, number, LucideIcon] { if (order.status === 'cancelled') return ['Cancelado', 100, XCircle]; if (order.status === 'delivered') return ['Entregado', 100, CheckCircle2]; if (order.status === 'ready') return ['Listo para recoger', 78, PackageCheck]; if (order.status === 'preparing') return ['En preparación', 52, Utensils]; return ['Recibido', 22, Clock3]; }
 
 function OrderCard({ order }: { order: Order }) {
-  const [label, progress, Icon] = statusData(order);
+  const [baseLabel, progress, Icon] = statusData(order);
+  const label = order.pickup_outcome === 'unclaimed' ? 'No reclamado' : baseLabel;
   const recessName = order.scheduled_recess_name ?? order.scheduled_recess?.name;
   const recessStart = order.scheduled_for ? bogotaClock(order.scheduled_for) : order.scheduled_recess?.start_time ? timeLabel(order.scheduled_recess.start_time) : '';
   const recessEnd = order.scheduled_pickup_until ? bogotaClock(order.scheduled_pickup_until) : order.scheduled_recess?.end_time ? timeLabel(order.scheduled_recess.end_time) : '';
