@@ -56,6 +56,8 @@ function getOrderErrorMessage(error: unknown) {
   }
   if (/delivered_order_immutable/i.test(message)) return 'El pedido ya fue entregado y su estado no se puede modificar.';
   if (/rejected_order_immutable/i.test(message)) return 'El pedido ya fue rechazado y no se puede modificar.';
+  if (/unclaimed_order_immutable/i.test(message)) return 'El pedido ya quedó registrado como no reclamado y no puede marcarse como entregado.';
+  if (/order_payment_not_confirmed/i.test(message)) return 'Solo se puede registrar como no reclamado un pedido con pago confirmado.';
   if (/invalid_order_transition/i.test(message)) return 'La transición de estado no es válida.';
   return message;
 }
@@ -83,6 +85,27 @@ function money(value: number) {
   return Number(value).toLocaleString('es-CO');
 }
 
+function bogotaDateTime(value: string) {
+  return new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function isScheduledPickupOver(order: Order) {
+  return Boolean(
+    order.preordered &&
+    order.pickup_outcome === 'awaiting' &&
+    order.scheduled_pickup_until &&
+    Date.now() >= Date.parse(order.scheduled_pickup_until),
+  );
+}
+
 export function AdminOrders() {
   const { orders, loadData } = useDataStore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -106,7 +129,7 @@ export function AdminOrders() {
 
   const filteredOrders = useMemo(() => {
     let next = orders
-      .filter((order) => order.payment_status === 'confirmed' || order.payment_status === 'rejected')
+      .filter((order) => order.payment_status === 'confirmed' || order.payment_status === 'rejected' || order.preordered === true)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     if (filterStatus !== 'all') {
@@ -141,6 +164,26 @@ export function AdminOrders() {
       }
     } catch (error) {
       toast.error(getOrderErrorMessage(error));
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  const markOrderUnclaimed = async (order: Order) => {
+    if (updatingOrderId) return;
+    setUpdatingOrderId(order.id);
+    try {
+      const { data, error } = await requireSupabaseClient().rpc('admin_mark_order_unclaimed', {
+        p_order_id: order.id,
+      });
+      if (error) throw error;
+      if (data !== true) throw new Error('Supabase no confirmó el estado no reclamado.');
+      await loadData({ silent: true, force: true });
+      toast.success(`El pedido ${order.order_number} quedó registrado como no reclamado. No se realizó ningún reembolso automático.`);
+    } catch (error) {
+      const message = getErrorMessage(error, 'No se pudo marcar el pedido como no reclamado.');
+      if (/pickup_window_not_ended/i.test(message)) toast.error('Todavía no terminó el horario de recogida de este descanso.');
+      else toast.error(message);
     } finally {
       setUpdatingOrderId(null);
     }
@@ -181,8 +224,8 @@ export function AdminOrders() {
         <div>
           <h1 className="mb-2 text-4xl font-bold text-green-800">Gestión de pedidos</h1>
           <p className="text-lg text-gray-600">
-            Aquí aparecen todos los pedidos con pago confirmado o rechazado. Los pagos pendientes se revisan en Pagos;
-            los pedidos con pago confirmado pasan a esta cola operativa.
+            Aquí aparecen los pedidos pagados o rechazados y los pedidos anticipados programados para organizar su preparación.
+            Los pagos pendientes se revisan en Pagos; los anticipados mostrarán su descanso y hora de recogida.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -231,9 +274,11 @@ export function AdminOrders() {
           {filteredOrders.map((order) => {
             const rejected = order.status === 'rejected' || order.payment_status === 'rejected';
             const delivered = order.status === 'delivered';
-            const terminal = rejected || delivered;
+            const terminal = rejected || delivered || order.pickup_outcome === 'unclaimed';
             const pendingCancellationCount = pendingForOrder(order.id).length;
             const comment = getOrderComment(order);
+            const recessName = order.scheduled_recess_name ?? order.scheduled_recess?.name;
+            const canMarkUnclaimed = isScheduledPickupOver(order) && order.payment_status === 'confirmed' && order.status !== 'delivered' && order.status !== 'rejected' && order.status !== 'cancelled';
 
             return (
               <Card
@@ -247,6 +292,9 @@ export function AdminOrders() {
                       <h3 className="text-2xl font-bold text-green-700">{order.order_number}</h3>
                       {getStatusBadge(order.status)}
                       {getPaymentBadge(order.payment_status)}
+                      {order.preordered && <Badge className="bg-indigo-600 text-white">Anticipado · {recessName ?? 'Descanso'}</Badge>}
+                      {order.pickup_outcome === 'unclaimed' && <Badge className="bg-rose-600 text-white">No reclamado</Badge>}
+                      {order.pickup_outcome === 'claimed' && order.preordered && <Badge className="bg-emerald-700 text-white">Recogido</Badge>}
                       {pendingCancellationCount > 0 && (
                         <Badge className="bg-red-100 text-red-800">
                           {pendingCancellationCount} cancelación{pendingCancellationCount > 1 ? 'es' : ''} pendiente
@@ -255,9 +303,13 @@ export function AdminOrders() {
                       )}
                     </div>
 
-                    <p className="mb-3 text-sm text-gray-600">
-                      {format(new Date(order.created_at), "d 'de' MMMM, yyyy - HH:mm", { locale: es })}
+                    <p className="mb-1 text-sm text-gray-600">
+                      Pedido creado: {format(new Date(order.created_at), "d 'de' MMMM, yyyy - HH:mm", { locale: es })}
                     </p>
+                    {order.preordered && order.scheduled_for && <p className="mb-3 text-sm font-bold text-indigo-700">
+                      Recogida programada: {bogotaDateTime(order.scheduled_for)}
+                      {order.scheduled_pickup_until ? ` · hasta ${new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(order.scheduled_pickup_until))}` : ''}
+                    </p>}
 
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <span className="font-medium">Artículos:</span>
@@ -298,6 +350,21 @@ export function AdminOrders() {
                         </p>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {canMarkUnclaimed && (
+                  <div className="mt-4 border-t border-gray-200 pt-4">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={updatingOrderId === order.id}
+                      onClick={() => void markOrderUnclaimed(order)}
+                      className="border-rose-300 text-rose-700 hover:bg-rose-50"
+                    >
+                      {updatingOrderId === order.id ? 'Guardando...' : 'Marcar como no reclamado'}
+                    </Button>
+                    <p className="mt-1 text-xs text-gray-500">Solo disponible después de finalizar el descanso. El cobro no se devuelve automáticamente.</p>
                   </div>
                 )}
 
