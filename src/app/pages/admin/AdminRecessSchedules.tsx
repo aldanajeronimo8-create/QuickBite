@@ -194,23 +194,6 @@ export function AdminRecessSchedules() {
     }
   };
 
-  const deactivateGroup = async (group: ScheduleGroup) => {
-    try {
-      const { data, error } = await client.from('recess_schedules')
-        .update({ active: false })
-        .in('id', group.ids)
-        .select('id,active');
-      if (error) throw error;
-      if ((data ?? []).length !== group.ids.length || (data ?? []).some(row => row.active)) {
-        throw new Error('No se pudo confirmar la desactivación.');
-      }
-      await load();
-      toast.success('Programación desactivada. El historial de pedidos se conserva.');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo desactivar la programación.');
-    }
-  };
-
   return <div className="space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
@@ -275,7 +258,7 @@ export function AdminRecessSchedules() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => void toggleGroup(group)}><Power className={`mr-2 h-4 w-4 ${group.active ? 'text-emerald-500' : 'text-slate-400'}`} />{group.active ? 'Desactivar' : 'Activar'}</Button>
-            {group.active && <Button variant="outline" size="sm" onClick={() => void deactivateGroup(group)}>Desactivar semana</Button>}
+
           </div>
         </div>
       </Card>)}
