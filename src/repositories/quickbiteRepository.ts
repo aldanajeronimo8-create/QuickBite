@@ -11,7 +11,6 @@ import {
   type Profile,
   type SystemHealthCheck,
   type UserNotification,
-  type StaffOrder,
 } from '../lib/supabase';
 import { getErrorMessage } from '../lib/errorMessage';
 import { withRetry } from '../lib/retry';
@@ -167,25 +166,6 @@ export async function saveProductWithNutrition(input: ProductWithNutritionInput)
   }
 }
 export async function deleteProduct(id: string) { const supabase = requireSupabaseClient(); const { error: rpcError } = await supabase.rpc('admin_delete_product', { p_product_id: id }); if (rpcError) { if (!isMissingRpc(rpcError)) throw productRpcError(rpcError); const { error } = await supabase.from('products').delete().eq('id', id); if (error) throw productRpcError(error); } const { data: remaining, error: verifyError } = await supabase.from('products').select('id').eq('id', id).maybeSingle(); if (verifyError) throw new Error('La eliminación se ejecutó, pero no se pudo verificar la ausencia del producto: ' + verifyError.message); if (remaining) throw new Error('El producto todavía existe en Supabase; no se confirmó la eliminación.'); }
-export async function listStaffActiveOrders() {
-  const { data, error } = await requireSupabaseClient().rpc('staff_list_active_orders');
-  if (error) throw error;
-  return (data ?? []) as StaffOrder[];
-}
-
-export async function updateStaffOrderStatus(id: string, status: Extract<Order['status'], 'preparing' | 'ready' | 'delivered'>) {
-  const { data, error } = await requireSupabaseClient().rpc('staff_update_order_status', { p_order_id: id, p_status: status });
-  if (error) {
-    const message = getErrorMessage(error, 'No se pudo actualizar el pedido.');
-    if (/not_authorized|row-level security|permission denied/i.test(message)) throw new Error('Tu cuenta no tiene permisos de Staff.');
-    if (/invalid_order_transition/i.test(message)) throw new Error('El pedido debe avanzar en orden: pendiente, preparación, listo y entregado.');
-    if (/order_not_found/i.test(message)) throw new Error('El pedido ya no existe o no está disponible.');
-    if (/immutable/i.test(message)) throw new Error('Este pedido ya está cerrado.');
-    throw new Error(message);
-  }
-  return String(data ?? id);
-}
-
 export async function listOrders() { const data = await withRetry(async () => { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('admin_hidden', false).order('created_at', { ascending: false }); if (error) throw error; return data; }); return (data ?? []) as Order[]; }
 async function getOrderById(id: string) { const { data, error } = await requireSupabaseClient().from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').eq('id', id).single(); if (error) throw orderStatusRpcError(error); return data as Order; }
 export async function listOrdersForExport(sinceIso: string, limit = 10000) { const supabase = requireSupabaseClient(); const safeLimit = Math.min(Math.max(limit, 1), 10000); const batchSize = 1000; const orders: Order[] = []; while (orders.length < safeLimit) { const from = orders.length; const to = Math.min(from + batchSize - 1, safeLimit - 1); const { data, error } = await supabase.from('orders').select('*, order_items(*, product:products(*)), user:profiles(*)').gte('created_at', sinceIso).order('created_at', { ascending: false }).range(from, to); if (error) throw error; const batch = (data ?? []) as Order[]; orders.push(...batch); if (batch.length < to - from + 1) break; } return orders; }

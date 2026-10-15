@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, Edit2, GraduationCap, KeyRound, Link2, Power, RefreshCw, Shield, ShieldCheck, Trash2, UserCog, Users, UtensilsCrossed, X } from 'lucide-react';
+import { Copy, Edit2, GraduationCap, KeyRound, Link2, Power, RefreshCw, Shield, ShieldCheck, Trash2, UserCog, Users, X } from 'lucide-react';
 import { useDataStore } from '../../../store/dataStore';
 import { useAuthStore } from '../../../store/authStore';
 import { requireSupabaseClient, type Profile } from '../../../lib/supabase';
@@ -11,7 +11,7 @@ import { Label } from '../../components/ui/label';
 import { listProtectedAdminEmails } from '../../../repositories/quickbiteRepository';
 import { protectedAdminEmails } from '../../../lib/protectedAccounts';
 
-type Mode = 'student' | 'parent' | 'staff';
+type Mode = 'student' | 'parent';
 type AcademicSection = { id: string; name: string };
 type AcademicGrade = { id: string; section_id: string; name: string };
 type AcademicCourse = { id: string; grade_id: string; name: string };
@@ -23,7 +23,6 @@ const CREATE_ROLES: Array<{ value: Profile['role']; label: string; description: 
   { value: 'student', label: 'Usuario', description: 'Cuenta de estudiante para realizar compras y consultar pedidos.', icon: GraduationCap },
   { value: 'admin', label: 'Administrador', description: 'Cuenta con acceso al panel administrativo.', icon: Shield },
   { value: 'both', label: 'Usuario y administrador', description: 'Cuenta de estudiante con acceso administrativo.', icon: Shield },
-  { value: 'staff', label: 'Personal de cafetería', description: 'Cuenta operativa para gestionar pedidos de la cafetería.', icon: UtensilsCrossed },
 ];
 const RELATIONSHIPS = ['Padre', 'Madre', 'Acudiente', 'Tutor legal', 'Abuelo/a', 'Tío/a', 'Hermano/a', 'Familiar', 'Otro'];
 const emptyForm: UserForm = { email: '', password: '', full_name: '', role: 'student', ti: '', student_code: '', relationship: 'Padre', section_id: '', grade_id: '', course_id: '' };
@@ -32,7 +31,6 @@ const roleLabel = (role: Profile['role']) => {
   if (role === 'both') return 'Usuario y administrador';
   if (role === 'parent') return 'Padre de familia';
   if (role === 'student_parent') return 'Usuario y padre';
-  if (role === 'staff') return 'Personal de cafetería';
   return 'Usuario';
 };
 const isAdmin = (role: Profile['role']) => role === 'admin' || role === 'both';
@@ -114,7 +112,7 @@ export function AdminUsersSeparated() {
 
   const beginCreate = (nextMode: Mode) => {
     setMode(nextMode);
-    setForm({ ...emptyForm, role: nextMode === 'parent' ? 'parent' : nextMode === 'staff' ? 'staff' : 'student' });
+    setForm({ ...emptyForm, role: nextMode === 'parent' ? 'parent' : 'student' });
     setGenerated(null);
     setCredentialOnly(false);
     setProtectedOriginalEmail(null);
@@ -140,7 +138,7 @@ export function AdminUsersSeparated() {
       return;
     }
     const protectedAccount = isProtected(user);
-    setMode(user.role === 'parent' ? 'parent' : user.role === 'staff' ? 'staff' : 'student');
+    setMode(user.role === 'parent' ? 'parent' : 'student');
     setForm({ id: user.id, email: user.email, password: '', full_name: user.full_name, role: user.role, ti: user.ti ?? '', student_code: '', relationship: 'Padre', section_id: user.section_id ?? '', grade_id: user.grade_id ?? '', course_id: user.course_id ?? '' });
     setCredentialOnly(protectedAccount);
     setProtectedOriginalEmail(protectedAccount ? user.email.trim().toLowerCase() : null);
@@ -285,7 +283,7 @@ export function AdminUsersSeparated() {
             return;
           }
         }
-        toast.success(mode === 'parent' ? 'Cuenta de padre y vínculo verificados en Supabase.' : mode === 'staff' ? 'Cuenta de personal creada y verificada en Supabase.' : 'Cuenta creada y verificada en Supabase.');
+        toast.success(mode === 'parent' ? 'Cuenta de padre y vínculo verificados en Supabase.' : 'Cuenta creada y verificada en Supabase.');
         if (mode === 'student' && canGenerateCode(created.role)) await generateStudentCode(created.id);
         if (mode === 'parent') close();
       }
@@ -400,9 +398,6 @@ export function AdminUsersSeparated() {
       <button type="button" onClick={() => beginCreate('student')} className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md">
         <div className="flex items-start gap-4"><span className="rounded-xl bg-blue-50 p-3 text-blue-700"><GraduationCap className="h-6 w-6" /></span><div><h2 className="text-lg font-bold text-slate-900">Crear usuario</h2><p className="mt-1 text-sm leading-5 text-slate-500">Crea la cuenta del estudiante. Al terminar se genera automáticamente su código de vinculación.</p><div className="mt-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700"><Link2 className="h-3.5 w-3.5" />Genera código</div></div></div>
       </button>
-      <button type="button" onClick={() => beginCreate('staff')} className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md">
-        <div className="flex items-start gap-4"><span className="rounded-xl bg-amber-50 p-3 text-amber-700"><UtensilsCrossed className="h-6 w-6" /></span><div><h2 className="text-lg font-bold text-slate-900">Crear Staff</h2><p className="mt-1 text-sm leading-5 text-slate-500">Crea una cuenta operativa para procesar pedidos. Solo Admin puede gestionarla.</p><div className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700"><ShieldCheck className="h-3.5 w-3.5" />Acceso operativo</div></div></div>
-      </button>
       <button type="button" onClick={() => beginCreate('parent')} className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-md">
         <div className="flex items-start gap-4"><span className="rounded-xl bg-emerald-50 p-3 text-emerald-700"><Users className="h-6 w-6" /></span><div><h2 className="text-lg font-bold text-slate-900">Crear padre de familia</h2><p className="mt-1 text-sm leading-5 text-slate-500">Crea la cuenta familiar usando el código generado previamente por el estudiante.</p><div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />Código obligatorio</div></div></div>
       </button>
@@ -413,7 +408,7 @@ export function AdminUsersSeparated() {
 
     {open && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" style={{ maxHeight: '90vh' }}>
-        <div className="mb-5 flex items-center justify-between"><div className="flex items-center gap-3"><div className="rounded-xl bg-slate-100 p-2"><RoleIcon className="h-5 w-5 text-slate-700" /></div><div><h2 className="text-xl font-black text-slate-900">{form.id ? (credentialOnly ? 'Credenciales protegidas' : 'Editar usuario') : mode === 'parent' ? 'Crear padre de familia' : mode === 'staff' ? 'Crear Staff' : 'Crear usuario'}</h2><p className="text-sm text-slate-500">Completa los datos requeridos.</p></div></div><Button variant="outline" size="sm" onClick={close} disabled={saving || generating}><X className="h-4 w-4" /></Button></div>
+        <div className="mb-5 flex items-center justify-between"><div className="flex items-center gap-3"><div className="rounded-xl bg-slate-100 p-2"><RoleIcon className="h-5 w-5 text-slate-700" /></div><div><h2 className="text-xl font-black text-slate-900">{form.id ? (credentialOnly ? 'Credenciales protegidas' : 'Editar usuario') : mode === 'parent' ? 'Crear padre de familia' : 'Crear usuario'}</h2><p className="text-sm text-slate-500">Completa los datos requeridos.</p></div></div><Button variant="outline" size="sm" onClick={close} disabled={saving || generating}><X className="h-4 w-4" /></Button></div>
         <form onSubmit={(event) => void save(event)} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div><Label>Nombre completo</Label><Input disabled={credentialOnly} value={form.full_name} onChange={(e) => setForm((current) => ({ ...current, full_name: e.target.value }))} /></div>

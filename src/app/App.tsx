@@ -9,14 +9,14 @@ import { useDataStore } from '../store/dataStore';
 import { ErrorBoundary } from './components/system/ErrorBoundary';
 import { hasSupabaseConfig, needsFirstRunSetup } from '../config/appConfig';
 import { getAuthContext, getSupabaseClientForContext } from '../lib/supabase';
-import { canAccessAdmin, canAccessParent, canAccessStaff, canAccessStudent } from '../lib/access';
+import { canAccessAdmin, canAccessParent, canAccessStudent } from '../lib/access';
 import { UserThemePreference } from './components/UserThemePreference';
 import { VisualThemeProvider, useVisualTheme } from './contexts/VisualThemeProvider';
 
 function syncVisualInterfaceScope(pathname: string) {
   if (typeof document === 'undefined') return;
   const body = document.body;
-  const scope = pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/staff') ? 'staff' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : pathname === '/' || pathname === '/login' ? 'login_student' : null;
+  const scope = pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/parent') ? 'parent' : pathname.startsWith('/menu') || pathname.startsWith('/student') ? 'student' : pathname === '/' || pathname === '/login' ? 'login_student' : null;
   if (scope) body.dataset.qbInterface = scope;
   else delete body.dataset.qbInterface;
   document.documentElement.classList.toggle('qb-public-home', pathname === '/');
@@ -44,7 +44,6 @@ function SessionRestorer() {
     const context = getAuthContext();
     if (context === 'admin' && canAccessAdmin(user.role)) void router.navigate('/admin', { replace: true });
     else if (context === 'user' && canAccessParent(user.role)) void router.navigate('/parent/family', { replace: true });
-    else if (context === 'user' && canAccessStaff(user.role)) void router.navigate('/staff', { replace: true });
     else if (context === 'user' && canAccessStudent(user.role)) void router.navigate('/menu', { replace: true });
   }, [loading, user]);
 
@@ -89,29 +88,6 @@ function AppContent() {
     });
   }, [hasSupabase, loadData, user]);
   useEffect(() => { if (!hasSupabase || !user) return; const cleanupRealtime = subscribeRealtime(); return () => cleanupRealtime(); }, [hasSupabase, subscribeRealtime, user]);
-  useEffect(() => {
-    if (!hasSupabase || !user || !user.active) return;
-    const pingPresence = async () => {
-      if (document.visibilityState === 'hidden') return;
-      try {
-        const client = getSupabaseClientForContext(getAuthContext());
-        if (!client) return;
-        const { error } = await client.rpc('staff_ping_presence');
-        if (error) console.warn('[QuickBite] No se pudo actualizar la presencia.', error.message);
-      } catch (error) {
-        console.warn('[QuickBite] No se pudo actualizar la presencia.', error);
-      }
-    };
-    const onVisibilityChange = () => { if (document.visibilityState === 'visible') void pingPresence(); };
-    void pingPresence();
-    const interval = window.setInterval(() => void pingPresence(), 30_000);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
-  }, [hasSupabase, user]);
-
   useEffect(() => { syncVisualInterfaceScope(router.state.location.pathname); return router.subscribe((state) => syncVisualInterfaceScope(state.location.pathname)); }, []);
   return <ErrorBoundary><VisualThemeProvider>{needsSetup ? <SetupWizardPage /> : <><RouterProvider router={router} /><AdminStudentPreviewBar /><SessionRestorer />{user && <UserThemePreference />}<ThemePreferenceBoundary /></>}<Toaster position="top-center" /></VisualThemeProvider></ErrorBoundary>;
 }
