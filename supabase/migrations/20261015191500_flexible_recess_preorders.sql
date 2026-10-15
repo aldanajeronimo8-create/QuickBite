@@ -72,6 +72,12 @@ FROM ranked
 WHERE ranked.id = s.id
   AND s.name NOT IN ('Primer Descanso', 'Segundo Descanso');
 
+ALTER TABLE public.recess_schedules
+  DROP CONSTRAINT IF EXISTS recess_schedules_allowed_name_check;
+ALTER TABLE public.recess_schedules
+  ADD CONSTRAINT recess_schedules_allowed_name_check
+  CHECK (name IN ('Primer Descanso', 'Segundo Descanso'));
+
 CREATE OR REPLACE FUNCTION public.admin_upsert_weekly_recess_schedule(
   p_name text,
   p_weekdays integer[],
