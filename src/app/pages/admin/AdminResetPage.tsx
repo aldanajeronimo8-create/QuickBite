@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, RotateCcw, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
+import { canAccessAdmin } from '../../../lib/access';
 import { useDataStore } from '../../../store/dataStore';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -13,7 +14,7 @@ export function AdminResetPage() {
   const [resetting, setResetting] = useState(false);
 
   const activeOrders = useMemo(() => orders.filter((order) => !order.admin_hidden), [orders]);
-  const isSystemAdmin = user?.role === 'admin' || user?.role === 'both';
+  const isSystemAdmin = user ? canAccessAdmin(user.role) : false;
   const canReset = isSystemAdmin && confirmation.trim().toUpperCase() === 'REINICIAR';
 
   const handleReset = async () => {
