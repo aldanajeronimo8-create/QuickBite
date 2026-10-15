@@ -66,7 +66,7 @@ export default async function globalAuthSetup(config: FullConfig) {
   const sessions: Record<Role, string> = {} as Record<Role, string>;
 
   try {
-    for (const role of ['student', 'parent', 'admin'] as const {
+    for (const role of ['student', 'parent', 'admin'] as const) {
       const context = await browser.newContext({ baseURL });
       try {
         const page = await context.newPage();
