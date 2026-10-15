@@ -206,7 +206,7 @@ export async function createOrder(order: NewOrder): Promise<OrderCreationResult>
   try {
     const { data: savedOrder, error: orderError } = await client
       .from('orders')
-      .select('id,user_id,total,status,payment_method,payment_status,order_number,client_request_id')
+      .select('id,user_id,total,status,payment_method,payment_status,order_number,client_request_id,order_items(product_id,quantity,price)')
       .eq('order_number', orderNumber)
       .maybeSingle();
     if (orderError) throw orderError;
@@ -214,11 +214,8 @@ export async function createOrder(order: NewOrder): Promise<OrderCreationResult>
       return { orderNumber, verified: false, verificationMessage: 'El pedido se confirmó por la transacción, pero no aparece en la lectura posterior de Supabase.' };
     }
 
-    const { data: savedItems, error: itemsError } = await client
-      .from('order_items')
-      .select('product_id,quantity,price')
-      .eq('order_id', savedOrder.id);
-    if (itemsError) throw itemsError;
+    // Verify the order and its items in one round trip instead of two sequential HTTP requests.
+    const savedItems = savedOrder.order_items ?? [];
 
     const expectedPaymentStatus = orderFields.payment_method === 'credits' ? 'confirmed' : 'pending';
     const expectedItems = order_items
