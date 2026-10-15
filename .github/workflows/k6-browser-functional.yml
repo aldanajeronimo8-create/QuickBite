@@ -24,9 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      VITE_SUPABASE_URL: https://cczbbqxunygcowqfrqdm.supabase.co
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      K6_BASE_URL: ${{ vars.K6_BASE_URL || 'https://quick-bite-snowy-ten.vercel.app' }}
+      VITE_SUPABASE_URL: https://arvvkukyvcqxyqkvqmaf.supabase.co
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      K6_BASE_URL: https://quick-bite-quick-bite5.vercel.app
       K6_BROWSER_ROLE: ${{ matrix.role }}
       K6_BROWSER_VUS: 1
       K6_BROWSER_ITERATIONS: 1
