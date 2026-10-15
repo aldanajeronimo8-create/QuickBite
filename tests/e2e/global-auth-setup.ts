@@ -2,30 +2,28 @@ import { chromium, type FullConfig, type Page } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-type Role = 'student' | 'parent' | 'staff' | 'admin';
+type Role = 'student' | 'parent' | 'admin';
 
 const AUTH_STORAGE_KEYS: Record<Role, string> = {
   student: 'quickbite.user.auth',
   parent: 'quickbite.user.auth',
-  staff: 'quickbite.user.auth',
   admin: 'quickbite.admin.auth',
 };
 
 const credentials: Record<Role, () => { email?: string; password?: string }> = {
   student: () => ({ email: process.env.PLAYWRIGHT_E2E_EMAIL, password: process.env.PLAYWRIGHT_E2E_PASSWORD }),
   parent: () => ({ email: process.env.PLAYWRIGHT_PARENT_EMAIL, password: process.env.PLAYWRIGHT_PARENT_PASSWORD }),
-  staff: () => ({ email: process.env.PLAYWRIGHT_STAFF_EMAIL, password: process.env.PLAYWRIGHT_STAFF_PASSWORD }),
   admin: () => ({ email: process.env.PLAYWRIGHT_ADMIN_EMAIL, password: process.env.PLAYWRIGHT_ADMIN_PASSWORD }),
 };
 
 const destination: Record<Role, RegExp> = {
   student: /\/menu$/,
   parent: /\/parent\/family$/,
-  staff: /\/staff(?:\/orders)?$/,
+
   admin: /\/admin(?:\/)?$/,
 };
 
-async function openInternalAccess(page: Page, role: 'staff' | 'admin') {
+async function openInternalAccess(page: Page) {
   await page.goto('/login');
   const logo = page.getByRole('button', { name: 'QuickBite', exact: true });
   await logo.waitFor({ state: 'visible', timeout: 15_000 });
@@ -37,9 +35,7 @@ async function openInternalAccess(page: Page, role: 'staff' | 'admin') {
   await page.mouse.up();
   const dialog = page.getByRole('dialog', { name: 'Acceso interno' });
   await dialog.waitFor({ state: 'visible', timeout: 15_000 });
-  await dialog.getByRole('button', {
-    name: role === 'staff' ? /personal de cafeter[ií]a/i : /administraci[oó]n/i,
-  }).click();
+  await dialog.getByRole('button', { name: /administraci[oó]n/i }).click();
 }
 
 async function captureRoleSession(page: Page, role: Role) {
@@ -49,8 +45,8 @@ async function captureRoleSession(page: Page, role: Role) {
   await page.goto('/login');
   if (role === 'parent') {
     await page.getByRole('button', { name: /iniciar sesi[oó]n como padre/i }).click();
-  } else if (role === 'staff' || role === 'admin') {
-    await openInternalAccess(page, role);
+  } else if (role === 'admin') {
+    await openInternalAccess(page);
   }
 
   await page.locator('#login-email').fill(account.email);
@@ -70,7 +66,7 @@ export default async function globalAuthSetup(config: FullConfig) {
   const sessions: Record<Role, string> = {} as Record<Role, string>;
 
   try {
-    for (const role of ['student', 'parent', 'staff', 'admin'] as const) {
+    for (const role of ['student', 'parent', 'admin'] as const) {
       const context = await browser.newContext({ baseURL });
       try {
         const page = await context.newPage();

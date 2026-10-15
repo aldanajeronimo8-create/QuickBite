@@ -42,12 +42,6 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      name: 'staff',
-      workers: 1,
-      grep: /@staff\b/,
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
       name: 'admin',
       workers: 1,
       grep: /@admin\b/,

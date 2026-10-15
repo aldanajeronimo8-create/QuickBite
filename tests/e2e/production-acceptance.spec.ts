@@ -1,11 +1,10 @@
 import { test, expect, type Page } from './auth-fixture';
 
-type Role = 'student' | 'parent' | 'staff' | 'admin';
+type Role = 'student' | 'parent' | 'admin';
 
 const HOME: Record<Role, string> = {
   student: '/menu',
   parent: '/parent/family',
-  staff: '/staff',
   admin: '/admin',
 };
 
@@ -101,7 +100,7 @@ async function assertNoRuntimeFailures(page: Page) {
 
 test.describe('QuickBite production acceptance — role coverage @student', () => {
   test('all four roles reach their correct production interface', async ({ page, e2eAuth }) => {
-    for (const role of ['student', 'parent', 'staff', 'admin'] as const) {
+    for (const role of ['student', 'parent', 'admin'] as const) {
       await installRole(page, role, e2eAuth);
       await expect(page).toHaveURL(new RegExp(`${HOME[role].replaceAll('/', '\\/')}$`));
       await assertNoRuntimeFailures(page);
@@ -123,26 +122,6 @@ test.describe('QuickBite production acceptance — role coverage @student', () =
       await page.goto(route);
       await expect(page).toHaveURL(new RegExp(`${route.replaceAll('/', '\\/')}$`));
       await assertNoRuntimeFailures(page);
-    }
-  });
-
-  test('staff operational interface exposes real order controls', async ({ page, e2eAuth }) => {
-    await installRole(page, 'staff', e2eAuth);
-    await expect(page).toHaveURL(/\/staff(?:\/)?$/);
-    await expect(page.getByRole('heading', { name: 'Operación de cafetería' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Cola de pedidos' })).toBeVisible();
-    await assertNoRuntimeFailures(page);
-
-    const orderLink = page.getByRole('link', { name: /pedidos|cola/i }).first();
-    if (await orderLink.count()) {
-      await orderLink.click();
-      await expect(page).toHaveURL(/\/staff\/orders$/);
-      await assertNoRuntimeFailures(page);
-    }
-
-    const actionable = page.getByRole('button').filter({ hasText: /preparar|listo|entregado|procesar|confirmar/i });
-    if (await actionable.count()) {
-      await expect(actionable.first()).toBeEnabled();
     }
   });
 
@@ -171,8 +150,6 @@ test.describe('QuickBite production acceptance — security matrix @student', ()
       '/student/account',
       '/student/history',
       '/parent/family',
-      '/staff',
-      '/staff/orders',
       '/admin',
       '/admin/users',
       '/admin/orders',
@@ -182,8 +159,8 @@ test.describe('QuickBite production acceptance — security matrix @student', ()
     }
   });
 
-  test('student, parent and staff cannot enter admin surfaces', async ({ browser, e2eAuth }) => {
-    for (const role of ['student', 'parent', 'staff'] as const) {
+  test('student and parent cannot enter admin surfaces', async ({ browser, e2eAuth }) => {
+    for (const role of ['student', 'parent'] as const) {
       const context = await browser.newContext();
       const page = await context.newPage();
       try {

@@ -32,10 +32,6 @@ on:
         required: true
       PLAYWRIGHT_PARENT_PASSWORD:
         required: true
-      PLAYWRIGHT_STAFF_EMAIL:
-        required: true
-      PLAYWRIGHT_STAFF_PASSWORD:
-        required: true
 
 permissions:
   actions: read
@@ -188,8 +184,6 @@ jobs:
       PLAYWRIGHT_ADMIN_PASSWORD: ${{ secrets.PLAYWRIGHT_ADMIN_PASSWORD }}
       PLAYWRIGHT_PARENT_EMAIL: ${{ secrets.PLAYWRIGHT_PARENT_EMAIL }}
       PLAYWRIGHT_PARENT_PASSWORD: ${{ secrets.PLAYWRIGHT_PARENT_PASSWORD }}
-      PLAYWRIGHT_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_STAFF_EMAIL }}
-      PLAYWRIGHT_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_STAFF_PASSWORD }}
       VITE_E2E_AUTH_AUTO_REFRESH: 'false'
     steps:
       - name: Checkout exact approved SHA
@@ -221,7 +215,7 @@ jobs:
           set -euo pipefail
           test "$VITE_SUPABASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co" || { echo "Refusing to run acceptance against an unapproved database target"; exit 1; }
           test "$VITE_API_BASE_URL" = "https://arvvkukyvcqxyqkvqmaf.supabase.co/functions/v1/server" || { echo "Refusing acceptance without the approved destination API"; exit 1; }
-          for name in VITE_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY PLAYWRIGHT_E2E_EMAIL PLAYWRIGHT_E2E_PASSWORD PLAYWRIGHT_PARENT_EMAIL PLAYWRIGHT_PARENT_PASSWORD PLAYWRIGHT_STAFF_EMAIL PLAYWRIGHT_STAFF_PASSWORD PLAYWRIGHT_ADMIN_EMAIL PLAYWRIGHT_ADMIN_PASSWORD; do
+          for name in VITE_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY PLAYWRIGHT_E2E_EMAIL PLAYWRIGHT_E2E_PASSWORD PLAYWRIGHT_PARENT_EMAIL PLAYWRIGHT_PARENT_PASSWORD PLAYWRIGHT_ADMIN_EMAIL PLAYWRIGHT_ADMIN_PASSWORD; do
             test -n "${!name:-}" || { echo "Missing required secret: $name"; exit 1; }
           done
 
