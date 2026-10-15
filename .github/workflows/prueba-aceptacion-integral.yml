@@ -105,7 +105,12 @@ jobs:
             artifact_url="$(printf '%s' "$artifacts_json" | jq -r '[.artifacts[] | select(.name == "exhaustive-audit-sha" and .expired == false)][0].archive_download_url // empty')"
             [ -n "$artifact_url" ] || { echo "Audit run #$run_id has no live exhaustive-audit-sha artifact" >&2; return 1; }
             tmp="$(mktemp -d)"
-            if ! curl --fail --silent --show-error "${auth[@]}" "$artifact_url" -o "$tmp/audit.zip"; then
+            if ! curl --location --fail --silent --show-error "${auth[@]}" "$artifact_url" -o "$tmp/audit.zip"; then
+              rm -rf "$tmp"
+              return 1
+            fi
+            if ! unzip -tq "$tmp/audit.zip" >/dev/null 2>&1; then
+              echo "Audit run #$run_id artifact download was not a valid ZIP" >&2
               rm -rf "$tmp"
               return 1
             fi
