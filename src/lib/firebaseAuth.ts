@@ -75,6 +75,12 @@ export function isFirebaseConfigured() {
   return hasFirebaseConfig();
 }
 
+/** Preload Firebase before the user gesture so Google popup initialization is ready. */
+export async function prepareFirebaseAuth() {
+  if (!hasFirebaseConfig()) return;
+  await getFirebaseAuth();
+}
+
 export async function signInWithFirebaseGoogle() {
   const firebaseAuth = await getFirebaseAuth();
   const provider = new window.firebase.auth.GoogleAuthProvider();
