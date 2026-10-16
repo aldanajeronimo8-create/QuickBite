@@ -91,6 +91,23 @@ BEGIN
     RAISE EXCEPTION 'overlapping_recess_schedule';
   END IF;
 
+  IF EXISTS (
+    SELECT 1
+    FROM unnest(p_weekdays) AS d(day)
+    JOIN public.recess_schedules other_schedule
+      ON other_schedule.weekday = d.day
+     AND other_schedule.active
+     AND other_schedule.name = p_name
+    JOIN public.recess_schedule_targets target
+      ON target.recess_schedule_id = other_schedule.id
+     AND target.section_id = p_section_id
+     AND target.grade_id IS NULL
+     AND target.course_id IS NULL
+    WHERE NOT (other_schedule.id = ANY(v_existing_ids))
+  ) THEN
+    RAISE EXCEPTION 'recess_schedule_already_exists';
+  END IF;
+
   FOR v_day IN 0..6 LOOP
     v_schedule_id := NULL;
     SELECT s.id INTO v_schedule_id
@@ -563,5 +580,4 @@ BEGIN
 
   RETURN v_order_number;
 END;
-$function$
-
+$function$;
