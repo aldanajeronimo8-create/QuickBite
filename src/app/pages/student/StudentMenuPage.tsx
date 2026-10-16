@@ -25,7 +25,7 @@ type PayStep = 'cart' | 'payment' | 'receipt';
 type NutritionFilter = 'all' | 'healthy' | 'vegetarian' | 'complete' | 'excludeAllergens';
 interface CartItem extends Product { qty: number; }
 interface Student { id: string; name: string; grade: string; email?: string; }
-type RecessPreorderOption = { recess_schedule_id: string; name: 'Primer Descanso' | 'Segundo Descanso' | string; start_time: string; end_time: string; pickup_date: string; preorders_count: number; max_preorders: number; is_active: boolean; can_order: boolean; };
+type RecessPreorderOption = { recess_schedule_id: string; name: 'Primer Descanso' | 'Segundo Descanso' | string; start_time: string; end_time: string; pickup_date: string; preorders_count: number; max_preorders: number | null; is_active: boolean; can_order: boolean; };
 interface ProductNutrition {
   product_id: string;
   detailed_description: string | null;
@@ -317,7 +317,7 @@ export function StudentMenuPage() {
     if (!student || cart.length === 0) return;
     const selectedRecess = recessOptions.find(option => option.recess_schedule_id === selectedRecessId);
     if (recessOptions.length > 0 && (!selectedRecess || !selectedRecess.can_order)) {
-      toast.error(selectedRecess ? 'Ya alcanzaste el límite de pedidos anticipados para este descanso.' : 'Selecciona un descanso disponible antes de confirmar.');
+      toast.error(selectedRecess ? 'El cupo de estudiantes para este descanso está completo o el horario ya cerró.' : 'Selecciona un descanso disponible antes de confirmar.');
       return;
     }
     if (recessOptionsError && recessOptions.length === 0) {
@@ -388,7 +388,8 @@ export function StudentMenuPage() {
       const message = getErrorMessage(error, 'Error al enviar el pedido');
       if (/insufficient_wallet_balance|Insufficient wallet balance/i.test(message)) toast.error('No tienes créditos suficientes para pagar este pedido.');
       else if (/no_active_recess_window/i.test(message)) toast.error('Selecciona un recreo disponible o espera al horario asignado a tu sección.');
-      else if (/preorder_limit_reached/i.test(message)) toast.error('Ya alcanzaste el máximo de pedidos anticipados para este descanso.');
+      else if (/recess_student_limit_reached/i.test(message)) toast.error('Se completó el cupo de estudiantes para este descanso. Elige otro horario.');
+      else if (/preorder_limit_reached/i.test(message)) toast.error('El horario actual ya no admite este pedido.');
       else if (/recess_window_closed/i.test(message)) toast.error('El horario para este descanso ya terminó.');
       else if (/invalid_recess_schedule_for_student/i.test(message)) toast.error('Ese descanso no está disponible para tu sección.');
       else if (/preorder_must_be_same_day/i.test(message)) toast.error('Los pedidos anticipados solo se pueden hacer para el descanso de hoy.');
@@ -594,19 +595,19 @@ function CartSheet({ cart, cartTotal, total, lastReceipt, payStep, paymentMethod
           {recessOptions.length > 0 && <section className={`${INNER} space-y-3 rounded-2xl p-4`}>
             <div>
               <p className="text-sm font-black text-slate-900 dark:text-white">¿Para qué descanso es tu pedido?</p>
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Puedes programarlo antes del inicio del descanso. El límite se aplica a pedidos anticipados para la misma fecha y descanso.</p>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">El cupo se aplica al número de estudiantes distintos que pueden pedir para la misma fecha, sección y descanso.</p>
             </div>
             <select value={selectedRecessId} onChange={event => onSelectRecess(event.target.value)} className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-[#131B2E] dark:text-white" aria-label="Seleccionar descanso">
-              {recessOptions.map(option => <option key={option.recess_schedule_id} value={option.recess_schedule_id} disabled={!option.can_order && !option.is_active}>
-                {option.name} · {timeLabel(option.start_time)}–{timeLabel(option.end_time)} · {option.preorders_count}/{option.max_preorders} anticipados
+              {recessOptions.map(option => <option key={option.recess_schedule_id} value={option.recess_schedule_id} disabled={!option.can_order}>
+                {option.name} · {timeLabel(option.start_time)}–{timeLabel(option.end_time)} · {option.preorders_count}/{option.max_preorders ?? 'Sin límite'} estudiantes
               </option>)}
             </select>
             {(() => {
               const option = recessOptions.find(item => item.recess_schedule_id === selectedRecessId);
               if (!option) return <p className="text-sm text-rose-500">Selecciona un descanso disponible.</p>;
-              if (!option.can_order && !option.is_active) return <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm font-bold text-rose-600 dark:text-rose-300">Ya alcanzaste el máximo de {option.max_preorders} pedidos anticipados para este descanso. Elige el otro descanso o espera al horario activo.</p>;
-              if (option.is_active) return <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">Este descanso está activo. Tu pedido se registrará como pedido del recreo actual.</p>;
-              return <p className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-sm text-indigo-700 dark:text-indigo-300">Pedido anticipado para hoy a las {timeLabel(option.start_time)}. Llevas {option.preorders_count} de {option.max_preorders} pedidos permitidos.</p>;
+              if (!option.can_order) return <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm font-bold text-rose-600 dark:text-rose-300">El cupo de este descanso está completo o el horario ya cerró. Selecciona otro descanso si está disponible.</p>;
+              if (option.is_active) return <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">Este descanso está activo. Tu pedido cuenta dentro del cupo de estudiantes.</p>;
+              return <p className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-sm text-indigo-700 dark:text-indigo-300">Pedido anticipado para hoy a las {timeLabel(option.start_time)}. Hay {option.preorders_count} de {option.max_preorders ?? 'sin límite'} estudiantes con pedido registrado.</p>;
             })()}
           </section>}
           {recessOptionsError && recessOptions.length === 0 && <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">No pudimos comprobar el horario del recreo. Actualiza la página antes de confirmar el pedido.</p>}
