@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const migration = readFileSync(
-  join(process.cwd(), 'supabase/migrations/20261016090000_student_recess_capacity_and_schedule_crud.sql'),
+  join(process.cwd(), 'supabase/migrations/20261016143144_student_recess_capacity_and_schedule_crud.sql'),
   'utf8',
 );
 const orderFunction = migration.slice(migration.indexOf('CREATE OR REPLACE FUNCTION public.create_order_with_recess_tx'));
