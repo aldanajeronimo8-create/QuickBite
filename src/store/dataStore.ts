@@ -410,7 +410,7 @@ export const useDataStore = create<DataState>((set, get) => ({
     const scheduleRefresh = () => {
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(() => {
-        get().loadData({ silent: true }).catch((error) => {
+        get().loadData({ silent: true, force: true }).catch((error) => {
           writeAuditLog({
             action: 'app.error',
             metadata: { source: 'realtime_refresh', message: String(error) },
