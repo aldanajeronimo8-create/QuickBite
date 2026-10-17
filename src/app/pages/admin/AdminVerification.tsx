@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDataStore } from '../../../store/dataStore';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Badge } from '../../components/ui/badge';
-import { ScanLine, CheckCircle, Search } from 'lucide-react';
+import { ScanLine, CheckCircle, Search, Camera, CameraOff } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { getOrderVerificationUrl } from '../../../lib/orderQr';
 import { toast } from 'sonner';
@@ -17,7 +17,57 @@ export function AdminVerification() {
   const { orders, updateOrder } = useDataStore();
   const [orderNumber, setOrderNumber] = useState('');
   const [verifiedOrder, setVerifiedOrder] = useState<Order | null>(null);
+  const [scannerActive, setScannerActive] = useState(false);
+  const [scannerError, setScannerError] = useState('');
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  useEffect(() => {
+    if (!scannerActive) return;
+    let stopped = false;
+    let stream: MediaStream | null = null;
+    let timer = 0;
+    const start = async () => {
+      try {
+        const Detector = (globalThis as unknown as { BarcodeDetector?: new (options?: { formats?: string[] }) => { detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
+        if (!Detector) throw new Error('Este navegador no permite escanear QR directamente. Usa la búsqueda manual.');
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('No hay acceso a la cámara. Verifica los permisos del navegador.');
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        const video = videoRef.current;
+        if (!video || stopped) { stream.getTracks().forEach((track) => track.stop()); return; }
+        video.srcObject = stream;
+        await video.play();
+        const detector = new Detector({ formats: ['qr_code'] });
+        timer = window.setInterval(async () => {
+          if (stopped || !video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+          try {
+            const codes = await detector.detect(video);
+            const raw = codes[0]?.rawValue;
+            if (!raw || stopped) return;
+            stopped = true;
+            let code = raw;
+            try { code = new URL(raw).searchParams.get('code') ?? raw; } catch { /* QR may contain a raw pickup code */ }
+            const term = code.trim().toLowerCase();
+            setOrderNumber(code.trim().toUpperCase());
+            setScannerActive(false);
+            setScannerError('');
+            const match = useDataStore.getState().orders.find((item) => !item.admin_hidden && item.status !== 'cancelled' && ((item.pickup_code ?? '').toLowerCase() === term || item.order_number.toLowerCase() === term));
+            if (match) { setVerifiedOrder(match); toast.success('Pedido ' + match.order_number + ' encontrado'); }
+            else { setVerifiedOrder(null); toast.error('QR leído, pero el pedido no está cargado. Busca por número o código.'); }
+          } catch { /* keep scanning until a QR is detected */ }
+        }, 300);
+      } catch (error) {
+        setScannerError(error instanceof Error ? error.message : 'No se pudo iniciar la cámara.');
+        setScannerActive(false);
+      }
+    };
+    void start();
+    return () => {
+      stopped = true;
+      if (timer) window.clearInterval(timer);
+      stream?.getTracks().forEach((track) => track.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+  }, [scannerActive]);
   const recentOrders = useMemo(() => orders
     .filter((order) => !order.admin_hidden && order.status !== 'delivered' && order.status !== 'cancelled')
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -80,6 +130,14 @@ export function AdminVerification() {
             <div><h2 className="text-xl font-bold text-blue-900">Buscar Pedido</h2><p className="text-sm text-gray-600">Ingresa el número de orden o código de recogida.</p></div>
           </div>
           <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => { setScannerError(''); setScannerActive((value) => !value); }} className="gap-2">
+                {scannerActive ? <CameraOff className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+                {scannerActive ? 'Cerrar escáner' : 'Escanear QR con cámara'}
+              </Button>
+            </div>
+            {scannerActive && <div className="overflow-hidden rounded-2xl border border-blue-200 bg-slate-950 p-2"><video ref={videoRef} muted playsInline className="max-h-72 w-full rounded-xl object-cover" /><p className="p-2 text-center text-xs text-white">Apunta la cámara al QR del pedido.</p></div>}
+            {scannerError && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{scannerError}</p>}
             <div>
               <Label htmlFor="orderNumber">Número o código de recogida</Label>
               <div className="flex gap-2 mt-2">
