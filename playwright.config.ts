@@ -16,7 +16,9 @@ export default defineConfig({
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173',
-    trace: 'on-first-retry',
+    // retries=0 means on-first-retry never records evidence for failed tests.
+    // Keep a trace for each failure without changing test behavior or retrying writes.
+    trace: 'retain-on-failure',
   },
 
   webServer: process.env.PLAYWRIGHT_BASE_URL
