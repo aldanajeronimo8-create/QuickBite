@@ -427,7 +427,26 @@ export const useDataStore = create<DataState>((set, get) => ({
       channel = channel.on(
         'postgres_changes',
         { event: '*', schema: 'public', table },
-        scheduleRefresh,
+        (payload) => {
+          // Reflect order state changes immediately; refresh joins in the background.
+          if (table === 'orders' && payload.eventType !== 'DELETE' && payload.new && 'id' in payload.new) {
+            const incoming = payload.new as unknown as Order;
+            set((state) => {
+              const exists = state.orders.some((order) => order.id === incoming.id);
+              return {
+                orders: exists
+                  ? state.orders.map((order) => order.id === incoming.id
+                    ? { ...order, ...incoming, order_items: order.order_items ?? [] }
+                    : order)
+                  : [incoming, ...state.orders],
+              };
+            });
+          } else if (table === 'orders' && payload.eventType === 'DELETE' && payload.old && 'id' in payload.old) {
+            const deletedId = String((payload.old as { id: string }).id);
+            set((state) => ({ orders: state.orders.filter((order) => order.id !== deletedId) }));
+          }
+          scheduleRefresh();
+        },
       );
     });
 
