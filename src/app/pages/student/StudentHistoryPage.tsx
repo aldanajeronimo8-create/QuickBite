@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, History, Minus, Plus, RefreshCcw, X } from 'lucide-react';
+import { ArrowLeft, CalendarClock, History, Minus, Plus, RefreshCcw, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { requireSupabaseClient, type Order } from '../../../lib/supabase';
 import { useDataStore } from '../../../store/dataStore';
@@ -9,6 +9,7 @@ import { useStudentContextStore } from '../../../store/studentContextStore';
 const money = (n: number) => n.toLocaleString('es-CO');
 type CancellationTarget = { orderId: string; itemId: string; productName: string; quantity: number; requestedQuantity: number };
 type CancellationStatus = 'pending' | 'approved' | 'rejected';
+type RepickupOption = { recess_schedule_id: string; recess_name: string; pickup_date: string; start_time: string; end_time: string; students_count: number; max_students: number | null; can_select: boolean };
 
 export function StudentHistoryPage() {
   const navigate = useNavigate();
@@ -19,6 +20,10 @@ export function StudentHistoryPage() {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [itemRequestStatus, setItemRequestStatus] = useState<Record<string, CancellationStatus>>({});
+  const [rescheduleOrder, setRescheduleOrder] = useState<Order | null>(null);
+  const [repickupOptions, setRepickupOptions] = useState<RepickupOption[]>([]);
+  const [selectedRepickup, setSelectedRepickup] = useState('');
+  const [loadingRepickup, setLoadingRepickup] = useState(false);
 
   const refresh = useCallback(async () => { await loadData(); }, [loadData]);
   const loadCancellationStatuses = useCallback(async () => {
@@ -50,6 +55,46 @@ export function StudentHistoryPage() {
   const reorder = (order: Order) => {
     const items = (order.order_items ?? []).filter((item) => item.product_id && item.quantity > 0).map((item) => `${item.product_id}:${item.quantity}`).join(',');
     if (items) navigate(`/menu?reorder=${encodeURIComponent(items)}`);
+  };
+
+
+  const openReschedule = async (order: Order) => {
+    setLoadingRepickup(true);
+    setRescheduleOrder(order);
+    setSelectedRepickup('');
+    try {
+      const { data, error } = await requireSupabaseClient().rpc('get_student_repickup_options', { p_order_id: order.id });
+      if (error) throw error;
+      const options = (data ?? []) as RepickupOption[];
+      setRepickupOptions(options.filter((option) => option.can_select));
+      if (!options.some((option) => option.can_select)) toast.info('No hay recreos disponibles con cupo durante los próximos 7 días.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron cargar los recreos disponibles.');
+      setRescheduleOrder(null);
+    } finally { setLoadingRepickup(false); }
+  };
+
+  const confirmReschedule = async () => {
+    if (!rescheduleOrder || !selectedRepickup) return;
+    const [scheduleId, pickupDate] = selectedRepickup.split('|');
+    setBusy(true);
+    try {
+      const { error } = await requireSupabaseClient().rpc('reschedule_unclaimed_recess_order', {
+        p_order_id: rescheduleOrder.id,
+        p_recess_schedule_id: scheduleId,
+        p_pickup_date: pickupDate,
+      });
+      if (error) throw error;
+      toast.success('Recogida reprogramada. Tu pedido estará disponible en el recreo elegido.');
+      setRescheduleOrder(null);
+      setRepickupOptions([]);
+      setSelectedRepickup('');
+      await refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo reprogramar la recogida.';
+      toast.error(message.includes('recess_student_limit_reached') ? 'Ese recreo acaba de llenarse. Elige otro horario.' : message);
+      await openReschedule(rescheduleOrder);
+    } finally { setBusy(false); }
   };
 
   const requestProductCancellation = async () => {
@@ -90,9 +135,16 @@ export function StudentHistoryPage() {
             return <div key={item.id} className="rounded-2xl bg-white p-3 shadow-sm"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold text-slate-900">{item.quantity} × {item.product?.name ?? 'Producto'}</p><p className="text-sm font-bold text-slate-600">${money(Number(item.price) * item.quantity)}</p></div>{requestStatus === 'pending' ? <span className="rounded-full bg-amber-100 px-3 py-1 text-center text-xs font-black text-amber-800">Cancelación pendiente</span> : cancellable ? <button type="button" onClick={() => { setCancelling({ orderId: order.id, itemId: item.id, productName: item.product?.name ?? 'Producto', quantity: item.quantity, requestedQuantity: item.quantity }); setReason(''); }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-black text-red-700 hover:bg-red-50"><X className="h-4 w-4"/>Solicitar cancelación</button> : null}</div></div>;
           })}</div></div>}
           <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3"><div className="rounded-2xl bg-slate-50 p-3"><span className="text-slate-500">Pago</span><p className="font-bold">{order.payment_status === 'confirmed' ? 'Confirmado' : order.payment_status === 'rejected' ? 'Rechazado' : 'Pendiente'}</p></div><div className="rounded-2xl bg-slate-50 p-3"><span className="text-slate-500">Método</span><p className="font-bold">{order.payment_method === 'bre-b' ? 'Bre-B' : order.payment_method === 'cash' ? 'Efectivo' : order.payment_method === 'credits' ? 'Saldo QuickBite' : 'Transferencia'}</p></div><div className="rounded-2xl bg-slate-50 p-3"><span className="text-slate-500">Recogida</span><p className="font-bold">{order.pickup_code ?? 'Pendiente'}</p></div></div>
+
+          {order.pickup_outcome === 'unclaimed' && order.payment_status === 'confirmed' && order.status !== 'delivered' && order.status !== 'cancelled' && order.status !== 'rejected' && <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4"><p className="font-black text-amber-950">Pedido no reclamado</p><p className="mt-1 text-sm text-amber-900">Puedes elegir el siguiente recreo disponible o cualquier recreo habilitado de los próximos 7 días para recoger este mismo pedido.</p><button type="button" onClick={() => void openReschedule(order)} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-black text-white hover:bg-emerald-800"><CalendarClock className="h-4 w-4"/>Reprogramar recogida</button></div>}
           <div className="mt-4"><button type="button" onClick={() => reorder(order)} disabled={items.length === 0} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"><RefreshCcw className="h-4 w-4"/>Recomprar este pedido</button></div>
         </article>;
       })}
+
+
+      {rescheduleOrder && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-5"><div role="dialog" aria-modal="true" aria-labelledby="reschedule-title" className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl"><p className="text-xs font-black uppercase tracking-wide text-emerald-700">Recogida de pedido</p><h2 id="reschedule-title" className="mt-1 text-xl font-black">Reprogramar #{rescheduleOrder.order_number}</h2><p className="mt-2 text-sm text-slate-600">Selecciona un recreo futuro de tu sección. El pedido y el pago se conservan; solo cambia la fecha y la hora de recogida.</p>
+        {loadingRepickup ? <p className="py-8 text-center text-sm font-bold text-slate-500">Buscando recreos disponibles…</p> : repickupOptions.length === 0 ? <p className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-900">No hay recreos con cupo en los próximos 7 días. Consulta más tarde con la cafetería.</p> : <label className="mt-4 block"><span className="mb-2 block text-sm font-bold text-slate-700">Nuevo horario de recogida</span><select value={selectedRepickup} onChange={(event) => setSelectedRepickup(event.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-emerald-500"><option value="">Selecciona fecha y recreo</option>{repickupOptions.map((option) => <option key={option.recess_schedule_id + option.pickup_date} value={option.recess_schedule_id + '|' + option.pickup_date}>{new Date(option.pickup_date + 'T12:00:00').toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'})} · {option.recess_name} ({option.start_time.slice(0,5)}–{option.end_time.slice(0,5)}){option.max_students !== null ? ' · Cupos: ' + Math.max(0, option.max_students - Number(option.students_count)) : ''}</option>)}</select></label>}
+        <div className="mt-5 flex gap-2"><button type="button" onClick={() => {setRescheduleOrder(null);setRepickupOptions([]);setSelectedRepickup('');}} className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700">Cancelar</button><button type="button" disabled={busy || loadingRepickup || !selectedRepickup} onClick={() => void confirmReschedule()} className="flex-1 rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-black text-white disabled:opacity-40">{busy ? 'Guardando…' : 'Confirmar recogida'}</button></div></div></div>}
 
       {cancelling && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-5"><div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"><p className="text-xs font-black uppercase tracking-wide text-red-700">Solicitud de cancelación de producto</p><h2 className="mt-1 text-xl font-black">{cancelling.productName}</h2><p className="mt-1 text-sm text-slate-600">Tienes {cancelling.quantity} unidad(es). Selecciona cuántas quieres cancelar.</p>
         <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 p-3"><span className="text-sm font-bold text-slate-700">Cantidad a cancelar</span><div className="flex items-center gap-3"><button type="button" aria-label="Reducir cantidad" onClick={() => setCancelling((current) => current ? { ...current, requestedQuantity: Math.max(1, current.requestedQuantity - 1) } : current)} disabled={cancelling.requestedQuantity <= 1} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 disabled:opacity-40"><Minus className="h-4 w-4"/></button><span className="min-w-8 text-center text-lg font-black">{cancelling.requestedQuantity}</span><button type="button" aria-label="Aumentar cantidad" onClick={() => setCancelling((current) => current ? { ...current, requestedQuantity: Math.min(current.quantity, current.requestedQuantity + 1) } : current)} disabled={cancelling.requestedQuantity >= cancelling.quantity} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 disabled:opacity-40"><Plus className="h-4 w-4"/></button></div></div>
