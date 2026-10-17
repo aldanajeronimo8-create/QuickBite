@@ -33,8 +33,7 @@ BEGIN
   IF auth.uid() IS NULL OR v_user_id IS NULL THEN RAISE EXCEPTION 'not_authorized'; END IF;
 
   SELECT * INTO v_order FROM public.orders o
-  WHERE o.id = p_order_id AND o.user_id = v_user_id
-  FOR SHARE;
+  WHERE o.id = p_order_id AND o.user_id = v_user_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'order_not_found'; END IF;
   IF v_order.pickup_outcome <> 'unclaimed'
      OR v_order.payment_status <> 'confirmed'
