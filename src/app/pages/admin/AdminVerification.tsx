@@ -17,6 +17,8 @@ export function AdminVerification() {
   const { orders, updateOrder } = useDataStore();
   const [orderNumber, setOrderNumber] = useState('');
   const [verifiedOrder, setVerifiedOrder] = useState<Order | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<Order['status']>('pending');
+  const [savingStatus, setSavingStatus] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
   const [scannerError, setScannerError] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -51,7 +53,7 @@ export function AdminVerification() {
             setScannerActive(false);
             setScannerError('');
             const match = useDataStore.getState().orders.find((item) => !item.admin_hidden && item.status !== 'cancelled' && ((item.pickup_code ?? '').toLowerCase() === term || item.order_number.toLowerCase() === term));
-            if (match) { setVerifiedOrder(match); toast.success('Pedido ' + match.order_number + ' encontrado'); }
+            if (match) { setVerifiedOrder(match); setSelectedStatus(match.status); toast.success('Pedido ' + match.order_number + ' encontrado'); }
             else { setVerifiedOrder(null); toast.error('QR leído, pero el pedido no está cargado. Busca por número o código.'); }
           } catch { /* keep scanning until a QR is detected */ }
         }, 300);
@@ -90,17 +92,22 @@ export function AdminVerification() {
       return;
     }
     setVerifiedOrder(order);
+    setSelectedStatus(order.status);
     toast.success('Pedido encontrado');
   };
 
-  const handleMarkAsDelivered = async () => {
-    if (!verifiedOrder) return;
+  const handleStatusUpdate = async () => {
+    if (!verifiedOrder || savingStatus || selectedStatus === verifiedOrder.status) return;
+    setSavingStatus(true);
     try {
-      await updateOrder(verifiedOrder.id, { status: 'delivered' });
-      toast.success('Pedido marcado como entregado');
-      setVerifiedOrder({ ...verifiedOrder, status: 'delivered' });
+      await updateOrder(verifiedOrder.id, { status: selectedStatus });
+      setVerifiedOrder({ ...verifiedOrder, status: selectedStatus, ...(selectedStatus === 'rejected' ? { payment_status: 'rejected' as const } : {}) });
+      toast.success('Estado del pedido actualizado');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo marcar como entregado');
+      toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el estado');
+      setSelectedStatus(verifiedOrder.status);
+    } finally {
+      setSavingStatus(false);
     }
   };
 
@@ -153,7 +160,7 @@ export function AdminVerification() {
           <h2 className="text-xl font-bold text-blue-900 mb-4">Pedidos Recientes</h2>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {recentOrders.map((order) => (
-              <button key={order.id} onClick={() => { setOrderNumber(order.order_number); setVerifiedOrder(order); }} className="w-full p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition text-left">
+              <button key={order.id} onClick={() => { setOrderNumber(order.order_number); setVerifiedOrder(order); setSelectedStatus(order.status); }} className="w-full p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition text-left">
                 <div className="flex items-center justify-between"><div><span className="font-bold text-green-700">{order.order_number}</span><p className="text-xs text-gray-600">{format(new Date(order.created_at), 'HH:mm', { locale: es })}</p></div>{getStatusBadge(order.status)}</div>
               </button>
             ))}
@@ -183,8 +190,23 @@ export function AdminVerification() {
 
           <div className="border-t border-gray-200 pt-6 mb-6"><h3 className="font-bold text-lg text-blue-900 mb-4">Artículos del Pedido</h3><div className="space-y-3">{verifiedOrder.order_items?.map((item) => <div key={item.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"><div className="flex items-center gap-3"><span className="w-10 h-10 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold">{item.quantity}</span><span className="font-medium text-gray-900">{item.product?.name}</span></div><span className="font-bold text-blue-900">${(item.price * item.quantity).toLocaleString()}</span></div>)}</div></div>
 
-          {verifiedOrder.status !== 'delivered' && verifiedOrder.status !== 'cancelled' && <div className="border-t border-gray-200 pt-6"><Button onClick={handleMarkAsDelivered} className="h-14 w-full bg-blue-600 text-lg font-bold text-white shadow-sm hover:bg-blue-700"><CheckCircle className="w-6 h-6 mr-3"/>Marcar como Entregado</Button></div>}
-          {verifiedOrder.status === 'delivered' && <div className="border-t border-gray-200 pt-6"><div className="flex items-center justify-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg"><CheckCircle className="w-6 h-6 text-green-600"/><span className="text-green-800 font-medium text-lg">Este pedido ya fue entregado</span></div></div>}
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="mb-3 text-lg font-bold text-blue-900">Actualizar estado del pedido</h3>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <select aria-label="Nuevo estado del pedido" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as Order['status'])} className="min-h-12 flex-1 rounded-xl border border-gray-300 bg-white px-3 text-sm font-bold text-slate-800">
+                <option value="pending">Pedido recibido</option>
+                <option value="preparing">En preparación</option>
+                <option value="ready">Listo para recoger</option>
+                <option value="delivered">Entregado</option>
+                <option value="rejected">Rechazado</option>
+                <option value="cancelled">Cancelado</option>
+              </select>
+              <Button onClick={handleStatusUpdate} disabled={savingStatus || selectedStatus === verifiedOrder.status} className="min-h-12 bg-blue-600 text-base font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
+                <CheckCircle className="mr-2 h-5 w-5"/>{savingStatus ? 'Guardando…' : 'Guardar estado'}
+              </Button>
+            </div>
+            {verifiedOrder.status === 'delivered' && <p className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">Este pedido ya fue entregado. El QR solo se oculta en la interfaz del comprador.</p>}
+          </div>
         </Card>
       )}
     </div>
