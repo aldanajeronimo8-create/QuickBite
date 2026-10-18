@@ -41,7 +41,11 @@ BEGIN
     RAISE EXCEPTION 'order_status_terminal';
   END IF;
 
-  IF v_order.status = 'preparing' THEN
+  IF v_order.status = 'pending' THEN
+    IF p_status <> 'preparing' THEN
+      RAISE EXCEPTION 'invalid_order_transition';
+    END IF;
+  ELSIF v_order.status = 'preparing' THEN
     IF p_status <> 'ready' THEN
       RAISE EXCEPTION 'invalid_order_transition';
     END IF;
@@ -50,8 +54,6 @@ BEGIN
       RAISE EXCEPTION 'invalid_order_transition';
     END IF;
   ELSE
-    -- Pending orders must first go through payment approval; no direct skip from
-    -- pending to preparation/delivery is permitted through this RPC.
     RAISE EXCEPTION 'invalid_order_transition';
   END IF;
 
