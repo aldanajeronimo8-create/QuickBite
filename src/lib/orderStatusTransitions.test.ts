@@ -14,4 +14,4 @@ describe('nextAuthorizedOrderStatus', () => {
   ] as const)('only allows the next authorized step for %s with payment %s', (status, paymentStatus, expected) => {
     expect(nextAuthorizedOrderStatus(status, paymentStatus)).toBe(expected);
   });
-}
+});
