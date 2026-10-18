@@ -7,7 +7,7 @@ import type { Order } from './supabase';
 export function nextAuthorizedOrderStatus(
   status: Order['status'],
   paymentStatus: Order['payment_status'],
-): 'ready' | 'delivered' | null {
+): 'preparing' | 'ready' | 'delivered' | null {
   if (paymentStatus !== 'confirmed') return null;
   if (status === 'pending') return 'preparing';
   if (status === 'preparing') return 'ready';
