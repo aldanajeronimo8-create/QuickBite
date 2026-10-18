@@ -259,6 +259,37 @@ export async function createOrder(order: NewOrder): Promise<OrderCreationResult>
     };
   }
 }
+
+/**
+ * Resolves a scanned or manually entered pickup code on the server.
+ * The admin page must not depend on whatever orders happen to be in its local cache.
+ * Row-level security remains the authority for which records the caller may read.
+ */
+export async function findOrderForAdminVerification(value: string): Promise<Order | null> {
+  const term = value.trim().toUpperCase();
+  if (!term) return null;
+
+  const selection = '*, order_items(*, product:products(*)), user:profiles(*)';
+  const client = requireSupabaseClient();
+  const { data: byPickupCode, error: pickupError } = await client
+    .from('orders')
+    .select(selection)
+    .eq('admin_hidden', false)
+    .eq('pickup_code', term)
+    .maybeSingle();
+  if (pickupError) throw pickupError;
+  if (byPickupCode) return byPickupCode as Order;
+
+  const { data: byOrderNumber, error: orderNumberError } = await client
+    .from('orders')
+    .select(selection)
+    .eq('admin_hidden', false)
+    .eq('order_number', term)
+    .maybeSingle();
+  if (orderNumberError) throw orderNumberError;
+  return (byOrderNumber as Order | null) ?? null;
+}
+
 export async function updateOrder(id: string, updates: Partial<Order>) {
   const fields = Object.keys(updates);
   if (fields.length === 1 && fields[0] === 'status' && updates.status) {
