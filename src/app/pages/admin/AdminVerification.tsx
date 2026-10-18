@@ -103,10 +103,6 @@ export function AdminVerification() {
     verifiedOrder && !verifiedOrder.admin_hidden && verifiedOrder.status !== 'cancelled',
   );
 
-  const hasActiveVerifiedOrder = Boolean(
-    verifiedOrder && orders.some((order) => order.id === verifiedOrder.id && !order.admin_hidden && order.status !== 'cancelled'),
-  );
-
   const handleSearch = () => {
     if (!orderNumber.trim()) {
       toast.error('Ingresa un número de orden o código de recogida');
