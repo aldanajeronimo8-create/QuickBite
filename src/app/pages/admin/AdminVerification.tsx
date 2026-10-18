@@ -100,7 +100,7 @@ export function AdminVerification() {
     .slice(0, 10), [orders]);
 
   const hasActiveVerifiedOrder = Boolean(
-    verifiedOrder && orders.some((order) => order.id === verifiedOrder.id && !order.admin_hidden && order.status !== 'cancelled'),
+    verifiedOrder && !verifiedOrder.admin_hidden && verifiedOrder.status !== 'cancelled',
   );
 
   const hasActiveVerifiedOrder = Boolean(
@@ -223,7 +223,11 @@ export function AdminVerification() {
               <div className="space-y-3">
                 <p className="text-sm text-gray-600">Solo está habilitada la siguiente transición válida para este pedido.</p>
                 <Button onClick={handleStatusUpdate} disabled={savingStatus} className="min-h-12 w-full bg-blue-600 text-base font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
-                  <CheckCircle className="mr-2 h-5 w-5"/>{savingStatus ? 'Guardando…' : nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) === 'ready' ? 'Marcar como listo para recoger' : 'Marcar como entregado'}
+                  <CheckCircle className="mr-2 h-5 w-5"/>{savingStatus ? 'Guardando…' : nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) === 'preparing'
+                    ? 'Iniciar preparación'
+                    : nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) === 'ready'
+                      ? 'Marcar como listo para recoger'
+                      : 'Marcar como entregado'}
                 </Button>
               </div>
             ) : (
