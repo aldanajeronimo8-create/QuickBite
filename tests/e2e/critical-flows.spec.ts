@@ -450,7 +450,7 @@ test.describe('critical functional flows @student', () => {
     await expect(adminPage.getByRole('button', { name: 'Marcar como entregado', exact: true })).toHaveCount(0);
 
     const adminAccessToken = await adminPage.evaluate(() => {
-      const raw = window.sessionStorage.getItem('quickbite.user.auth');
+      const raw = window.sessionStorage.getItem('quickbite.admin.auth');
       if (!raw) return null;
       try { return (JSON.parse(raw) as { access_token?: string }).access_token ?? null; } catch { return null; }
     });
