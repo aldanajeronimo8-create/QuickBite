@@ -171,6 +171,13 @@ test.describe('critical functional flows @student', () => {
     await login(studentPage, 'student', e2eAuth);
     await healthy(studentPage, studentState);
 
+    const studentSyncLatencies: Record<string, number> = {};
+    const adminPage = await browser.newPage();
+    const adminState = await monitor(adminPage);
+    await login(adminPage, 'admin', e2eAuth);
+    await adminPage.goto('/admin/payments');
+    await healthy(adminPage, adminState);
+
     const addButtons = studentPage.getByRole('button', { name: /^agregar$/i });
     await expect(addButtons.first()).toBeVisible();
     const productCard = addButtons.first().locator('xpath=ancestor::article[1]');
@@ -204,6 +211,7 @@ test.describe('critical functional flows @student', () => {
     const paymentSheet = studentPage.getByRole('heading', { name: 'Confirmar pago', exact: true }).locator('xpath=../..');
     await expect(paymentSheet).toBeVisible();
     await expect(paymentSheet).toContainText(/pago|referencia|total/i);
+    const orderSubmitStartedAt = Date.now();
     await paymentSheet.getByRole('button', { name: /enviar para aprobación/i }).click();
 
     const receiptOrder = studentPage.getByText(/^QB\d{6}[A-Z0-9]+$/).last();
@@ -227,6 +235,13 @@ test.describe('critical functional flows @student', () => {
       .maybeSingle();
     if (createdOrderError) throw createdOrderError;
     if (!createdOrderData) throw new Error('El pedido ' + orderNumber + ' no está persistido después de la compra.');
+    const orderPersistenceConfirmedAt = Date.now();
+    const adminArrivalCard = adminPage.getByTestId('admin-payment-' + orderNumber);
+    await expect(adminArrivalCard).toBeVisible({ timeout: 5_000 });
+    studentSyncLatencies.orderArrivalInAdmin = Date.now() - orderPersistenceConfirmedAt;
+    studentSyncLatencies.checkoutToAdminQueue = Date.now() - orderSubmitStartedAt;
+    expect(studentSyncLatencies.orderArrivalInAdmin).toBeLessThan(5_000);
+    expect(studentSyncLatencies.checkoutToAdminQueue).toBeLessThan(10_000);
     const createdOrder = createdOrderData as {
       id: string;
       user_id: string;
@@ -341,15 +356,8 @@ test.describe('critical functional flows @student', () => {
     const studentOrderCard = studentPage.locator('article').filter({ hasText: orderNumber }).first();
     await expect(studentOrderCard).toBeVisible({ timeout: 15_000 });
 
-    const adminPage = await browser.newPage();
-    const adminState = await monitor(adminPage);
-    await login(adminPage, 'admin', e2eAuth);
-    await adminPage.goto('/admin/payments');
-    await healthy(adminPage, adminState);
-
     const paymentCard = adminPage.getByTestId('admin-payment-' + orderNumber);
-    await expect(paymentCard).toBeVisible({ timeout: 15_000 });
-    const studentSyncLatencies: Record<string, number> = {};
+    await expect(paymentCard).toBeVisible({ timeout: 5_000 });
     const paymentSyncStartedAt = Date.now();
     await paymentCard.getByRole('button', { name: /^confirmar$/i }).click();
     try {
@@ -502,6 +510,7 @@ test.describe('critical functional flows @student', () => {
     await healthy(adminPage, adminState);
 
 
+    const openAdminMenu = adminPage.getByRole('button', { name: 'Abrir menú lateral', exact: true });
     if (await openAdminMenu.count() && await openAdminMenu.isVisible()) await openAdminMenu.click();
     const adminLogout = adminPage.getByRole('button', { name: /cerrar sesión/i }).first();
     await adminLogout.scrollIntoViewIfNeeded();
