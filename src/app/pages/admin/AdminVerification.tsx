@@ -121,9 +121,6 @@ export function AdminVerification() {
       setVerifiedOrder({
         ...verifiedOrder,
         status: nextStatus,
-        updated_at: new Date().toISOString(),
-        ...(nextStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {}),
-        ...(nextStatus === 'ready' ? { ready_at: new Date().toISOString() } : {}),
       });
       toast.success(nextStatus === 'ready' ? 'Pedido marcado como listo para recoger' : 'Pedido marcado como entregado');
     } catch (error) {
