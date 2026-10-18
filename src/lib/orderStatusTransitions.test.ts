@@ -5,7 +5,7 @@ describe('nextAuthorizedOrderStatus', () => {
   it.each([
     ['preparing', 'confirmed', 'ready'],
     ['ready', 'confirmed', 'delivered'],
-    ['pending', 'confirmed', null],
+    ['pending', 'confirmed', 'preparing'],
     ['preparing', 'pending', null],
     ['preparing', 'rejected', null],
     ['delivered', 'confirmed', null],
