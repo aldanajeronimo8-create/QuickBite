@@ -9,6 +9,7 @@ export function nextAuthorizedOrderStatus(
   paymentStatus: Order['payment_status'],
 ): 'ready' | 'delivered' | null {
   if (paymentStatus !== 'confirmed') return null;
+  if (status === 'pending') return 'preparing';
   if (status === 'preparing') return 'ready';
   if (status === 'ready') return 'delivered';
   return null;
