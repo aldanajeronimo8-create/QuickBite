@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDataStore } from '../../../store/dataStore';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -7,7 +7,9 @@ import { Label } from '../../components/ui/label';
 import { Badge } from '../../components/ui/badge';
 import { ScanLine, CheckCircle, Search, Camera, CameraOff } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { getOrderVerificationUrl } from '../../../lib/orderQr';
+import { extractOrderVerificationCode, getOrderVerificationUrl } from '../../../lib/orderQr';
+import { findOrderForAdminVerification } from '../../../repositories/quickbiteRepository';
+import { nextAuthorizedOrderStatus } from '../../../lib/orderStatusTransitions';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -17,15 +19,37 @@ export function AdminVerification() {
   const { orders, updateOrder } = useDataStore();
   const [orderNumber, setOrderNumber] = useState('');
   const [verifiedOrder, setVerifiedOrder] = useState<Order | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<Order['status']>('pending');
   const [savingStatus, setSavingStatus] = useState(false);
   const [scannerActive, setScannerActive] = useState(false);
   const [scannerError, setScannerError] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  const lookupOrder = useCallback(async (value: string, source: 'search' | 'scan' = 'search') => {
+    const term = source === 'scan' ? extractOrderVerificationCode(value) : value.trim().toUpperCase();
+    if (!term) {
+      toast.error('Ingresa un número de orden o código de recogida');
+      return;
+    }
+
+    setOrderNumber(term);
+    setVerifiedOrder(null);
+    try {
+      const order = await findOrderForAdminVerification(term);
+      if (!order) {
+        toast.error(source === 'scan' ? 'QR leído, pero no se encontró un pedido disponible.' : 'Pedido no encontrado');
+        return;
+      }
+      setVerifiedOrder(order);
+      toast.success('Pedido ' + order.order_number + ' encontrado');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo consultar el pedido.');
+    }
+  }, []);
+
   useEffect(() => {
     if (!scannerActive) return;
     let stopped = false;
+    let detecting = false;
     let stream: MediaStream | null = null;
     let timer = 0;
     const start = async () => {
@@ -40,22 +64,21 @@ export function AdminVerification() {
         await video.play();
         const detector = new Detector({ formats: ['qr_code'] });
         timer = window.setInterval(async () => {
-          if (stopped || !video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+          if (stopped || detecting || !video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+          detecting = true;
           try {
             const codes = await detector.detect(video);
             const raw = codes[0]?.rawValue;
             if (!raw || stopped) return;
             stopped = true;
-            let code = raw;
-            try { code = new URL(raw).searchParams.get('code') ?? raw; } catch { /* QR may contain a raw pickup code */ }
-            const term = code.trim().toLowerCase();
-            setOrderNumber(code.trim().toUpperCase());
             setScannerActive(false);
             setScannerError('');
-            const match = useDataStore.getState().orders.find((item) => !item.admin_hidden && item.status !== 'cancelled' && ((item.pickup_code ?? '').toLowerCase() === term || item.order_number.toLowerCase() === term));
-            if (match) { setVerifiedOrder(match); setSelectedStatus(match.status); toast.success('Pedido ' + match.order_number + ' encontrado'); }
-            else { setVerifiedOrder(null); toast.error('QR leído, pero el pedido no está cargado. Busca por número o código.'); }
-          } catch { /* keep scanning until a QR is detected */ }
+            void lookupOrder(raw, 'scan');
+          } catch {
+            // Keep scanning until a QR is detected.
+          } finally {
+            detecting = false;
+          }
         }, 300);
       } catch (error) {
         setScannerError(error instanceof Error ? error.message : 'No se pudo iniciar la cámara.');
@@ -69,11 +92,16 @@ export function AdminVerification() {
       stream?.getTracks().forEach((track) => track.stop());
       if (videoRef.current) videoRef.current.srcObject = null;
     };
-  }, [scannerActive]);
+  }, [scannerActive, lookupOrder]);
+
   const recentOrders = useMemo(() => orders
     .filter((order) => !order.admin_hidden && order.status !== 'delivered' && order.status !== 'cancelled')
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 10), [orders]);
+
+  const hasActiveVerifiedOrder = Boolean(
+    verifiedOrder && orders.some((order) => order.id === verifiedOrder.id && !order.admin_hidden && order.status !== 'cancelled'),
+  );
 
   const hasActiveVerifiedOrder = Boolean(
     verifiedOrder && orders.some((order) => order.id === verifiedOrder.id && !order.admin_hidden && order.status !== 'cancelled'),
@@ -84,28 +112,26 @@ export function AdminVerification() {
       toast.error('Ingresa un número de orden o código de recogida');
       return;
     }
-    const term = orderNumber.trim().toLowerCase();
-    const order = orders.find((o) => !o.admin_hidden && o.status !== 'cancelled' && (o.order_number.toLowerCase() === term || (o.pickup_code ?? '').toLowerCase() === term));
-    if (!order) {
-      toast.error('Pedido no encontrado');
-      setVerifiedOrder(null);
-      return;
-    }
-    setVerifiedOrder(order);
-    setSelectedStatus(order.status);
-    toast.success('Pedido encontrado');
+    void lookupOrder(orderNumber, 'search');
   };
 
   const handleStatusUpdate = async () => {
-    if (!verifiedOrder || savingStatus || selectedStatus === verifiedOrder.status) return;
+    if (!verifiedOrder || savingStatus) return;
+    const nextStatus = nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status);
+    if (!nextStatus) return;
     setSavingStatus(true);
     try {
-      await updateOrder(verifiedOrder.id, { status: selectedStatus });
-      setVerifiedOrder({ ...verifiedOrder, status: selectedStatus, ...(selectedStatus === 'rejected' ? { payment_status: 'rejected' as const } : {}) });
-      toast.success('Estado del pedido actualizado');
+      await updateOrder(verifiedOrder.id, { status: nextStatus });
+      setVerifiedOrder({
+        ...verifiedOrder,
+        status: nextStatus,
+        updated_at: new Date().toISOString(),
+        ...(nextStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {}),
+        ...(nextStatus === 'ready' ? { ready_at: new Date().toISOString() } : {}),
+      });
+      toast.success(nextStatus === 'ready' ? 'Pedido marcado como listo para recoger' : 'Pedido marcado como entregado');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el estado');
-      setSelectedStatus(verifiedOrder.status);
     } finally {
       setSavingStatus(false);
     }
@@ -118,6 +144,7 @@ export function AdminVerification() {
       ready: { label: 'Listo para Recoger', className: 'bg-green-600 text-white' },
       delivered: { label: 'Entregado', className: 'bg-green-800 text-white' },
       cancelled: { label: 'Cancelado', className: 'bg-red-600 text-white' },
+      rejected: { label: 'Rechazado', className: 'bg-red-700 text-white' },
     };
     const statusConfig = config[status as keyof typeof config] || config.pending;
     return <Badge className={statusConfig.className}>{statusConfig.label}</Badge>;
@@ -160,7 +187,7 @@ export function AdminVerification() {
           <h2 className="text-xl font-bold text-blue-900 mb-4">Pedidos Recientes</h2>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {recentOrders.map((order) => (
-              <button key={order.id} onClick={() => { setOrderNumber(order.order_number); setVerifiedOrder(order); setSelectedStatus(order.status); }} className="w-full p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition text-left">
+              <button key={order.id} onClick={() => { setOrderNumber(order.order_number); setVerifiedOrder(order); }} className="w-full p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition text-left">
                 <div className="flex items-center justify-between"><div><span className="font-bold text-green-700">{order.order_number}</span><p className="text-xs text-gray-600">{format(new Date(order.created_at), 'HH:mm', { locale: es })}</p></div>{getStatusBadge(order.status)}</div>
               </button>
             ))}
@@ -192,20 +219,24 @@ export function AdminVerification() {
 
           <div className="border-t border-gray-200 pt-6">
             <h3 className="mb-3 text-lg font-bold text-blue-900">Actualizar estado del pedido</h3>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <select aria-label="Nuevo estado del pedido" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as Order['status'])} className="min-h-12 flex-1 rounded-xl border border-gray-300 bg-white px-3 text-sm font-bold text-slate-800">
-                <option value="pending">Pedido recibido</option>
-                <option value="preparing">En preparación</option>
-                <option value="ready">Listo para recoger</option>
-                <option value="delivered">Entregado</option>
-                <option value="rejected">Rechazado</option>
-                <option value="cancelled">Cancelado</option>
-              </select>
-              <Button onClick={handleStatusUpdate} disabled={savingStatus || selectedStatus === verifiedOrder.status} className="min-h-12 bg-blue-600 text-base font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
-                <CheckCircle className="mr-2 h-5 w-5"/>{savingStatus ? 'Guardando…' : 'Guardar estado'}
-              </Button>
-            </div>
-            {verifiedOrder.status === 'delivered' && <p className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">Este pedido ya fue entregado. El QR solo se oculta en la interfaz del comprador.</p>}
+            {nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) ? (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">Solo está habilitada la siguiente transición válida para este pedido.</p>
+                <Button onClick={handleStatusUpdate} disabled={savingStatus} className="min-h-12 w-full bg-blue-600 text-base font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
+                  <CheckCircle className="mr-2 h-5 w-5"/>{savingStatus ? 'Guardando…' : nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) === 'ready' ? 'Marcar como listo para recoger' : 'Marcar como entregado'}
+                </Button>
+              </div>
+            ) : (
+              <div role="status" className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+                {verifiedOrder.status === 'delivered'
+                  ? 'Este pedido ya fue entregado. El estado es final y no admite más cambios.'
+                  : verifiedOrder.status === 'rejected' || verifiedOrder.status === 'cancelled'
+                    ? 'Este pedido tiene un estado final y no admite más cambios.'
+                    : verifiedOrder.payment_status !== 'confirmed'
+                      ? 'El pago debe estar confirmado antes de avanzar el estado del pedido.'
+                      : 'No hay una transición autorizada desde el estado actual.'}
+              </div>
+            )}
           </div>
         </Card>
       )}
