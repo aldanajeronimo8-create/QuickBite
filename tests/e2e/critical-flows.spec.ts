@@ -503,6 +503,7 @@ test.describe('critical functional flows @student', () => {
     await expect(studentOrderCard.getByText(/Código QR para reclamar/i)).toHaveCount(0);
     await expect(studentOrderCard.getByText(/El código QR ya no está disponible/i)).toBeVisible();
     await expect(adminPage.getByRole('button', { name: /Marcar como/i })).toHaveCount(0);
+    console.info('STUDENT_ORDER_SYNC_LATENCIES', JSON.stringify(studentSyncLatencies));
     await testInfo.attach('student-order-sync-latencies.json', {
       body: JSON.stringify(studentSyncLatencies, null, 2),
       contentType: 'application/json',
