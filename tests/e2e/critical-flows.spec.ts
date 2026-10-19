@@ -171,6 +171,13 @@ test.describe('critical functional flows @student', () => {
     await login(studentPage, 'student', e2eAuth);
     await healthy(studentPage, studentState);
 
+    const studentSyncLatencies: Record<string, number> = {};
+    const adminPage = await browser.newPage();
+    const adminState = await monitor(adminPage);
+    await login(adminPage, 'admin', e2eAuth);
+    await adminPage.goto('/admin/payments');
+    await healthy(adminPage, adminState);
+
     const addButtons = studentPage.getByRole('button', { name: /^agregar$/i });
     await expect(addButtons.first()).toBeVisible();
     const productCard = addButtons.first().locator('xpath=ancestor::article[1]');
@@ -204,6 +211,7 @@ test.describe('critical functional flows @student', () => {
     const paymentSheet = studentPage.getByRole('heading', { name: 'Confirmar pago', exact: true }).locator('xpath=../..');
     await expect(paymentSheet).toBeVisible();
     await expect(paymentSheet).toContainText(/pago|referencia|total/i);
+    const orderSubmitStartedAt = Date.now();
     await paymentSheet.getByRole('button', { name: /enviar para aprobación/i }).click();
 
     const receiptOrder = studentPage.getByText(/^QB\d{6}[A-Z0-9]+$/).last();
@@ -227,6 +235,13 @@ test.describe('critical functional flows @student', () => {
       .maybeSingle();
     if (createdOrderError) throw createdOrderError;
     if (!createdOrderData) throw new Error('El pedido ' + orderNumber + ' no está persistido después de la compra.');
+    const orderPersistenceConfirmedAt = Date.now();
+    const adminArrivalCard = adminPage.getByTestId('admin-payment-' + orderNumber);
+    await expect(adminArrivalCard).toBeVisible({ timeout: 5_000 });
+    studentSyncLatencies.orderArrivalInAdmin = Date.now() - orderPersistenceConfirmedAt;
+    studentSyncLatencies.checkoutToAdminQueue = Date.now() - orderSubmitStartedAt;
+    expect(studentSyncLatencies.orderArrivalInAdmin).toBeLessThan(5_000);
+    expect(studentSyncLatencies.checkoutToAdminQueue).toBeLessThan(10_000);
     const createdOrder = createdOrderData as {
       id: string;
       user_id: string;
@@ -278,6 +293,27 @@ test.describe('critical functional flows @student', () => {
     expect([401, 403], 'student direct writes to protected order fields must be denied').toContain(directOrderMutation.status());
     await directOrderMutation.dispose();
 
+    const studentStatusRpc = await studentPage.context().request.post(
+      `${auditUrl}/rest/v1/rpc/admin_update_order_status`,
+      {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${studentAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        data: { p_order_id: createdOrder.id, p_status: 'preparing' },
+      },
+    );
+    expect([400, 401, 403], 'a student must not change order status via the admin RPC').toContain(studentStatusRpc.status());
+    await studentStatusRpc.dispose();
+    const { data: afterUnauthorizedStatusData, error: afterUnauthorizedStatusError } = await auditDb
+      .from('orders')
+      .select('status')
+      .eq('id', createdOrder.id)
+      .maybeSingle();
+    if (afterUnauthorizedStatusError) throw afterUnauthorizedStatusError;
+    expect(afterUnauthorizedStatusData?.status).toBe('pending');
+
     const enumerationProbe = await studentPage.context().request.post(
       `${auditUrl}/rest/v1/rpc/login_email_exists`,
       {
@@ -316,20 +352,13 @@ test.describe('critical functional flows @student', () => {
       'Debe existir un movimiento que concilie stock ' + stockBefore + ' → ' + stockAfterCheckout + ' para ' + orderNumber,
     ).toBeGreaterThanOrEqual(1);
 
-    const studentLogout = studentPage.getByRole('button', { name: /cerrar sesión/i }).first();
-    await studentPage.getByRole('button', { name: /^cerrar$/i }).click().catch(() => undefined);
-    await studentLogout.click();
-    await studentPage.waitForURL(/\/login$/);
-    await studentPage.close();
-
-    const adminPage = await browser.newPage();
-    const adminState = await monitor(adminPage);
-    await login(adminPage, 'admin', e2eAuth);
-    await adminPage.goto('/admin/payments');
-    await healthy(adminPage, adminState);
+    await studentPage.getByRole('button', { name: /Ver historial/i }).click();
+    const studentOrderCard = studentPage.locator('article').filter({ hasText: orderNumber }).first();
+    await expect(studentOrderCard).toBeVisible({ timeout: 15_000 });
 
     const paymentCard = adminPage.getByTestId('admin-payment-' + orderNumber);
-    await expect(paymentCard).toBeVisible({ timeout: 15_000 });
+    await expect(paymentCard).toBeVisible({ timeout: 5_000 });
+    const paymentSyncStartedAt = Date.now();
     await paymentCard.getByRole('button', { name: /^confirmar$/i }).click();
     try {
       await expect(paymentCard.getByText('Confirmado', { exact: true })).toBeVisible({ timeout: 15_000 });
@@ -347,6 +376,11 @@ test.describe('critical functional flows @student', () => {
       }));
       throw error;
     }
+    await expect(studentOrderCard).toContainText(/Pagado/i, { timeout: 5_000 });
+    studentSyncLatencies.paymentApproval = Date.now() - paymentSyncStartedAt;
+    expect(studentSyncLatencies.paymentApproval).toBeLessThan(5_000);
+    await studentOrderCard.locator('button').first().click();
+    await expect(studentOrderCard.getByText(/Código QR para reclamar/i)).toBeVisible({ timeout: 5_000 });
 
     await expect.poll(async () => {
       const { data, error } = await auditDb.from('orders').select('payment_status,status').eq('id', createdOrder.id).maybeSingle();
@@ -363,10 +397,13 @@ test.describe('critical functional flows @student', () => {
     await healthy(adminPage, adminState);
     const orderCard = adminPage.getByTestId('admin-order-' + orderNumber);
     await expect(orderCard).toBeVisible({ timeout: 15_000 });
-    await expect(orderCard).toContainText(/pedido recibido|confirmado/i);
 
+    const preparingSyncStartedAt = Date.now();
     await orderCard.getByRole('button', { name: 'En preparación', exact: true }).click();
     await expect(orderCard).toContainText(/En preparación/i);
+    await expect(studentOrderCard).toContainText(/En preparación/i, { timeout: 5_000 });
+    studentSyncLatencies.preparing = Date.now() - preparingSyncStartedAt;
+    expect(studentSyncLatencies.preparing).toBeLessThan(5_000);
     await expect.poll(async () => {
       const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
       if (error) throw error;
@@ -374,23 +411,105 @@ test.describe('critical functional flows @student', () => {
     }, { timeout: 15_000 }).toBe('preparing');
     await healthy(adminPage, adminState);
 
-    await orderCard.getByRole('button', { name: 'Listo para recoger', exact: true }).click();
-    await expect(orderCard).toContainText(/Listo para recoger/i);
+    const { data: qrOrderData, error: qrOrderError } = await auditDb
+      .from('orders')
+      .select('pickup_code')
+      .eq('id', createdOrder.id)
+      .single();
+    if (qrOrderError) throw qrOrderError;
+    const qrCodeForScan = String(qrOrderData.pickup_code ?? orderNumber);
+
+    await adminPage.addInitScript((scannedCode: string) => {
+      class FakeBarcodeDetector {
+        async detect() {
+          return [{
+            rawValue: `${window.location.origin}/verify-order?code=${encodeURIComponent(scannedCode)}`,
+          }];
+        }
+      }
+      Object.defineProperty(window, 'BarcodeDetector', { configurable: true, value: FakeBarcodeDetector });
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+        configurable: true,
+        value: async () => new MediaStream(),
+      });
+      Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+        configurable: true,
+        value: () => Promise.resolve(),
+      });
+      Object.defineProperty(HTMLMediaElement.prototype, 'readyState', {
+        configurable: true,
+        get: () => HTMLMediaElement.HAVE_CURRENT_DATA,
+      });
+    }, qrCodeForScan);
+    await adminPage.goto('/admin/verification');
+    await healthy(adminPage, adminState);
+    await adminPage.getByRole('button', { name: /Escanear QR con cámara/i }).click();
+    await expect(adminPage.getByRole('heading', { name: 'Detalles del Pedido', exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(adminPage.getByText(orderNumber, { exact: true }).first()).toBeVisible();
+    await expect(adminPage.getByRole('button', { name: 'Marcar como listo para recoger', exact: true })).toBeVisible();
+    await expect(adminPage.getByRole('button', { name: 'Marcar como entregado', exact: true })).toHaveCount(0);
+
+    const adminAccessToken = await adminPage.evaluate(() => {
+      const raw = window.sessionStorage.getItem('quickbite.admin.auth');
+      if (!raw) return null;
+      try { return (JSON.parse(raw) as { access_token?: string }).access_token ?? null; } catch { return null; }
+    });
+    if (!adminAccessToken) throw new Error('Missing admin JWT for state-transition regression.');
+    const invalidSkip = await adminPage.context().request.post(
+      `${auditUrl}/rest/v1/rpc/admin_update_order_status`,
+      {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${adminAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        data: { p_order_id: createdOrder.id, p_status: 'delivered' },
+      },
+    );
+    expect([400, 409], 'preparing orders must not skip directly to delivered').toContain(invalidSkip.status());
+    await invalidSkip.dispose();
+    const { data: afterRejectedSkip, error: afterRejectedSkipError } = await auditDb
+      .from('orders')
+      .select('status')
+      .eq('id', createdOrder.id)
+      .maybeSingle();
+    if (afterRejectedSkipError) throw afterRejectedSkipError;
+    expect(afterRejectedSkip?.status).toBe('preparing');
+
+    const readySyncStartedAt = Date.now();
+    await adminPage.getByRole('button', { name: 'Marcar como listo para recoger', exact: true }).click();
     await expect.poll(async () => {
       const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
       if (error) throw error;
       return data?.status ?? null;
     }, { timeout: 15_000 }).toBe('ready');
+    await expect(studentOrderCard).toContainText(/Listo para recoger/i, { timeout: 5_000 });
+    studentSyncLatencies.ready = Date.now() - readySyncStartedAt;
+    expect(studentSyncLatencies.ready).toBeLessThan(5_000);
+    await expect(adminPage.getByRole('button', { name: 'Marcar como entregado', exact: true })).toBeVisible();
+    await expect(adminPage.getByRole('button', { name: 'Marcar como listo para recoger', exact: true })).toHaveCount(0);
     await healthy(adminPage, adminState);
 
-    await orderCard.getByRole('button', { name: 'Entregado', exact: true }).click();
-    await expect(orderCard).toContainText(/Entregado/i);
+    const deliveredSyncStartedAt = Date.now();
+    await adminPage.getByRole('button', { name: 'Marcar como entregado', exact: true }).click();
     await expect.poll(async () => {
       const { data, error } = await auditDb.from('orders').select('status').eq('id', createdOrder.id).maybeSingle();
       if (error) throw error;
       return data?.status ?? null;
     }, { timeout: 15_000 }).toBe('delivered');
+    await expect(studentOrderCard).toContainText(/Entregado/i, { timeout: 5_000 });
+    studentSyncLatencies.delivered = Date.now() - deliveredSyncStartedAt;
+    expect(studentSyncLatencies.delivered).toBeLessThan(5_000);
+    await expect(studentOrderCard.getByText(/Código QR para reclamar/i)).toHaveCount(0);
+    await expect(studentOrderCard.getByText(/El código QR ya no está disponible/i)).toBeVisible();
+    await expect(adminPage.getByRole('button', { name: /Marcar como/i })).toHaveCount(0);
+    console.info('STUDENT_ORDER_SYNC_LATENCIES', JSON.stringify(studentSyncLatencies));
+    await testInfo.attach('student-order-sync-latencies.json', {
+      body: JSON.stringify(studentSyncLatencies, null, 2),
+      contentType: 'application/json',
+    });
     await healthy(adminPage, adminState);
+
 
     const openAdminMenu = adminPage.getByRole('button', { name: 'Abrir menú lateral', exact: true });
     if (await openAdminMenu.count() && await openAdminMenu.isVisible()) await openAdminMenu.click();
@@ -408,18 +527,15 @@ test.describe('critical functional flows @student', () => {
     if (productAfterDeliveryError) throw productAfterDeliveryError;
     expect(Number(productAfterDeliveryData.stock)).toBe(stockAfterCheckout);
 
-    const verificationPage = await browser.newPage();
-    const verificationState = await monitor(verificationPage);
-    await login(verificationPage, 'student', e2eAuth);
-    await verificationPage.goto('/student/history');
-    await healthy(verificationPage, verificationState);
-    const historyCard = verificationPage.locator('article').filter({ hasText: orderNumber }).first();
+    await studentPage.goto('/student/history');
+    await healthy(studentPage, studentState);
+    const historyCard = studentPage.locator('article').filter({ hasText: orderNumber }).first();
     await expect(historyCard).toBeVisible({ timeout: 15_000 });
-    await expect(historyCard).toContainText(/Recogida/i);
-    const pickupLine = historyCard.locator('div.grid').filter({ hasText: /Recogida/i }).last();
-    await expect(pickupLine).toContainText(/[A-Z0-9]{6,}/);
+    await expect(historyCard).toContainText(/Número de pedido/i);
+    const orderNumberLine = historyCard.locator('div.grid').filter({ hasText: /Número de pedido/i }).last();
+    await expect(orderNumberLine).toContainText(orderNumber);
     await expect(historyCard.getByText(/entregado/i).first()).toBeVisible();
-    await verificationPage.close();
+    await studentPage.close();
 
     const reportPage = await browser.newPage();
     const reportState = await monitor(reportPage);
