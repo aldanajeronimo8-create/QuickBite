@@ -72,8 +72,8 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(studentMenu).toMatch(/Tus pedidos preordenados/);
     expect(studentMenu).toMatch(/function RecessWaitlistNotice/);
     expect(studentMenu).toMatch(/const offered = options\.find\(option =>[\s\S]*?option\.waitlist_status === 'offered'/);
-    expect(studentMenu).toMatch(/const active = options\.find\(option => option\.is_active\)/);
     expect(studentMenu).toMatch(/option\.recess_schedule_id === current && option\.window_open/);
+    expect(studentMenu).toMatch(/const active = options\.find\(option => option\.is_active\)/);
     expect(studentMenu).toMatch(/setSelectedRecessId\(scheduleId\)/);
     expect(studentMenu).toMatch(/join_student_recess_waitlist/);
     expect(studentMenu).toMatch(/leave_student_recess_waitlist/);
