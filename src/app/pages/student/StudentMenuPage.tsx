@@ -25,7 +25,7 @@ type PayStep = 'cart' | 'payment' | 'receipt';
 type NutritionFilter = 'all' | 'healthy' | 'vegetarian' | 'complete' | 'excludeAllergens';
 interface CartItem extends Product { qty: number; }
 interface Student { id: string; name: string; grade: string; email?: string; }
-type RecessPreorderOption = { recess_schedule_id: string; name: 'Primer Descanso' | 'Segundo Descanso' | string; start_time: string; end_time: string; pickup_date: string; preorders_count: number; max_preorders: number | null; is_active: boolean; can_order: boolean; window_open: boolean; waitlist_status: 'waiting' | 'offered' | 'accepted' | 'expired' | 'cancelled' | null; waitlist_position: number | null; offer_expires_at: string | null; };
+type RecessPreorderOption = { recess_schedule_id: string; name: 'Primer Descanso' | 'Segundo Descanso' | string; start_time: string; end_time: string; pickup_date: string; preorders_count: number; max_preorders: number | null; is_active: boolean; can_order: boolean; window_open: boolean; server_now: string; waitlist_status: 'waiting' | 'offered' | 'accepted' | 'expired' | 'cancelled' | null; waitlist_position: number | null; offer_expires_at: string | null; };
 interface ProductNutrition {
   product_id: string;
   detailed_description: string | null;
@@ -97,6 +97,7 @@ export function StudentMenuPage() {
   const [selectedRecessId, setSelectedRecessId] = useState('');
   const [recessOptionsError, setRecessOptionsError] = useState<string | null>(null);
   const [waitlistBusyId, setWaitlistBusyId] = useState<string | null>(null);
+  const [serverClockOffsetMs, setServerClockOffsetMs] = useState(0);
   const previousWaitlistStates = useRef<Record<string, string | null>>({});
   const [redeemingRewardId, setRedeemingRewardId] = useState<string | null>(null);
   const [nutritionByProduct, setNutritionByProduct] = useState<Record<string, ProductNutrition>>({});
@@ -143,9 +144,20 @@ export function StudentMenuPage() {
   }, [activeStudent, loadData, navigate]);
 
   const fetchRecessOptions = useCallback(async () => {
+    const requestStartedAt = Date.now();
     const { data, error } = await requireSupabaseClient().rpc('get_student_preorder_options');
+    const responseReceivedAt = Date.now();
     if (error) throw error;
-    return (data ?? []) as RecessPreorderOption[];
+    const options = (data ?? []) as RecessPreorderOption[];
+    const serverNow = options.find(option => option.server_now)?.server_now;
+    if (serverNow) {
+      const serverTimestamp = Date.parse(serverNow);
+      if (Number.isFinite(serverTimestamp)) {
+        // Estimate server/browser clock drift using the midpoint of the request.
+        setServerClockOffsetMs(serverTimestamp - ((requestStartedAt + responseReceivedAt) / 2));
+      }
+    }
+    return options;
   }, []);
 
   const applyRecessOptions = useCallback((options: RecessPreorderOption[]) => {
@@ -434,7 +446,7 @@ export function StudentMenuPage() {
       const orderNumber = orderResult.orderNumber;
       const paidWithCredits = paymentMethod === 'credits';
       const scheduledStart = selectedRecess ? Date.parse(`${selectedRecess.pickup_date}T${timeLabel(selectedRecess.start_time)}:00-05:00`) : Number.NaN;
-      const isPreordered = Boolean(selectedRecess && Number.isFinite(scheduledStart) && Date.now() < scheduledStart);
+      const isPreordered = Boolean(selectedRecess && Number.isFinite(scheduledStart) && Date.now() + serverClockOffsetMs < scheduledStart);
       setLastReceipt({ orderNumber, reference: paymentMethod === 'cash' ? 'PAGO-EN-CAJA' : paymentMethod === 'credits' ? 'PAGO-CON-CREDITOS' : reference, pickup, paidWithCredits, recessName: selectedRecess?.name, recessStart: selectedRecess?.start_time, recessEnd: selectedRecess?.end_time, preordered: isPreordered });
       setCart([]);
       setTip('');
@@ -532,8 +544,8 @@ export function StudentMenuPage() {
 
       <div className={`${CONTAINER} space-y-6 pt-6`}>
         <StudentRecessStatus />
-        <PreorderedOrdersPanel orders={myOrders} onViewHistory={() => setTab('orders')} />
-        <RecessWaitlistNotice options={recessOptions} busyId={waitlistBusyId} cartCount={cartCount} onJoin={handleJoinWaitlist} onLeave={handleLeaveWaitlist} onOpenCart={() => { setShowCart(true); setPayStep('cart'); }} />
+        <PreorderedOrdersPanel orders={myOrders} serverClockOffsetMs={serverClockOffsetMs} onViewHistory={() => setTab('orders')} />
+        <RecessWaitlistNotice options={recessOptions} busyId={waitlistBusyId} cartCount={cartCount} serverClockOffsetMs={serverClockOffsetMs} onJoin={handleJoinWaitlist} onLeave={handleLeaveWaitlist} onOpenCart={() => { setShowCart(true); setPayStep('cart'); }} />
         <div className="grid gap-3 sm:grid-cols-2">
           <section className={`${SURFACE} rounded-2xl p-4`}>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Recreo inteligente</p>
@@ -577,7 +589,7 @@ export function StudentMenuPage() {
           </main>
         )}
 
-        {activeTab === 'orders' && <main className="space-y-4">{myOrders.length === 0 && loyalty.redemptions.length === 0 ? <Empty icon={ReceiptText} title="Aún no tienes actividad" text="Tus compras y canjes aparecerán aquí." /> : <>{myOrders.map((o) => <OrderCard key={o.id} order={o} />)}{loyalty.redemptions.map((redemption) => <RedemptionCard key={redemption.id} redemption={redemption} />)}</>}</main>}
+        {activeTab === 'orders' && <main className="space-y-4">{myOrders.length === 0 && loyalty.redemptions.length === 0 ? <Empty icon={ReceiptText} title="Aún no tienes actividad" text="Tus compras y canjes aparecerán aquí." /> : <>{myOrders.map((o) => <OrderCard key={o.id} order={o} serverClockOffsetMs={serverClockOffsetMs} />)}{loyalty.redemptions.map((redemption) => <RedemptionCard key={redemption.id} redemption={redemption} />)}</>}</main>}
         {activeTab === 'rewards' && rewardsEnabled && <main className="space-y-4"><StudentRewardsPanel availablePoints={loyalty.availablePoints} error={loyalty.error} loading={loyalty.loading} onRedeem={handleRewardRedemption} redeemingRewardId={redeemingRewardId} redemptions={loyalty.redemptions} rewards={loyalty.rewards} /></main>}
       </div>
 
@@ -696,7 +708,7 @@ function CartSheet({ cart, cartTotal, total, lastReceipt, payStep, paymentMethod
             </select>
             {(() => {
               const option = recessOptions.find(item => item.recess_schedule_id === selectedRecessId);
-              const activeOffer = option?.waitlist_status === 'offered' && Boolean(option.offer_expires_at) && Date.parse(option.offer_expires_at ?? '') > Date.now();
+              const activeOffer = option?.waitlist_status === 'offered' && Boolean(option.offer_expires_at) && Date.parse(option.offer_expires_at ?? '') > Date.now() + serverClockOffsetMs;
               const waiting = option?.waitlist_status === 'waiting';
               if (!option) return <p className="text-sm text-rose-600 dark:text-rose-300">Selecciona un descanso disponible.</p>;
               if (!option.window_open) return <p className="rounded-xl border border-slate-300 bg-slate-100 p-3 text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Este horario ya terminó. Podrás volver a pedir cuando esté abierto el siguiente descanso.</p>;
@@ -725,28 +737,28 @@ function Summary({ subtotal, total }: { subtotal: number; total: number }) { ret
 function Empty({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) { return <div className={`${SURFACE} mt-4 rounded-3xl p-8 text-center`}><Icon className="mx-auto mb-3 h-12 w-12 text-emerald-500/50" /><h3 className="font-black text-slate-900 dark:text-white">{title}</h3><p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{text}</p></div>; }
 function statusData(order: Order): [string, number, LucideIcon] { if (order.status === 'cancelled') return ['Cancelado', 100, XCircle]; if (order.status === 'delivered') return ['Entregado', 100, CheckCircle2]; if (order.status === 'ready') return ['Listo para recoger', 78, PackageCheck]; if (order.status === 'preparing') return ['En preparación', 52, Utensils]; return ['Recibido', 22, Clock3]; }
 
-function OrderCard({ order }: { order: Order }) {
+function OrderCard({ order, serverClockOffsetMs = 0 }: { order: Order; serverClockOffsetMs?: number }) {
   const [baseLabel, progress, Icon] = statusData(order);
   const label = order.pickup_outcome === 'unclaimed' ? 'No reclamado' : baseLabel;
   const recessName = order.scheduled_recess_name ?? order.scheduled_recess?.name;
   const recessStart = order.scheduled_for ? bogotaClock(order.scheduled_for) : order.scheduled_recess?.start_time ? timeLabel(order.scheduled_recess.start_time) : '';
   const recessEnd = order.scheduled_pickup_until ? bogotaClock(order.scheduled_pickup_until) : order.scheduled_recess?.end_time ? timeLabel(order.scheduled_recess.end_time) : '';
   const [expanded, setExpanded] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now() + serverClockOffsetMs);
   useEffect(() => {
     if (!order.preordered || !order.scheduled_for) return;
     const scheduledStart = Date.parse(order.scheduled_for);
-    if (!Number.isFinite(scheduledStart) || scheduledStart <= Date.now()) {
-      setNow(Date.now());
+    if (!Number.isFinite(scheduledStart) || scheduledStart <= Date.now() + serverClockOffsetMs) {
+      setNow(Date.now() + serverClockOffsetMs);
       return;
     }
     const timer = window.setInterval(() => {
-      const current = Date.now();
+      const current = Date.now() + serverClockOffsetMs;
       setNow(current);
       if (current >= scheduledStart) window.clearInterval(timer);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [order.preordered, order.scheduled_for]);
+  }, [order.preordered, order.scheduled_for, serverClockOffsetMs]);
   const preorderStarted = !order.preordered
     ? true
     : Boolean(order.scheduled_for && Number.isFinite(Date.parse(order.scheduled_for)) && now >= Date.parse(order.scheduled_for));
@@ -767,12 +779,12 @@ function isSameBogotaDate(left: string, right: Date) {
   return formatter.format(new Date(left)) === formatter.format(right);
 }
 
-function PreorderedOrdersPanel({ orders, onViewHistory }: { orders: Order[]; onViewHistory: () => void }) {
-  const [now, setNow] = useState(() => Date.now());
+function PreorderedOrdersPanel({ orders, serverClockOffsetMs = 0, onViewHistory }: { orders: Order[]; serverClockOffsetMs?: number; onViewHistory: () => void }) {
+  const [now, setNow] = useState(() => Date.now() + serverClockOffsetMs);
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    const timer = window.setInterval(() => setNow(Date.now() + serverClockOffsetMs), 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [serverClockOffsetMs]);
 
   const nowDate = new Date(now);
   const todaysPreorders = orders.filter(order =>
@@ -825,7 +837,7 @@ function PreorderedOrdersPanel({ orders, onViewHistory }: { orders: Order[]; onV
   </section>;
 }
 
-function RecessWaitlistNotice({ options, busyId, cartCount, onJoin, onLeave, onOpenCart }: { options: RecessPreorderOption[]; busyId: string | null; cartCount: number; onJoin: (id: string) => void; onLeave: (id: string) => void; onOpenCart: () => void }) {
+function RecessWaitlistNotice({ options, busyId, cartCount, serverClockOffsetMs = 0, onJoin, onLeave, onOpenCart }: { options: RecessPreorderOption[]; busyId: string | null; cartCount: number; serverClockOffsetMs?: number; onJoin: (id: string) => void; onLeave: (id: string) => void; onOpenCart: () => void }) {
   const activeEntries = options.filter(option => option.waitlist_status === 'waiting' || option.waitlist_status === 'offered');
   if (activeEntries.length === 0) return null;
   return <section className={`${SURFACE} space-y-3 rounded-2xl p-4`} aria-label="Estado de lista de espera">
