@@ -173,21 +173,23 @@ export function StudentMenuPage() {
     setRecessOptions(options);
     setRecessOptionsError(null);
     setSelectedRecessId(current => {
-      // An existing offer takes priority so the invited student checks out
-      // against the exact schedule that has reserved a spot for them.
+      // A waitlist offer takes priority because its five-minute reservation
+      // belongs to this student and must be easy to claim.
       const offered = options.find(option =>
         option.waitlist_status === 'offered' && option.window_open
       );
       if (offered) return offered.recess_schedule_id;
 
-      // When a recess starts, switch away from a previously selected future
-      // recess so the normal ordering flow is re-enabled for the active one.
-      const active = options.find(option => option.is_active);
-      if (active) return active.recess_schedule_id;
-
+      // Preserve the student's choice while that recess remains open. When
+      // its start arrives, is_active changes automatically, switching checkout
+      // from preorder to normal order without changing the selected schedule.
+      // If the selected recess closes, pick the active/next open recess.
       if (current && options.some(option =>
         option.recess_schedule_id === current && option.window_open
       )) return current;
+
+      const active = options.find(option => option.is_active);
+      if (active) return active.recess_schedule_id;
 
       const suggested = options.find(option => option.window_open && option.can_order) ??
         options.find(option => option.window_open) ??
