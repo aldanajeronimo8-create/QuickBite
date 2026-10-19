@@ -1,4 +1,4 @@
-name: Recess migration validation
+name: Recess migration validation (temporary PostgreSQL)
 
 on:
   push:
