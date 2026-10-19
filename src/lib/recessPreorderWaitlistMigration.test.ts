@@ -47,7 +47,7 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(migration).toMatch(/window_open boolean/i);
     expect(migration).toMatch(/waitlist_status text/i);
     expect(migration).toMatch(/waitlist_position bigint/i);
-    expect(migration).toMatch(/offer_expires_at timestamptz/i);
+    expect(migration).toMatch(/offer_expires_at timestamptz,\s+server_now timestamptz/i);
     expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.join_student_recess_waitlist/i);
     expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.leave_student_recess_waitlist/i);
     expect(migration).toMatch(/REVOKE ALL ON FUNCTION public\.join_student_recess_waitlist\(uuid, date\) FROM PUBLIC, anon/i);
@@ -74,6 +74,8 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(studentMenu).toMatch(/join_student_recess_waitlist/);
     expect(studentMenu).toMatch(/leave_student_recess_waitlist/);
     expect(studentMenu).toMatch(/const preorderStarted = !order\.preordered[\s\S]*?now >= Date\.parse\(order\.scheduled_for\)/);
+    expect(studentMenu).toMatch(/setServerClockOffsetMs\\(serverTimestamp - \\(\\(requestStartedAt \\+ responseReceivedAt\\) \\/ 2\\)\\)/);
+    expect(studentMenu).toMatch(/Date\\.now\\(\\) \\+ serverClockOffsetMs < scheduledStart/);
     expect(studentMenu).toMatch(/order\.status !== 'delivered' && !cancelled && preorderStarted/);
     expect(studentMenu).toMatch(/setInterval\(\(\) => \{\s*const current = Date\.now\(\);/);
     expect(studentMenu).toMatch(/QR se habilitará automáticamente al comenzar el descanso/i);
