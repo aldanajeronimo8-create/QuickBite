@@ -190,18 +190,19 @@ BEGIN
     END IF;
   END IF;
 
-  IF TG_OP = 'UPDATE'
-     AND OLD.scheduled_recess_schedule_id IS NOT NULL
-     AND OLD.scheduled_for IS NOT NULL
-     AND (
-       OLD.scheduled_recess_schedule_id IS DISTINCT FROM NEW.scheduled_recess_schedule_id
-       OR (OLD.scheduled_for AT TIME ZONE 'America/Bogota')::date
-          IS DISTINCT FROM (NEW.scheduled_for AT TIME ZONE 'America/Bogota')::date
-     ) THEN
-    PERFORM public.promote_recess_waitlist(
-      OLD.scheduled_recess_schedule_id,
-      (OLD.scheduled_for AT TIME ZONE 'America/Bogota')::date
-    );
+  IF TG_OP = 'UPDATE' THEN
+    IF OLD.scheduled_recess_schedule_id IS NOT NULL
+       AND OLD.scheduled_for IS NOT NULL
+       AND (
+         OLD.scheduled_recess_schedule_id IS DISTINCT FROM NEW.scheduled_recess_schedule_id
+         OR (OLD.scheduled_for AT TIME ZONE 'America/Bogota')::date
+            IS DISTINCT FROM (NEW.scheduled_for AT TIME ZONE 'America/Bogota')::date
+       ) THEN
+      PERFORM public.promote_recess_waitlist(
+        OLD.scheduled_recess_schedule_id,
+        (OLD.scheduled_for AT TIME ZONE 'America/Bogota')::date
+      );
+    END IF;
   END IF;
 
   RETURN NEW;
