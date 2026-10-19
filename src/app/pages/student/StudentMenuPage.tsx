@@ -161,9 +161,23 @@ export function StudentMenuPage() {
     setRecessOptions(options);
     setRecessOptionsError(null);
     setSelectedRecessId(current => {
-      if (current && options.some(option => option.recess_schedule_id === current)) return current;
-      const suggested = options.find(option => option.is_active) ??
-        options.find(option => option.can_order) ??
+      // An existing offer takes priority so the invited student checks out
+      // against the exact schedule that has reserved a spot for them.
+      const offered = options.find(option =>
+        option.waitlist_status === 'offered' && option.window_open
+      );
+      if (offered) return offered.recess_schedule_id;
+
+      // When a recess starts, switch away from a previously selected future
+      // recess so the normal ordering flow is re-enabled for the active one.
+      const active = options.find(option => option.is_active);
+      if (active) return active.recess_schedule_id;
+
+      if (current && options.some(option =>
+        option.recess_schedule_id === current && option.window_open
+      )) return current;
+
+      const suggested = options.find(option => option.window_open && option.can_order) ??
         options.find(option => option.window_open) ??
         options[0];
       return suggested?.recess_schedule_id ?? '';
@@ -201,6 +215,7 @@ export function StudentMenuPage() {
       const options = await fetchRecessOptions();
       applyRecessOptions(options);
       if (result?.status === 'offered') {
+        setSelectedRecessId(scheduleId);
         toast.success('La plaza quedó reservada para ti durante 5 minutos. Confirma tu pedido.');
       } else {
         toast.success(`Te añadimos a la lista de espera.${result?.position ? ` Tu posición es ${result.position}.` : ''}`);
