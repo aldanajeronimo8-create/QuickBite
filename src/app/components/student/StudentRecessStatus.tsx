@@ -8,7 +8,7 @@ function timeLabel(v:string){return v.slice(0,5)}
 export function StudentRecessStatus(){
  const [status,setStatus]=useState<RecessStatus|null>(null); const [loading,setLoading]=useState(true); const [refreshing,setRefreshing]=useState(false); const [error,setError]=useState(false);
  const load=useCallback(async(manual=false)=>{if(manual)setRefreshing(true);try{const{data,error:rpcError}=await requireSupabaseClient().rpc('get_student_recess_status');if(rpcError)throw rpcError;setStatus(data as RecessStatus);setError(false);}catch{setError(true)}finally{setLoading(false);setRefreshing(false)}},[]);
- useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),30000);return()=>window.clearInterval(timer)},[load]);
+ useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),5000);return()=>window.clearInterval(timer)},[load]);
  if(loading)return <div className="rounded-2xl border border-slate-800 bg-[#121A2F] p-4 text-sm text-slate-400">Cargando tu horario de recreo…</div>;
  if(error)return <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200"><span>No se pudo consultar tu recreo.</span><button type="button" onClick={()=>void load(true)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 px-3 py-2 text-xs font-black"><RefreshCw className={refreshing?'h-3.5 w-3.5 animate-spin':'h-3.5 w-3.5'}/>Actualizar</button></div>;
  const active=status?.active??null; const next=status?.next??null;
