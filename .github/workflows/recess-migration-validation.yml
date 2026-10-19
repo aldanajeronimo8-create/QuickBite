@@ -1,0 +1,313 @@
+name: Recess migration validation
+
+on:
+  push:
+    branches:
+      - feat/recess-preorder-window-qr-waitlist
+    paths:
+      - "supabase/migrations/20261019140000_recess_preorder_window_waitlist_and_qr_visibility.sql"
+      - ".github/workflows/recess-migration-validation.yml"
+  pull_request:
+    paths:
+      - "supabase/migrations/20261019140000_recess_preorder_window_waitlist_and_qr_visibility.sql"
+      - ".github/workflows/recess-migration-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-migration:
+    name: Apply migration to isolated PostgreSQL and exercise guards
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: quickbite_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d quickbite_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Apply migration and assert database behavior
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/quickbite_test
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon NOLOGIN;
+          CREATE ROLE authenticated NOLOGIN;
+          CREATE SCHEMA auth;
+
+          CREATE FUNCTION auth.uid()
+          RETURNS uuid
+          LANGUAGE sql
+          STABLE
+          AS $$
+            SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+
+          CREATE TABLE public.profiles (
+            id uuid PRIMARY KEY,
+            role text NOT NULL,
+            section_id uuid,
+            active boolean NOT NULL DEFAULT true
+          );
+
+          CREATE TABLE public.recess_schedules (
+            id uuid PRIMARY KEY,
+            name text NOT NULL,
+            start_time time NOT NULL,
+            end_time time NOT NULL,
+            weekday integer NOT NULL,
+            active boolean NOT NULL DEFAULT true,
+            max_students integer
+          );
+
+          CREATE TABLE public.recess_schedule_targets (
+            recess_schedule_id uuid NOT NULL REFERENCES public.recess_schedules(id),
+            section_id uuid NOT NULL,
+            grade_id uuid,
+            course_id uuid
+          );
+
+          CREATE TABLE public.orders (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id uuid NOT NULL,
+            scheduled_recess_schedule_id uuid,
+            scheduled_for timestamptz,
+            status text NOT NULL,
+            payment_status text,
+            preordered boolean NOT NULL DEFAULT false
+          );
+
+          CREATE FUNCTION public.is_admin()
+          RETURNS boolean
+          LANGUAGE sql
+          STABLE
+          AS $$ SELECT false $$;
+
+          CREATE FUNCTION public.effective_student_user_id()
+          RETURNS uuid
+          LANGUAGE sql
+          STABLE
+          AS $$ SELECT auth.uid() $$;
+
+          \i supabase/migrations/20261019140000_recess_preorder_window_waitlist_and_qr_visibility.sql
+
+          DO $assert_migration$
+          BEGIN
+            IF to_regclass('public.recess_waitlist') IS NULL THEN
+              RAISE EXCEPTION 'recess_waitlist table was not created';
+            END IF;
+            IF to_regprocedure('public.get_student_preorder_options()') IS NULL
+               OR to_regprocedure('public.join_student_recess_waitlist(uuid,date)') IS NULL
+               OR to_regprocedure('public.leave_student_recess_waitlist(uuid,date)') IS NULL THEN
+              RAISE EXCEPTION 'one or more waitlist RPCs are missing';
+            END IF;
+            IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.recess_waitlist'::regclass) THEN
+              RAISE EXCEPTION 'RLS is not enabled for recess_waitlist';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'guard_recess_waitlist_offer' AND NOT tgisinternal)
+               OR NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'enforce_preordered_delivery_time' AND NOT tgisinternal)
+               OR NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'refresh_recess_waitlist_after_order_change' AND NOT tgisinternal) THEN
+              RAISE EXCEPTION 'one or more database guards/triggers are missing';
+            END IF;
+          END
+          $assert_migration$;
+
+          INSERT INTO public.profiles (id, role, section_id, active) VALUES
+            ('00000000-0000-0000-0000-000000000001', 'student', '00000000-0000-0000-0000-000000000010', true),
+            ('00000000-0000-0000-0000-000000000002', 'student', '00000000-0000-0000-0000-000000000010', true),
+            ('00000000-0000-0000-0000-000000000003', 'student', '00000000-0000-0000-0000-000000000010', true);
+
+          INSERT INTO public.recess_schedules
+            (id, name, start_time, end_time, weekday, active, max_students)
+          VALUES
+            ('10000000-0000-0000-0000-000000000001', 'Primer Descanso', time '00:00', time '23:59:59.999999',
+             EXTRACT(DOW FROM (now() AT TIME ZONE 'America/Bogota'))::integer, true, 1),
+            ('10000000-0000-0000-0000-000000000002', 'Segundo Descanso', time '00:00', time '23:59:59.999999',
+             EXTRACT(DOW FROM (now() AT TIME ZONE 'America/Bogota'))::integer, true, 2);
+
+          INSERT INTO public.recess_schedule_targets (recess_schedule_id, section_id, grade_id, course_id)
+          VALUES
+            ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010', NULL, NULL),
+            ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000010', NULL, NULL);
+
+          -- One student fills the only slot.
+          INSERT INTO public.orders
+            (id, user_id, scheduled_recess_schedule_id, scheduled_for, status, payment_status, preordered)
+          VALUES
+            ('20000000-0000-0000-0000-000000000001',
+             '00000000-0000-0000-0000-000000000001',
+             '10000000-0000-0000-0000-000000000001',
+             now(), 'pending', 'paid', true);
+
+          -- The database must reject a second, distinct student when at capacity.
+          DO $assert_capacity$
+          BEGIN
+            BEGIN
+              INSERT INTO public.orders
+                (id, user_id, scheduled_recess_schedule_id, scheduled_for, status, payment_status, preordered)
+              VALUES
+                ('20000000-0000-0000-0000-000000000002',
+                 '00000000-0000-0000-0000-000000000002',
+                 '10000000-0000-0000-0000-000000000001',
+                 now(), 'pending', 'paid', true);
+              RAISE EXCEPTION 'test failed: capacity guard allowed an extra student';
+            EXCEPTION WHEN OTHERS THEN
+              IF SQLERRM <> 'recess_student_limit_reached' THEN RAISE; END IF;
+            END;
+          END
+          $assert_capacity$;
+
+          -- Authenticated student joins a full schedule's waitlist and can leave it.
+          SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', false);
+          DO $assert_join_leave$
+          DECLARE
+            v_result jsonb;
+          BEGIN
+            v_result := public.join_student_recess_waitlist(
+              '10000000-0000-0000-0000-000000000001',
+              (now() AT TIME ZONE 'America/Bogota')::date
+            );
+            IF v_result->>'status' <> 'waiting' OR (v_result->>'position')::integer <> 1 THEN
+              RAISE EXCEPTION 'unexpected waitlist join result: %', v_result;
+            END IF;
+            IF NOT public.leave_student_recess_waitlist(
+              '10000000-0000-0000-0000-000000000001',
+              (now() AT TIME ZONE 'America/Bogota')::date
+            ) THEN
+              RAISE EXCEPTION 'student could not leave their waitlist';
+            END IF;
+          END
+          $assert_join_leave$;
+
+          -- FIFO promotion: the oldest waiting student gets the five-minute offer.
+          INSERT INTO public.recess_waitlist
+            (student_user_id, recess_schedule_id, pickup_date, status, created_at, updated_at)
+          VALUES
+            ('00000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002',
+             (now() AT TIME ZONE 'America/Bogota')::date, 'waiting', now() - interval '2 minutes', now()),
+            ('00000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002',
+             (now() AT TIME ZONE 'America/Bogota')::date, 'waiting', now() - interval '1 minute', now());
+
+          SELECT public.promote_recess_waitlist(
+            '10000000-0000-0000-0000-000000000002',
+            (now() AT TIME ZONE 'America/Bogota')::date
+          );
+
+          DO $assert_fifo$
+          BEGIN
+            IF (SELECT status FROM public.recess_waitlist
+                WHERE student_user_id = '00000000-0000-0000-0000-000000000002'
+                  AND recess_schedule_id = '10000000-0000-0000-0000-000000000002') <> 'offered' THEN
+              RAISE EXCEPTION 'oldest waitlist student was not offered the slot';
+            END IF;
+            IF (SELECT offer_expires_at FROM public.recess_waitlist
+                WHERE student_user_id = '00000000-0000-0000-0000-000000000002'
+                  AND recess_schedule_id = '10000000-0000-0000-0000-000000000002') <= now() THEN
+              RAISE EXCEPTION 'waitlist offer was not given a future expiry';
+            END IF;
+            IF (SELECT status FROM public.recess_waitlist
+                WHERE student_user_id = '00000000-0000-0000-0000-000000000003'
+                  AND recess_schedule_id = '10000000-0000-0000-0000-000000000002') <> 'waiting' THEN
+              RAISE EXCEPTION 'FIFO promotion skipped the older student';
+            END IF;
+          END
+          $assert_fifo$;
+
+          -- A different student cannot take an offered place.
+          DO $assert_offer_guard$
+          BEGIN
+            BEGIN
+              INSERT INTO public.orders
+                (id, user_id, scheduled_recess_schedule_id, scheduled_for, status, payment_status, preordered)
+              VALUES
+                ('20000000-0000-0000-0000-000000000003',
+                 '00000000-0000-0000-0000-000000000003',
+                 '10000000-0000-0000-0000-000000000002',
+                 now(), 'pending', 'paid', true);
+              RAISE EXCEPTION 'test failed: another student stole an offered waitlist place';
+            EXCEPTION WHEN OTHERS THEN
+              IF SQLERRM <> 'recess_waitlist_offer_pending' THEN RAISE; END IF;
+            END;
+          END
+          $assert_offer_guard$;
+
+          -- The RPC exposes the active offer, window state and server clock.
+          DO $assert_rpc$
+          DECLARE
+            v_option record;
+          BEGIN
+            SELECT * INTO v_option
+            FROM public.get_student_preorder_options() AS options
+            WHERE options.recess_schedule_id = '10000000-0000-0000-0000-000000000002';
+
+            IF NOT FOUND THEN RAISE EXCEPTION 'preorder options RPC did not return the student's schedule'; END IF;
+            IF v_option.waitlist_status <> 'offered' OR v_option.window_open IS DISTINCT FROM true
+               OR v_option.server_now IS NULL OR v_option.offer_expires_at IS NULL THEN
+              RAISE EXCEPTION 'preorder options RPC returned unexpected queue/window data';
+            END IF;
+          END
+          $assert_rpc$;
+
+          -- The database must prevent early delivery, not just the UI.
+          UPDATE public.orders
+          SET scheduled_for = now() + interval '10 minutes'
+          WHERE id = '20000000-0000-0000-0000-000000000001';
+
+          DO $assert_delivery_time$
+          BEGIN
+            BEGIN
+              UPDATE public.orders SET status = 'delivered'
+              WHERE id = '20000000-0000-0000-0000-000000000001';
+              RAISE EXCEPTION 'test failed: preordered item was delivered before scheduled time';
+            EXCEPTION WHEN OTHERS THEN
+              IF SQLERRM <> 'preordered_pickup_not_started' THEN RAISE; END IF;
+            END;
+          END
+          $assert_delivery_time$;
+
+          -- Expired offers are retired and the next waiting student is promoted.
+          UPDATE public.recess_waitlist
+          SET offer_expires_at = now() - interval '1 second'
+          WHERE student_user_id = '00000000-0000-0000-0000-000000000002'
+            AND recess_schedule_id = '10000000-0000-0000-0000-000000000002'
+            AND status = 'offered';
+
+          SELECT public.promote_recess_waitlist(
+            '10000000-0000-0000-0000-000000000002',
+            (now() AT TIME ZONE 'America/Bogota')::date
+          );
+
+          DO $assert_expiry$
+          BEGIN
+            IF (SELECT status FROM public.recess_waitlist
+                WHERE student_user_id = '00000000-0000-0000-0000-000000000002'
+                  AND recess_schedule_id = '10000000-0000-0000-0000-000000000002') <> 'expired' THEN
+              RAISE EXCEPTION 'expired offer was not retired';
+            END IF;
+            IF (SELECT status FROM public.recess_waitlist
+                WHERE student_user_id = '00000000-0000-0000-0000-000000000003'
+                  AND recess_schedule_id = '10000000-0000-0000-0000-000000000002') <> 'offered' THEN
+              RAISE EXCEPTION 'next waiting student was not promoted after expiry';
+            END IF;
+          END
+          $assert_expiry$;
+
+          SELECT 'recess migration and behavioral checks passed' AS result;
+          SQL
