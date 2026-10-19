@@ -64,7 +64,7 @@ describe('recess preorder window, QR timing and student waitlist', () => {
   it('prevents the database from marking an anticipatory order delivered early', () => {
     expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.enforce_preordered_delivery_time/i);
     expect(migration).toMatch(/NEW\.status = 'delivered'[\s\S]*?NEW\.preordered IS TRUE[\s\S]*?NEW\.scheduled_for IS NULL[\s\S]*?RAISE EXCEPTION 'preordered_pickup_schedule_missing'[\s\S]*?now\(\) < NEW\.scheduled_for[\s\S]*?RAISE EXCEPTION 'preordered_pickup_not_started'/i);
-    expect(migration).toMatch(/CREATE TRIGGER enforce_preordered_delivery_time[\s\S]*?BEFORE UPDATE OF status ON public\.orders/i);
+    expect(migration).toMatch(/CREATE TRIGGER enforce_preordered_delivery_time[\s\S]*?BEFORE INSERT OR UPDATE OF status ON public\.orders/i);
   });
 
   it('shows students their preorder list and withholds each preorder QR until the scheduled start', () => {
