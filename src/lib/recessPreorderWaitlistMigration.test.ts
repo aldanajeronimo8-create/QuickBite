@@ -18,6 +18,10 @@ const recessStatus = readFileSync(
   join(process.cwd(), 'src/app/components/student/StudentRecessStatus.tsx'),
   'utf8',
 );
+const adminOrders = readFileSync(
+  join(process.cwd(), 'src/app/pages/admin/AdminOrders.tsx'),
+  'utf8',
+);
 
 describe('recess preorder window, QR timing and student waitlist', () => {
   it('stores one waitlist entry per student, section schedule and day with explicit lifecycle states', () => {
@@ -78,6 +82,8 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(studentMenu).toContain("Date.now() + serverClockOffsetMs < scheduledStart");
     expect(studentMenu).toMatch(/order\.status !== 'delivered' && !cancelled && preorderStarted/);
     expect(studentMenu).toContain("order.preordered && !preorderStarted ? 'Disponible al comenzar el descanso'");
+    expect(adminOrders).toMatch(/preorderDeliveryLocked[\s\S]*?disabled=\{updatingOrderId === order\.id \|\| \(status === 'delivered' && preorderDeliveryLocked\)\}/);
+    expect(adminOrders).toMatch(/Entrega habilitada a las/);
     expect(studentMenu).toMatch(/setInterval\(\(\) => \{\s*const current = Date\.now\(\);/);
     expect(studentMenu).toMatch(/QR se habilitará automáticamente al comenzar el descanso/i);
   });
