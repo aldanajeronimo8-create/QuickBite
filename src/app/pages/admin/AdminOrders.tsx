@@ -57,6 +57,7 @@ function getOrderErrorMessage(error: unknown) {
   if (/delivered_order_immutable/i.test(message)) return 'El pedido ya fue entregado y su estado no se puede modificar.';
   if (/rejected_order_immutable/i.test(message)) return 'El pedido ya fue rechazado y no se puede modificar.';
   if (/unclaimed_order_immutable/i.test(message)) return 'El pedido ya quedó registrado como no reclamado y no puede marcarse como entregado.';
+  if (/preordered_pickup_not_started/i.test(message)) return 'El pedido está preordenado. Solo puede marcarse como entregado cuando comience su descanso programado.';
   if (/order_payment_not_confirmed/i.test(message)) return 'Solo se puede registrar como no reclamado un pedido con pago confirmado.';
   if (/invalid_order_transition/i.test(message)) return 'La transición de estado no es válida.';
   return message;
