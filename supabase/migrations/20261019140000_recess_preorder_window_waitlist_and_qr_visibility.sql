@@ -585,6 +585,31 @@ $function$;
 REVOKE ALL ON FUNCTION public.join_student_recess_waitlist(uuid, date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.join_student_recess_waitlist(uuid, date) TO authenticated;
 
+-- Enforce the scheduled pickup boundary at the database boundary. A student
+-- device clock or a manually invoked admin RPC cannot deliver a preorder early.
+CREATE OR REPLACE FUNCTION public.enforce_preordered_delivery_time()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, auth
+AS $function$
+BEGIN
+  IF NEW.status = 'delivered'
+     AND NEW.preordered IS TRUE
+     AND NEW.scheduled_for IS NOT NULL
+     AND now() < NEW.scheduled_for THEN
+    RAISE EXCEPTION 'preordered_pickup_not_started';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.enforce_preordered_delivery_time() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS enforce_preordered_delivery_time ON public.orders;
+CREATE TRIGGER enforce_preordered_delivery_time
+  BEFORE UPDATE OF status ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_preordered_delivery_time();
+
 CREATE OR REPLACE FUNCTION public.leave_student_recess_waitlist(
   p_recess_schedule_id uuid,
   p_pickup_date date
