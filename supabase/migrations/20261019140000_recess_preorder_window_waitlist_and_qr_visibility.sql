@@ -148,7 +148,14 @@ DECLARE
   v_pickup_date date;
 BEGIN
   IF TG_OP = 'DELETE' THEN
-    IF OLD.scheduled_recess_schedule_id IS NOT NULL AND OLD.scheduled_for IS NOT NULL THEN
+    IF OLD.scheduled_recess_schedule_id IS NOT NULL
+       AND OLD.scheduled_for IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM public.recess_waitlist w
+         WHERE w.recess_schedule_id = OLD.scheduled_recess_schedule_id
+           AND w.pickup_date = (OLD.scheduled_for AT TIME ZONE 'America/Bogota')::date
+           AND w.status IN ('waiting', 'offered')
+       ) THEN
       PERFORM public.promote_recess_waitlist(
         OLD.scheduled_recess_schedule_id,
         (OLD.scheduled_for AT TIME ZONE 'America/Bogota')::date
@@ -173,7 +180,14 @@ BEGIN
         AND status = 'offered';
     END IF;
 
-    PERFORM public.promote_recess_waitlist(v_schedule_id, v_pickup_date);
+    IF EXISTS (
+      SELECT 1 FROM public.recess_waitlist w
+      WHERE w.recess_schedule_id = v_schedule_id
+        AND w.pickup_date = v_pickup_date
+        AND w.status IN ('waiting', 'offered')
+    ) THEN
+      PERFORM public.promote_recess_waitlist(v_schedule_id, v_pickup_date);
+    END IF;
   END IF;
 
   IF TG_OP = 'UPDATE'
@@ -230,10 +244,17 @@ BEGIN
 
   IF NOT FOUND THEN RETURN NEW; END IF;
 
-  PERFORM public.promote_recess_waitlist(
-    NEW.scheduled_recess_schedule_id,
-    v_pickup_date
-  );
+  IF EXISTS (
+    SELECT 1 FROM public.recess_waitlist w
+    WHERE w.recess_schedule_id = NEW.scheduled_recess_schedule_id
+      AND w.pickup_date = v_pickup_date
+      AND w.status IN ('waiting', 'offered')
+  ) THEN
+    PERFORM public.promote_recess_waitlist(
+      NEW.scheduled_recess_schedule_id,
+      v_pickup_date
+    );
+  END IF;
   IF v_max_students IS NULL THEN RETURN NEW; END IF;
 
   SELECT count(DISTINCT o.user_id),
@@ -302,7 +323,8 @@ DECLARE
   v_time time := (now() AT TIME ZONE 'America/Bogota')::time;
   v_date date := (now() AT TIME ZONE 'America/Bogota')::date;
   v_dow integer := EXTRACT(DOW FROM (now() AT TIME ZONE 'America/Bogota'))::integer;
-  v_schedule_id uuid;
+  v_schedule public.recess_schedules%ROWTYPE;
+  v_waitlist_needs_refresh boolean;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'not_authorized'; END IF;
 
@@ -314,15 +336,64 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'student_only'; END IF;
   IF v_student.section_id IS NULL THEN RETURN; END IF;
 
-  FOR v_schedule_id IN
-    SELECT s.id
+  FOR v_schedule IN
+    SELECT s.*
     FROM public.recess_schedules s
     JOIN public.recess_schedule_targets t ON t.recess_schedule_id = s.id
     WHERE s.active AND s.weekday = v_dow
       AND t.section_id = v_student.section_id
       AND t.grade_id IS NULL AND t.course_id IS NULL
   LOOP
-    PERFORM public.promote_recess_waitlist(v_schedule_id, v_date);
+    -- Avoid taking schedule-row locks on ordinary availability polls. Only
+    -- enter the locking promotion path when a queue actually needs advancing.
+    SELECT EXISTS (
+      SELECT 1
+      FROM public.recess_waitlist w
+      WHERE w.recess_schedule_id = v_schedule.id
+        AND w.pickup_date = v_date
+        AND w.status IN ('waiting', 'offered')
+    ) INTO v_waitlist_needs_refresh;
+
+    IF v_waitlist_needs_refresh AND (
+      v_time >= v_schedule.end_time
+      OR v_schedule.max_students IS NULL
+      OR EXISTS (
+        SELECT 1 FROM public.recess_waitlist expired_offer
+        WHERE expired_offer.recess_schedule_id = v_schedule.id
+          AND expired_offer.pickup_date = v_date
+          AND expired_offer.status = 'offered'
+          AND expired_offer.offer_expires_at <= now()
+      )
+      OR EXISTS (
+        SELECT 1 FROM public.recess_waitlist waiting
+        WHERE waiting.recess_schedule_id = v_schedule.id
+          AND waiting.pickup_date = v_date
+          AND waiting.status = 'waiting'
+      ) AND (
+        SELECT count(DISTINCT o.user_id)
+        FROM public.orders o
+        WHERE o.scheduled_recess_schedule_id = v_schedule.id
+          AND o.status NOT IN ('cancelled', 'rejected')
+          AND o.payment_status IS DISTINCT FROM 'rejected'
+          AND (o.scheduled_for AT TIME ZONE 'America/Bogota')::date = v_date
+      ) < v_schedule.max_students
+      OR EXISTS (
+        SELECT 1 FROM public.recess_waitlist active_offer
+        WHERE active_offer.recess_schedule_id = v_schedule.id
+          AND active_offer.pickup_date = v_date
+          AND active_offer.status = 'offered'
+          AND active_offer.offer_expires_at > now()
+      ) AND (
+        SELECT count(DISTINCT o.user_id)
+        FROM public.orders o
+        WHERE o.scheduled_recess_schedule_id = v_schedule.id
+          AND o.status NOT IN ('cancelled', 'rejected')
+          AND o.payment_status IS DISTINCT FROM 'rejected'
+          AND (o.scheduled_for AT TIME ZONE 'America/Bogota')::date = v_date
+      ) >= v_schedule.max_students
+    ) THEN
+      PERFORM public.promote_recess_waitlist(v_schedule.id, v_date);
+    END IF;
   END LOOP;
 
   RETURN QUERY
