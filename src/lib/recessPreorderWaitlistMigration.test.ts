@@ -52,7 +52,7 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(migration).toMatch(/window_open boolean/i);
     expect(migration).toMatch(/waitlist_status text/i);
     expect(migration).toMatch(/waitlist_position bigint/i);
-    expect(migration).toMatch(/SELECT w\\.id, w\\.status, w\\.created_at, w\\.offer_expires_at/i);
+    expect(migration).toMatch(/SELECT w\.id, w\.status, w\.created_at, w\.offer_expires_at/i);
     expect(migration).toMatch(/offer_expires_at timestamptz,\s+server_now timestamptz/i);
     expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.join_student_recess_waitlist/i);
     expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.leave_student_recess_waitlist/i);
