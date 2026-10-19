@@ -611,7 +611,7 @@ $function$;
 REVOKE ALL ON FUNCTION public.enforce_preordered_delivery_time() FROM PUBLIC, anon, authenticated;
 DROP TRIGGER IF EXISTS enforce_preordered_delivery_time ON public.orders;
 CREATE TRIGGER enforce_preordered_delivery_time
-  BEFORE UPDATE OF status ON public.orders
+  BEFORE INSERT OR UPDATE OF status ON public.orders
   FOR EACH ROW EXECUTE FUNCTION public.enforce_preordered_delivery_time();
 
 CREATE OR REPLACE FUNCTION public.leave_student_recess_waitlist(
