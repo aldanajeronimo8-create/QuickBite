@@ -57,10 +57,20 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(migration).toMatch(/v_now_time >= v_schedule\.end_time[\s\S]*?RAISE EXCEPTION 'recess_window_closed'/i);
   });
 
+  it('prevents the database from marking an anticipatory order delivered early', () => {
+    expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.enforce_preordered_delivery_time/i);
+    expect(migration).toMatch(/NEW\.status = 'delivered'[\s\S]*?NEW\.preordered IS TRUE[\s\S]*?now\(\) < NEW\.scheduled_for[\s\S]*?RAISE EXCEPTION 'preordered_pickup_not_started'/i);
+    expect(migration).toMatch(/CREATE TRIGGER enforce_preordered_delivery_time[\s\S]*?BEFORE UPDATE OF status ON public\.orders/i);
+  });
+
   it('shows students their preorder list and withholds each preorder QR until the scheduled start', () => {
     expect(studentMenu).toMatch(/function PreorderedOrdersPanel/);
     expect(studentMenu).toMatch(/Tus pedidos preordenados/);
     expect(studentMenu).toMatch(/function RecessWaitlistNotice/);
+    expect(studentMenu).toMatch(/const offered = options\.find\(option =>[\s\S]*?option\.waitlist_status === 'offered'/);
+    expect(studentMenu).toMatch(/const active = options\.find\(option => option\.is_active\)/);
+    expect(studentMenu).toMatch(/option\.recess_schedule_id === current && option\.window_open/);
+    expect(studentMenu).toMatch(/setSelectedRecessId\(scheduleId\)/);
     expect(studentMenu).toMatch(/join_student_recess_waitlist/);
     expect(studentMenu).toMatch(/leave_student_recess_waitlist/);
     expect(studentMenu).toMatch(/const preorderStarted = !order\.preordered[\s\S]*?now >= Date\.parse\(order\.scheduled_for\)/);
