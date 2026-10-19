@@ -20,6 +20,7 @@ export function AdminVerification() {
   const [orderNumber, setOrderNumber] = useState('');
   const [verifiedOrder, setVerifiedOrder] = useState<Order | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const [scannerActive, setScannerActive] = useState(false);
   const [scannerError, setScannerError] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -103,6 +104,25 @@ export function AdminVerification() {
     verifiedOrder && !verifiedOrder.admin_hidden && verifiedOrder.status !== 'cancelled',
   );
 
+  useEffect(() => {
+    if (!verifiedOrder?.preordered || !verifiedOrder.scheduled_for) return;
+    const startsAt = Date.parse(verifiedOrder.scheduled_for);
+    if (!Number.isFinite(startsAt) || startsAt <= Date.now()) {
+      setClockNow(Date.now());
+      return;
+    }
+    const timer = window.setInterval(() => {
+      const current = Date.now();
+      setClockNow(current);
+      if (current >= startsAt) window.clearInterval(timer);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [verifiedOrder?.id, verifiedOrder?.preordered, verifiedOrder?.scheduled_for]);
+
+  const preorderTimeReached = !verifiedOrder?.preordered ||
+    !verifiedOrder.scheduled_for ||
+    (Number.isFinite(Date.parse(verifiedOrder.scheduled_for)) && clockNow >= Date.parse(verifiedOrder.scheduled_for));
+
   const handleSearch = () => {
     if (!orderNumber.trim()) {
       toast.error('Ingresa un número de orden o código de recogida');
@@ -124,7 +144,10 @@ export function AdminVerification() {
       });
       toast.success(nextStatus === 'ready' ? 'Pedido marcado como listo para recoger' : 'Pedido marcado como entregado');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el estado');
+      const message = error instanceof Error ? error.message : 'No se pudo actualizar el estado';
+      toast.error(/preordered_pickup_not_started/i.test(message)
+        ? 'Este pedido preordenado solo puede entregarse cuando comience el descanso programado.'
+        : message);
     } finally {
       setSavingStatus(false);
     }
@@ -214,8 +237,13 @@ export function AdminVerification() {
             <h3 className="mb-3 text-lg font-bold text-blue-900">Actualizar estado del pedido</h3>
             {nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) ? (
               <div className="space-y-3">
+                {nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) === 'delivered' && !preorderTimeReached && (
+                  <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+                    Pedido preordenado: la entrega se habilitará automáticamente a las {new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(verifiedOrder.scheduled_for!))}.
+                  </p>
+                )}
                 <p className="text-sm text-gray-600">Solo está habilitada la siguiente transición válida para este pedido.</p>
-                <Button onClick={handleStatusUpdate} disabled={savingStatus} className="min-h-12 w-full bg-blue-600 text-base font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
+                <Button onClick={handleStatusUpdate} disabled={savingStatus || (nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) === 'delivered' && !preorderTimeReached)} className="min-h-12 w-full bg-blue-600 text-base font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
                   <CheckCircle className="mr-2 h-5 w-5"/>{savingStatus ? 'Guardando…' : nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) === 'preparing'
                     ? 'Iniciar preparación'
                     : nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) === 'ready'
