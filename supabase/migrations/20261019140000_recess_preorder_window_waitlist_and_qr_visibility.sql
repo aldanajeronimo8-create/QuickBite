@@ -594,11 +594,13 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public, auth
 AS $function$
 BEGIN
-  IF NEW.status = 'delivered'
-     AND NEW.preordered IS TRUE
-     AND NEW.scheduled_for IS NOT NULL
-     AND now() < NEW.scheduled_for THEN
-    RAISE EXCEPTION 'preordered_pickup_not_started';
+  IF NEW.status = 'delivered' AND NEW.preordered IS TRUE THEN
+    IF NEW.scheduled_for IS NULL THEN
+      RAISE EXCEPTION 'preordered_pickup_schedule_missing';
+    END IF;
+    IF now() < NEW.scheduled_for THEN
+      RAISE EXCEPTION 'preordered_pickup_not_started';
+    END IF;
   END IF;
   RETURN NEW;
 END;
