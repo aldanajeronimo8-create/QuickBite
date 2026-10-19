@@ -119,9 +119,12 @@ export function AdminVerification() {
     return () => window.clearInterval(timer);
   }, [verifiedOrder?.id, verifiedOrder?.preordered, verifiedOrder?.scheduled_for]);
 
-  const preorderTimeReached = !verifiedOrder?.preordered ||
-    !verifiedOrder.scheduled_for ||
-    (Number.isFinite(Date.parse(verifiedOrder.scheduled_for)) && clockNow >= Date.parse(verifiedOrder.scheduled_for));
+  const preorderTimeReached = Boolean(verifiedOrder && (
+    !verifiedOrder.preordered ||
+    (Boolean(verifiedOrder.scheduled_for) &&
+      Number.isFinite(Date.parse(verifiedOrder.scheduled_for!)) &&
+      clockNow >= Date.parse(verifiedOrder.scheduled_for!))
+  ));
 
   const handleSearch = () => {
     if (!orderNumber.trim()) {
@@ -145,9 +148,11 @@ export function AdminVerification() {
       toast.success(nextStatus === 'ready' ? 'Pedido marcado como listo para recoger' : 'Pedido marcado como entregado');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo actualizar el estado';
-      toast.error(/preordered_pickup_not_started/i.test(message)
-        ? 'Este pedido preordenado solo puede entregarse cuando comience el descanso programado.'
-        : message);
+      toast.error(/preordered_pickup_schedule_missing/i.test(message)
+        ? 'El pedido preordenado no tiene una hora de recogida programada válida.'
+        : /preordered_pickup_not_started/i.test(message)
+          ? 'Este pedido preordenado solo puede entregarse cuando comience el descanso programado.'
+          : message);
     } finally {
       setSavingStatus(false);
     }
@@ -239,7 +244,9 @@ export function AdminVerification() {
               <div className="space-y-3">
                 {nextAuthorizedOrderStatus(verifiedOrder.status, verifiedOrder.payment_status) === 'delivered' && !preorderTimeReached && (
                   <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-                    Pedido preordenado: la entrega se habilitará automáticamente a las {new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(verifiedOrder.scheduled_for!))}.
+                    {verifiedOrder.scheduled_for
+                      ? `Pedido preordenado: la entrega se habilitará automáticamente a las ${new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(verifiedOrder.scheduled_for))}.`
+                      : 'Este pedido está marcado como preordenado, pero no tiene hora programada válida. No se puede registrar su entrega.'}
                   </p>
                 )}
                 <p className="text-sm text-gray-600">Solo está habilitada la siguiente transición válida para este pedido.</p>
