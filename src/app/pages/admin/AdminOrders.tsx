@@ -109,6 +109,12 @@ function isScheduledPickupOver(order: Order) {
 
 export function AdminOrders() {
   const { orders, loadData } = useDataStore();
+  const [clockNow, setClockNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 5000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
@@ -279,6 +285,11 @@ export function AdminOrders() {
             const pendingCancellationCount = pendingForOrder(order.id).length;
             const comment = getOrderComment(order);
             const recessName = order.scheduled_recess_name ?? order.scheduled_recess?.name;
+            const preorderDeliveryLocked = order.preordered === true && (
+              !order.scheduled_for ||
+              !Number.isFinite(Date.parse(order.scheduled_for)) ||
+              Date.parse(order.scheduled_for) > clockNow
+            );
             const canMarkUnclaimed = isScheduledPickupOver(order) && order.payment_status === 'confirmed' && order.status !== 'delivered' && order.status !== 'rejected' && order.status !== 'cancelled';
 
             return (
@@ -390,7 +401,7 @@ export function AdminOrders() {
                             key={status}
                             size="sm"
                             onClick={() => void handleStatusChange(order.id, status)}
-                            disabled={updatingOrderId === order.id}
+                            disabled={updatingOrderId === order.id || (status === 'delivered' && preorderDeliveryLocked)}
                             className={
                               status === 'preparing'
                                 ? 'bg-amber-500 text-white hover:bg-amber-600'
@@ -401,6 +412,13 @@ export function AdminOrders() {
                           </Button>
                         ))}
                     </div>
+                    {preorderDeliveryLocked && order.status === 'ready' && (
+                      <p className="mt-2 text-xs font-semibold text-amber-800">
+                        Entrega habilitada a las {order.scheduled_for
+                          ? new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(order.scheduled_for))
+                          : 'la hora programada válida'}.
+                      </p>
+                    )}
                   </div>
                 )}
 
