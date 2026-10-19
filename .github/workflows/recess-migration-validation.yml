@@ -257,7 +257,7 @@ jobs:
             FROM public.get_student_preorder_options() AS options
             WHERE options.recess_schedule_id = '10000000-0000-0000-0000-000000000002';
 
-            IF NOT FOUND THEN RAISE EXCEPTION 'preorder options RPC did not return the student's schedule'; END IF;
+            IF NOT FOUND THEN RAISE EXCEPTION 'preorder options RPC did not return the student''s schedule'; END IF;
             IF v_option.waitlist_status <> 'offered' OR v_option.window_open IS DISTINCT FROM true
                OR v_option.server_now IS NULL OR v_option.offer_expires_at IS NULL THEN
               RAISE EXCEPTION 'preorder options RPC returned unexpected queue/window data';
