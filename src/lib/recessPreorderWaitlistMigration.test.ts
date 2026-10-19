@@ -36,6 +36,7 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(migration).toMatch(/ORDER BY created_at, id[\s\S]*?LIMIT 1\s+FOR UPDATE/i);
     expect(migration).toMatch(/offer_expires_at = v_now \+ interval '5 minutes'/i);
     expect(migration).toMatch(/offer_expires_at <= v_now[\s\S]*?status = 'expired'/i);
+    expect(migration).toMatch(/SELECT count\(\*\) \+ 1 INTO v_position[\s\S]*?\(earlier\.created_at, earlier\.id\) < \(v_result\.created_at, v_result\.id\)/i);
     expect(migration).toMatch(/CREATE TRIGGER refresh_recess_waitlist_after_order_change[\s\S]*?AFTER INSERT OR UPDATE OR DELETE ON public\.orders/i);
   });
 
