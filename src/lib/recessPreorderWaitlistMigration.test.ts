@@ -58,6 +58,7 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.join_student_recess_waitlist\(uuid, date\) TO authenticated/i);
     expect(migration).toMatch(/REVOKE ALL ON FUNCTION public\.leave_student_recess_waitlist\(uuid, date\) FROM PUBLIC, anon/i);
     expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.leave_student_recess_waitlist\(uuid, date\) TO authenticated/i);
+    expect(migration).toMatch(/NOTIFY pgrst, 'reload schema'/i);
     expect(migration).toMatch(/v_now_time >= v_schedule\.end_time[\s\S]*?RAISE EXCEPTION 'recess_window_closed'/i);
   });
 
