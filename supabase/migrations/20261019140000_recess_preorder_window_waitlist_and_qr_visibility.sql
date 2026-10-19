@@ -147,37 +147,42 @@ DECLARE
   v_schedule_id uuid;
   v_pickup_date date;
 BEGIN
-  IF TG_OP <> 'DELETE' THEN
-    IF NEW.scheduled_recess_schedule_id IS NOT NULL AND NEW.scheduled_for IS NOT NULL THEN
-      v_schedule_id := NEW.scheduled_recess_schedule_id;
-      v_pickup_date := (NEW.scheduled_for AT TIME ZONE 'America/Bogota')::date;
-
-      IF NEW.status NOT IN ('cancelled', 'rejected')
-         AND NEW.payment_status IS DISTINCT FROM 'rejected' THEN
-        UPDATE public.recess_waitlist
-        SET status = 'accepted',
-            offer_expires_at = NULL,
-            updated_at = now()
-        WHERE student_user_id = NEW.user_id
-          AND recess_schedule_id = v_schedule_id
-          AND pickup_date = v_pickup_date
-          AND status = 'offered';
-      END IF;
-
-      PERFORM public.promote_recess_waitlist(v_schedule_id, v_pickup_date);
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.scheduled_recess_schedule_id IS NOT NULL AND OLD.scheduled_for IS NOT NULL THEN
+      PERFORM public.promote_recess_waitlist(
+        OLD.scheduled_recess_schedule_id,
+        (OLD.scheduled_for AT TIME ZONE 'America/Bogota')::date
+      );
     END IF;
+    RETURN OLD;
   END IF;
 
-  IF TG_OP <> 'INSERT'
+  IF NEW.scheduled_recess_schedule_id IS NOT NULL AND NEW.scheduled_for IS NOT NULL THEN
+    v_schedule_id := NEW.scheduled_recess_schedule_id;
+    v_pickup_date := (NEW.scheduled_for AT TIME ZONE 'America/Bogota')::date;
+
+    IF NEW.status NOT IN ('cancelled', 'rejected')
+       AND NEW.payment_status IS DISTINCT FROM 'rejected' THEN
+      UPDATE public.recess_waitlist
+      SET status = 'accepted',
+          offer_expires_at = NULL,
+          updated_at = now()
+      WHERE student_user_id = NEW.user_id
+        AND recess_schedule_id = v_schedule_id
+        AND pickup_date = v_pickup_date
+        AND status = 'offered';
+    END IF;
+
+    PERFORM public.promote_recess_waitlist(v_schedule_id, v_pickup_date);
+  END IF;
+
+  IF TG_OP = 'UPDATE'
      AND OLD.scheduled_recess_schedule_id IS NOT NULL
      AND OLD.scheduled_for IS NOT NULL
      AND (
-       TG_OP = 'DELETE'
-       OR OLD.scheduled_recess_schedule_id IS DISTINCT FROM NEW.scheduled_recess_schedule_id
+       OLD.scheduled_recess_schedule_id IS DISTINCT FROM NEW.scheduled_recess_schedule_id
        OR (OLD.scheduled_for AT TIME ZONE 'America/Bogota')::date
           IS DISTINCT FROM (NEW.scheduled_for AT TIME ZONE 'America/Bogota')::date
-       OR OLD.status IS DISTINCT FROM NEW.status
-       OR OLD.payment_status IS DISTINCT FROM NEW.payment_status
      ) THEN
     PERFORM public.promote_recess_waitlist(
       OLD.scheduled_recess_schedule_id,
@@ -185,7 +190,6 @@ BEGIN
     );
   END IF;
 
-  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
 END;
 $function$;
@@ -224,7 +228,13 @@ BEGIN
   WHERE id = NEW.scheduled_recess_schedule_id
   FOR UPDATE;
 
-  IF NOT FOUND OR v_max_students IS NULL THEN RETURN NEW; END IF;
+  IF NOT FOUND THEN RETURN NEW; END IF;
+
+  PERFORM public.promote_recess_waitlist(
+    NEW.scheduled_recess_schedule_id,
+    v_pickup_date
+  );
+  IF v_max_students IS NULL THEN RETURN NEW; END IF;
 
   SELECT count(DISTINCT o.user_id),
          coalesce(bool_or(o.user_id = NEW.user_id), false)
