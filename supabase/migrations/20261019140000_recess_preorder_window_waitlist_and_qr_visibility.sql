@@ -571,7 +571,7 @@ BEGIN
     WHERE earlier.recess_schedule_id = p_recess_schedule_id
       AND earlier.pickup_date = p_pickup_date
       AND earlier.status = 'waiting'
-      AND (earlier.created_at, earlier.id) <= (v_result.created_at, v_result.id);
+      AND (earlier.created_at, earlier.id) < (v_result.created_at, v_result.id);
   ELSE
     v_position := NULL;
   END IF;
