@@ -74,8 +74,8 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(studentMenu).toMatch(/join_student_recess_waitlist/);
     expect(studentMenu).toMatch(/leave_student_recess_waitlist/);
     expect(studentMenu).toMatch(/const preorderStarted = !order\.preordered[\s\S]*?now >= Date\.parse\(order\.scheduled_for\)/);
-    expect(studentMenu).toMatch(/setServerClockOffsetMs\\(serverTimestamp - \\(\\(requestStartedAt \\+ responseReceivedAt\\) \\/ 2\\)\\)/);
-    expect(studentMenu).toMatch(/Date\\.now\\(\\) \\+ serverClockOffsetMs < scheduledStart/);
+    expect(studentMenu).toContain("setServerClockOffsetMs(serverTimestamp - ((requestStartedAt + responseReceivedAt) / 2))");
+    expect(studentMenu).toContain("Date.now() + serverClockOffsetMs < scheduledStart");
     expect(studentMenu).toMatch(/order\.status !== 'delivered' && !cancelled && preorderStarted/);
     expect(studentMenu).toMatch(/setInterval\(\(\) => \{\s*const current = Date\.now\(\);/);
     expect(studentMenu).toMatch(/QR se habilitará automáticamente al comenzar el descanso/i);
