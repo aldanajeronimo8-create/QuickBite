@@ -70,7 +70,7 @@ describe('recess preorder window, QR timing and student waitlist', () => {
   });
 
   it('uses readable contrast for both active and upcoming recess state', () => {
-    expect(recessStatus).toMatch(/bg-emerald-50 dark:bg-emerald-500\/10/);
+    expect(recessStatus).toMatch(/bg-emerald-50 dark:border-emerald-500\/30 dark:bg-emerald-500\/10/);
     expect(recessStatus).toMatch(/text-emerald-900 dark:text-emerald-200/);
     expect(recessStatus).toMatch(/Próximo: <span className="font-bold text-slate-950 dark:text-white">/);
   });
