@@ -452,7 +452,7 @@ BEGIN
       AND (o.scheduled_for AT TIME ZONE 'America/Bogota')::date = v_date
   ) counts ON true
   LEFT JOIN LATERAL (
-    SELECT w.status, w.created_at, w.offer_expires_at
+    SELECT w.id, w.status, w.created_at, w.offer_expires_at
     FROM public.recess_waitlist w
     WHERE w.student_user_id = v_student.id
       AND w.recess_schedule_id = s.id
