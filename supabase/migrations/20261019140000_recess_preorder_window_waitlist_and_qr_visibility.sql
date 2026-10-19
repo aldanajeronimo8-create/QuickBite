@@ -312,7 +312,8 @@ RETURNS TABLE(
   window_open boolean,
   waitlist_status text,
   waitlist_position bigint,
-  offer_expires_at timestamptz
+  offer_expires_at timestamptz,
+  server_now timestamptz
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -436,7 +437,8 @@ BEGIN
              AND earlier.status = 'waiting'
              AND (earlier.created_at, earlier.id) < (wl.created_at, wl.id)
          ) ELSE NULL END,
-         wl.offer_expires_at
+         wl.offer_expires_at,
+         now()
   FROM public.recess_schedules s
   JOIN public.recess_schedule_targets t ON t.recess_schedule_id = s.id
   LEFT JOIN LATERAL (
