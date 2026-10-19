@@ -652,4 +652,7 @@ $function$;
 REVOKE ALL ON FUNCTION public.leave_student_recess_waitlist(uuid, date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.leave_student_recess_waitlist(uuid, date) TO authenticated;
 
+-- Ensure PostgREST sees the updated RPC return type and newly added waitlist RPCs.
+NOTIFY pgrst, 'reload schema';
+
 COMMIT;
