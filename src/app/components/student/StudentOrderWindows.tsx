@@ -151,8 +151,11 @@ export default function StudentOrderWindows() {
         ? 'No hay un recreo activo asignado a tu sección hoy y las ventanas generales están desactivadas.'
         : 'No mostramos ventanas alternativas porque todavía no pudimos confirmar cuál regla se aplica.';
 
-  const totalPickupRemaining = orderedPickupWindows.reduce((total, window) => {
-    if (!window.enabled || window.max_orders === null) return total;
+  const relevantPickupWindows = orderedPickupWindows.filter(
+    (window) => window.enabled && timeToMinutes(window.ends_at) > nowMinutes,
+  );
+  const totalPickupRemaining = relevantPickupWindows.reduce((total, window) => {
+    if (window.max_orders === null) return total;
     return total + Math.max(window.max_orders - Number(window.orders_count), 0);
   }, 0);
 
@@ -343,9 +346,9 @@ export default function StudentOrderWindows() {
                 <p className="mt-1 text-sm text-slate-400">{summaryDetail}</p>
               </article>
               <article className="rounded-2xl border border-slate-800 bg-[#121A2F] p-5">
-                <p className="text-[10px] font-black uppercase tracking-[.14em] text-slate-400">Cupos de pedidos restantes</p>
-                <p className="mt-2 text-lg font-black text-white">{orderedPickupWindows.some((window) => window.max_orders === null) ? 'Algunas ventanas no tienen límite' : totalPickupRemaining + ' cupos sumados'}</p>
-                <p className="mt-1 text-sm text-slate-400">Cada cupo corresponde a un pedido dentro de una ventana general.</p>
+                <p className="text-[10px] font-black uppercase tracking-[.14em] text-slate-400">Cupos en ventanas abiertas o futuras</p>
+                <p className="mt-2 text-lg font-black text-white">{relevantPickupWindows.length === 0 ? 'Sin ventanas abiertas o futuras' : relevantPickupWindows.some((window) => window.max_orders === null) ? 'Algunas ventanas no tienen límite' : totalPickupRemaining + ' cupos sumados'}</p>
+                <p className="mt-1 text-sm text-slate-400">No contamos ventanas desactivadas ni horarios que ya terminaron.</p>
               </article>
             </section>
             {orderedPickupWindows.length === 0 ? (
