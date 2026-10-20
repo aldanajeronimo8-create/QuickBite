@@ -25,12 +25,7 @@ function currentBogotaMinutes() {
 }
 
 function recessStatus(option: RecessOrderOption) {
-  if (option.waitlist_status === 'waiting') {
-    return option.waitlist_position ? 'Lista de espera · posición ' + option.waitlist_position : 'En lista de espera';
-  }
-  if (option.waitlist_status === 'offered') return 'Plaza reservada para ti';
   if (!option.window_open) return 'Horario cerrado';
-  if (!option.can_order) return 'Cupo de estudiantes completo';
   if (option.is_active) return 'Puedes pedir ahora';
   return 'Puedes reservar para este descanso';
 }
