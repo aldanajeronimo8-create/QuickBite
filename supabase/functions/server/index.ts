@@ -16,6 +16,18 @@ function serviceClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+// Marker/finalization RPCs must receive the real authenticated actor JWT.
+// A modern sb_secret_* gateway key is not a JWT with auth.role() = service_role.
+function authenticatedActorClient(token: string) {
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
+  if (!url || !key) throw new Error('Supabase authenticated client configuration is missing.');
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+}
+
 function allowedOrigins() {
   const configured = (Deno.env.get('ALLOWED_ORIGINS') || '')
     .split(',')
@@ -334,15 +346,21 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
       return userError('La cuenta indicada no es una cuenta administrativa protegida.', 403);
     }
 
-    // Create a short-lived, one-use database marker before the Auth password write.
-    // The trigger accepts only this hash transition for a protected role=all account.
-    const { error: beginError } = await admin.supabase.rpc(
+    // Authorization RPCs use the actor's JWT; only a different, active, fully
+    // activated protected admin is accepted by the database function.
+    const actorToken = c.req.header('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!actorToken) return userError('Tu sesión administrativa expiró. Inicia sesión nuevamente.', 401);
+    const actorClient = authenticatedActorClient(actorToken);
+    const { error: beginError } = await actorClient.rpc(
       'begin_protected_admin_credential_password_change',
       { p_user_id: body.id },
     );
     if (beginError) {
       console.error('Protected credential password-change marker failed', beginError.code || 'database_error');
-      return userError('No se pudo autorizar el cambio de contraseña protegida.', 409);
+      if (beginError.code === '42501') {
+        return userError('Solo otro administrador protegido, activo y ya activado puede cambiar esta contraseña.', 403);
+      }
+      return userError('No se pudo iniciar la autorización del cambio de contraseña protegida.', 409);
     }
 
     const { error: authError } = await admin.supabase.auth.admin.updateUserById(body.id, { password });
@@ -351,7 +369,7 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
       return userError('Supabase no pudo guardar la nueva contraseña. La cuenta no fue modificada por este paso.', 400);
     }
 
-    const { error: finishError } = await admin.supabase.rpc(
+    const { error: finishError } = await actorClient.rpc(
       'finish_protected_admin_credential_password_change',
       { p_user_id: body.id },
     );
