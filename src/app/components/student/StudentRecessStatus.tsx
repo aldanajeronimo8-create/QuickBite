@@ -76,8 +76,8 @@ export function StudentRecessStatus() {
     if (!schedule) return 'Horario sin verificar';
     if (schedule.mode === 'unrestricted') return 'Sin restricción de horario';
     if (schedule.mode === 'recess') {
-      if (activeRecess) return activeRecess.can_order ? 'Recreo de tu sección activo' : 'Recreo activo · cupo completo';
-      if (nextRecess) return nextRecess.can_order ? 'Puedes reservar para el próximo recreo' : 'Próximo recreo · cupo completo';
+      if (activeRecess) return 'Recreo de tu sección activo · turnos en cola';
+      if (nextRecess) return 'Puedes reservar para el próximo recreo';
       return 'Los recreos de hoy ya terminaron';
     }
     if (currentPickupWindow) return currentPickupWindow.accepting_orders ? 'Ventana general activa' : 'Ventana activa · cupo completo';
@@ -92,9 +92,9 @@ export function StudentRecessStatus() {
       ? 'No hay un recreo activo asignado a tu sección hoy y las ventanas generales están desactivadas. Puedes pedir desde el menú sin esperar una ventana.'
       : schedule.mode === 'recess'
         ? activeRecess
-          ? activeRecess.name + ' · ' + timeLabel(activeRecess.start_time) + '–' + timeLabel(activeRecess.end_time) + '. Este horario tiene prioridad sobre las ventanas generales.'
+          ? activeRecess.name + ' · ' + timeLabel(activeRecess.start_time) + '–' + timeLabel(activeRecess.end_time) + '. Las reservas confirmadas se preparan primero; los nuevos pedidos siguen el orden de llegada. Los turnos son estimaciones temporales.'
           : nextRecess
-            ? nextRecess.name + ' · ' + timeLabel(nextRecess.start_time) + '–' + timeLabel(nextRecess.end_time) + '. Puedes reservar desde el menú si hay capacidad.'
+            ? nextRecess.name + ' · ' + timeLabel(nextRecess.start_time) + '–' + timeLabel(nextRecess.end_time) + '. Puedes reservar desde el menú. Las reservas confirmadas tienen prioridad y los pedidos nuevos reciben turno por orden de llegada.'
             : 'Los recreos de tu sección son los que rigen tus pedidos. No hay otro horario habilitado para hoy.'
         : currentPickupWindow
           ? currentPickupWindow.slot_name + ' · ' + timeLabel(currentPickupWindow.starts_at) + '–' + timeLabel(currentPickupWindow.ends_at) + '. La disponibilidad se valida al confirmar.'
