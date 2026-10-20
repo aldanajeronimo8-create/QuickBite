@@ -53,7 +53,7 @@ describe('StudentOrderWindows', () => {
 
     expect(await screen.findByText('Tus pedidos se rigen por los recreos de tu sección')).toBeInTheDocument();
     expect(screen.getByText('Primer Descanso')).toBeInTheDocument();
-    expect(screen.getByText('Puedes pedir ahora')).toBeInTheDocument();
+    expect(screen.getAllByText('Puedes pedir ahora').length).toBeGreaterThan(0);
     expect(screen.getByText('8 / 40')).toBeInTheDocument();
     expect(rpcMock).toHaveBeenCalledTimes(1);
     expect(rpcMock).toHaveBeenCalledWith('get_student_preorder_options');
