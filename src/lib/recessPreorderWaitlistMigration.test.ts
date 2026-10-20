@@ -92,7 +92,7 @@ describe('recess preorder window, QR timing and student waitlist', () => {
     expect(studentMenu).toContain("setServerClockOffsetMs(serverTimestamp - ((requestStartedAt + responseReceivedAt) / 2))");
     expect(studentMenu).toContain("Date.now() + serverClockOffsetMs < scheduledStart");
     expect(studentMenu).toMatch(/function CartSheet\([\s\S]*?serverClockOffsetMs: number/);
-    expect(studentMenu).toContain("serverClockOffsetMs={serverClockOffsetMs} onSelectRecess");
+    expect(studentMenu).toContain("serverClockOffsetMs={serverClockOffsetMs} productionTurns={productionTurns} onSelectRecess");
     expect(studentMenu).toMatch(/order\.status !== 'delivered' && !cancelled && preorderStarted/);
     expect(studentMenu).toContain("order.preordered && !preorderStarted ? 'Disponible al comenzar el descanso'");
     expect(adminOrders).toMatch(/preorderDeliveryLocked[\s\S]*?disabled=\{updatingOrderId === order\.id \|\| \(status === 'delivered' && preorderDeliveryLocked\)\}/);
