@@ -10,6 +10,10 @@ const capacityMigration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20261016143144_student_recess_capacity_and_schedule_crud.sql'),
   'utf8',
 );
+const productionQueueMigration = readFileSync(
+  join(process.cwd(), 'supabase/migrations/20261020170000_recess_production_queue_without_persisted_turns.sql'),
+  'utf8',
+);
 const studentMenu = readFileSync(
   join(process.cwd(), 'src/app/pages/student/StudentMenuPage.tsx'),
   'utf8',
@@ -73,13 +77,17 @@ describe('recess preorder window, QR timing and student waitlist', () => {
   it('shows students their preorder list and withholds each preorder QR until the scheduled start', () => {
     expect(studentMenu).toMatch(/function PreorderedOrdersPanel/);
     expect(studentMenu).toMatch(/Tus pedidos preordenados/);
-    expect(studentMenu).toMatch(/function RecessWaitlistNotice/);
-    expect(studentMenu).toMatch(/const offered = options\.find\(option =>[\s\S]*?option\.waitlist_status === 'offered'/);
-    expect(studentMenu).toMatch(/option\.recess_schedule_id === current && option\.window_open/);
-    expect(studentMenu).toMatch(/const active = options\.find\(option => option\.is_active\)/);
-    expect(studentMenu).toMatch(/setSelectedRecessId\(scheduleId\)/);
-    expect(studentMenu).toMatch(/join_student_recess_waitlist/);
-    expect(studentMenu).toMatch(/leave_student_recess_waitlist/);
+    expect(studentMenu).toMatch(/get_student_recess_production_turns/);
+    expect(studentMenu).toMatch(/Turno de producción/);
+    expect(studentMenu).toMatch(/selectedRecess\.window_open/);
+    expect(studentMenu).not.toMatch(/RecessWaitlistNotice|handleJoinWaitlist|join_student_recess_waitlist|leave_student_recess_waitlist/);
+    expect(productionQueueMigration).toMatch(/DROP TRIGGER IF EXISTS guard_recess_waitlist_offer/i);
+    expect(productionQueueMigration).toMatch(/CREATE OR REPLACE FUNCTION public\.get_student_recess_production_turns/i);
+    expect(productionQueueMigration).toMatch(/row_number\(\) OVER[\s\S]*?CASE WHEN c\.is_preordered THEN 0 ELSE 1 END, c\.created_at/i);
+    expect(productionQueueMigration).not.toMatch(/RAISE EXCEPTION 'recess_student_limit_reached'/i);
+    expect(productionQueueMigration).not.toMatch(/CREATE TABLE[^;]*(?:turn|queue)/i);
+    expect(productionQueueMigration).not.toMatch(/ALTER TABLE public\.orders\s+ADD COLUMN[^;]*(?:turn|queue)/i);
+    expect(productionQueueMigration).toMatch(/REVOKE ALL ON FUNCTION public\.join_student_recess_waitlist\(uuid, date\) FROM PUBLIC, anon, authenticated/i);
     expect(studentMenu).toMatch(/const preorderStarted = !order\.preordered[\s\S]*?now >= Date\.parse\(order\.scheduled_for\)/);
     expect(studentMenu).toContain("setServerClockOffsetMs(serverTimestamp - ((requestStartedAt + responseReceivedAt) / 2))");
     expect(studentMenu).toContain("Date.now() + serverClockOffsetMs < scheduledStart");
