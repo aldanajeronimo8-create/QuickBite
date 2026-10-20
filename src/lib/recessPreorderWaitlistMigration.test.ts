@@ -11,7 +11,7 @@ const capacityMigration = readFileSync(
   'utf8',
 );
 const productionQueueMigration = readFileSync(
-  join(process.cwd(), 'supabase/migrations/20261020170000_recess_production_queue_without_persisted_turns.sql'),
+  join(process.cwd(), 'supabase/migrations/20261020175332_recess_production_queue_without_persisted_turns.sql'),
   'utf8',
 );
 const studentMenu = readFileSync(
