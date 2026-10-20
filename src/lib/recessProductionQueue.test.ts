@@ -5,9 +5,10 @@ import { buildRecessProductionTurns } from './recessProductionQueue';
 const NOW = Date.parse('2026-10-20T13:00:00.000Z');
 
 function order(overrides: Partial<Order> & Pick<Order, 'id' | 'order_number'>): Order {
+  const { id, order_number, ...rest } = overrides;
   return {
-    id: overrides.id,
-    order_number: overrides.order_number,
+    id,
+    order_number,
     user_id: 'student-1',
     total: 5000,
     status: 'pending',
@@ -20,7 +21,7 @@ function order(overrides: Partial<Order> & Pick<Order, 'id' | 'order_number'>): 
     estimated_minutes: 5,
     preordered: false,
     pickup_outcome: 'awaiting',
-    ...overrides,
+    ...rest,
   };
 }
 
