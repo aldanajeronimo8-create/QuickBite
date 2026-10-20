@@ -303,17 +303,11 @@ export default function StudentOrderWindows() {
                       </div>
                       <p className="mt-4 flex items-start gap-2 text-sm leading-5 text-slate-400">
                         <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                        {option.waitlist_status === 'waiting'
-                          ? 'Estás en lista de espera' + (option.waitlist_position ? ' en la posición ' + option.waitlist_position : '') + '. Consulta el menú para ver si se libera un cupo.'
-                          : option.waitlist_status === 'offered'
-                            ? 'Tienes un cupo reservado temporalmente. Completa tu pedido desde el menú antes de que venza la oferta.'
-                            : !option.window_open
-                              ? 'Este horario ya terminó y no acepta pedidos nuevos.'
-                              : !option.can_order
-                                ? 'La capacidad está completa. En el menú puedes consultar si está disponible la lista de espera.'
-                                : option.is_active
-                                  ? 'Este es el descanso activo para tu sección.'
-                                  : 'Puedes dejar un pedido reservado para este descanso desde el menú.'}
+                        {!option.window_open
+                          ? 'Este horario ya terminó y no acepta pedidos nuevos.'
+                          : option.is_active
+                            ? 'Este es el descanso activo para tu sección. Las reservas confirmadas van primero; después se atiende la cola por orden de llegada.'
+                            : 'Puedes dejar una reserva para este descanso desde el menú. Los turnos se calculan temporalmente en la aplicación.'}
                       </p>
                     </article>
                   );
