@@ -46,8 +46,8 @@ function pickupStatus(window: PickupOrderWindow, nowMinutes: number) {
 }
 
 export default function StudentOrderWindows() {
-  const [recessOptions, setRecessOrderOptions] = useState<RecessOrderOption[]>([]);
-  const [pickupWindows, setPickupOrderWindows] = useState<PickupOrderWindow[]>([]);
+  const [recessOptions, setRecessOptions] = useState<RecessOrderOption[]>([]);
+  const [pickupWindows, setPickupWindows] = useState<PickupOrderWindow[]>([]);
   const [rule, setRule] = useState<OrderRule>('loading');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,31 +73,10 @@ export default function StudentOrderWindows() {
         setRule('pickup');
       }
       setNowMinutes(currentBogotaMinutes());
-        return;
-      }
-
-      // The transactional order function falls back to pickup_slots only when
-      // there is no active recess schedule for the student's section today.
-      const { data: featureEnabled, error: featureError } = await client.rpc('get_order_windows_enabled');
-      if (featureError) throw featureError;
-
-      setRecessOrderOptions([]);
-      if (featureEnabled !== true) {
-        setPickupOrderWindows([]);
-        setRule('unrestricted');
-        setNowMinutes(currentBogotaMinutes());
-        return;
-      }
-
-      const { data: windowData, error: windowsError } = await client.rpc('get_order_window_status');
-      if (windowsError) throw windowsError;
-      setPickupOrderWindows((windowData ?? []) as PickupOrderWindow[]);
-      setRule('pickup');
-      setNowMinutes(currentBogotaMinutes());
     } catch (loadError) {
       console.error('[QuickBite] No se pudo resolver el horario que rige los pedidos.', loadError);
-      setRecessOrderOptions([]);
-      setPickupOrderWindows([]);
+      setRecessOptions([]);
+      setPickupWindows([]);
       setRule('unknown');
       setError(FRIENDLY_ERROR);
     } finally {
