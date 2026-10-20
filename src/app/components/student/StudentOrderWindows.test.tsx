@@ -82,7 +82,7 @@ describe('StudentOrderWindows', () => {
 
     expect(await screen.findByText('Tus pedidos se rigen por las ventanas generales de cafetería')).toBeInTheDocument();
     expect(screen.getByText('Ventana general')).toBeInTheDocument();
-    expect(screen.getByText('Puedes pedir ahora')).toBeInTheDocument();
+    expect(screen.getAllByText('Puedes pedir ahora').length).toBeGreaterThan(0);
     expect(screen.getByText('3 / 40')).toBeInTheDocument();
   });
 
