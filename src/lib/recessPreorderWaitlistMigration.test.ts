@@ -95,7 +95,8 @@ describe('recess preorder window, QR timing and student waitlist', () => {
 
   it('uses readable contrast for both active and upcoming recess state', () => {
     expect(recessStatus).toMatch(/bg-emerald-50 dark:border-emerald-500\/30 dark:bg-emerald-500\/10/);
-    expect(recessStatus).toMatch(/text-emerald-900 dark:text-emerald-200/);
-    expect(recessStatus).toMatch(/Próximo: <span className="font-bold text-slate-950 dark:text-white">/);
+    expect(recessStatus).toMatch(/text-slate-600 dark:text-slate-400/);
+    expect(recessStatus).toMatch(/Puedes reservar para el próximo recreo/);
+    expect(recessStatus).toMatch(/nextRecess\.name \+ ' · ' \+ timeLabel\(nextRecess\.start_time\)/);
   });
 });
