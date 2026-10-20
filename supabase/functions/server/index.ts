@@ -348,7 +348,7 @@ app.post(`${apiPrefix}/admin/users/update-protected`, async (c) => {
 
     // Authorization RPCs use the actor's JWT; only a different, active, fully
     // activated protected admin is accepted by the database function.
-    const actorToken = c.req.header('Authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1];
+    const actorToken = c.req.header('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     if (!actorToken) return userError('Tu sesión administrativa expiró. Inicia sesión nuevamente.', 401);
     const actorClient = authenticatedActorClient(actorToken);
     const { error: beginError } = await actorClient.rpc(
