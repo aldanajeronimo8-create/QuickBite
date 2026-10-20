@@ -279,7 +279,7 @@ export default function StudentOrderWindows() {
                             </p>
                           </div>
                         </div>
-                        <span className={'shrink-0 rounded-full px-3 py-1.5 text-xs font-black ' + (option.can_order && option.window_open ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-800 text-slate-300')}>
+                        <span className={'shrink-0 rounded-full px-3 py-1.5 text-xs font-black ' + (option.window_open ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-800 text-slate-300')}>
                           {status}
                         </span>
                       </div>
