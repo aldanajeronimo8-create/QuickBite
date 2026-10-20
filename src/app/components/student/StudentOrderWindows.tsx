@@ -216,7 +216,7 @@ export default function StudentOrderWindows() {
                 <div>
                   <p className="font-black text-emerald-200">Tus pedidos se rigen por los recreos de tu sección</p>
                   <p className="mt-1 text-sm leading-6 text-emerald-100/80">
-                    Estos horarios tienen prioridad sobre las ventanas generales de cafetería. Puedes reservar un pedido para un descanso futuro cuando haya capacidad; el menú vuelve a comprobar el horario y el cupo.
+                    Estos horarios tienen prioridad sobre las ventanas generales de cafetería. Puedes reservar para un descanso futuro. El límite configurado sirve como referencia de carga: no bloquea pedidos y las reservas confirmadas tienen prioridad.
                   </p>
                 </div>
               </div>
@@ -231,20 +231,16 @@ export default function StudentOrderWindows() {
               <article className="rounded-2xl border border-slate-800 bg-[#121A2F] p-5">
                 <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em] text-slate-400">
                   <Users className="h-4 w-4" />
-                  Capacidad del horario actual
+                  Carga del descanso
                 </p>
                 <p className="mt-2 text-lg font-black text-white">
                   {activeRecess
-                    ? activeRecess.max_preorders === null
-                      ? 'Sin límite de estudiantes'
-                      : Math.max(Number(activeRecess.max_preorders) - Number(activeRecess.preorders_count), 0) + ' cupos de estudiante'
+                    ? Number(activeRecess.preorders_count) + ' estudiantes con pedido' + (activeRecess.max_preorders === null ? '' : ' / referencia ' + activeRecess.max_preorders)
                     : nextRecess
-                      ? nextRecess.max_preorders === null
-                        ? 'Sin límite de estudiantes'
-                        : Math.max(Number(nextRecess.max_preorders) - Number(nextRecess.preorders_count), 0) + ' cupos de estudiante'
+                      ? Number(nextRecess.preorders_count) + ' estudiantes con pedido' + (nextRecess.max_preorders === null ? '' : ' / referencia ' + nextRecess.max_preorders)
                       : 'No hay un horario futuro disponible'}
                 </p>
-                <p className="mt-1 text-sm text-slate-400">El cupo cuenta estudiantes con pedido, no la cantidad de pedidos que hace cada estudiante.</p>
+                <p className="mt-1 text-sm text-slate-400">La referencia mide estudiantes con pedido, no pedidos por estudiante. Al alcanzarla, los pedidos siguen abiertos y se organizan en la cola de producción.</p>
               </article>
             </section>
 
@@ -294,11 +290,11 @@ export default function StudentOrderWindows() {
                               <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: progress + '%' }} />
                             </div>
                             <p className="mt-2 text-xs font-semibold text-slate-400">
-                              {remaining === 0 ? 'No quedan cupos nuevos para estudiantes en este descanso.' : remaining + ' cupos de estudiante restantes.'}
+                              {remaining === 0 ? 'Referencia de carga alcanzada; se siguen aceptando pedidos.' : remaining + ' estudiantes hasta la referencia de carga; los pedidos no se bloquean.'}
                             </p>
                           </>
                         ) : (
-                          <p className="mt-2 text-xs font-semibold text-slate-400">Este descanso no tiene un límite de estudiantes configurado.</p>
+                          <p className="mt-2 text-xs font-semibold text-slate-400">No hay una referencia de carga configurada para este descanso.</p>
                         )}
                       </div>
                       <p className="mt-4 flex items-start gap-2 text-sm leading-5 text-slate-400">
