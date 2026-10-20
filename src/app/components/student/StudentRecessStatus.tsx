@@ -125,9 +125,7 @@ export function StudentRecessStatus() {
             {schedule?.mode === 'recess' && activeRecess && (
               <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                 <Users className="h-3.5 w-3.5" />
-                {activeRecess.max_preorders === null
-                  ? 'Sin límite de estudiantes'
-                  : Math.max(Number(activeRecess.max_preorders) - Number(activeRecess.preorders_count), 0) + ' cupos de estudiante restantes'}
+                {Number(activeRecess.preorders_count) + ' estudiantes con pedido' + (activeRecess.max_preorders === null ? '' : ' / referencia ' + activeRecess.max_preorders)}
               </p>
             )}
           </div>
