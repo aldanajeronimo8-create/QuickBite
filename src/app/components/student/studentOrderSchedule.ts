@@ -9,11 +9,7 @@ export type RecessOrderOption = {
   preorders_count: number;
   max_preorders: number | null;
   is_active: boolean;
-  can_order: boolean;
   window_open: boolean;
-  waitlist_status: 'waiting' | 'offered' | 'expired' | 'cancelled' | null;
-  waitlist_position: number | null;
-  offer_expires_at: string | null;
   server_now: string;
 };
 

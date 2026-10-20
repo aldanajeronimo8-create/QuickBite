@@ -6,6 +6,7 @@ import { useDataStore } from '../../../store/dataStore';
 import { getErrorMessage } from '../../../lib/errorMessage';
 import { requireSupabaseClient, type LoyaltyRedemption, type LoyaltyReward, type Order, type Product } from '../../../lib/supabase';
 import { getOrderVerificationUrl } from '../../../lib/orderQr';
+import { type RecessProductionTurn } from '../../../lib/recessProductionQueue';
 import { UserNotificationBell } from '../../components/notifications/UserNotificationBell';
 import { ProductRatingBadge } from '../../components/student/ProductRatingBadge';
 import { StudentRewardsPanel } from '../../components/student/StudentRewardsPanel';
@@ -25,7 +26,7 @@ type PayStep = 'cart' | 'payment' | 'receipt';
 type NutritionFilter = 'all' | 'healthy' | 'vegetarian' | 'complete' | 'excludeAllergens';
 interface CartItem extends Product { qty: number; }
 interface Student { id: string; name: string; grade: string; email?: string; }
-type RecessPreorderOption = { recess_schedule_id: string; name: 'Primer Descanso' | 'Segundo Descanso' | string; start_time: string; end_time: string; pickup_date: string; preorders_count: number; max_preorders: number | null; is_active: boolean; can_order: boolean; window_open: boolean; server_now: string; waitlist_status: 'waiting' | 'offered' | 'accepted' | 'expired' | 'cancelled' | null; waitlist_position: number | null; offer_expires_at: string | null; };
+type RecessPreorderOption = { recess_schedule_id: string; name: 'Primer Descanso' | 'Segundo Descanso' | string; start_time: string; end_time: string; pickup_date: string; preorders_count: number; max_preorders: number | null; is_active: boolean; window_open: boolean; server_now: string; };
 interface ProductNutrition {
   product_id: string;
   detailed_description: string | null;
@@ -94,11 +95,10 @@ export function StudentMenuPage() {
   const [tip, setTip] = useState('');
   const [lastReceipt, setLastReceipt] = useState<{ orderNumber: string; reference: string; pickup: string; paidWithCredits: boolean; recessName?: string; recessStart?: string; recessEnd?: string; preordered?: boolean } | null>(null);
   const [recessOptions, setRecessOptions] = useState<RecessPreorderOption[]>([]);
+  const [productionTurns, setProductionTurns] = useState<RecessProductionTurn[]>([]);
   const [selectedRecessId, setSelectedRecessId] = useState('');
   const [recessOptionsError, setRecessOptionsError] = useState<string | null>(null);
-  const [waitlistBusyId, setWaitlistBusyId] = useState<string | null>(null);
   const [serverClockOffsetMs, setServerClockOffsetMs] = useState(0);
-  const previousWaitlistStates = useRef<Record<string, string | null>>({});
   const [redeemingRewardId, setRedeemingRewardId] = useState<string | null>(null);
   const [nutritionByProduct, setNutritionByProduct] = useState<Record<string, ProductNutrition>>({});
   const [nutritionFilter, setNutritionFilter] = useState<NutritionFilter>('all');
@@ -161,39 +161,13 @@ export function StudentMenuPage() {
   }, []);
 
   const applyRecessOptions = useCallback((options: RecessPreorderOption[]) => {
-    for (const option of options) {
-      const previous = previousWaitlistStates.current[option.recess_schedule_id];
-      if (previous === 'waiting' && option.waitlist_status === 'offered') {
-        toast.success(`Se liberó una plaza para ${option.name}. Tienes 5 minutos para confirmar el pedido.`);
-      }
-    }
-    previousWaitlistStates.current = Object.fromEntries(
-      options.map(option => [option.recess_schedule_id, option.waitlist_status]),
-    );
     setRecessOptions(options);
     setRecessOptionsError(null);
     setSelectedRecessId(current => {
-      // A waitlist offer takes priority because its five-minute reservation
-      // belongs to this student and must be easy to claim.
-      const offered = options.find(option =>
-        option.waitlist_status === 'offered' && option.window_open
-      );
-      if (offered) return offered.recess_schedule_id;
-
-      // Preserve the student's choice while that recess remains open. When
-      // its start arrives, is_active changes automatically, switching checkout
-      // from preorder to normal order without changing the selected schedule.
-      // If the selected recess closes, pick the active/next open recess.
-      if (current && options.some(option =>
-        option.recess_schedule_id === current && option.window_open
-      )) return current;
-
-      const active = options.find(option => option.is_active);
+      if (current && options.some(option => option.recess_schedule_id === current && option.window_open)) return current;
+      const active = options.find(option => option.is_active && option.window_open);
       if (active) return active.recess_schedule_id;
-
-      const suggested = options.find(option => option.window_open && option.can_order) ??
-        options.find(option => option.window_open) ??
-        options[0];
+      const suggested = options.find(option => option.window_open) ?? options[0];
       return suggested?.recess_schedule_id ?? '';
     });
   }, []);
@@ -204,9 +178,23 @@ export function StudentMenuPage() {
     const loadRecessOptions = async () => {
       try {
         const options = await fetchRecessOptions();
-        if (alive) applyRecessOptions(options);
+        if (!alive) return;
+        applyRecessOptions(options);
+        if (options.length === 0) {
+          setProductionTurns([]);
+          return;
+        }
+        try {
+          const { data, error } = await requireSupabaseClient().rpc('get_student_recess_production_turns');
+          if (error) throw error;
+          if (alive) setProductionTurns((data ?? []) as RecessProductionTurn[]);
+        } catch (turnError) {
+          console.warn('[QuickBite] No se pudieron calcular los turnos temporales de producción.', turnError);
+          if (alive) setProductionTurns([]);
+        }
       } catch (error) {
         if (!alive) return;
+        setProductionTurns([]);
         setRecessOptionsError(error instanceof Error ? error.message : 'No se pudieron consultar los horarios de recreo.');
       }
     };
@@ -214,59 +202,6 @@ export function StudentMenuPage() {
     const timer = window.setInterval(() => { void loadRecessOptions(); }, 5000);
     return () => { alive = false; window.clearInterval(timer); };
   }, [student, fetchRecessOptions, applyRecessOptions]);
-
-  const handleJoinWaitlist = async (scheduleId: string) => {
-    const option = recessOptions.find(item => item.recess_schedule_id === scheduleId);
-    if (!option || waitlistBusyId) return;
-    setWaitlistBusyId(scheduleId);
-    try {
-      const { data, error } = await requireSupabaseClient().rpc('join_student_recess_waitlist', {
-        p_recess_schedule_id: scheduleId,
-        p_pickup_date: option.pickup_date,
-      });
-      if (error) throw error;
-      const result = data as { status?: string; position?: number | null; offer_expires_at?: string | null } | null;
-      const options = await fetchRecessOptions();
-      applyRecessOptions(options);
-      if (result?.status === 'offered') {
-        setSelectedRecessId(scheduleId);
-        toast.success('La plaza quedó reservada para ti durante 5 minutos. Confirma tu pedido.');
-      } else {
-        toast.success(`Te añadimos a la lista de espera.${result?.position ? ` Tu posición es ${result.position}.` : ''}`);
-      }
-    } catch (error) {
-      const message = getErrorMessage(error, 'No se pudo entrar en la lista de espera.');
-      if (/recess_capacity_available/i.test(message)) {
-        try { applyRecessOptions(await fetchRecessOptions()); } catch { /* Keep the last confirmed state. */ }
-        toast.info('Hay una plaza disponible: puedes confirmar tu pedido.');
-      } else if (/student_already_has_recess_order/i.test(message)) {
-        toast.info('Ya tienes un pedido registrado para este descanso; no necesitas entrar en la lista de espera.');
-      } else {
-        toast.error(message);
-      }
-    } finally {
-      setWaitlistBusyId(null);
-    }
-  };
-
-  const handleLeaveWaitlist = async (scheduleId: string) => {
-    const option = recessOptions.find(item => item.recess_schedule_id === scheduleId);
-    if (!option || waitlistBusyId) return;
-    setWaitlistBusyId(scheduleId);
-    try {
-      const { error } = await requireSupabaseClient().rpc('leave_student_recess_waitlist', {
-        p_recess_schedule_id: scheduleId,
-        p_pickup_date: option.pickup_date,
-      });
-      if (error) throw error;
-      applyRecessOptions(await fetchRecessOptions());
-      toast.success('Saliste de la lista de espera.');
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'No se pudo salir de la lista de espera.'));
-    } finally {
-      setWaitlistBusyId(null);
-    }
-  };
 
   useEffect(() => {
     if (!student) return;
@@ -416,8 +351,8 @@ export function StudentMenuPage() {
   const handlePlaceOrder = async () => {
     if (!student || cart.length === 0) return;
     const selectedRecess = recessOptions.find(option => option.recess_schedule_id === selectedRecessId);
-    if (recessOptions.length > 0 && (!selectedRecess || !selectedRecess.can_order)) {
-      toast.error(selectedRecess ? 'El cupo de estudiantes para este descanso está completo o el horario ya cerró.' : 'Selecciona un descanso disponible antes de confirmar.');
+    if (recessOptions.length > 0 && (!selectedRecess || !selectedRecess.window_open)) {
+      toast.error(selectedRecess ? 'El horario de este descanso ya terminó. Elige otro descanso disponible.' : 'Selecciona un descanso disponible antes de confirmar.');
       return;
     }
     if (recessOptionsError && recessOptions.length === 0) {
@@ -490,8 +425,6 @@ export function StudentMenuPage() {
       const message = getErrorMessage(error, 'Error al enviar el pedido');
       if (/insufficient_wallet_balance|Insufficient wallet balance/i.test(message)) toast.error('No tienes créditos suficientes para pagar este pedido.');
       else if (/no_active_recess_window/i.test(message)) toast.error('Selecciona un recreo disponible o espera al horario asignado a tu sección.');
-      else if (/recess_student_limit_reached/i.test(message)) { toast.error('Se completó el cupo de estudiantes. Únete a la lista de espera o elige otro descanso.'); try { applyRecessOptions(await fetchRecessOptions()); } catch { /* Refresh will retry automatically. */ } }
-      else if (/recess_waitlist_offer_pending/i.test(message)) { toast.error('Hay una plaza reservada para el siguiente estudiante de la lista de espera. Actualizamos la disponibilidad.'); try { applyRecessOptions(await fetchRecessOptions()); } catch { /* Refresh will retry automatically. */ } }
       else if (/preorder_limit_reached/i.test(message)) toast.error('El horario actual ya no admite este pedido.');
       else if (/recess_window_closed/i.test(message)) toast.error('El horario para este descanso ya terminó.');
       else if (/invalid_recess_schedule_for_student/i.test(message)) toast.error('Ese descanso no está disponible para tu sección.');
@@ -547,7 +480,7 @@ export function StudentMenuPage() {
       <div className={`${CONTAINER} space-y-6 pt-6`}>
         <StudentRecessStatus />
         <PreorderedOrdersPanel orders={myOrders} serverClockOffsetMs={serverClockOffsetMs} onViewHistory={() => setTab('orders')} />
-        <RecessWaitlistNotice options={recessOptions} busyId={waitlistBusyId} cartCount={cartCount} serverClockOffsetMs={serverClockOffsetMs} onJoin={handleJoinWaitlist} onLeave={handleLeaveWaitlist} onOpenCart={() => { setShowCart(true); setPayStep('cart'); }} />
+        
         <div className="grid gap-3 sm:grid-cols-2">
           <section className={`${SURFACE} rounded-2xl p-4`}>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Recreo inteligente</p>
@@ -591,12 +524,12 @@ export function StudentMenuPage() {
           </main>
         )}
 
-        {activeTab === 'orders' && <main className="space-y-4">{myOrders.length === 0 && loyalty.redemptions.length === 0 ? <Empty icon={ReceiptText} title="Aún no tienes actividad" text="Tus compras y canjes aparecerán aquí." /> : <>{myOrders.map((o) => <OrderCard key={o.id} order={o} serverClockOffsetMs={serverClockOffsetMs} />)}{loyalty.redemptions.map((redemption) => <RedemptionCard key={redemption.id} redemption={redemption} />)}</>}</main>}
+        {activeTab === 'orders' && <main className="space-y-4">{myOrders.length === 0 && loyalty.redemptions.length === 0 ? <Empty icon={ReceiptText} title="Aún no tienes actividad" text="Tus compras y canjes aparecerán aquí." /> : <>{myOrders.map((o) => <OrderCard key={o.id} order={o} serverClockOffsetMs={serverClockOffsetMs} productionTurn={productionTurns.find(turn => turn.order_id === o.id)} />)}{loyalty.redemptions.map((redemption) => <RedemptionCard key={redemption.id} redemption={redemption} />)}</>}</main>}
         {activeTab === 'rewards' && rewardsEnabled && <main className="space-y-4"><StudentRewardsPanel availablePoints={loyalty.availablePoints} error={loyalty.error} loading={loyalty.loading} onRedeem={handleRewardRedemption} redeemingRewardId={redeemingRewardId} redemptions={loyalty.redemptions} rewards={loyalty.rewards} /></main>}
       </div>
 
       {cartCount > 0 && !showCart && <div className={`${CONTAINER} fixed bottom-4 left-1/2 z-30 -translate-x-1/2`}><button onClick={() => { setShowCart(true); setPayStep('cart'); }} className="flex w-full items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-600 px-5 py-4 font-black text-white shadow-2xl shadow-black/30 transition hover:bg-emerald-500"><span>{cartCount} {cartCount === 1 ? 'producto' : 'productos'}</span><span>Ver pedido</span><span>${fmt(cartGrandTotal)}</span></button></div>}
-      {showCart && <CartSheet cart={cart} cartTotal={cartTotal} total={cartGrandTotal} lastReceipt={lastReceipt} payStep={payStep} paymentMethod={paymentMethod} placing={placing} reference={reference} tip={tip} walletBalance={walletBalance} recessOptions={recessOptions} recessOptionsError={recessOptionsError} selectedRecessId={selectedRecessId} waitlistBusyId={waitlistBusyId} serverClockOffsetMs={serverClockOffsetMs} onSelectRecess={setSelectedRecessId} onJoinWaitlist={handleJoinWaitlist} onLeaveWaitlist={handleLeaveWaitlist} onAdd={addToCart} onClose={() => { setShowCart(false); setPayStep('cart'); }} onPay={handlePlaceOrder} onRemove={removeFromCart} onSelectPayment={setPaymentMethod} onSetPayStep={setPayStep} onSetTab={setTab} onTip={setTip} />}
+      {showCart && <CartSheet cart={cart} cartTotal={cartTotal} total={cartGrandTotal} lastReceipt={lastReceipt} payStep={payStep} paymentMethod={paymentMethod} placing={placing} reference={reference} tip={tip} walletBalance={walletBalance} recessOptions={recessOptions} recessOptionsError={recessOptionsError} selectedRecessId={selectedRecessId} serverClockOffsetMs={serverClockOffsetMs} productionTurns={productionTurns} onSelectRecess={setSelectedRecessId} onAdd={addToCart} onClose={() => { setShowCart(false); setPayStep('cart'); }} onPay={handlePlaceOrder} onRemove={removeFromCart} onSelectPayment={setPaymentMethod} onSetPayStep={setPayStep} onSetTab={setTab} onTip={setTip} />}
     </div>
   );
 }
@@ -689,7 +622,7 @@ function ProductCard({ product, nutrition, qty, onAdd, onRemove }: { product: Pr
   </article>;
 }
 
-function CartSheet({ cart, cartTotal, total, lastReceipt, payStep, paymentMethod, placing, reference, tip, walletBalance, recessOptions, recessOptionsError, selectedRecessId, waitlistBusyId, serverClockOffsetMs, onSelectRecess, onJoinWaitlist, onLeaveWaitlist, onAdd, onClose, onPay, onRemove, onSelectPayment, onSetPayStep, onSetTab, onTip }: { cart: CartItem[]; cartTotal: number; total: number; lastReceipt: { orderNumber: string; reference: string; pickup: string; paidWithCredits: boolean; recessName?: string; recessStart?: string; recessEnd?: string; preordered?: boolean } | null; payStep: PayStep; paymentMethod: Order['payment_method']; placing: boolean; reference: string; tip: string; walletBalance: number; recessOptions: RecessPreorderOption[]; recessOptionsError: string | null; selectedRecessId: string; waitlistBusyId: string | null; serverClockOffsetMs: number; onSelectRecess: (id: string) => void; onJoinWaitlist: (id: string) => void; onLeaveWaitlist: (id: string) => void; onAdd: (product: Product) => void; onClose: () => void; onPay: () => void; onRemove: (id: string) => void; onSelectPayment: (method: Order['payment_method']) => void; onSetPayStep: (step: PayStep) => void; onSetTab: (tab: Tab) => void; onTip: (tip: string) => void; }) {
+function CartSheet({ cart, cartTotal, total, lastReceipt, payStep, paymentMethod, placing, reference, tip, walletBalance, recessOptions, recessOptionsError, selectedRecessId, serverClockOffsetMs, productionTurns, onSelectRecess, onAdd, onClose, onPay, onRemove, onSelectPayment, onSetPayStep, onSetTab, onTip }: { cart: CartItem[]; cartTotal: number; total: number; lastReceipt: { orderNumber: string; reference: string; pickup: string; paidWithCredits: boolean; recessName?: string; recessStart?: string; recessEnd?: string; preordered?: boolean } | null; payStep: PayStep; paymentMethod: Order['payment_method']; placing: boolean; reference: string; tip: string; walletBalance: number; recessOptions: RecessPreorderOption[]; recessOptionsError: string | null; selectedRecessId: string; serverClockOffsetMs: number; productionTurns: RecessProductionTurn[]; onSelectRecess: (id: string) => void; onAdd: (product: Product) => void; onClose: () => void; onPay: () => void; onRemove: (id: string) => void; onSelectPayment: (method: Order['payment_method']) => void; onSetPayStep: (step: PayStep) => void; onSetTab: (tab: Tab) => void; onTip: (tip: string) => void; }) {
   const creditsSelected = paymentMethod === 'credits';
   const creditsInsufficient = creditsSelected && walletBalance < total;
   return <div className="fixed inset-0 z-40 flex flex-col justify-end bg-black/70 backdrop-blur-sm" onClick={onClose}>
@@ -704,21 +637,15 @@ function CartSheet({ cart, cartTotal, total, lastReceipt, payStep, paymentMethod
             </div>
             <select value={selectedRecessId} onChange={event => onSelectRecess(event.target.value)} className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-[#131B2E] dark:text-white" aria-label="Seleccionar descanso">
               {recessOptions.map(option => <option key={option.recess_schedule_id} value={option.recess_schedule_id} disabled={!option.window_open}>
-                {option.name} · {timeLabel(option.start_time)}–{timeLabel(option.end_time)} · {option.preorders_count}/{option.max_preorders ?? 'Sin límite'} estudiantes
-                {option.waitlist_status === 'offered' ? ' · Plaza reservada para ti' : option.waitlist_status === 'waiting' ? ' · En lista de espera' : ''}
+                {option.name} · {timeLabel(option.start_time)}–{timeLabel(option.end_time)} · carga {option.preorders_count}/{option.max_preorders ?? 'sin límite'} estudiantes
               </option>)}
             </select>
             {(() => {
               const option = recessOptions.find(item => item.recess_schedule_id === selectedRecessId);
-              const activeOffer = option?.waitlist_status === 'offered' && Boolean(option.offer_expires_at) && Date.parse(option.offer_expires_at ?? '') > Date.now() + serverClockOffsetMs;
-              const waiting = option?.waitlist_status === 'waiting';
               if (!option) return <p className="text-sm text-rose-600 dark:text-rose-300">Selecciona un descanso disponible.</p>;
               if (!option.window_open) return <p className="rounded-xl border border-slate-300 bg-slate-100 p-3 text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Este horario ya terminó. Podrás volver a pedir cuando esté abierto el siguiente descanso.</p>;
-              if (activeOffer) return <div className="space-y-2 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100"><p className="font-black">¡Se liberó una plaza para ti!</p><p>Confirma tu pedido antes de {new Date(option.offer_expires_at!).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false })}. Si no la confirmas, pasará al siguiente estudiante.</p></div>;
-              if (waiting) return <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"><p className="font-black">Estás en la lista de espera{option.waitlist_position ? ` · posición ${option.waitlist_position}` : ''}.</p><p>Si se libera una plaza, te reservaremos el turno durante 5 minutos.</p><button type="button" onClick={() => onLeaveWaitlist(option.recess_schedule_id)} disabled={waitlistBusyId === option.recess_schedule_id} className="rounded-lg border border-amber-700/30 px-3 py-2 text-xs font-black disabled:opacity-50">{waitlistBusyId === option.recess_schedule_id ? 'Actualizando…' : 'Salir de la lista de espera'}</button></div>;
-              if (!option.can_order) return <div className="space-y-2 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm text-rose-950 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100"><p className="font-black">El cupo de estudiantes está completo.</p><p>Únete a la lista de espera. Si se libera una plaza, la reservaremos para ti durante 5 minutos.</p><button type="button" onClick={() => onJoinWaitlist(option.recess_schedule_id)} disabled={waitlistBusyId === option.recess_schedule_id} className="rounded-lg bg-rose-700 px-3 py-2 text-xs font-black text-white disabled:opacity-50">{waitlistBusyId === option.recess_schedule_id ? 'Uniéndote…' : 'Unirme a la lista de espera'}</button></div>;
-              if (option.is_active) return <p className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100">El descanso está activo. Puedes hacer un pedido normal y el QR de los pedidos preordenados ya puede mostrarse.</p>;
-              return <p className="rounded-xl border border-indigo-300 bg-indigo-50 p-3 text-sm text-indigo-950 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-100">Preordenado para hoy a las {timeLabel(option.start_time)}. Cupo: {option.preorders_count} de {option.max_preorders ?? 'sin límite'} estudiantes. El QR solo se habilitará al iniciar el descanso y cuando el pago esté aprobado.</p>;
+              if (option.is_active) return <div className="space-y-1 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100"><p className="font-black">El descanso está activo y los pedidos siguen abiertos.</p><p>Las reservas confirmadas tienen prioridad; después se prepara por orden de llegada. El turno se calcula en la app y no se guarda en Supabase.</p></div>;
+              return <p className="rounded-xl border border-indigo-300 bg-indigo-50 p-3 text-sm text-indigo-950 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-100">Puedes reservar para hoy a las {timeLabel(option.start_time)}. Las reservas confirmadas van primero y los nuevos pedidos reciben turnos FIFO. El número mostrado ({option.preorders_count}/{option.max_preorders ?? 'sin límite'}) orienta sobre la carga; no bloquea los pedidos. El turno solo se calcula en la app.</p>;
             })()}
           </section>}
           {recessOptionsError && recessOptions.length === 0 && <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">No pudimos comprobar el horario del recreo. Actualiza la página antes de confirmar el pedido.</p>}
@@ -726,10 +653,10 @@ function CartSheet({ cart, cartTotal, total, lastReceipt, payStep, paymentMethod
           <div><p className="mb-2 text-sm font-black text-slate-900 dark:text-white">Método de pago</p><div className="grid grid-cols-2 gap-2">{paymentOptions.map((opt) => <button key={opt.value} onClick={() => onSelectPayment(opt.value)} className={`rounded-2xl border p-3 text-left transition ${paymentMethod === opt.value ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-[#0D111D] dark:hover:border-slate-700'}`}><span className={`mb-2 block h-1.5 w-8 rounded-full ${opt.accent}`} /><span className="block text-sm font-black text-slate-900 dark:text-white">{opt.label}</span><span className="text-xs text-slate-600 dark:text-slate-400">{opt.hint}</span>{opt.value === 'credits' && <span className={`mt-2 block text-xs font-bold ${creditsInsufficient ? 'text-rose-400' : 'text-violet-400'}`}>Disponible: ${fmt(walletBalance)}</span>}</button>)}</div>{creditsSelected && <div className={`mt-2 rounded-2xl border p-3 text-sm ${creditsInsufficient ? 'border-rose-500/30 bg-rose-500/10 text-rose-300' : 'border-violet-500/30 bg-violet-500/10 text-violet-300'}`}><div className="flex justify-between"><span>Créditos disponibles</span><b>${fmt(walletBalance)}</b></div><div className="mt-1 flex justify-between"><span>Total del pedido</span><b>${fmt(total)}</b></div>{creditsInsufficient ? <p className="mt-2 font-bold">Te faltan ${fmt(total - walletBalance)} para completar esta compra.</p> : <p className="mt-2 font-bold">Al pagar, se descontarán ${fmt(total)} de tu billetera.</p>}</div>}</div>
           <textarea value={tip} onChange={(e) => onTip(e.target.value)} className="w-full rounded-2xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-800 dark:bg-[#0D111D] dark:text-white dark:placeholder:text-slate-500" rows={2} placeholder="Notas para cafetería" />
           <Summary subtotal={cartTotal} total={total} />
-          <Button disabled={creditsInsufficient || cart.length === 0 || (recessOptions.length > 0 && !recessOptions.find(option => option.recess_schedule_id === selectedRecessId)?.can_order) || Boolean(recessOptionsError && recessOptions.length === 0)} onClick={() => onSetPayStep('payment')} className="w-full rounded-2xl bg-emerald-600 py-6 text-white hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500">Continuar al pago <ChevronRight className="ml-1 h-5 w-5" /></Button>
+          <Button disabled={creditsInsufficient || cart.length === 0 || (recessOptions.length > 0 && !recessOptions.find(option => option.recess_schedule_id === selectedRecessId)?.window_open) || Boolean(recessOptionsError && recessOptions.length === 0)} onClick={() => onSetPayStep('payment')} className="w-full rounded-2xl bg-emerald-600 py-6 text-white hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500">Continuar al pago <ChevronRight className="ml-1 h-5 w-5" /></Button>
         </>}
         {payStep === 'payment' && <><div className={`${INNER} rounded-3xl p-4`}><div className="mb-3 flex items-center gap-2"><CreditCard className="h-5 w-5 text-emerald-600 dark:text-emerald-400" /><p className="font-black text-slate-900 dark:text-white">Pago - {paymentOptions.find((p) => p.value === paymentMethod)?.label}</p></div><p className="text-sm text-slate-600 dark:text-slate-400">Referencia: <b className="text-slate-700 dark:text-slate-200">{reference}</b></p><p className="text-sm text-slate-600 dark:text-slate-400">Total a registrar: <b className="text-slate-700 dark:text-slate-200">${fmt(total)}</b></p>{creditsSelected ? <><p className="text-sm text-slate-600 dark:text-slate-400">Créditos disponibles: <b className="text-slate-700 dark:text-slate-200">${fmt(walletBalance)}</b></p><p className="mt-4 rounded-2xl border border-violet-500/20 bg-violet-500/10 p-3 text-sm text-violet-300">Al confirmar, QuickBite descontará el total de tu saldo de créditos de forma segura y atómica. El pedido quedará pagado inmediatamente.</p></> : <p className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-300">El pago quedará pendiente hasta que un administrador lo revise y apruebe. El QR de recogida se habilitará únicamente después de la aprobación.</p>}</div><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => onSetPayStep('cart')} className="rounded-2xl border-slate-300 bg-transparent py-6 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Volver</Button><Button disabled={placing || creditsInsufficient} onClick={onPay} className="rounded-2xl bg-emerald-600 py-6 text-white hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500">{placing ? 'Procesando...' : creditsSelected ? 'Pagar con créditos' : 'Enviar para aprobación'}</Button></div></>}
-        {payStep === 'receipt' && lastReceipt && <div className={`rounded-3xl border border-dashed p-5 text-center ${lastReceipt.paidWithCredits ? 'border-violet-500/40 bg-violet-500/10' : 'border-amber-500/40 bg-amber-500/10'}`}><Clock3 className={`mx-auto mb-3 h-12 w-12 ${lastReceipt.paidWithCredits ? 'text-violet-400' : 'text-amber-400'}`} /><p className="text-sm font-bold text-slate-500 dark:text-slate-400">Pedido enviado</p><p className="text-3xl font-black text-slate-900 dark:text-white">{lastReceipt.orderNumber}</p><p className={`mt-3 text-sm font-bold ${lastReceipt.paidWithCredits ? 'text-violet-600 dark:text-violet-300' : 'text-amber-600 dark:text-amber-300'}`}>{lastReceipt.paidWithCredits ? 'Pago con créditos confirmado' : 'Pago pendiente de aprobación'}</p><p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{lastReceipt.preordered ? (lastReceipt.paidWithCredits ? 'El pago quedó confirmado. El QR de recogida aparecerá en Historial cuando comience el descanso.' : 'El QR aparecerá en Historial únicamente cuando Admin apruebe el pago y comience el descanso.') : lastReceipt.paidWithCredits ? 'Se descontaron los créditos del pedido. Tu QR de recogida está disponible en Historial.' : 'El código QR y el código de recogida estarán disponibles cuando Admin apruebe el pago.'}</p><p className="mt-3 text-xs text-slate-500">Ref. pago: {lastReceipt.reference}</p>{lastReceipt.recessName && <div className="mt-3 rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-sm text-indigo-700 dark:text-indigo-300"><p className="font-black">{lastReceipt.preordered ? 'Pedido anticipado programado' : 'Pedido del descanso actual'}</p><p>{lastReceipt.recessName} · {lastReceipt.recessStart ? timeLabel(lastReceipt.recessStart) : ''}{lastReceipt.recessEnd ? `–${timeLabel(lastReceipt.recessEnd)}` : ''}</p><p className="mt-1 text-xs">Recógelo durante el descanso indicado. Si no lo reclamas, la cafetería podrá marcarlo como no reclamado cuando termine el periodo de recogida.</p></div>}<Button onClick={() => { onClose(); onSetTab('orders'); onSetPayStep('cart'); }} className="mt-5 w-full rounded-2xl bg-emerald-600 py-6 text-white hover:bg-emerald-500">Ver historial</Button></div>}
+        {payStep === 'receipt' && lastReceipt && <div className={`rounded-3xl border border-dashed p-5 text-center ${lastReceipt.paidWithCredits ? 'border-violet-500/40 bg-violet-500/10' : 'border-amber-500/40 bg-amber-500/10'}`}><Clock3 className={`mx-auto mb-3 h-12 w-12 ${lastReceipt.paidWithCredits ? 'text-violet-400' : 'text-amber-400'}`} /><p className="text-sm font-bold text-slate-500 dark:text-slate-400">Pedido enviado</p><p className="text-3xl font-black text-slate-900 dark:text-white">{lastReceipt.orderNumber}</p><p className={`mt-3 text-sm font-bold ${lastReceipt.paidWithCredits ? 'text-violet-600 dark:text-violet-300' : 'text-amber-600 dark:text-amber-300'}`}>{lastReceipt.paidWithCredits ? 'Pago con créditos confirmado' : 'Pago pendiente de aprobación'}</p><p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{lastReceipt.preordered ? (lastReceipt.paidWithCredits ? 'El pago quedó confirmado. El QR de recogida aparecerá en Historial cuando comience el descanso.' : 'El QR aparecerá en Historial únicamente cuando Admin apruebe el pago y comience el descanso.') : lastReceipt.paidWithCredits ? 'Se descontaron los créditos del pedido. Tu QR de recogida está disponible en Historial.' : 'El código QR y el código de recogida estarán disponibles cuando Admin apruebe el pago.'}</p><p className="mt-3 text-xs text-slate-500">Ref. pago: {lastReceipt.reference}</p>{lastReceipt.recessName && <div className="mt-3 rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-sm text-indigo-700 dark:text-indigo-300"><p className="font-black">{lastReceipt.preordered ? 'Pedido anticipado programado' : 'Pedido del descanso actual'}</p><p>{lastReceipt.recessName} · {lastReceipt.recessStart ? timeLabel(lastReceipt.recessStart) : ''}{lastReceipt.recessEnd ? `–${timeLabel(lastReceipt.recessEnd)}` : ''}</p><p className="mt-1 text-xs">Recógelo durante el descanso indicado. Si no lo reclamas, la cafetería podrá marcarlo como no reclamado cuando termine el periodo de recogida.</p>{productionTurns.filter(turn => turn.order_number === lastReceipt.orderNumber).map(turn => <p key={turn.order_id} className="mt-2 text-xs font-bold">{`Turno ${turn.queue_position}/${turn.queue_size} · `}{turn.estimated_pickup_at && Date.parse(turn.estimated_pickup_at) <= Date.parse(turn.recess_ends_at) ? `estimado ${bogotaClock(turn.estimated_pickup_at)}` : 'la cola supera el descanso; recogida por confirmar'}</p>)}</div>}<Button onClick={() => { onClose(); onSetTab('orders'); onSetPayStep('cart'); }} className="mt-5 w-full rounded-2xl bg-emerald-600 py-6 text-white hover:bg-emerald-500">Ver historial</Button></div>}
       </div>
     </section>
   </div>;
@@ -739,7 +666,7 @@ function Summary({ subtotal, total }: { subtotal: number; total: number }) { ret
 function Empty({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) { return <div className={`${SURFACE} mt-4 rounded-3xl p-8 text-center`}><Icon className="mx-auto mb-3 h-12 w-12 text-emerald-500/50" /><h3 className="font-black text-slate-900 dark:text-white">{title}</h3><p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{text}</p></div>; }
 function statusData(order: Order): [string, number, LucideIcon] { if (order.status === 'cancelled') return ['Cancelado', 100, XCircle]; if (order.status === 'delivered') return ['Entregado', 100, CheckCircle2]; if (order.status === 'ready') return ['Listo para recoger', 78, PackageCheck]; if (order.status === 'preparing') return ['En preparación', 52, Utensils]; return ['Recibido', 22, Clock3]; }
 
-function OrderCard({ order, serverClockOffsetMs = 0 }: { order: Order; serverClockOffsetMs?: number }) {
+function OrderCard({ order, serverClockOffsetMs = 0, productionTurn }: { order: Order; serverClockOffsetMs?: number; productionTurn?: RecessProductionTurn }) {
   const [baseLabel, progress, Icon] = statusData(order);
   const label = order.pickup_outcome === 'unclaimed' ? 'No reclamado' : baseLabel;
   const recessName = order.scheduled_recess_name ?? order.scheduled_recess?.name;
@@ -767,7 +694,7 @@ function OrderCard({ order, serverClockOffsetMs = 0 }: { order: Order; serverClo
   const created = new Date(order.created_at);
   const paymentApproved = order.payment_status === 'confirmed';
   const cancelled = order.status === 'cancelled';
-  return <article className={`${SURFACE} overflow-hidden rounded-3xl`}><button onClick={() => setExpanded((value) => !value)} className="w-full p-4 text-left"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-slate-500">#{order.order_number}</p><h3 className="font-black text-slate-900 dark:text-white">{label}</h3>{order.preordered && <Badge className="mt-1 bg-indigo-600 text-white">Anticipado · {recessName ?? 'Descanso'}</Badge>}{order.pickup_outcome === 'unclaimed' && <Badge className="mt-1 bg-rose-600 text-white">No reclamado</Badge>}<p className="mt-1 text-xs text-slate-500">{created.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })} · {created.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</p>{order.preordered && <p className="mt-1 text-xs font-bold text-indigo-600 dark:text-indigo-300">Recogida: {recessStart}{recessEnd ? `–${recessEnd}` : ''}</p>}</div><div className="flex items-center gap-2"><Badge className={paymentApproved ? 'bg-emerald-600 text-white' : order.payment_status === 'rejected' ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'}>{paymentApproved ? 'Pagado' : order.payment_status === 'rejected' ? 'Rechazado' : 'Pendiente'}</Badge><ChevronDown className="h-5 w-5 text-slate-400 transition-transform dark:text-slate-500" /></div></div><div className="mt-3 flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-2xl ${cancelled ? 'bg-red-500/10 text-red-500 dark:text-red-400' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}><Icon className="h-5 w-5" /></div><div className="flex-1"><div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"><div className={`h-full rounded-full ${cancelled ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${progress}%` }} /></div><p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{cancelled ? 'El pago fue rechazado y el pedido quedó cancelado.' : <>Recogida: <b className="text-slate-700 dark:text-slate-300">{order.status === 'delivered' ? order.order_number : paymentApproved ? (order.preordered && !preorderStarted ? 'Disponible al comenzar el descanso' : (order.pickup_code ?? '----')) : 'Disponible tras aprobación'}</b> - {order.estimated_minutes ?? 12} min</>}</p></div></div><div className="mt-3 flex justify-between border-t border-slate-200 pt-3 text-sm dark:border-slate-800"><span className="text-slate-500">Total</span><b className="text-emerald-600 dark:text-emerald-400">${fmt(order.total)}</b></div></button>{expanded && <div className="border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0D111D]"><div className="space-y-2">{order.order_items?.length ? order.order_items.map((item) => <div key={item.id} className={`${INNER} flex items-center justify-between gap-3 rounded-2xl px-3 py-2`}><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{item.product?.name ?? 'Producto'}</p><p className="text-xs text-slate-600 dark:text-slate-400">{item.quantity} × ${fmt(Number(item.price))}</p></div><b className="text-sm text-emerald-600 dark:text-emerald-400">${fmt(Number(item.price) * item.quantity)}</b></div>) : <p className="text-xs text-slate-600 dark:text-slate-400">No hay detalle de artículos disponible.</p>}</div><div className={`${INNER} mt-3 grid gap-2 rounded-2xl p-3 text-sm`}><div className="flex justify-between"><span className="text-slate-500">Fecha</span><b className="text-slate-900 dark:text-white">{created.toLocaleDateString('es-CO')}</b></div><div className="flex justify-between"><span className="text-slate-500">Hora</span><b className="text-slate-900 dark:text-white">{created.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</b></div><div className="flex justify-between"><span className="text-slate-500">Método de pago</span><b className="text-slate-900 dark:text-white">{order.payment_method === 'bre-b' ? 'Bre-B' : order.payment_method === 'cash' ? 'Efectivo' : order.payment_method === 'credits' ? 'Créditos' : 'Nequi'}</b></div>{order.notes && <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2"><p className="text-xs font-bold text-amber-600 dark:text-amber-300">Comentario</p><p className="text-sm text-slate-600 dark:text-slate-300">{order.notes}</p></div>}</div>{paymentApproved && order.pickup_outcome !== 'unclaimed' && order.status !== 'delivered' && !cancelled && preorderStarted ? <div className="mt-3 flex flex-col items-center rounded-3xl border border-dashed border-emerald-500/30 bg-emerald-500/10 p-4"><p className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">Código QR para reclamar</p><QRCodeSVG value={getOrderVerificationUrl(order.pickup_code ?? order.order_number)} size={170} level="M" includeMargin className="mt-3 rounded-xl bg-white p-2" /><p className="mt-2 text-2xl font-black tracking-[0.2em] text-emerald-600 dark:text-emerald-400">{order.pickup_code ?? '----'}</p><p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Escanea este QR para verificar el pedido o preséntalo al recogerlo.</p></div> : <div className={`mt-3 rounded-3xl border border-dashed p-4 text-center ${cancelled ? 'border-red-500/30 bg-red-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}><Clock3 className={`mx-auto h-8 w-8 ${cancelled ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`} /><p className={`mt-2 text-sm font-bold ${cancelled ? 'text-red-600 dark:text-red-300' : 'text-amber-600 dark:text-amber-300'}`}>{order.status === 'delivered' ? 'Pedido entregado' : order.pickup_outcome === 'unclaimed' ? 'Pedido no reclamado' : cancelled ? 'Pedido cancelado' : 'QR bloqueado'}</p><p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{order.status === 'delivered' ? `Pedido ${order.order_number} entregado. El código QR ya no está disponible.` : order.pickup_outcome === 'unclaimed' ? 'El periodo de recogida terminó; consulta con la cafetería si necesitas aclarar el estado del pedido.' : cancelled ? 'El pago fue rechazado; el pedido no será preparado ni entregado.' : order.preordered && !preorderStarted ? `El QR se habilitará automáticamente al comenzar el descanso a las ${recessStart || 'hora programada'}, siempre que el pago esté aprobado.` : 'El QR aparecerá cuando Admin apruebe el pago.'}</p></div>}</div>}</article>;
+  return <article className={`${SURFACE} overflow-hidden rounded-3xl`}><button onClick={() => setExpanded((value) => !value)} className="w-full p-4 text-left"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-slate-500">#{order.order_number}</p><h3 className="font-black text-slate-900 dark:text-white">{label}</h3>{order.preordered && <Badge className="mt-1 bg-indigo-600 text-white">Anticipado · {recessName ?? 'Descanso'}</Badge>}{order.pickup_outcome === 'unclaimed' && <Badge className="mt-1 bg-rose-600 text-white">No reclamado</Badge>}<p className="mt-1 text-xs text-slate-500">{created.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })} · {created.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</p>{order.preordered && <p className="mt-1 text-xs font-bold text-indigo-600 dark:text-indigo-300">Recogida: {recessStart}{recessEnd ? `–${recessEnd}` : ''}</p>}{productionTurn && <p className="mt-1 text-xs font-bold text-amber-700 dark:text-amber-300">Turno de producción {productionTurn.queue_position}/{productionTurn.queue_size} · {Date.parse(productionTurn.estimated_pickup_at ?? '') > Date.parse(productionTurn.recess_ends_at) ? 'la cola supera este descanso; recogida por confirmar' : `estimado ${productionTurn.estimated_pickup_at ? bogotaClock(productionTurn.estimated_pickup_at) : 'en preparación'}`}</p>}</div><div className="flex items-center gap-2"><Badge className={paymentApproved ? 'bg-emerald-600 text-white' : order.payment_status === 'rejected' ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'}>{paymentApproved ? 'Pagado' : order.payment_status === 'rejected' ? 'Rechazado' : 'Pendiente'}</Badge><ChevronDown className="h-5 w-5 text-slate-400 transition-transform dark:text-slate-500" /></div></div><div className="mt-3 flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-2xl ${cancelled ? 'bg-red-500/10 text-red-500 dark:text-red-400' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}><Icon className="h-5 w-5" /></div><div className="flex-1"><div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"><div className={`h-full rounded-full ${cancelled ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${progress}%` }} /></div><p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{cancelled ? 'El pago fue rechazado y el pedido quedó cancelado.' : <>Recogida: <b className="text-slate-700 dark:text-slate-300">{order.status === 'delivered' ? order.order_number : paymentApproved ? (order.preordered && !preorderStarted ? 'Disponible al comenzar el descanso' : (order.pickup_code ?? '----')) : 'Disponible tras aprobación'}</b> - {order.estimated_minutes ?? 12} min</>}</p></div></div><div className="mt-3 flex justify-between border-t border-slate-200 pt-3 text-sm dark:border-slate-800"><span className="text-slate-500">Total</span><b className="text-emerald-600 dark:text-emerald-400">${fmt(order.total)}</b></div></button>{expanded && <div className="border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0D111D]"><div className="space-y-2">{order.order_items?.length ? order.order_items.map((item) => <div key={item.id} className={`${INNER} flex items-center justify-between gap-3 rounded-2xl px-3 py-2`}><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{item.product?.name ?? 'Producto'}</p><p className="text-xs text-slate-600 dark:text-slate-400">{item.quantity} × ${fmt(Number(item.price))}</p></div><b className="text-sm text-emerald-600 dark:text-emerald-400">${fmt(Number(item.price) * item.quantity)}</b></div>) : <p className="text-xs text-slate-600 dark:text-slate-400">No hay detalle de artículos disponible.</p>}</div><div className={`${INNER} mt-3 grid gap-2 rounded-2xl p-3 text-sm`}><div className="flex justify-between"><span className="text-slate-500">Fecha</span><b className="text-slate-900 dark:text-white">{created.toLocaleDateString('es-CO')}</b></div><div className="flex justify-between"><span className="text-slate-500">Hora</span><b className="text-slate-900 dark:text-white">{created.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</b></div><div className="flex justify-between"><span className="text-slate-500">Método de pago</span><b className="text-slate-900 dark:text-white">{order.payment_method === 'bre-b' ? 'Bre-B' : order.payment_method === 'cash' ? 'Efectivo' : order.payment_method === 'credits' ? 'Créditos' : 'Nequi'}</b></div>{order.notes && <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2"><p className="text-xs font-bold text-amber-600 dark:text-amber-300">Comentario</p><p className="text-sm text-slate-600 dark:text-slate-300">{order.notes}</p></div>}</div>{paymentApproved && order.pickup_outcome !== 'unclaimed' && order.status !== 'delivered' && !cancelled && preorderStarted ? <div className="mt-3 flex flex-col items-center rounded-3xl border border-dashed border-emerald-500/30 bg-emerald-500/10 p-4"><p className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">Código QR para reclamar</p><QRCodeSVG value={getOrderVerificationUrl(order.pickup_code ?? order.order_number)} size={170} level="M" includeMargin className="mt-3 rounded-xl bg-white p-2" /><p className="mt-2 text-2xl font-black tracking-[0.2em] text-emerald-600 dark:text-emerald-400">{order.pickup_code ?? '----'}</p><p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Escanea este QR para verificar el pedido o preséntalo al recogerlo.</p></div> : <div className={`mt-3 rounded-3xl border border-dashed p-4 text-center ${cancelled ? 'border-red-500/30 bg-red-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}><Clock3 className={`mx-auto h-8 w-8 ${cancelled ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`} /><p className={`mt-2 text-sm font-bold ${cancelled ? 'text-red-600 dark:text-red-300' : 'text-amber-600 dark:text-amber-300'}`}>{order.status === 'delivered' ? 'Pedido entregado' : order.pickup_outcome === 'unclaimed' ? 'Pedido no reclamado' : cancelled ? 'Pedido cancelado' : 'QR bloqueado'}</p><p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{order.status === 'delivered' ? `Pedido ${order.order_number} entregado. El código QR ya no está disponible.` : order.pickup_outcome === 'unclaimed' ? 'El periodo de recogida terminó; consulta con la cafetería si necesitas aclarar el estado del pedido.' : cancelled ? 'El pago fue rechazado; el pedido no será preparado ni entregado.' : order.preordered && !preorderStarted ? `El QR se habilitará automáticamente al comenzar el descanso a las ${recessStart || 'hora programada'}, siempre que el pago esté aprobado.` : 'El QR aparecerá cuando Admin apruebe el pago.'}</p></div>}</div>}</article>;
 }
 
 
@@ -839,27 +766,6 @@ function PreorderedOrdersPanel({ orders, serverClockOffsetMs = 0, onViewHistory 
   </section>;
 }
 
-function RecessWaitlistNotice({ options, busyId, cartCount, serverClockOffsetMs = 0, onJoin, onLeave, onOpenCart }: { options: RecessPreorderOption[]; busyId: string | null; cartCount: number; serverClockOffsetMs?: number; onJoin: (id: string) => void; onLeave: (id: string) => void; onOpenCart: () => void }) {
-  const activeEntries = options.filter(option => option.waitlist_status === 'waiting' || option.waitlist_status === 'offered');
-  if (activeEntries.length === 0) return null;
-  return <section className={`${SURFACE} space-y-3 rounded-2xl p-4`} aria-label="Estado de lista de espera">
-    <h2 className="text-lg font-black text-slate-900 dark:text-white">Tu lista de espera</h2>
-    {activeEntries.map(option => {
-      const offered = option.waitlist_status === 'offered' && Boolean(option.offer_expires_at) && Date.parse(option.offer_expires_at ?? '') > Date.now();
-      return <article key={option.recess_schedule_id} className={`rounded-2xl border p-3 ${offered ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10' : 'border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10'}`}>
-        <p className={`font-black ${offered ? 'text-emerald-950 dark:text-emerald-100' : 'text-amber-950 dark:text-amber-100'}`}>{option.name} · {timeLabel(option.start_time)}–{timeLabel(option.end_time)}</p>
-        {offered
-          ? <p className="mt-1 text-sm text-emerald-900 dark:text-emerald-200">Se reservó una plaza para ti hasta {new Date(option.offer_expires_at!).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false })}.</p>
-          : <p className="mt-1 text-sm text-amber-900 dark:text-amber-200">Sigues en lista de espera, posición {option.waitlist_position ?? 'calculando'}. La plaza se ofrecerá por orden de inscripción.</p>}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {offered && cartCount > 0 && <button type="button" onClick={onOpenCart} className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black text-white hover:bg-emerald-800">Completar pedido</button>}
-          {offered && cartCount === 0 && <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">Agrega los productos al carrito y confirma antes de que venza el turno.</p>}
-          <button type="button" onClick={() => onLeave(option.recess_schedule_id)} disabled={busyId === option.recess_schedule_id} className="rounded-xl border border-slate-400/50 bg-white/70 px-3 py-2 text-xs font-black text-slate-800 disabled:opacity-50 dark:bg-[#131B2E] dark:text-slate-200">{busyId === option.recess_schedule_id ? 'Actualizando…' : 'Salir de la lista'}</button>
-        </div>
-      </article>;
-    })}
-  </section>;
-}
 
 function RedemptionCard({ redemption }: { redemption: LoyaltyRedemption }) {
   const [expanded, setExpanded] = useState(false);
