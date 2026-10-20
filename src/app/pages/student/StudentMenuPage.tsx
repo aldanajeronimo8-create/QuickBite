@@ -480,7 +480,7 @@ export function StudentMenuPage() {
       <div className={`${CONTAINER} space-y-6 pt-6`}>
         <StudentRecessStatus />
         <PreorderedOrdersPanel orders={myOrders} serverClockOffsetMs={serverClockOffsetMs} onViewHistory={() => setTab('orders')} />
-        <RecessWaitlistNotice options={recessOptions} busyId={waitlistBusyId} cartCount={cartCount} serverClockOffsetMs={serverClockOffsetMs} onJoin={handleJoinWaitlist} onLeave={handleLeaveWaitlist} onOpenCart={() => { setShowCart(true); setPayStep('cart'); }} />
+        
         <div className="grid gap-3 sm:grid-cols-2">
           <section className={`${SURFACE} rounded-2xl p-4`}>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Recreo inteligente</p>
