@@ -33,7 +33,7 @@ const roleLabel = (role: Profile['role']) => {
   if (role === 'student_parent') return 'Usuario y padre';
   return 'Usuario';
 };
-const isAdmin = (role: Profile['role']) => role === 'admin' || role === 'both';
+const isAdmin = (role: Profile['role']) => role === 'admin' || role === 'both' || role === 'all';
 const needsTi = (role: Profile['role']) => role === 'student' || role === 'both' || role === 'student_parent';
 const canGenerateCode = (role: Profile['role']) => role === 'student' || role === 'both' || role === 'student_parent';
 
@@ -42,6 +42,7 @@ export function AdminUsersSeparated() {
   const currentUser = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
   const [mode, setMode] = useState<Mode>('student');
+  const [parentStudentId, setParentStudentId] = useState('');
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [academicSections, setAcademicSections] = useState<AcademicSection[]>([]);
   const [academicGrades, setAcademicGrades] = useState<AcademicGrade[]>([]);
@@ -109,9 +110,48 @@ export function AdminUsersSeparated() {
   }, [users, query, consents]);
 
   const isProtected = (user: Profile) => protectedEmails.has(user.email.trim().toLowerCase());
+  const linkableStudents = useMemo(
+    () => users
+      .filter((user) => user.active && canGenerateCode(user.role) && !protectedEmails.has(user.email.trim().toLowerCase()))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name, 'es')),
+    [users, protectedEmails],
+  );
+
+  const chooseParentStudent = async (studentId: string) => {
+    setParentStudentId(studentId);
+    setGenerated(null);
+    setForm((current) => ({ ...current, student_code: '' }));
+    if (!studentId) return;
+    const student = linkableStudents.find((user) => user.id === studentId);
+    if (!student) {
+      setParentStudentId('');
+      return toast.error('Selecciona un estudiante activo de la lista.');
+    }
+
+    setGenerating(true);
+    try {
+      const { data, error } = await requireSupabaseClient().rpc('get_or_create_student_code', {
+        p_force_new: false,
+        p_student_user_id: studentId,
+      });
+      if (error) throw error;
+      const payload = data as { code?: string; expires_at?: string } | null;
+      const code = payload?.code?.trim().toUpperCase();
+      if (!code) throw new Error('Supabase no devolvió un código de vinculación válido.');
+      setForm((current) => ({ ...current, student_code: code }));
+      toast.success(`Estudiante seleccionado: ${student.full_name}. Código listo para vincular.`);
+    } catch (error) {
+      setParentStudentId('');
+      setForm((current) => ({ ...current, student_code: '' }));
+      toast.error(error instanceof Error ? error.message : 'No se pudo preparar la vinculación.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const beginCreate = (nextMode: Mode) => {
     setMode(nextMode);
+    setParentStudentId('');
     setForm({ ...emptyForm, role: nextMode === 'parent' ? 'parent' : 'student' });
     setGenerated(null);
     setCredentialOnly(false);
@@ -139,6 +179,7 @@ export function AdminUsersSeparated() {
     }
     const protectedAccount = isProtected(user);
     setMode(user.role === 'parent' ? 'parent' : 'student');
+    setParentStudentId('');
     setForm({ id: user.id, email: user.email, password: '', full_name: user.full_name, role: user.role, ti: user.ti ?? '', student_code: '', relationship: 'Padre', section_id: user.section_id ?? '', grade_id: user.grade_id ?? '', course_id: user.course_id ?? '' });
     setCredentialOnly(protectedAccount);
     setProtectedOriginalEmail(protectedAccount ? user.email.trim().toLowerCase() : null);
@@ -148,7 +189,7 @@ export function AdminUsersSeparated() {
 
   const close = () => {
     if (saving || generating) return;
-    setOpen(false); setForm(emptyForm); setGenerated(null); setCredentialOnly(false); setProtectedOriginalEmail(null);
+    setOpen(false); setForm(emptyForm); setGenerated(null); setCredentialOnly(false); setProtectedOriginalEmail(null); setParentStudentId('');
   };
 
   const generateStudentCode = async (studentId: string, forceNew = false) => {
@@ -182,7 +223,7 @@ export function AdminUsersSeparated() {
     if (form.id && credentialOnly && !password) return toast.error('Introduce la nueva contraseña de la cuenta protegida.');
     if (!credentialOnly && mode === 'student' && needsTi(form.role) && !ti) return toast.error('La identificación TI es obligatoria.');
     if (!credentialOnly && mode === 'student' && needsTi(form.role) && (!sectionId || !gradeId || !courseId)) return toast.error('Selecciona sección, grado y curso para la cuenta estudiantil.');
-    if (!credentialOnly && mode === 'parent' && !code && !form.id) return toast.error('Necesitas primero el código generado por el estudiante.');
+    if (!credentialOnly && mode === 'parent' && !form.id && (!code || !parentStudentId)) return toast.error('Selecciona primero al estudiante que vas a vincular.');
     if (!credentialOnly && mode === 'parent' && !form.relationship) return toast.error('Selecciona la relación con el estudiante.');
 
     const existing = form.id ? users.find((u) => u.id === form.id) : null;
@@ -274,6 +315,7 @@ export function AdminUsersSeparated() {
             .from('parent_student_links')
             .select('id,parent_user_id,student_user_id,relationship,active')
             .eq('parent_user_id', created.id)
+            .eq('student_user_id', parentStudentId)
             .eq('relationship', form.relationship)
             .eq('active', true)
             .maybeSingle();
@@ -285,7 +327,15 @@ export function AdminUsersSeparated() {
         }
         toast.success(mode === 'parent' ? 'Cuenta de padre y vínculo verificados en Supabase.' : 'Cuenta creada y verificada en Supabase.');
         if (mode === 'student' && canGenerateCode(created.role)) await generateStudentCode(created.id);
-        if (mode === 'parent') close();
+        if (mode === 'parent') {
+          // close() intentionally refuses to run while saving; reset explicitly after a committed create.
+          setOpen(false);
+          setForm(emptyForm);
+          setGenerated(null);
+          setCredentialOnly(false);
+          setProtectedOriginalEmail(null);
+          setParentStudentId('');
+        }
       }
       await loadConsents();
     } catch (error) {
@@ -418,7 +468,7 @@ export function AdminUsersSeparated() {
             {!credentialOnly && mode === 'parent' && <div><Label>Parentesco</Label><select value={form.relationship} onChange={(e) => setForm((current) => ({ ...current, relationship: e.target.value }))} className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">{RELATIONSHIPS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>}
           </div>
           {!credentialOnly && mode === 'student' && <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-sm font-bold text-slate-800">Rol de la cuenta</p><div className="mt-3 grid gap-2 md:grid-cols-3">{CREATE_ROLES.map((option) => { const Icon = option.icon; return <button key={option.value} type="button" onClick={() => setForm((current) => ({ ...current, role: option.value }))} className={`rounded-xl border p-3 text-left ${form.role === option.value ? 'border-slate-900 bg-white' : 'border-slate-200 bg-slate-50'}`}><Icon className="mb-2 h-5 w-5 text-slate-700" /><p className="text-xs font-black text-slate-900">{option.label}</p><p className="mt-1 text-[11px] leading-4 text-slate-500">{option.description}</p></button>; })}</div></div>}
-          {!credentialOnly && mode === 'parent' && <div><Label>Código de vinculación del estudiante</Label><Input value={form.student_code} onChange={(e) => setForm((current) => ({ ...current, student_code: e.target.value.toUpperCase() }))} placeholder="Escribe el código generado por el estudiante" /></div>}
+          {!credentialOnly && mode === 'parent' && !form.id && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><Label htmlFor="parent-student-select">Estudiante que se vinculará</Label><select id="parent-student-select" required value={parentStudentId} onChange={(event) => void chooseParentStudent(event.target.value)} disabled={generating || saving} className="mt-2 h-11 w-full rounded-lg border border-emerald-200 bg-white px-3 text-sm text-slate-900 disabled:opacity-60"><option value="">Selecciona un estudiante</option>{linkableStudents.map((student) => <option key={student.id} value={student.id}>{student.full_name} · {student.email}</option>)}</select>{linkableStudents.length === 0 ? <p className="mt-2 text-xs text-rose-700">No hay estudiantes activos disponibles para vincular.</p> : <p className="mt-2 text-xs leading-5 text-emerald-900">Elige el nombre del estudiante. QuickBite generará o reutilizará su código vigente automáticamente; no tienes que copiarlo manualmente.</p>}{parentStudentId && form.student_code && <p role="status" className="mt-2 text-sm font-bold text-emerald-800">Listo para vincular a {linkableStudents.find((student) => student.id === parentStudentId)?.full_name ?? 'el estudiante seleccionado'}.</p>}</div>}
           {!credentialOnly && mode === 'student' && studentRoleEditing && <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4"><p className="text-sm font-bold text-indigo-950">Estructura académica obligatoria</p><p className="mt-1 text-xs text-indigo-800">Selecciona la ubicación real del estudiante; la cuenta no se guardará sin una combinación válida.</p><div className="mt-3 grid gap-3 md:grid-cols-3"><div><Label>Sección</Label><select required value={form.section_id} onChange={(event) => setForm((current) => ({ ...current, section_id: event.target.value, grade_id: '', course_id: '' }))} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"><option value="">Selecciona una sección</option>{academicSections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}</select></div><div><Label>Grado</Label><select required value={form.grade_id} onChange={(event) => setForm((current) => ({ ...current, grade_id: event.target.value, course_id: '' }))} disabled={!form.section_id} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"><option value="">Selecciona un grado</option>{availableAcademicGrades.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}</select></div><div><Label>Curso</Label><select required value={form.course_id} onChange={(event) => setForm((current) => ({ ...current, course_id: event.target.value }))} disabled={!form.grade_id} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"><option value="">Selecciona un curso</option>{availableAcademicCourses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select></div></div></div>}
           {form.id && studentRoleEditing && !credentialOnly && <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-black text-slate-900">Código del estudiante</p><p className="text-xs text-slate-500">Genera un código nuevo o conserva el vigente.</p></div><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={generating} onClick={() => void generateStudentCode(form.id!, false)}>{generating ? 'Generando…' : 'Ver/generar'}</Button><Button type="button" variant="outline" size="sm" disabled={generating} onClick={() => void generateStudentCode(form.id!, true)}><RefreshCw className="mr-1 h-3.5 w-3.5" />Nuevo</Button></div></div>{generated && <div className="mt-4 grid gap-2 rounded-xl bg-white p-4 ring-1 ring-slate-200 md:grid-cols-[1fr_auto] md:items-center"><div><p className="text-xs font-bold text-slate-500">Código</p><p className="mt-1 font-mono text-2xl font-black tracking-[0.2em] text-slate-900">{generated.code}</p><p className="mt-1 text-xs text-slate-500">Vence: {generated.expires_at ? new Date(generated.expires_at).toLocaleString('es-CO') : 'Sin fecha'}</p></div><Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(generated.code)}><Copy className="mr-1 h-4 w-4" />Copiar</Button></div>}</div>}
           <div className="flex justify-end gap-2 pt-3"><Button type="button" variant="outline" onClick={close} disabled={saving || generating}>Cancelar</Button><Button type="submit" disabled={saving || generating}>{saving ? 'Guardando…' : form.id ? 'Guardar cambios' : 'Crear cuenta'}</Button></div>
