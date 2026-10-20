@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { requireSupabaseClient } from '../../../lib/supabase';
 import { getErrorMessage } from '../../../lib/errorMessage';
 import type { Order } from '../../../lib/supabase';
+import { buildRecessProductionTurns } from '../../../lib/recessProductionQueue';
 import { useDataStore } from '../../../store/dataStore';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -134,10 +135,19 @@ export function AdminOrders() {
     void loadCancellationRequests();
   }, [orders.length]);
 
+  const productionTurns = useMemo(() => buildRecessProductionTurns(orders, clockNow), [orders, clockNow]);
+
   const filteredOrders = useMemo(() => {
     let next = orders
       .filter((order) => order.payment_status === 'confirmed' || order.payment_status === 'rejected' || order.preordered === true)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      .sort((a, b) => {
+        const aTurn = productionTurns.get(a.id);
+        const bTurn = productionTurns.get(b.id);
+        if (aTurn && bTurn) return aTurn.queue_position - bTurn.queue_position;
+        if (aTurn) return -1;
+        if (bTurn) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
 
     if (filterStatus !== 'all') {
       next = next.filter((order) =>
@@ -148,7 +158,7 @@ export function AdminOrders() {
     }
 
     return next;
-  }, [orders, filterStatus]);
+  }, [orders, filterStatus, productionTurns]);
 
   const pendingForOrder = (orderId: string) =>
     cancellationRequests.filter((request) => request.order_id === orderId && request.status === 'pending');
@@ -231,8 +241,8 @@ export function AdminOrders() {
         <div>
           <h1 className="mb-2 text-4xl font-bold text-green-800">Gestión de pedidos</h1>
           <p className="text-lg text-gray-600">
-            Aquí aparecen los pedidos pagados o rechazados y los pedidos anticipados programados para organizar su preparación.
-            Los pagos pendientes se revisan en Pagos; los anticipados mostrarán su descanso y hora de recogida.
+            La cola pone las reservas confirmadas primero y luego los pedidos nuevos por orden de llegada. Los turnos son estimaciones temporales calculadas en la app; no se guardan en Supabase.
+            Los pagos pendientes se revisan en Pagos. Si la carga supera el descanso, la recogida requiere confirmación de la cafetería.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -285,6 +295,11 @@ export function AdminOrders() {
             const pendingCancellationCount = pendingForOrder(order.id).length;
             const comment = getOrderComment(order);
             const recessName = order.scheduled_recess_name ?? order.scheduled_recess?.name;
+            const productionTurn = productionTurns.get(order.id);
+            const turnOverrunsRecess = Boolean(productionTurn && productionTurn.estimated_pickup_at && Date.parse(productionTurn.estimated_pickup_at) > Date.parse(productionTurn.recess_ends_at));
+            const turnTime = productionTurn?.estimated_pickup_at
+              ? new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(productionTurn.estimated_pickup_at))
+              : null;
             const preorderDeliveryLocked = order.preordered === true && (
               !order.scheduled_for ||
               !Number.isFinite(Date.parse(order.scheduled_for)) ||
@@ -305,6 +320,7 @@ export function AdminOrders() {
                       {getStatusBadge(order.status)}
                       {getPaymentBadge(order.payment_status)}
                       {order.preordered && <Badge className="bg-indigo-600 text-white">Anticipado · {recessName ?? 'Descanso'}</Badge>}
+                      {productionTurn && <Badge className={turnOverrunsRecess ? 'bg-rose-600 text-white' : 'bg-amber-500 text-white'}>Turno {productionTurn.queue_position}/{productionTurn.queue_size} · {turnOverrunsRecess ? 'supera el descanso' : turnTime ? `estimado ${turnTime}` : 'en preparación'}</Badge>}
                       {order.pickup_outcome === 'unclaimed' && <Badge className="bg-rose-600 text-white">No reclamado</Badge>}
                       {order.pickup_outcome === 'claimed' && order.preordered && <Badge className="bg-emerald-700 text-white">Recogido</Badge>}
                       {pendingCancellationCount > 0 && (
