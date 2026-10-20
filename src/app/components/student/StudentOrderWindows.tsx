@@ -102,7 +102,7 @@ export default function StudentOrderWindows() {
     () => [...recessOptions].sort((a, b) => a.start_time.localeCompare(b.start_time)),
     [recessOptions],
   );
-  const orderedPickupOrderWindows = useMemo(
+  const orderedPickupWindows = useMemo(
     () => [...pickupWindows].sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
     [pickupWindows],
   );
@@ -110,12 +110,12 @@ export default function StudentOrderWindows() {
   const nextRecess = orderedRecesses.find(
     (option) => !option.is_active && option.window_open && timeToMinutes(option.start_time) > nowMinutes,
   );
-  const currentPickupOrderWindow = orderedPickupOrderWindows.find((window) => {
+  const currentPickupWindow = orderedPickupWindows.find((window) => {
     const starts = timeToMinutes(window.starts_at);
     const ends = timeToMinutes(window.ends_at);
     return window.enabled && nowMinutes >= starts && nowMinutes < ends;
   });
-  const nextPickupOrderWindow = orderedPickupOrderWindows.find(
+  const nextPickupWindow = orderedPickupWindows.find(
     (window) => window.enabled && timeToMinutes(window.starts_at) > nowMinutes,
   );
 
@@ -126,10 +126,10 @@ export default function StudentOrderWindows() {
         ? recessStatus(nextRecess)
         : 'Horarios de hoy cerrados'
     : rule === 'pickup'
-      ? currentPickupOrderWindow
-        ? pickupStatus(currentPickupOrderWindow, nowMinutes)
-        : nextPickupOrderWindow
-          ? 'Próxima ventana: ' + nextPickupOrderWindow.slot_name
+      ? currentPickupWindow
+        ? pickupStatus(currentPickupWindow, nowMinutes)
+        : nextPickupWindow
+          ? 'Próxima ventana: ' + nextPickupWindow.slot_name
           : 'No hay más ventanas hoy'
       : rule === 'unrestricted'
         ? 'Puedes pedir sin restricción de horario'
@@ -142,16 +142,16 @@ export default function StudentOrderWindows() {
         ? nextRecess.name + ' · ' + timeLabel(nextRecess.start_time) + '–' + timeLabel(nextRecess.end_time)
         : 'No quedan descansos habilitados para hoy.'
     : rule === 'pickup'
-      ? currentPickupOrderWindow
-        ? currentPickupOrderWindow.slot_name + ' · ' + timeLabel(currentPickupOrderWindow.starts_at) + '–' + timeLabel(currentPickupOrderWindow.ends_at)
-        : nextPickupOrderWindow
-          ? timeLabel(nextPickupOrderWindow.starts_at) + '–' + timeLabel(nextPickupOrderWindow.ends_at)
+      ? currentPickupWindow
+        ? currentPickupWindow.slot_name + ' · ' + timeLabel(currentPickupWindow.starts_at) + '–' + timeLabel(currentPickupWindow.ends_at)
+        : nextPickupWindow
+          ? timeLabel(nextPickupWindow.starts_at) + '–' + timeLabel(nextPickupWindow.ends_at)
           : 'Consulta con la cafetería si necesitas que habiliten un horario.'
       : rule === 'unrestricted'
         ? 'No hay un recreo activo asignado a tu sección hoy y las ventanas generales están desactivadas.'
         : 'No mostramos ventanas alternativas porque todavía no pudimos confirmar cuál regla se aplica.';
 
-  const totalPickupRemaining = orderedPickupOrderWindows.reduce((total, window) => {
+  const totalPickupRemaining = orderedPickupWindows.reduce((total, window) => {
     if (!window.enabled || window.max_orders === null) return total;
     return total + Math.max(window.max_orders - Number(window.orders_count), 0);
   }, 0);
@@ -344,11 +344,11 @@ export default function StudentOrderWindows() {
               </article>
               <article className="rounded-2xl border border-slate-800 bg-[#121A2F] p-5">
                 <p className="text-[10px] font-black uppercase tracking-[.14em] text-slate-400">Cupos de pedidos restantes</p>
-                <p className="mt-2 text-lg font-black text-white">{orderedPickupOrderWindows.some((window) => window.max_orders === null) ? 'Algunas ventanas no tienen límite' : totalPickupRemaining + ' cupos sumados'}</p>
+                <p className="mt-2 text-lg font-black text-white">{orderedPickupWindows.some((window) => window.max_orders === null) ? 'Algunas ventanas no tienen límite' : totalPickupRemaining + ' cupos sumados'}</p>
                 <p className="mt-1 text-sm text-slate-400">Cada cupo corresponde a un pedido dentro de una ventana general.</p>
               </article>
             </section>
-            {orderedPickupOrderWindows.length === 0 ? (
+            {orderedPickupWindows.length === 0 ? (
               <section className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-8">
                 <h2 className="text-xl font-black text-amber-200">No hay ventanas generales configuradas</h2>
                 <p className="mt-2 text-sm leading-6 text-amber-100/80">La restricción está activada, pero no hay horarios disponibles. La cafetería debe configurar una ventana en Administración antes de que puedas completar un pedido.</p>
@@ -360,7 +360,7 @@ export default function StudentOrderWindows() {
                   <p className="mt-1 text-sm text-slate-400">Hora Colombia · se actualiza automáticamente cada 15 segundos.</p>
                 </div>
                 <div className="grid gap-4 lg:grid-cols-2">
-                  {orderedPickupOrderWindows.map((window) => {
+                  {orderedPickupWindows.map((window) => {
                     const count = Number(window.orders_count);
                     const maximum = window.max_orders === null ? null : Number(window.max_orders);
                     const remaining = maximum === null ? null : Math.max(maximum - count, 0);
