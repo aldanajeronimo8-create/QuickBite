@@ -130,7 +130,7 @@ export function StudentReviewsPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <button type="button" onClick={() => navigate('/menu')} className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300"><ArrowLeft className="h-4 w-4"/>Volver al menú</button>
       <header className="qb-surface rounded-[2rem] border qb-border p-6 shadow-lg">
-        <p className="text-xs font-black uppercase tracking-[.18em] text-amber-600 dark:text-amber-300">Experiencia QuickBite</p>
+        <p className="text-xs font-black uppercase tracking-[.18em] text-amber-600 dark:text-amber-300">Experiencia Ritena</p>
         <h1 className="qb-text mt-2 text-3xl font-black">Reseñas y calificaciones</h1>
         <p className="qb-text-secondary mt-2 max-w-2xl text-sm">Califica productos que ya recibiste y ayuda a mejorar el menú de la cafetería.</p>
       </header>
