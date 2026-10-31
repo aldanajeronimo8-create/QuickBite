@@ -2,7 +2,7 @@ export type RuntimeMode = 'supabase';
 export type AppEnvironment = 'development' | 'staging' | 'production';
 
 export const appConfig = {
-  appName: import.meta.env.VITE_APP_NAME ?? 'QuickBite',
+  appName: import.meta.env.VITE_APP_NAME ?? 'Ritena',
   appVersion: import.meta.env.VITE_APP_VERSION ?? '1.0.0',
   appEnv: (import.meta.env.VITE_APP_ENV ?? 'development') as AppEnvironment,
   publicAppUrl: import.meta.env.VITE_PUBLIC_APP_URL ?? '',

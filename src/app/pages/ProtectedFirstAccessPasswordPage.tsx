@@ -85,7 +85,7 @@ export function ProtectedFirstAccessPasswordPage() {
         throw new Error(functionError.message || 'No se pudo verificar el cambio de contraseña.');
       }
       if (data?.error) throw new Error(String(data.error));
-      if (data?.changed !== true) throw new Error('QuickBite no confirmó el cambio de contraseña.');
+      if (data?.changed !== true) throw new Error('Ritena no confirmó el cambio de contraseña.');
 
       // The server clears the trusted app_metadata flag. Sign out so the next
       // session receives a fresh JWT with that flag removed.
@@ -110,7 +110,7 @@ export function ProtectedFirstAccessPasswordPage() {
           </div>
           <p className="text-xs font-black uppercase tracking-[.2em] text-cyan-200">Protección de cuenta</p>
           <h1 className="mt-2 text-2xl font-black">Configura tu contraseña personal</h1>
-          <p className="mt-2 text-sm text-slate-200">Este paso es obligatorio antes de usar cualquier espacio de QuickBite.</p>
+          <p className="mt-2 text-sm text-slate-200">Este paso es obligatorio antes de usar cualquier espacio de Ritena.</p>
         </div>
 
         <div className="p-7 sm:p-8">

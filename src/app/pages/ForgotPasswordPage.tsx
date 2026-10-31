@@ -48,7 +48,7 @@ export function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <div className="qb-auth-brand mb-8 text-center">
           <QuickBiteLogo className="mb-4 h-16 w-16 rounded-2xl" />
-          <h1 className="mb-2 text-4xl font-bold text-white">QuickBite</h1>
+          <h1 className="mb-2 text-4xl font-bold text-white">Ritena</h1>
           <p className="text-blue-200">Restablecer contraseña</p>
         </div>
 

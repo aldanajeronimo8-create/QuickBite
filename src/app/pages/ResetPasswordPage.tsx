@@ -109,7 +109,7 @@ export function ResetPasswordPage() {
       <div className="w-full max-w-md relative z-10">
         <div className="qb-auth-brand text-center mb-8">
           <QuickBiteLogo className="mb-4 h-16 w-16 rounded-2xl" />
-          <h1 className="text-4xl font-bold text-white mb-2">QuickBite</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">Ritena</h1>
           <p className="text-blue-200">Cambiar contraseña</p>
         </div>
 
@@ -173,7 +173,7 @@ export function ResetPasswordPage() {
           )}
         </div>
 
-        <p className="text-center text-white/50 text-sm mt-6">© 2025 QuickBite · Colegio Bilingüe Maximino Poitiers</p>
+        <p className="text-center text-white/50 text-sm mt-6">© 2026 Ritena · Colegio Bilingüe Maximino Poitiers</p>
       </div>
     </div>
   );

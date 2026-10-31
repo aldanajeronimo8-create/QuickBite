@@ -47,7 +47,7 @@ export function SetupWizardPage() {
         </div>
         <h1 className="text-3xl font-black sm:text-4xl">Configuración inicial</h1>
         <p className="mt-3 max-w-3xl text-slate-700">
-          QuickBite no encontró una configuración completa para producción. Puedes conectar un
+          Ritena no encontró una configuración completa para producción. Puedes conectar un
           proyecto Supabase existente o crear uno nuevo manualmente, y completar las variables de
           entorno antes de habilitar el modo productivo.
         </p>

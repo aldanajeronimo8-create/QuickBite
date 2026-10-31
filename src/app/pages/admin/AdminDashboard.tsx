@@ -110,7 +110,7 @@ export function AdminDashboard() {
             <span className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--qb-text-muted)]">Control inteligente</span>
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-[var(--qb-text)]">Dashboard</h1>
-          <p className="mt-2 text-lg text-[var(--qb-text-secondary)]">Ventas, inventario y señales de demanda de QuickBite.</p>
+          <p className="mt-2 text-lg text-[var(--qb-text-secondary)]">Ventas, inventario y señales de demanda de Ritena.</p>
         </div>
         <Button variant="outline" onClick={() => void loadDashboard()} disabled={loadingAnalytics}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loadingAnalytics ? 'animate-spin' : ''}`} />

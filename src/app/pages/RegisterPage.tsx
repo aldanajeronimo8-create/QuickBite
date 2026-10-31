@@ -174,7 +174,7 @@ export function RegisterPage() {
         {/* Logo & Header */}
         <div className="qb-auth-brand text-center mb-8">
           <QuickBiteLogo className="mb-4 h-16 w-16 rounded-2xl" />
-          <h1 className="text-4xl font-bold text-white mb-2">QuickBite Admin</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">Ritena Admin</h1>
           <p className="text-blue-200">Registro de Administrador</p>
         </div>
 
@@ -219,7 +219,7 @@ export function RegisterPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@quickbite.com"
+                  placeholder="admin@institucion.edu.co"
                   value={formData.email}
                   onChange={(e) => updateField('email', e.target.value)}
                   className={`pl-11 bg-white/5 border-white/20 text-white placeholder:text-white/40 focus:border-blue-400 focus:ring-blue-400/50 ${
@@ -382,7 +382,7 @@ export function RegisterPage() {
 
         {/* Footer */}
         <p className="text-center text-white/50 text-sm mt-6">
-          © 2025 QuickBite - Colegio Bilingüe Maximino Poitiers
+          © 2026 Ritena - Colegio Bilingüe Maximino Poitiers
         </p>
       </div>
     </div>
