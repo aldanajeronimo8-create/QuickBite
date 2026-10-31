@@ -141,7 +141,7 @@ export function StudentWalletPage() {
 
       <section className="overflow-hidden rounded-[2rem] bg-slate-900 p-6 text-white shadow-xl sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-5">
-          <div><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-300">QuickBite Student</p><h1 className="mt-2 text-3xl font-black sm:text-4xl">Saldos y recargas</h1><p className="mt-2 max-w-xl text-sm text-slate-300">Consulta tu saldo, solicita una recarga y revisa todo el historial sin salir de esta sección.</p></div>
+          <div><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-300">Ritena Student</p><h1 className="mt-2 text-3xl font-black sm:text-4xl">Saldos y recargas</h1><p className="mt-2 max-w-xl text-sm text-slate-300">Consulta tu saldo, solicita una recarga y revisa todo el historial sin salir de esta sección.</p></div>
           <div className="rounded-3xl bg-white/10 p-5 ring-1 ring-white/10"><Wallet className="h-6 w-6 text-emerald-300"/><p className="mt-4 text-xs font-black uppercase tracking-wide text-slate-300">Saldo disponible</p><p className="mt-1 text-4xl font-black">${money(Number(wallet.balance))}</p></div>
         </div>
         <a href="#solicitar-recarga" className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-black text-white hover:bg-emerald-400"><PlusCircle className="h-4 w-4"/>Solicitar una recarga</a>
