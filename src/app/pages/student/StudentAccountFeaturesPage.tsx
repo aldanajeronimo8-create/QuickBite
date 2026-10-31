@@ -167,7 +167,7 @@ export function StudentAccountFeaturesPage() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <div className="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200"><UserCircle className="h-8 w-8"/></div>
-            <div className="min-w-0"><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-700">QuickBite Student</p><h1 className="truncate text-3xl font-black">Mi cuenta</h1><p className="mt-1 truncate text-sm text-slate-600">{profile.full_name || 'Estudiante'} · {profile.email || 'Sin correo registrado'}</p></div>
+            <div className="min-w-0"><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-700">Ritena Student</p><h1 className="truncate text-3xl font-black">Mi cuenta</h1><p className="mt-1 truncate text-sm text-slate-600">{profile.full_name || 'Estudiante'} · {profile.email || 'Sin correo registrado'}</p></div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="rounded-2xl bg-emerald-50 px-4 py-3 ring-1 ring-emerald-100"><p className="text-[11px] font-black uppercase tracking-wide text-emerald-700">Pedidos semana</p><p className="mt-1 text-xl font-black">{orders.length}</p></div>
@@ -193,7 +193,7 @@ export function StudentAccountFeaturesPage() {
       {userId && <StudentPasswordSection userId={userId} />}
 
       <section className="rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-xl backdrop-blur-xl">
-        <div className="flex items-center gap-3"><HeartPulse className="h-6 w-6 text-rose-600"/><div><h2 className="font-black">Alimentación y bienestar</h2><p className="text-sm text-slate-600">Personaliza la información alimentaria que QuickBite mantiene para ti.</p></div></div>
+        <div className="flex items-center gap-3"><HeartPulse className="h-6 w-6 text-rose-600"/><div><h2 className="font-black">Alimentación y bienestar</h2><p className="text-sm text-slate-600">Personaliza la información alimentaria que Ritena mantiene para ti.</p></div></div>
         <div className="mt-5 grid gap-4 md:grid-cols-2"><label className="text-sm font-bold">Alergias<input value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="Ej.: maní, leche" className="mt-2 w-full rounded-2xl border border-slate-200 bg-white p-3 font-normal"/></label><label className="text-sm font-bold">Restricciones<input value={restrictions} onChange={(e) => setRestrictions(e.target.value)} placeholder="Ej.: vegetariano" className="mt-2 w-full rounded-2xl border border-slate-200 bg-white p-3 font-normal"/></label></div>
         <label className="mt-4 block text-sm font-bold">Notas<textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Información adicional relevante para tu perfil alimentario" className="mt-2 w-full rounded-2xl border border-slate-200 bg-white p-3 font-normal"/></label>
         <button disabled={savingDietary} onClick={() => void saveDietary()} className="mt-4 rounded-full bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm disabled:bg-slate-300">{savingDietary ? 'Guardando…' : 'Guardar preferencias'}</button>
@@ -211,7 +211,7 @@ export function StudentAccountFeaturesPage() {
       </section>
 
       <section className="rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-xl backdrop-blur-xl">
-        <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-slate-700"/><div><h2 className="font-black">Ayuda y cuenta</h2><p className="text-sm text-slate-600">Acciones importantes antes de salir de QuickBite.</p></div></div>
+        <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-slate-700"/><div><h2 className="font-black">Ayuda y cuenta</h2><p className="text-sm text-slate-600">Acciones importantes antes de salir de Ritena.</p></div></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-2xl bg-slate-50 p-4"><p className="font-black">¿Necesitas ayuda?</p><p className="mt-1 text-xs leading-5 text-slate-500">Para un problema de pedidos, pagos, saldo o acceso, utiliza las secciones correspondientes del Centro de funciones para llegar al estado y detalle correctos.</p><Link to="/student/features" className="mt-3 inline-flex items-center gap-2 text-sm font-black text-blue-700">Abrir Centro de funciones<ChevronRight className="h-4 w-4"/></Link></div><div className="flex flex-col justify-between rounded-2xl border border-rose-100 bg-rose-50/70 p-4"><div><p className="font-black text-rose-900">Cerrar sesión</p><p className="mt-1 text-xs leading-5 text-rose-800">Cierra únicamente la sesión de esta pestaña/cuenta actual.</p></div><button type="button" onClick={() => void signOut()} disabled={signingOut} className="mt-4 inline-flex w-fit items-center gap-2 rounded-full bg-rose-600 px-4 py-2.5 text-sm font-black text-white shadow-sm disabled:bg-slate-300"><LogOut className="h-4 w-4"/>{signingOut ? 'Cerrando…' : 'Cerrar sesión'}</button></div></div>
       </section>
     </div>
