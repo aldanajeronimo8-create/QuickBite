@@ -125,7 +125,7 @@ export function ParentWellbeingPage() {
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <button type="button" onClick={() => navigate('/parent/family')} className="mt-1 rounded-full border qb-border qb-surface p-3 qb-text" aria-label="Volver a mi familia"><ArrowLeft className="h-5 w-5" /></button>
-            <div><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-700 dark:text-emerald-300">QuickBite Family</p><h1 className="qb-text mt-1 text-3xl font-black">Bienestar de {activeStudent.full_name}</h1><p className="qb-text-secondary mt-1 text-sm">Resumen de consumo, límites y actividad reciente del estudiante.</p></div>
+            <div><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-700 dark:text-emerald-300">Ritena Family</p><h1 className="qb-text mt-1 text-3xl font-black">Bienestar de {activeStudent.full_name}</h1><p className="qb-text-secondary mt-1 text-sm">Resumen de consumo, límites y actividad reciente del estudiante.</p></div>
           </div>
           <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-300/20 dark:bg-emerald-500/10 dark:text-emerald-200"><ShieldCheck className="h-5 w-5" />Protección familiar activa</div>
         </header>
