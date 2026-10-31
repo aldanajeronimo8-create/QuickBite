@@ -1,6 +1,6 @@
-# QuickBite
+# Ritena
 
-QuickBite is a React, TypeScript and Supabase-ready cafeteria ordering/admin app.
+Ritena is a React, TypeScript and Supabase-ready platform for coordinating school cafeteria orders and operations.
 
 <!-- Vercel production redeploy trigger: complete operational reset. -->
 <!-- Vercel production redeploy trigger: complete operational reset v2. -->
