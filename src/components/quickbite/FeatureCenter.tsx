@@ -51,4 +51,4 @@ export function FeatureCenter() {
   </section>;
 }
 
-export const RITENA_FEATURE_COUNT = features.length;
+export const QUICKBITE_FEATURE_COUNT = features.length;
