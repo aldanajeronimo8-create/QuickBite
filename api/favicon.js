@@ -160,8 +160,9 @@ function roundCorners(buffer) {
 }
 
 export default function handler(_request, response) {
+  const sourcePath = path.join(process.cwd(), 'public', 'Diseño sin título (1).png');
+
   try {
-    const sourcePath = path.join(process.cwd(), 'public', 'favicon-source.png');
     const source = fs.readFileSync(sourcePath);
     const favicon = roundCorners(source);
 
@@ -170,9 +171,14 @@ export default function handler(_request, response) {
     response.status(200).send(favicon);
   } catch (error) {
     console.error('favicon generation failed', error);
-    const fallback = fs.readFileSync(path.join(process.cwd(), 'public', 'favicon-source.png'));
-    response.setHeader('Content-Type', 'image/png');
-    response.setHeader('Cache-Control', 'public, max-age=3600');
-    response.status(200).send(fallback);
+    try {
+      const fallback = fs.readFileSync(sourcePath);
+      response.setHeader('Content-Type', 'image/png');
+      response.setHeader('Cache-Control', 'public, max-age=3600');
+      response.status(200).send(fallback);
+    } catch (fallbackError) {
+      console.error('favicon fallback failed', fallbackError);
+      response.status(500).send('Favicon unavailable');
+    }
   }
 }
