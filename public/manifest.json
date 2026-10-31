@@ -1,6 +1,6 @@
 {
-  "name": "QuickBite - Cafetería Colegio Maximino Poitiers",
-  "short_name": "QuickBite",
+  "name": "Ritena - Cafetería Colegio Maximino Poitiers",
+  "short_name": "Ritena",
   "description": "Sistema de pedidos para la cafetería del Colegio Bilingüe Maximino Poitiers",
   "start_url": "/",
   "display": "standalone",
@@ -9,16 +9,16 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "categories": ["food", "education", "shopping"],
