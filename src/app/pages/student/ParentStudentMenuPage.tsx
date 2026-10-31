@@ -129,7 +129,7 @@ export function ParentStudentMenuPage() {
       </header>
 
       <section className="flex flex-wrap items-center justify-between gap-4 rounded-[2rem] bg-white/80 p-6 shadow-xl ring-1 ring-white/70 backdrop-blur-xl">
-        <div><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-700">QuickBite Student</p><h1 className="mt-1 text-3xl font-black">Menú</h1><p className="mt-1 text-sm text-slate-600">Compra y consulta la experiencia del estudiante seleccionado.</p></div>
+        <div><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-700">Ritena Student</p><h1 className="mt-1 text-3xl font-black">Menú</h1><p className="mt-1 text-sm text-slate-600">Compra y consulta la experiencia del estudiante seleccionado.</p></div>
         <div className="flex flex-wrap gap-2"><span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700">Saldo: ${money(walletBalance)}</span><span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">Pedidos activos: {activeOrders.length}</span></div>
       </section>
 
