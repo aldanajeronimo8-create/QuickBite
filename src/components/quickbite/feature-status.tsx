@@ -36,7 +36,7 @@ export function FeatureStatus() {
     <section className="rounded-3xl border border-white/60 bg-white/65 p-5 shadow-lg backdrop-blur-2xl dark:border-white/15 dark:bg-slate-900/65">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">QuickBite</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Ritena</p>
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50">25 funcionalidades</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300">Accesos preparados para la experiencia de usuario y administración.</p>
         </div>
