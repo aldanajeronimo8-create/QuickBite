@@ -117,7 +117,7 @@ export function StudentLinkCodePage() {
         <section className="rounded-[2rem] bg-white/80 p-8 text-center shadow-xl backdrop-blur-xl">
           <Users className="mx-auto h-10 w-10 text-blue-700" aria-hidden="true" />
           <h1 className="mt-4 text-3xl font-black">Código para vincularme</h1>
-          <p className="mt-2 text-sm text-slate-600">Entrega este código a tu padre, madre o acudiente para que pueda vincular tu perfil en QuickBite.</p>
+          <p className="mt-2 text-sm text-slate-600">Entrega este código a tu padre, madre o acudiente para que pueda vincular tu perfil en Ritena.</p>
           {loading ? <p className="mt-8 font-bold">Comprobando código…</p> : (
             <>
               <div className="mt-8 rounded-3xl bg-slate-50 p-6">
